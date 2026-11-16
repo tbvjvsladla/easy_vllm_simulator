@@ -165,6 +165,8 @@ const LAUNCHER_SWITCHED: &[&str] = &[
     "recipe_escalation_predicate_selftest",
     "recipe_rope_translate_selftest",
     "recipe_gmu_roles_batch_selftest",
+    "terraform_agent_guard_selftest",
+    "blackbox_session_selftest",
 ];
 
 /// Golden check names that were renamed with their launcher (`upstream_help:x.py` → `upstream_help:x.sh`).
@@ -244,7 +246,7 @@ fn compare_reports(golden_name: &str, mutate: bool) {
         }
         assert_eq!(dumps(g1), dumps(&w1), "{golden_name}: check {name}");
     }
-    assert_eq!(argv_changed, 7 + LAUNCHER_SWITCHED.len() + 9, "the seven policy-program checks plus the ported upstream/recipe launchers (15 named + 9 upstream_help) change their argv");
+    assert_eq!(argv_changed, 7 + LAUNCHER_SWITCHED.len() + 9, "the seven policy-program checks plus the ported upstream/recipe/blackbox launchers (17 named + 9 upstream_help) change their argv");
 }
 
 fn apply_mutations(tree: &Path) {

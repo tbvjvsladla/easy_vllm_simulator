@@ -1,0 +1,90 @@
+{
+  "derived": {
+    "abs_band_mib": 10240,
+    "abs_band_source": "default:blackbox_eta.DEFAULTS.abs_band_mib (레거시 절대임계 재사용)",
+    "max_rate_mib_s": 0,
+    "max_rate_source": "derived:int(mem_total // runway) — 셸 정수 산술과 동일 경계",
+    "mem_total_mib": 1,
+    "mem_total_source": "explicit:--mem-total-mib",
+    "observed_max_rate_exceeds_unconditional": false,
+    "runway_s": 8.0,
+    "runway_source": "derived:blackbox_eta.runway_s(envelope.eta_params + DEFAULTS)",
+    "unconditional_trip_rate_mib_s": 0.1,
+    "unconditional_trip_rate_source": "derived:mem_total/runway — 이 하강률 이상에서 ETA 는 잔량과 무관하게 항상 TRIP"
+  },
+  "descent_rate_mib_s": {
+    "falling_samples": 0,
+    "max": null,
+    "max_source": "measured:max-of-daily-max (정확)",
+    "p50": null,
+    "p90": null,
+    "p99": null,
+    "percentile_source": "measured:1Hz 원시 전수"
+  },
+  "eta_params": {
+    "agent_act_s": 300.0,
+    "agent_notify_s": 900.0,
+    "kill_latency_s": 4.0
+  },
+  "eta_params_source": {
+    "agent_act_s": "default:blackbox_eta.DEFAULTS",
+    "agent_notify_s": "default:blackbox_eta.DEFAULTS",
+    "kill_latency_s": "default:blackbox_eta.DEFAULTS (실측 표본 0)"
+  },
+  "generated_utc": "2026-07-31T12:00:00Z",
+  "kill": {
+    "latency_s": {
+      "max": null,
+      "n": 0,
+      "observed": [],
+      "p50": null,
+      "scope": "all-time",
+      "source": "measured:events watchdog_trip→watchdog_kill_ack (1s 해상도)"
+    },
+    "trip_mem_mib": [],
+    "trips": 0
+  },
+  "mem_avail_mib": {
+    "max": null,
+    "min": null,
+    "min_source": "measured:min-of-daily-min (정확)",
+    "p01": null,
+    "p50": null
+  },
+  "node_id": "sub",
+  "provenance": {
+    "absent_fields": [],
+    "caveat": "백분위수는 원시 samples 가 남은 날에서만 정확하다. rollup 대체분이 있으면 `percentiles_exact=false` 이며 max/min 만 정확하다(최대의 최대·최소의 최소). kill 지연은 events 평면 1초 해상도 실측이라 seed 의 15초 재구성값을 대체한다.",
+    "days_from_rollup": [],
+    "days_from_samples": [],
+    "days_missing": [
+      "2026-07-18",
+      "2026-07-19",
+      "2026-07-20",
+      "2026-07-21",
+      "2026-07-22",
+      "2026-07-23",
+      "2026-07-24",
+      "2026-07-25",
+      "2026-07-26",
+      "2026-07-27",
+      "2026-07-28",
+      "2026-07-29",
+      "2026-07-30",
+      "2026-07-31"
+    ],
+    "generator": "regen_envelope.py",
+    "percentiles_exact": true,
+    "resolution_s": 1,
+    "source": "rollup+1Hz samples",
+    "window_days": 14
+  },
+  "samples": {
+    "count": 0,
+    "first_day": null,
+    "last_day": null,
+    "source": "measured:samples/*.csv[.zst|.gz] + rollup/*.json"
+  },
+  "schema_version": 2,
+  "state": "empty"
+}

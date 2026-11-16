@@ -718,10 +718,10 @@ BUDGET_DECLARED=0
 budget_node_dir_main(){ printf '%s/docs/logs/%s' "$REPO" "$MAIN_NODE_ID"; }
 budget_node_dir_sub(){  printf '%s/docs/logs/%s' "$SUB_WORK_DIR" "$SUB_NODE_ID"; }
 SUB_SESSION_PY="$SUB_WORK_DIR/.claude/runtime/node_blackbox/blackbox_session.py"
-MAIN_SESSION_PY="$REPO/.claude/skills/terraforming_node/scripts/node_blackbox/blackbox_session.py"
+MAIN_SESSION_SH="$REPO/.claude/skills/terraforming_node/scripts/node_blackbox/blackbox_session.sh"  # Rust 런처(메인)
 MAIN_RENEW_SH="$REPO/.claude/skills/terraforming_node/scripts/node_blackbox/budget_renew_loop.sh"
 SUB_RENEW_SH="$SUB_WORK_DIR/.claude/runtime/node_blackbox/budget_renew_loop.sh"
-MAIN_REGEN_PY="$REPO/.claude/skills/terraforming_node/scripts/node_blackbox/regen_envelope.py"
+MAIN_REGEN_SH="$REPO/.claude/skills/terraforming_node/scripts/node_blackbox/regen_envelope.sh"  # Rust 런처(메인)
 SUB_REGEN_PY="$SUB_WORK_DIR/.claude/runtime/node_blackbox/regen_envelope.py"
 NOW_ISO(){ date -u +%FT%TZ; }
 
@@ -767,7 +767,7 @@ teardown_serve(){
   #   내리려는 그 서빙의 선언은 다른 실행이 남긴 것이고, 그것을 남기는 것이 정확히 이 함수가 고치는 결함이다.
   #   clear-budget 은 멱등이라 선언이 없으면 그렇게 보고하고 끝난다.
   if [ "$mode" = "standalone" ] || [ "$BUDGET_DECLARED" = "1" ]; then
-    python3 "$MAIN_SESSION_PY" --node-dir "$(budget_node_dir_main)" clear-budget --now "$(NOW_ISO)" 2>&1 | sed 's/^/[mn] 예산회수(main): /'
+    bash "$MAIN_SESSION_SH" --node-dir "$(budget_node_dir_main)" clear-budget --now "$(NOW_ISO)" 2>&1 | sed 's/^/[mn] 예산회수(main): /'
     [ -n "$SUB_NODE_ID" ] && timeout 30 $SSH -n "$SUB_HOST" "bash -lc '$SUB_CD python3 $SUB_SESSION_PY --node-dir $SUB_WORK_DIR/docs/logs/$SUB_NODE_ID clear-budget --now $(NOW_ISO)'" 2>&1 | sed 's/^/[mn] 예산회수(sub): /'
   fi
   if [ "${STRICT_DROP_CACHES:-0}" = "1" ] && { [ "$cache_main_rc" != "0" ] || [ "$cache_sub_rc" != "0" ]; }; then
@@ -799,7 +799,7 @@ budget_block_event(){  # $1=stage $2=reason-slug · $3.. = key=value detail
   for d in "$@"; do dargs="$dargs --detail $d"; done
   now="$(NOW_ISO)"
   # shellcheck disable=SC2086  # dargs 는 우리가 만든 무공백 토큰열이라 분리가 의도다
-  if out=$(python3 "$MAIN_SESSION_PY" --node-dir "$(budget_node_dir_main)" budget-block \
+  if out=$(bash "$MAIN_SESSION_SH" --node-dir "$(budget_node_dir_main)" budget-block \
              --stage "$stage" --reason "$reason" --label "$BUDGET_LABEL" $dargs \
              --now "$now" 2>&1); then
     printf '%s\n' "$out" | sed 's/^/[mn]   main: /'
@@ -822,14 +822,14 @@ budget_block_event(){  # $1=stage $2=reason-slug · $3.. = key=value detail
 #   ★ `--no-budget` 여부와 **무관하게** 돈다. 신선도는 예산 정책이 아니라 데이터 사실이다.
 #   시각은 --now 주입만(벽시계 금지 — docs.md §기계판독 데이터 평면).
 ENVELOPE_MAX_AGE_DAYS="${ENVELOPE_MAX_AGE_DAYS:-7}"
-if [ -f "$MAIN_REGEN_PY" ]; then
-  python3 "$MAIN_REGEN_PY" --node-dir "$(budget_node_dir_main)" staleness \
+if [ -f "$MAIN_REGEN_SH" ]; then
+  bash "$MAIN_REGEN_SH" --node-dir "$(budget_node_dir_main)" staleness \
     --now "$(NOW_ISO)" --max-age-days "$ENVELOPE_MAX_AGE_DAYS" 2>&1 | sed 's/^/[mn] 포락선(main): /'
   # 부재를 조용히 넘기지 않는다 — "점검했고 괜찮았다"와 "점검 자체를 못 했다"는 다른 사실이다.
   timeout 30 $SSH -n "$SUB_HOST" "bash -lc '$SUB_CD if [ -f $SUB_REGEN_PY ]; then python3 $SUB_REGEN_PY --node-dir $(budget_node_dir_sub) staleness --now $(NOW_ISO) --max-age-days $ENVELOPE_MAX_AGE_DAYS; else echo \"⚠ $SUB_REGEN_PY 부재 — 미점검(render_sub_env/sync_to_sub 재배달 필요)\"; fi'" 2>&1 \
     | sed 's/^/[mn] 포락선(sub): /'
 else
-  echo "[mn] ⚠ $MAIN_REGEN_PY 부재 — 포락선 신선도 미점검(경고만)."
+  echo "[mn] ⚠ $MAIN_REGEN_SH 부재 — 포락선 신선도 미점검(경고만)."
 fi
 
 # `budget_honored` 는 **상시 ETA 워치독**(systemd)이 선언 파일을 재평가해 찍는다. 그런데 그 로그는
@@ -887,7 +887,7 @@ if [ "$BUDGET" = "1" ]; then
   #   현행 기본 7200s 는 하한으로 남긴다(둘 중 큰 값). 상한 86400 은 blackbox_session 이 강제한다.
   READY_BUDGET_S=$READY_WINDOW_S
   # TTL 하한은 **단일 소유자**(blackbox_session)에게 묻는다 — 여기에 숫자를 다시 적지 않는다(G-B2).
-  _TTL_FLOOR="$(python3 "$MAIN_SESSION_PY" --node-dir . budget-defaults --field ttl_s 2>/dev/null || echo)"
+  _TTL_FLOOR="$(bash "$MAIN_SESSION_SH" --node-dir . budget-defaults --field ttl_s 2>/dev/null || echo)"
   case "$_TTL_FLOOR" in ''|*[!0-9]*) echo "[mn] FAIL: 예산 TTL 기본값을 blackbox_session 에서 읽지 못했다" >&2; disarm_armed_watchdogs; exit 4;; esac
   BUDGET_TTL_S=$(( READY_BUDGET_S * 3 )); [ "$BUDGET_TTL_S" -lt "$_TTL_FLOOR" ] && BUDGET_TTL_S="$_TTL_FLOOR"
   [ "$BUDGET_TTL_S" -gt 86400 ] && BUDGET_TTL_S=86400
@@ -993,7 +993,7 @@ if [ "$BUDGET" = "1" ]; then
   declare_one(){ # $1=main|sub → 0=honored · 비0=실패(사유는 표준출력)
     local where="$1" nd py memtot t0 ev out hon had_decl
     if [ "$where" = "main" ]; then
-      nd="$(budget_node_dir_main)"; py="$MAIN_SESSION_PY"
+      nd="$(budget_node_dir_main)"; py="$MAIN_SESSION_SH"
       memtot=$(awk '/MemTotal:/{print int($2/1024)}' /proc/meminfo)
     else
       nd="$(budget_node_dir_sub)"; py="$SUB_SESSION_PY"
@@ -1005,13 +1005,13 @@ if [ "$BUDGET" = "1" ]; then
     clear_t0=$(date +%s)
     if [ "$where" = "main" ]; then
       [ -f "$nd/serve_budget.env" ] && had_decl=1 || had_decl=0
-      python3 "$py" --node-dir "$nd" clear-budget --now "$(NOW_ISO)" >/dev/null 2>&1
+      bash "$py" --node-dir "$nd" clear-budget --now "$(NOW_ISO)" >/dev/null 2>&1
       if [ "$had_decl" = 1 ]; then
         wait_budget_event "$ev" main "$clear_t0" budget_none >/dev/null || {
           echo "[mn]   main: clear-budget 상태 전이 미관측"; return 1; }
       fi
       t0=$(date +%s)
-      out=$(python3 "$py" --node-dir "$nd" declare-budget --mem-total-mib "$memtot" \
+      out=$(bash "$py" --node-dir "$nd" declare-budget --mem-total-mib "$memtot" \
               --weights-mib "$WEIGHTS_MIB" --kv-mib "$KV_MIB" --overhead-mib "$OVERHEAD_MIB" \
               --ttl-s "$BUDGET_TTL_S" --expected-load-s "$READY_BUDGET_S" \
               --label "$BUDGET_LABEL" --now "$(NOW_ISO)" 2>&1) || {
@@ -1047,7 +1047,7 @@ if [ "$BUDGET" = "1" ]; then
     echo "[mn]   주의: 이 플래그는 사살자를 끄지 않는다 — 상주 유닛(easy-vllm-memwatch ·"
     echo "[mn]   easy-vllm-blackbox-watchdog)은 계속 돌고, 선언이 없으면 arm 상한이 무제한이라"
     echo "[mn]   **정상 로드가 사살 대상이 된다**(camp-26090918 실측 3건)."
-    python3 "$MAIN_SESSION_PY" --node-dir "$(budget_node_dir_main)" budget-skip \
+    bash "$MAIN_SESSION_SH" --node-dir "$(budget_node_dir_main)" budget-skip \
       --reason=--no-watchdog --label "$BUDGET_LABEL" --now "$(NOW_ISO)" 2>&1 | sed 's/^/[mn]   main: /'
     timeout 30 $SSH -n "$SUB_HOST" "bash -lc '$SUB_CD python3 $SUB_SESSION_PY --node-dir $(budget_node_dir_sub) budget-skip --reason=--no-watchdog --label $BUDGET_LABEL --now $(NOW_ISO)'" 2>&1 | sed 's/^/[mn]   sub: /' || true
   else
@@ -1081,7 +1081,7 @@ else
   # 탈출구가 조용하면 탈출구가 아니라 구멍이다. 양노드에 기록을 남긴다.
   echo "[mn] ⚠ --no-budget: **무보호 진입** — ETA 워치독이 현행 규칙 그대로 돈다(대형 로드 사살 위험)."
   # `--reason=<v>` 등호형을 쓴다 — 공백형이면 argparse 가 값 `--no-budget` 을 **옵션으로** 읽어 죽는다.
-  python3 "$MAIN_SESSION_PY" --node-dir "$(budget_node_dir_main)" budget-skip \
+  bash "$MAIN_SESSION_SH" --node-dir "$(budget_node_dir_main)" budget-skip \
     --reason=--no-budget --label "$BUDGET_LABEL" --now "$(NOW_ISO)" 2>&1 | sed 's/^/[mn]   main: /'
   timeout 30 $SSH -n "$SUB_HOST" "bash -lc '$SUB_CD python3 $SUB_SESSION_PY --node-dir $(budget_node_dir_sub) budget-skip --reason=--no-budget --label $BUDGET_LABEL --now $(NOW_ISO)'" 2>&1 | sed 's/^/[mn]   sub: /'
 fi
@@ -1323,7 +1323,7 @@ elif [ -n "$WD_MAIN_PID" ] || [ "$BUDGET_DECLARED" = "1" ]; then
       echo "[mn]   갱신 루프(master) pid=$RENEW_MAIN_PID container=$MC (/tmp/mn_budget_renew_master.log)"
     else
       echo "[mn]   ⚠ $MAIN_RENEW_SH 부재 — master 갱신 루프 생략. 만료까지 ${BUDGET_TTL_S}s 뒤 무보호가 된다."
-      echo "[mn]     수동 연장: python3 $MAIN_SESSION_PY --node-dir $(budget_node_dir_main) renew-budget --ttl-s <n> --now <ISO>"
+      echo "[mn]     수동 연장: bash $MAIN_SESSION_SH --node-dir $(budget_node_dir_main) renew-budget --ttl-s <n> --now <ISO>"
     fi
     if [ -n "$SUB_NODE_ID" ] && $SSH "$SUB_HOST" "bash -lc '[ -f $SUB_RENEW_SH ]'" 2>/dev/null; then
       reap_renew_loops slave

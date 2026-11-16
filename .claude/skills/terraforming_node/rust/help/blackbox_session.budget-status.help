@@ -1,0 +1,5 @@
+usage: blackbox_session.py budget-status [-h] [--now NOW]
+
+options:
+  -h, --help  show this help message and exit
+  --now NOW   주면 remaining_s·expired 를 함께 낸다

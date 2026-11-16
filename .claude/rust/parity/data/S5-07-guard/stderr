@@ -1,0 +1,2 @@
+[eta] 하한 가드 위반 — 거부:
+  - runway(kill_latency+detect_margin)=12.50s < floor(kill_latency*1.5)=15.00s

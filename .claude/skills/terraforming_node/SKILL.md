@@ -209,8 +209,8 @@ ib_write_bw 오케스트레이션 · 호스트 안전체계 Y/N 설명·승인(�
 | `scripts/node_blackbox/adversarial_stress.sh` | §2.6 | — | 방어층 시험용 가압기(벤치마커 ✗) — `adversarial_stress` Rust 실행파일 런처(평문 `http://` 엔드포인트 · 부재 = 상태 2 + 빌드 안내 · Python 경로 없음) |
 | `scripts/node_blackbox/adversarial_stress.py` | §2.6 | — | 원본 보존(대조 golden 의 출처) — 호출은 `.sh` 로 한다 |
 | `scripts/node_blackbox/node_identity.sh` | §2.7.6 | ✓ | node_id 해소(실패하면 죽는다) |
-| `scripts/node_blackbox/`(런타임: `blackbox_session.py` · `budget_renew_loop.sh` · `blackbox_eta.py` · `regen_envelope.py` · `blackbox_thermal.py` · `mem_watchdog_eta.sh` · `thermal_watchdog.sh` · `agent_guard.py`) | §2.6 | ✓ | `references/blackbox/host_safety.md` |
-| `scripts/node_blackbox/`(설치: `install_node_blackbox.sh` · `verify_node_blackbox.sh` · `purge_host_safety.sh` · `publish_install_request.py`) | §2.6 · §2.6.1 | ✓ | HITL sudo |
+| `scripts/node_blackbox/`(런타임: `blackbox_session.sh` · `budget_renew_loop.sh` · `blackbox_eta.sh` · `regen_envelope.sh` · `blackbox_thermal.sh` · `mem_watchdog_eta.sh` · `thermal_watchdog.sh` · `agent_guard.sh` — `.sh` 는 Rust 실행파일 런처) | §2.6 | ✓ | `references/blackbox/host_safety.md` |
+| `scripts/node_blackbox/`(설치: `install_node_blackbox.sh` · `verify_node_blackbox.sh` · `purge_host_safety.sh` · `publish_install_request.sh`) | §2.6 · §2.6.1 | ✓ | HITL sudo |
 | `.claude/skills/terraforming_node/scripts/host_safety/` | §2.6 | ✓ | 협역 워치독 정본 `mem_watchdog.sh` · 레거시 설치자(`install_host_safety.sh` — 정책 술어가 본문을 읽으므로 유지) |
 
 - 벤치 owner 의 build→native 자체검사가 원래 정본 경로에서 읽는 기초층 의존 3종(`topology_parity.py` · `node_blackbox/node_identity.sh` · `scan_node.sh`)은 닫힌 목록 `render_sub_env.py::SUB_BENCH_FOUNDATION_RUNTIME` 으로 adversarial-benchmark 가 가는 서브에만 배달된다. 오케스트레이터가 아니며 `.claude/runtime/node_blackbox/` 의 설치용 사본과는 다른 자리다.

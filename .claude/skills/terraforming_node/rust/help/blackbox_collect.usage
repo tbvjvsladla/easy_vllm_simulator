@@ -1,0 +1,3 @@
+usage: blackbox_collect.py [-h] [--node-dir NODE_DIR] [--interval INTERVAL]
+                           [--no-kmsg] [--no-fsync]
+                           [--max-samples MAX_SAMPLES] [--self-test]

@@ -1,0 +1,19 @@
+{
+  "config_file": "c",
+  "image": "img",
+  "model": "m",
+  "model_path": "/p",
+  "notes": [
+    "a",
+    "끝"
+  ],
+  "recipe": "r",
+  "session_id": "s1",
+  "started_epoch": 1785456150,
+  "started_utc": "2026-07-31T00:02:30Z",
+  "stopped_epoch": null,
+  "stopped_utc": null,
+  "tensor_parallel_size": 1,
+  "topology": "single",
+  "verdict": null
+}

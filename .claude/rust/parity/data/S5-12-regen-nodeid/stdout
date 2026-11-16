@@ -1,0 +1,5 @@
+[regen] sub → Bad_Node/envelope.json
+        state=empty · samples=0 · 원시일=0 · rollup일=0 · 결손일=14
+        하강률 max=None p99=None p50=None (정확백분위=True)
+        kill 지연 실측 max=None p50=None n=0 (all-time)
+        파생: runway=8.0s · 무조건-트립 경계=0.1 MiB/s

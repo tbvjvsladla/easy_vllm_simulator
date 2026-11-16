@@ -1,0 +1,9 @@
+usage: blackbox_session.py renew-budget [-h] [--ttl-s TTL_S]
+                                        [--expected-load-s EXPECTED_LOAD_S]
+                                        --now NOW
+
+options:
+  -h, --help            show this help message and exit
+  --ttl-s TTL_S         지금부터 다시 셀 초(기본 7200 · 상한 86400)
+  --expected-load-s EXPECTED_LOAD_S
+  --now NOW

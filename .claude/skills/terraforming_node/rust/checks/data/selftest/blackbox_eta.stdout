@@ -1,0 +1,80 @@
+  [PASS] 정지 -> ETA None·green·무트립
+  [PASS] 6.1GiB/s 트립 지점 ~49.9GiB(디바운스 포함)
+  [PASS] 디바운스 1폴 -> 활주로 6s -> ~37.4GiB
+  [PASS] 디바운스↑ -> 트립 지점↑(지연분 보상)
+  [PASS] 44MiB/s·10.2GiB -> 무트립(오발 제거)
+  [PASS] 같은 지점 eta_zero ~231s
+  [PASS] kill 지연↑ -> 트립 지점↑(보수)
+  [PASS] 2GiB/s·5GiB -> TRIP
+  [PASS] 500s -> amber
+  [PASS] 196s -> red
+  [PASS] 2000s -> green
+  [PASS] 정상 파라미터 통과
+  [PASS] runway < floor 거부
+  [PASS] 에이전트 구간이 데몬 안쪽이면 거부
+  [PASS] notify <= act 거부
+  [PASS] 디바운스 0폴 거부
+  [PASS] 디바운스 비정수 거부
+  [PASS] 느린 누수라도 바닥 밑이면 TRIP
+  [PASS] 바닥 위 느린 하강은 무트립
+  [PASS] 7/22 오발 지점(10,186)은 바닥 밖
+  [PASS] 바닥 경계값 포함
+  [PASS] 셸 등가식 == 파이썬 판정 (8 케이스)
+  [PASS] emit 에 BB_MAX_RATE_MIB_S 파생값
+  [PASS] emit 에 BB_ABS_BAND_MIB=10240(정수)
+  [PASS] emit 에 BB_MEM_TOTAL_MIB 실값
+  [PASS] ★ 이중규칙 셸 등가식 == 파이썬 (15 케이스)
+  [PASS] mem_total 미상 → BB_MAX_RATE_MIB_S=0(이중규칙 OFF)
+  [PASS] mem_total 미상 → 판정이 옛 규칙과 동일(더 죽이는 쪽)
+  [PASS] emit 파일에 RUNWAY_MS=8000
+  [PASS] emit 파일에 DEBOUNCE_N=3
+  [PASS] emit 에 DECL_MARGIN_MIB=정본
+  [PASS] emit 에 DECL_MIN_CEILING_MIB=정본
+  [PASS] 선언 상수가 정수 표기
+  [PASS] 최소상한 <= 절대바닥 거부
+  [PASS] 음수 여유 거부
+  [PASS] ★ seed envelope 미지 키 = daemon_kill_s·eta_floor_s 2건
+  [PASS] eta_params.provenance 는 미지 키로 세지 않는다(메타)
+  [PASS] 정본 키만 있으면 미지 키 0
+  [PASS] envelope 부재/빈 dict 도 안전
+  [PASS] seed 키의 정본 교집합은 알림 밴드 2종뿐
+  [PASS] ★ seed 키 중 트립 판정에 쓰이는 키는 0개
+  [PASS] 상한이 mem_total/runway 에서 파생(15,576)
+  [PASS] 상한이 mem_total 변경을 따라간다(하드코딩 아님)
+  [PASS] kill 지연이 늘면 상한이 내려간다(runway 종속)
+  [PASS] mem_total 미상 → 상한 None(이중규칙 OFF)
+  [PASS] ★ R0 시도① 사살점(50772@21943) → 이중규칙 미발동
+  [PASS]   같은 점이 옛 규칙에서는 발동했다(대조)
+  [PASS] ★ R0 시도② 사살점(35158@22799) → 이중규칙 미발동
+  [PASS]   같은 점이 옛 규칙에서는 발동했다(대조)
+  [PASS] ★ R0 시도③ 반사실 지점(46,641@23,313) → 이중규칙 미발동
+  [PASS] 상한 위·밴드 경계값(10,240) 포함 → 발동
+  [PASS] 상한 위·밴드 위 1MiB → 미발동
+  [PASS] 상한 위·바닥 밑 → hard_floor 로 발동(밴드와 무관하게 항상 무장)
+  [PASS] 상한 아래 회귀(37000@6241.07) — 옛 판정과 동일
+  [PASS] 상한 아래 회귀(10186@44) — 옛 판정과 동일
+  [PASS] 상한 아래 회귀(120000@1) — 옛 판정과 동일
+  [PASS] 상한 아래 회귀(5000@2000) — 옛 판정과 동일
+  [PASS] ⚠ 진성 KV벌룬은 이중규칙에서 **미발동**(설계상 포기 · 방어는 선언/earlyoom)
+  [PASS]   같은 궤적이 옛 규칙에서는 전부 발동했다(무엇을 포기했는지 대조)
+  [PASS]   벌룬이 밴드까지 내려오면 되찾는다(10,000@23,162 → 발동)
+  [PASS] 상한 위 역산 = 절대 밴드
+  [PASS] 상한 아래 역산 = rate x runway(기존)
+  [PASS] 밴드 <= 절대바닥 거부(조용한 무장해제 방지)
+  [PASS] 정상 밴드 통과
+  [PASS] ★ 레거시 워치독 절대임계와 abs_band_mib 일치(교차검증)
+  [PASS] ★ 재생: 대형 로드 — 옛 규칙 kill>=1 · 이중규칙 kill=0
+  [PASS]   재생 요약이 상한·밴드를 함께 보고(출처 표시)
+  [PASS] 재생: 밴드 관통 → 이중규칙도 kill>=1
+  [PASS] 재생: 유휴 궤적 — 두 규칙 모두 kill=0
+  [PASS] 재생: 2폴만 지속 → 미발동(디바운스 보존)
+  [PASS] 재생: arm 상한 적용 시 옛 규칙도 kill=0(선언 효과 재현)
+  [PASS] 없는 체인을 전부 만든다
+  [PASS] 만든 경로가 조상 소유자를 물려받는다
+  [PASS] 멱등 — 이미 있으면 신규 0건
+  [PASS] 기존 경로의 소유권은 변경하지 않는다
+  [PASS] 비-root 에서도 예외 없이 동작
+  [PASS] 파일 소유 상속: 비-root 는 no-op(False) · 파일 보존
+  [PASS] 파일 소유 상속: 없는 파일도 예외 없이 False
+  [PASS] 재생: 판독 불가 경로는 None(조용한 0 아님)
+self-test: PASS (79 케이스)

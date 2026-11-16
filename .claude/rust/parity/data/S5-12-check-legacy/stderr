@@ -1,0 +1,8 @@
+  ✗ eta_params.daemon_kill_s 가 blackbox_eta.DEFAULTS 에 없다 — 현행 `if k in DEFAULTS` 필터가 **조용히 버린다**(가능: abs_band_mib, agent_act_s, agent_notify_s, debounce_polls, decl_margin_mib, decl_min_ceiling_mib, detect_margin_s, hard_floor_mib, kill_latency_s, min_rate_mib_s, poll_interval_s)
+  ✗ eta_params.eta_floor_s 가 blackbox_eta.DEFAULTS 에 없다 — 현행 `if k in DEFAULTS` 필터가 **조용히 버린다**(가능: abs_band_mib, agent_act_s, agent_notify_s, debounce_polls, decl_margin_mib, decl_min_ceiling_mib, detect_margin_s, hard_floor_mib, kill_latency_s, min_rate_mib_s, poll_interval_s)
+  ✗ eta_params.agent_act_s 에 출처(eta_params_source)가 없다 — 헌법 §결정론 규율: 값 옆에 출처를 둔다
+  ✗ eta_params.agent_notify_s 에 출처(eta_params_source)가 없다 — 헌법 §결정론 규율: 값 옆에 출처를 둔다
+  ✗ eta_params.kill_latency_s 는 수치여야 한다: True
+  ✗ eta_params.kill_latency_s 에 출처(eta_params_source)가 없다 — 헌법 §결정론 규율: 값 옆에 출처를 둔다
+  ✗ eta_params.provenance 는 값이 아니라 메타다 — eta_params_source 로 이관하라
+[regen] FAIL — 불일치 7 건(그중 미지 키 2 건)

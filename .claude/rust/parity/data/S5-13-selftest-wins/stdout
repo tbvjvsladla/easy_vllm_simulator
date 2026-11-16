@@ -1,0 +1,46 @@
+  [PASS] envelope 계약 파리티: 생산자 키를 전부 해소(리터럴로 떨어진 필드=없음)
+  [PASS] envelope 값이 실제로 반영됨(리터럴 기본값과 다름)
+  [PASS] 정상 envelope 에는 미해소 경고가 붙지 않는다
+  [PASS] 키 불일치 envelope → 배너에 경고 + 출처가 리터럴로 표기(조용한 통과 ✗)
+  [PASS] 선언 상수 출처 = 정본 파생 (현재: derived:blackbox_eta.DEFAULTS)
+  [PASS] margin 이 정본과 일치 (가드 3072 / 정본 3072)
+  [PASS] min_ceiling 이 정본과 일치 (가드 8192 / 정본 8192)
+  [PASS] 선언 상수의 리터럴 사본이 되살아나지 않았다(정본 파생 단일 경로)
+  [PASS] ETA 바닥 = 데몬 임계
+  [PASS] 바닥 0 과 데몬 임계는 다른 값(과대평가 방지)
+  [PASS] 정체(rate=0) → ∞
+  [PASS] 상승(rate<0) → ∞
+  [PASS] 이미 임계 아래 → 0
+  [PASS] ∞ → NORMAL
+  [PASS] 901s → NORMAL
+  [PASS] 900s(경계) → NOTIFY
+  [PASS] 301s → NOTIFY
+  [PASS] 300s(경계) → ACT
+  [PASS] LAST_RESORT 경계 직상 → ACT
+  [PASS] 30s(경계) → LAST_RESORT
+  [PASS] 0s → LAST_RESORT
+  [PASS] LAST_RESORT 가 데몬 kill 보다 **앞선다**
+  [PASS] LAST_RESORT 가 kill latency 실측 상한보다 앞선다
+  [PASS] stop-file 미지정 → 거짓 성공 금지
+  [PASS] 컨테이너 미지정 → 거짓 성공 금지
+  [PASS] envelope 부재 → 계약 기본값으로 fail-safe
+  [PASS] 회귀: mem=98,495 rate=1,916(eta 46s) — 선언 상한 위 → NORMAL (실패 당시 ACT)
+  [PASS] 회귀: mem=74,257 rate=9,298(eta 6.9s) — 선언 상한 위 → NORMAL (실패 당시 LAST_RESORT)
+  [PASS] 회귀: mem=111,463(eta 491s) — 선언 상한 위 → NORMAL (실패 당시 NOTIFY)
+  [PASS] 선언 부재(INF) → 현행 규칙 그대로 발동
+  [PASS] 선언 상한 **아래**로 뚫으면 재무장
+  [PASS] 데몬 임계 아래 → 선언 무관 LAST_RESORT
+  [PASS] NORMAL→LAST_RESORT 요구 시 NOTIFY 까지만
+  [PASS] NOTIFY→LAST_RESORT 요구 시 ACT 까지만
+  [PASS] ACT→LAST_RESORT 는 한 칸
+  [PASS] 강등은 즉시(회복은 빨라야 한다)
+  [PASS] ACT→NORMAL 즉시 강등
+  [PASS] 선언 파싱 → floor - margin(**정본** margin)
+  [PASS] TTL 만료 → INF
+  [PASS] 주입 시도 → INF(거부)
+  [PASS] 하한 가드 경계 floor=11263 → INF
+  [PASS] 하한 가드 경계 floor=11264 → 8192
+  [PASS] 맹점 회귀: floor=13801 → 데몬과 동일한 arm_ceiling(10729), INF 아님
+  [PASS] 선언 부재 → INF
+  [PASS] stamp = 앵커 기반(벽시계 아님)
+self-test: PASS

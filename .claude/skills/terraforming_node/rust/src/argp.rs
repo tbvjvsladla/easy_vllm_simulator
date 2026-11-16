@@ -32,6 +32,8 @@ pub struct Arg {
     pub choices: &'static [&'static str],
     /// Mutually exclusive group number (0 = none).
     pub group: u8,
+    /// `nargs`: 0 = one value (argparse's default), n > 0 = exactly n values, -1 = `"+"` (one or more).
+    pub nargs: i8,
 }
 
 pub const HELP: Arg = Arg {
@@ -42,6 +44,7 @@ pub const HELP: Arg = Arg {
     required: false,
     choices: &[],
     group: 0,
+    nargs: 0,
 };
 
 pub const fn flag(flags: &'static [&'static str]) -> Arg {
@@ -53,6 +56,7 @@ pub const fn flag(flags: &'static [&'static str]) -> Arg {
         required: false,
         choices: &[],
         group: 0,
+        nargs: 0,
     }
 }
 pub const fn store(flags: &'static [&'static str]) -> Arg {
@@ -64,6 +68,7 @@ pub const fn store(flags: &'static [&'static str]) -> Arg {
         required: false,
         choices: &[],
         group: 0,
+        nargs: 0,
     }
 }
 impl Arg {
@@ -92,6 +97,16 @@ impl Arg {
         self.act = Act::Append;
         self
     }
+    /// `nargs=n` (exactly n values; kept as `Val::Many`, or `Val::Floats` with `type=float`).
+    pub const fn nargs(mut self, n: i8) -> Self {
+        self.nargs = n;
+        self
+    }
+    /// `nargs="+"`.
+    pub const fn nargs_plus(mut self) -> Self {
+        self.nargs = -1;
+        self
+    }
     fn name(&self) -> String {
         self.flags.join("/")
     }
@@ -112,6 +127,7 @@ pub enum Val {
     Int(i64),
     Float(f64),
     Many(Vec<String>),
+    Floats(Vec<f64>),
 }
 
 #[derive(Debug, Default)]
@@ -147,6 +163,12 @@ impl Parsed {
     pub fn float(&self, i: usize) -> Option<f64> {
         match &self.vals[i] {
             Some(Val::Float(x)) => Some(*x),
+            _ => None,
+        }
+    }
+    pub fn floats(&self, i: usize) -> Option<&[f64]> {
+        match &self.vals[i] {
+            Some(Val::Floats(v)) => Some(v),
             _ => None,
         }
     }
@@ -379,6 +401,63 @@ fn parse_known(
                         }
                         value = None;
                         i += 1;
+                    }
+                    Act::Store if a.nargs != 0 => {
+                        // `nargs=n` / `nargs="+"`: the following non-option strings, as argparse's pattern match takes them
+                        let want = if a.nargs > 0 { a.nargs as usize } else { usize::MAX };
+                        let mut vals: Vec<String> = vec![];
+                        if let Some(e) = explicit {
+                            vals.push(e);
+                            i += 1;
+                        } else {
+                            let mut j = i + 1;
+                            while j < args.len() && vals.len() < want {
+                                let nx = &args[j];
+                                if nx == "--" || !matches!(classify(spec, nx), Ok(Classified::Positional)) {
+                                    break;
+                                }
+                                vals.push(nx.clone());
+                                j += 1;
+                            }
+                            i = j;
+                        }
+                        if (a.nargs > 0 && vals.len() != want) || vals.is_empty() {
+                            let m = if a.nargs > 0 {
+                                format!(
+                                    "argument {}: expected {} argument{}",
+                                    a.name(),
+                                    want,
+                                    if want == 1 { "" } else { "s" }
+                                )
+                            } else {
+                                format!("argument {}: expected at least one argument", a.name())
+                            };
+                            return Err((m, me));
+                        }
+                        let converted = if a.float {
+                            let mut fs = vec![];
+                            for v in &vals {
+                                match agent_runtime_support::pynumber::float_from_str(&PyStr::new(v)) {
+                                    Ok(x) => fs.push(x),
+                                    Err(_) => {
+                                        return Err((
+                                            format!(
+                                                "argument {}: invalid float value: {}",
+                                                a.name(),
+                                                repr(v)
+                                            ),
+                                            me,
+                                        ))
+                                    }
+                                }
+                            }
+                            Val::Floats(fs)
+                        } else {
+                            Val::Many(vals)
+                        };
+                        seen[ai] = true;
+                        p.vals[ai] = Some(converted);
+                        continue;
                     }
                     Act::Store | Act::Append => {
                         if let Some(e) = explicit {

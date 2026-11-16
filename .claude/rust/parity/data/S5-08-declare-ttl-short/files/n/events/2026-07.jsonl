@@ -1,0 +1,1 @@
+{"expected_load_s": 665, "kind": "budget_declare_rejected", "kv_mib": 16384, "label": "glm-47-flash", "mem_total_mib": 124610, "overhead_mib": 12288, "reason": "--ttl-s 1800 는 예상 로드 665s 의 3배(=1995s)보다 짧다 — 로드 도중 만료가 예약된다. 거부한다(조용한 보정 금지).", "source": "blackbox_session", "ts": "2026-07-31T00:00:00Z", "ttl_s": 1800, "weights_mib": 59556}

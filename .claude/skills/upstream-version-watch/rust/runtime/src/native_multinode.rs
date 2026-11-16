@@ -1144,7 +1144,7 @@ pub fn load_ctx(repo: &Path, cell: &str, run_id: &str, source_cell: Option<&str>
         work_dir: rp.clone(),
         root: root.clone(),
         short: short.clone(),
-        session_py: format!("{rp}/{nb}/node_blackbox/blackbox_session.py"),
+        session_py: format!("{rp}/{nb}/node_blackbox/blackbox_session.sh"),
         renew_sh: format!("{rp}/{nb}/node_blackbox/budget_renew_loop.sh"),
         watchdog_sh: format!("{rp}/{nb}/host_safety/mem_watchdog.sh"),
         node_dir: format!("{rp}/docs/logs/main"),
@@ -1398,7 +1398,7 @@ pub fn plan(c: &Ctx, here: &Path) -> Vec<String> {
         add(
             &mut lines,
             n,
-            sv(&["python3", &spec.session_py, "--node-dir", &spec.node_dir, "declare-budget", "--mem-total-mib", "<MemTotal>", "--weights-mib", "<w>", "--kv-mib", "<kv>", "--overhead-mib", &c.overhead_mib.to_string(), "--ttl-s", "<max(3×ready,floor)>", "--expected-load-s", &c.ready_max_s.to_string(), "--label", &format!("smoke-{}", c.cell), "--now", "<UTC>"]),
+            sv(&[session_interpreter(&spec.session_py), &spec.session_py, "--node-dir", &spec.node_dir, "declare-budget", "--mem-total-mib", "<MemTotal>", "--weights-mib", "<w>", "--kv-mib", "<kv>", "--overhead-mib", &c.overhead_mib.to_string(), "--ttl-s", "<max(3×ready,floor)>", "--expected-load-s", &c.ready_max_s.to_string(), "--label", &format!("smoke-{}", c.cell), "--now", "<UTC>"]),
             "clear→declare→budget_honored 관측",
         );
     }
@@ -1954,5 +1954,16 @@ pub fn run(script: Option<&PyStr>, args: &[PyStr]) -> i32 {
             say_err(&format!("FAIL: {m}"));
             EXIT_FAIL
         }
+    }
+}
+
+/// The interpreter of a node's session tool: the Rust launcher (`blackbox_session.sh`, main) runs under bash; a Sub
+/// overlay that still carries only the original `.py` runs under python3 (plan_26111615 — the Sub plane is delivered
+/// by render_sub_env).
+pub fn session_interpreter(session_tool: &str) -> &'static str {
+    if session_tool.ends_with(".sh") {
+        "bash"
+    } else {
+        "python3"
     }
 }

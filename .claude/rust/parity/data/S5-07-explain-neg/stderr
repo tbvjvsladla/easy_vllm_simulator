@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "/tmp/parity-o-S5-07-explain-neg-3732254-1794818531483359426/.claude/skills/terraforming_node/scripts/node_blackbox/blackbox_eta.py", line 960, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/tmp/parity-o-S5-07-explain-neg-3732254-1794818531483359426/.claude/skills/terraforming_node/scripts/node_blackbox/blackbox_eta.py", line 906, in main
+    r = compute_eta(mem, rate, params, mem_total_mib=mem_total)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/parity-o-S5-07-explain-neg-3732254-1794818531483359426/.claude/skills/terraforming_node/scripts/node_blackbox/blackbox_eta.py", line 233, in compute_eta
+    raise ValueError("mem_avail_mib must be >= 0")
+ValueError: mem_avail_mib must be >= 0

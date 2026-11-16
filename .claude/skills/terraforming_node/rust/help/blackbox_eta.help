@@ -1,0 +1,26 @@
+usage: blackbox_eta.py [-h] [--node-dir NODE_DIR] [--emit-params EMIT_PARAMS]
+                       [--set K=V] [--allow-unknown-envelope-keys]
+                       [--explain MEM_MIB RATE_MIB_S]
+                       [--mem-total-mib MEM_TOTAL_MIB]
+                       [--replay CSV [CSV ...]]
+                       [--replay-arm-ceiling REPLAY_ARM_CEILING] [--self-test]
+
+노드블랙박스 ETA 엔진
+
+options:
+  -h, --help            show this help message and exit
+  --node-dir NODE_DIR   docs/logs/<node_id>
+  --emit-params EMIT_PARAMS
+                        셸 상수 출력 경로 (eta_params.env)
+  --set K=V             파라미터 override (예: --set kill_latency_s=5)
+  --allow-unknown-envelope-keys
+                        envelope.eta_params 의 미지 키를 거부하지 않고 무시(임시 탈출구)
+  --explain MEM_MIB RATE_MIB_S
+                        주어진 잔량·하강률의 ETA/밴드/트립 판정을 설명
+  --mem-total-mib MEM_TOTAL_MIB
+                        이중규칙 상한 파생용 총량. 기본 = /proc/meminfo → envelope.derived
+  --replay CSV [CSV ...]
+                        samples CSV 를 재생해 기존 ETA 규칙 대 이중규칙의 kill 횟수를 비교
+  --replay-arm-ceiling REPLAY_ARM_CEILING
+                        재생 시 선언된 바닥의 arm 상한(기본=선언 없음 가정)
+  --self-test

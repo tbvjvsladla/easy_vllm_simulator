@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "/tmp/parity-o-S5-10-set-bad-3814608-1794819151746217383/.claude/skills/terraforming_node/scripts/node_blackbox/blackbox_thermal.py", line 737, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/tmp/parity-o-S5-10-set-bad-3814608-1794819151746217383/.claude/skills/terraforming_node/scripts/node_blackbox/blackbox_thermal.py", line 662, in main
+    params[k] = int(float(v))
+                    ^^^^^^^^
+ValueError: could not convert string to float: 'abc'

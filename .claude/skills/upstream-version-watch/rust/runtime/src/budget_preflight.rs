@@ -101,6 +101,12 @@ pub fn constants(repo: &Path) -> Result<(i64, i64, i64), String> {
             "[budget-preflight] FAIL: 선언 상수를 blackbox_eta.DEFAULTS 에서 읽지 못했다({why}).\n  찾은 자리: {listing}\n  여기에 사본을 두지 않는다 — 거울은 정본이 움직일 때 조용히 옛값으로 남는다."
         )
     };
+    // The owner is the Rust `blackbox_eta` (plan_26111615): its launcher emits DEFAULTS (no envelope, no override) as
+    // `BB_<KEY>=<value>` lines — the same table, read without Python. A plane that still carries only the original
+    // (`.claude/runtime/node_blackbox/blackbox_eta.py` on a Sub) is read as before.
+    if let Some(sh) = candidates.iter().map(|d| d.join("blackbox_eta.sh")).find(|p| p.is_file()) {
+        return constants_from_launcher(&sh).map_err(|why| fail(&why));
+    }
     let file = candidates
         .iter()
         .map(|d| d.join("blackbox_eta.py"))
@@ -142,6 +148,40 @@ pub fn constants(repo: &Path) -> Result<(i64, i64, i64), String> {
     match (margin, min_ceiling, band) {
         (Some(a), Some(b), Some(c)) => Ok((a, b, c)),
         _ => Err(fail("KeyError")),
+    }
+}
+
+/// The three declaration constants from `bash <launcher> --emit-params <tmp> --mem-total-mib 1` (DEFAULTS only).
+fn constants_from_launcher(sh: &Path) -> Result<(i64, i64, i64), String> {
+    let dir = std::env::temp_dir().join(format!("budget-preflight-{}-{}", std::process::id(),
+        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or(0)));
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let out = dir.join("eta_params.env");
+    let st = std::process::Command::new("bash")
+        .arg(sh)
+        .arg("--emit-params")
+        .arg(&out)
+        .args(["--mem-total-mib", "1"])
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status();
+    let text = std::fs::read_to_string(&out).unwrap_or_default();
+    let _ = std::fs::remove_dir_all(&dir);
+    match st {
+        Ok(s) if s.success() => {}
+        Ok(s) => return Err(format!("{} --emit-params rc={}", sh.display(), s.code().unwrap_or(-1))),
+        Err(e) => return Err(e.to_string()),
+    }
+    let get = |k: &str| -> Option<i64> {
+        text.lines()
+            .find_map(|l| l.strip_prefix(k))
+            .and_then(|v| v.parse::<f64>().ok())
+            .map(|x| x as i64)
+    };
+    match (get("BB_DECL_MARGIN_MIB="), get("BB_DECL_MIN_CEILING_MIB="), get("BB_ABS_BAND_MIB=")) {
+        (Some(a), Some(b), Some(c)) => Ok((a, b, c)),
+        _ => Err("KeyError".into()),
     }
 }
 

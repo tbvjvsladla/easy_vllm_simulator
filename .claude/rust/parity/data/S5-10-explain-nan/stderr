@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "/tmp/parity-o-S5-10-explain-nan-3814608-1794819149677882306/.claude/skills/terraforming_node/scripts/node_blackbox/blackbox_thermal.py", line 737, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/tmp/parity-o-S5-10-explain-nan-3814608-1794819149677882306/.claude/skills/terraforming_node/scripts/node_blackbox/blackbox_thermal.py", line 677, in main
+    pwr_dw = int(round(w * 10))
+                 ^^^^^^^^^^^^^
+ValueError: cannot convert float NaN to integer

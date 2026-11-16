@@ -1,0 +1,17 @@
+Traceback (most recent call last):
+  File "/tmp/parity-o-S5-13-bad-date-3829732-1794819179629759687/.claude/skills/terraforming_node/scripts/node_blackbox/agent_guard.py", line 609, in <module>
+    raise SystemExit(_main())
+                     ^^^^^^^
+  File "/tmp/parity-o-S5-13-bad-date-3829732-1794819179629759687/.claude/skills/terraforming_node/scripts/node_blackbox/agent_guard.py", line 337, in _main
+    clock = Clock(_parse_now(a.now))
+                  ^^^^^^^^^^^^^^^^^
+  File "/tmp/parity-o-S5-13-bad-date-3829732-1794819179629759687/.claude/skills/terraforming_node/scripts/node_blackbox/agent_guard.py", line 45, in _parse_now
+    return datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/_strptime.py", line 554, in _strptime_datetime
+    tt, fraction, gmtoff_fraction = _strptime(data_string, format)
+                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/_strptime.py", line 520, in _strptime
+    julian = datetime_date(year, month, day).toordinal() - \
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: day is out of range for month

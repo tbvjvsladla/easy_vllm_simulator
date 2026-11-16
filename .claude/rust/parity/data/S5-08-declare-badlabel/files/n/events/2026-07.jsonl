@@ -1,0 +1,1 @@
+{"expected_load_s": 0, "kind": "budget_declare_rejected", "kv_mib": 16384, "label": "bad label$(id)", "mem_total_mib": 124610, "overhead_mib": 12288, "reason": "--label 은 [A-Za-z0-9._-]+ 여야 한다(워치독 파서 문자셋): 'bad label$(id)'", "source": "blackbox_session", "ts": "2026-07-31T00:02:30Z", "ttl_s": 7200, "weights_mib": 59556}

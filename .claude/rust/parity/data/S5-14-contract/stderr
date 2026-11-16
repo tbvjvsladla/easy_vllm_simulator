@@ -1,0 +1,2 @@
+[bb-request] FAIL(3): 설치자/검증기 인터페이스가 이 발행기의 전제와 다르다 — verify_node_blackbox.sh 에 '--post-crash' 없음
+[bb-request]        지시서의 명령 정본은 그 스크립트다. 발행기를 먼저 맞춰라.

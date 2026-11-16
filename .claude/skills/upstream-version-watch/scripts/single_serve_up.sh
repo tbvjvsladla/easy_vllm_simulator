@@ -130,10 +130,10 @@ BB_DIR="$(_bb_dir)" || { echo "$TAG FAIL: node_blackbox 도구 디렉터리 부�
 NODE_ID="$(ni_resolve_node_id "$REPO" "$EXPLICIT_NODE_ID")" || {
   echo "$TAG FAIL: node_id 미해소 — 예산·세션 디렉터리를 정할 수 없다(fail-loud)." >&2; exit 2; }
 NODE_DIR="$REPO/docs/logs/$NODE_ID"
-SESSION_PY="$BB_DIR/blackbox_session.py"
+SESSION_SH="$BB_DIR/blackbox_session.sh"  # Rust 런처
 # TTL 기본값은 **단일 소유자**(blackbox_session)에게 묻는다 — 여기에 7200 을 다시 적지 않는다(G-B2).
 if [ -z "$TTL_S" ]; then
-  TTL_S="$(python3 "$SESSION_PY" --node-dir "$NODE_DIR" budget-defaults --field ttl_s 2>/dev/null || echo)"
+  TTL_S="$(bash "$SESSION_SH" --node-dir "$NODE_DIR" budget-defaults --field ttl_s 2>/dev/null || echo)"
   case "$TTL_S" in ''|*[!0-9]*)
     echo "$TAG FAIL: 예산 TTL 기본값을 blackbox_session 에서 읽지 못했다 — 숫자를 여기 다시 적지 않는다" >&2
     exit 2;;
@@ -269,8 +269,8 @@ if [ "$PF_RC" = "4" ]; then
   exit 4
 fi
 if [ "$DRY" = "1" ]; then
-  echo "$TAG 3/7 예산 선언       : (dry-run) python3 $SESSION_PY ${DECL_ARGS[*]}"
-elif out="$(python3 "$SESSION_PY" "${DECL_ARGS[@]}" 2>&1)"; then
+  echo "$TAG 3/7 예산 선언       : (dry-run) bash $SESSION_SH ${DECL_ARGS[*]}"
+elif out="$(bash "$SESSION_SH" "${DECL_ARGS[@]}" 2>&1)"; then
   printf '%s\n' "$out" | sed "s/^/$TAG     /"
   echo "$TAG 3/7 예산 선언       : DONE"
   CLEANUP_NEEDED=1
@@ -292,8 +292,8 @@ SESS_ARGS=(--node-dir "$NODE_DIR" start --session-id "$SESSION_ID"
            --now "$(NOW_ISO)")
 [ -n "$IMAGE_TAG" ] && SESS_ARGS+=(--image "$IMAGE_TAG")
 if [ "$DRY" = "1" ]; then
-  echo "$TAG 4/7 세션 start      : (dry-run) python3 $SESSION_PY ${SESS_ARGS[*]}"
-elif out="$(python3 "$SESSION_PY" "${SESS_ARGS[@]}" 2>&1)"; then
+  echo "$TAG 4/7 세션 start      : (dry-run) bash $SESSION_SH ${SESS_ARGS[*]}"
+elif out="$(bash "$SESSION_SH" "${SESS_ARGS[@]}" 2>&1)"; then
   printf '%s\n' "$out" | sed "s/^/$TAG     /"
   echo "$TAG 4/7 세션 start      : DONE"
 else

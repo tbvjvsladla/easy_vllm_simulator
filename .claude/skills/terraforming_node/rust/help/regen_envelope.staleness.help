@@ -1,0 +1,8 @@
+usage: regen_envelope.py staleness [-h] --now NOW [--envelope ENVELOPE]
+                                   [--max-age-days MAX_AGE_DAYS]
+
+options:
+  -h, --help            show this help message and exit
+  --now NOW
+  --envelope ENVELOPE
+  --max-age-days MAX_AGE_DAYS

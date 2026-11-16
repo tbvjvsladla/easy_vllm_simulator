@@ -1,0 +1,5 @@
+[collect] SoC 열 zone 6개: 0:acpitz, 1:acpitz, 5:acpitz, 6:acpitz, 7:acpitz, 8:acpitz
+[collect] SoC 열 zone 6개: 0:acpitz, 1:acpitz, 5:acpitz, 6:acpitz, 7:acpitz, 8:acpitz
+[collect] SoC 열 zone 6개: 0:acpitz, 1:acpitz, 5:acpitz, 6:acpitz, 7:acpitz, 8:acpitz
+[collect] SoC 열 zone 없음(/tmp/tmpi0hhjrcw/no-thermal) — soc_temp/soc_zone 은 상시 빈 칸(부재)
+[collect] 경고: GPU 스트림 99s 무출력 — 자식을 재기동한다(낡은 값을 신선한 것처럼 싣지 않는다)

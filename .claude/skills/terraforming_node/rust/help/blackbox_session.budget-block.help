@@ -1,0 +1,14 @@
+usage: blackbox_session.py budget-block [-h] --stage
+                                        {derive,preflight_ceiling,declare}
+                                        --reason REASON [--label LABEL]
+                                        [--detail KEY=VALUE] --now NOW
+
+options:
+  -h, --help            show this help message and exit
+  --stage {derive,preflight_ceiling,declare}
+                        derive=입력 파생 실패 · preflight_ceiling=arm 상한 선판정 ·
+                        declare=선언/수락 실패
+  --reason REASON       slug [A-Za-z0-9._-]+ (기계판독 평면)
+  --label LABEL
+  --detail KEY=VALUE    부가 수치(반복 가능). 숫자면 정수로 기록한다
+  --now NOW

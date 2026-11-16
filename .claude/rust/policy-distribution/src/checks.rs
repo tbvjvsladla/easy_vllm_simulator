@@ -1036,7 +1036,7 @@ pub fn verify_with(repo: &Path, record: AsOfRecord, hooks: &Hooks) -> Result<PyV
     checks.push(rr("terraform_rust_bootstrap_selftest", &["bash", &format!("{tn}/selftest_rust_bootstrap.sh")], &[0]));
     checks.push(p("terraform_sub_hint_write_scopes_selftest", &format!("{tn}/selftest_sub_hint_write_scopes.py"), &["-B"], &[0]));
     checks.push(p("terraform_check_sub_hint_equip_selftest", &format!("{tn}/check_sub_hint_equip.py"), &["--self-test"], &[0]));
-    checks.push(p("terraform_agent_guard_selftest", &format!("{tn}/node_blackbox/agent_guard.py"), &["--self-test"], &[0]));
+    checks.push(rr("terraform_agent_guard_selftest", &["bash", &format!("{tn}/node_blackbox/agent_guard.sh"), "--self-test"], &[0]));
     checks.push(rr("terraform_node_identity_selftest", &["bash", &format!("{tn}/node_blackbox/node_identity.sh"), "--self-test"], &[0]));
     checks.push(rr("terraform_host_safety_mem_watchdog_selftest", &["bash", &format!("{tn}/host_safety/mem_watchdog.sh"), "--self-test"], &[0]));
     checks.push(rr("terraform_budget_renew_loop_selftest", &["bash", &format!("{tn}/node_blackbox/budget_renew_loop.sh"), "--self-test"], &[0]));
@@ -1077,7 +1077,7 @@ pub fn verify_with(repo: &Path, record: AsOfRecord, hooks: &Hooks) -> Result<PyV
     checks.push(bash("campaign_init_selftest", &format!("{tn}/campaign_init.sh"), &["--selftest"], &[0]));
     checks.push(p("campaign_lifecycle_selftest", &format!("{tn}/selftest_campaign_lifecycle.py"), &[], &[0]));
     checks.push(bash("campaign_template_validator_selftest", &format!("{tn}/campaign_template_validator.sh"), &["--selftest"], &[0]));
-    checks.push(p("blackbox_session_selftest", &format!("{tn}/node_blackbox/blackbox_session.py"), &["--self-test"], &[0]));
+    checks.push(rr("blackbox_session_selftest", &["bash", &format!("{tn}/node_blackbox/blackbox_session.sh"), "--self-test"], &[0]));
     checks.push(bash("benchmark_sweep_meta_selftest", &format!("{ab}/selftest_sweep_meta.sh"), &[], &[0]));
     checks.push(bash("benchmark_sweep_stop_selftest", &format!("{ab}/sweep_stop.sh"), &["--self-test"], &[0]));
     checks.push(bash("benchmark_parse_bench_native_selftest", &format!("{ab}/parse_bench.sh"), &["self-test"], &[0]));

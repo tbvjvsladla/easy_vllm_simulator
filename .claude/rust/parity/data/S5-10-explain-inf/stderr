@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "/tmp/parity-o-S5-10-explain-inf-3814608-1794819150082633157/.claude/skills/terraforming_node/scripts/node_blackbox/blackbox_thermal.py", line 737, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/tmp/parity-o-S5-10-explain-inf-3814608-1794819150082633157/.claude/skills/terraforming_node/scripts/node_blackbox/blackbox_thermal.py", line 678, in main
+    soc_c = int(c)
+            ^^^^^^
+OverflowError: cannot convert float infinity to integer

@@ -14,6 +14,8 @@ path = "src/lib.rs"
 [dependencies]
 # Python-compatible text, JSON and YAML semantics shared with the other owner packages (path dependency, read-only).
 agent-runtime-support = { path = "../../../rust/runtime-support" }
+# The topology owner publish_install_request asks (`manifest_gate::resolve_topology`, path dependency, read-only).
+role-contract = { path = "../../../rust/role-contract" }
 # Raw DEFLATE and CRC-32 for the gzip container of logs_lifecycle (Python stdlib `gzip` in the original).
 miniz_oxide = "0.9"
 crc32fast = "1"
@@ -46,9 +48,49 @@ path = "src/bin/adversarial_stress.rs"
 name = "seed_from_journal"
 path = "src/bin/seed_from_journal.rs"
 
+[[bin]]
+name = "blackbox_eta"
+path = "src/bin/blackbox_eta.rs"
+
+[[bin]]
+name = "blackbox_session"
+path = "src/bin/blackbox_session.rs"
+
+[[bin]]
+name = "blackbox_collect"
+path = "src/bin/blackbox_collect.rs"
+
+[[bin]]
+name = "blackbox_thermal"
+path = "src/bin/blackbox_thermal.rs"
+
+[[bin]]
+name = "blackbox_events"
+path = "src/bin/blackbox_events.rs"
+
+[[bin]]
+name = "regen_envelope"
+path = "src/bin/regen_envelope.rs"
+
+[[bin]]
+name = "agent_guard"
+path = "src/bin/agent_guard.rs"
+
+[[bin]]
+name = "publish_install_request"
+path = "src/bin/publish_install_request.rs"
+
 [[test]]
 name = "golden_cases"
 path = "checks/golden_cases.rs"
+
+[[test]]
+name = "blackbox_selftests"
+path = "checks/blackbox_selftests.rs"
+
+[[test]]
+name = "agent_guard_trace"
+path = "checks/agent_guard_trace.rs"
 
 [[test]]
 name = "stress_checks"

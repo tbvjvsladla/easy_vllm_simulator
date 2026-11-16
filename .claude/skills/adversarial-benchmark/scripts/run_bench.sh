@@ -367,15 +367,15 @@ bench_with_guidellm(){
     echo "[run_bench] native: Docker serve-budget inspection skipped (host endpoint/proof plane)"
   else
   local _BB_DIR="$REPO/.claude/skills/terraforming_node/scripts/node_blackbox"
-  local _SESSION_PY="$_BB_DIR/blackbox_session.py"
+  local _SESSION_SH="$_BB_DIR/blackbox_session.sh"
   local _PREFLIGHT="$REPO/.claude/skills/upstream-version-watch/scripts/budget_preflight.sh"
-  if [ -f "$_BB_DIR/node_identity.sh" ] && [ -f "$_SESSION_PY" ] && [ -f "$_PREFLIGHT" ]; then
+  if [ -f "$_BB_DIR/node_identity.sh" ] && [ -f "$_SESSION_SH" ] && [ -f "$_PREFLIGHT" ]; then
     # shellcheck source=/dev/null
     . "$_BB_DIR/node_identity.sh"
     local _NID _NDIR _BSTAT _BRC _FLOOR
     if _NID="$(ni_resolve_node_id "$REPO" "" 2>/dev/null)" && [ -n "$_NID" ]; then
       _NDIR="$REPO/docs/logs/$_NID"
-      _BSTAT="$(python3 "$_SESSION_PY" --node-dir "$_NDIR" budget-status --now "$(date -u +%FT%TZ)" 2>/dev/null)"; _BRC=$?
+      _BSTAT="$(bash "$_SESSION_SH" --node-dir "$_NDIR" budget-status --now "$(date -u +%FT%TZ)" 2>/dev/null)"; _BRC=$?
       if [ "$_BRC" = "0" ]; then
         _FLOOR="$(printf '%s' "$_BSTAT" | bash "$SDIR/bench_shell.sh" floor-mib 2>/dev/null)"
         if [ -n "$_FLOOR" ]; then
@@ -387,7 +387,7 @@ bench_with_guidellm(){
           fi
           # 선언이 벤치 도중 만료되면 워치독은 옛 규칙(무제한 arm)으로 돌아간다. 시계만 민다
           #   — 바닥은 건드리지 않는다(원 산출 provenance 보존).
-          python3 "$_SESSION_PY" --node-dir "$_NDIR" renew-budget --now "$(date -u +%FT%TZ)" \
+          bash "$_SESSION_SH" --node-dir "$_NDIR" renew-budget --now "$(date -u +%FT%TZ)" \
             >/dev/null 2>&1 || echo "[run_bench] ⚠ 예산 TTL 갱신 실패 — 벤치 도중 만료 위험" >&2
         fi
       else

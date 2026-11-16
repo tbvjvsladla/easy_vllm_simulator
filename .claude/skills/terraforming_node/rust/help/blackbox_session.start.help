@@ -1,0 +1,19 @@
+usage: blackbox_session.py start [-h] --session-id SESSION_ID --model MODEL
+                                 [--model-path MODEL_PATH] [--recipe RECIPE]
+                                 --topology {single,multi} [--tp TP]
+                                 [--config-file CONFIG_FILE] [--image IMAGE]
+                                 --now NOW [--note NOTE] [--force]
+
+options:
+  -h, --help            show this help message and exit
+  --session-id SESSION_ID
+  --model MODEL
+  --model-path MODEL_PATH
+  --recipe RECIPE
+  --topology {single,multi}
+  --tp TP
+  --config-file CONFIG_FILE
+  --image IMAGE
+  --now NOW             YYYY-MM-DDTHH:MM:SSZ (벽시계 금지)
+  --note NOTE
+  --force

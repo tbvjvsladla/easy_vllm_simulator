@@ -1,0 +1,16 @@
+{
+  "config_file": null,
+  "image": null,
+  "model": "m2",
+  "model_path": null,
+  "notes": [],
+  "recipe": null,
+  "session_id": "s1",
+  "started_epoch": 1785456150,
+  "started_utc": "2026-07-31T00:02:30Z",
+  "stopped_epoch": null,
+  "stopped_utc": null,
+  "tensor_parallel_size": null,
+  "topology": "multi",
+  "verdict": null
+}

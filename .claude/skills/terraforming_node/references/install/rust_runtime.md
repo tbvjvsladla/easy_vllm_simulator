@@ -183,7 +183,7 @@ Rust 설치(`rust_bootstrap.sh install|check`)는 어떤 검증기·Flag·ELF �
 | 진입 | `staleness_gate.py` · `scan_node.py --topology single\|multi [--emit-manifest]` · `node_role_contract.py` · `topology_parity.py` | 불필요(Python / 원본 소유자) |
 | 설치 | `rust_bootstrap.sh install → check` | 불필요 |
 | 빌드 | `build_rust.sh`(B) → `build_rust_packages.sh`(Q/T 라이브러리 · P · U) | 산출 |
-| 서브 manifest·렌더 | `scan_node.py --emit-sub-manifest` · `render_sub_env.py --sub-manifest\|--self-test` · `render_dockerfile.py` · `publish_install_request.py` | **manifest_contract**(메인) |
+| 서브 manifest·렌더 | `scan_node.py --emit-sub-manifest` · `render_sub_env.py --sub-manifest\|--self-test` · `render_dockerfile.py` · `publish_install_request.sh` | **manifest_contract**(메인) |
 | 카나리·위임 | `bootstrap_canary.py --phase discovery\|permissions` · `relay.py` | **turn_budget**(메인) |
 | 벤치 Flag 게이트 | `run_bench.sh` · `lite_bench.sh` (`manifest_contract.sh`) | **manifest_contract**(그 노드) |
 | 정책·배포 검사 | `claim_predicates.py`(모듈 적재는 ELF 없이 되나 술어 실행은 필요) · `verify_distribution.py` 의 render/turn_budget/relay/canary/scan P1 자체검사 | **manifest_contract · turn_budget · scan_node** |

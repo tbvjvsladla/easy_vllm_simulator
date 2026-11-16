@@ -1,0 +1,2 @@
+[bb-request] FAIL(1): --generated-utc 가 'YYYY-MM-DDTHH:MM:SSZ' 형식이 아니다: '2026-08-18 05:00:00'
+[bb-request]        예: 2026-08-18T05:00:00Z (마이크로초·오프셋 표기 불가)

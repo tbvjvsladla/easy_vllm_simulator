@@ -1,0 +1,3 @@
+usage: blackbox_session.py renew-budget [-h] [--ttl-s TTL_S]
+                                        [--expected-load-s EXPECTED_LOAD_S]
+                                        --now NOW

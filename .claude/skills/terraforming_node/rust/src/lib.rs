@@ -3,17 +3,26 @@
 //! launcher starts. No module starts a Python interpreter.
 
 pub mod agent_card;
+pub mod agent_guard;
 pub mod argp;
 pub mod audit_ssh;
+pub mod bb;
+pub mod blackbox_collect;
+pub mod blackbox_eta;
+pub mod blackbox_events;
+pub mod blackbox_session;
+pub mod blackbox_thermal;
 pub mod gz;
 pub mod library_access;
 pub mod logs_lifecycle;
 pub mod owner;
 pub mod pathfmt;
 pub mod proc;
+pub mod publish_install_request;
 pub mod py;
 pub mod pyre;
 pub mod pytime;
 pub mod raise;
+pub mod regen_envelope;
 pub mod seed_journal;
 pub mod stress;

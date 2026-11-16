@@ -1,0 +1,113 @@
+[eta] load.csv rows=7 maxrate=22195 minmem=24000 | ETA전용 kill=1 · 이중규칙 kill=0
+[eta] thru.csv rows=10 maxrate=20000 minmem=3000 | ETA전용 kill=2 · 이중규칙 kill=2  ← 최초 2004 mem=8000.0 rate=20000.0
+[eta] odd.csv rows=3 maxrate=1000 minmem=3000 | ETA전용 kill=1 · 이중규칙 kill=1  ← 최초 5 mem=3000.0 rate=1000.0
+[eta] 합계: ETA전용 kill=4 · 이중규칙 kill=3 (mem_total=124610 · 상한=15576 MiB/s · explicit:--mem-total-mib)
+{
+  "files": [
+    {
+      "path": "load.csv",
+      "rows": 7,
+      "max_rate_mib_s": 22195.0,
+      "min_mem_avail_mib": 24000.0,
+      "max_rate_ceiling_mib_s": 15576,
+      "abs_band_mib": 10240,
+      "runway_s": 8.0,
+      "arm_ceiling_mib": null,
+      "eta_only": {
+        "kills": 1,
+        "first_kill": {
+          "ts": "1003",
+          "mem_avail_mib": 46000.0,
+          "rate_mib_s": 22000.0
+        },
+        "trip_polls": 3,
+        "max_streak": 3,
+        "debounce_polls": 3
+      },
+      "dual": {
+        "kills": 0,
+        "first_kill": null,
+        "trip_polls": 0,
+        "max_streak": 0,
+        "debounce_polls": 3
+      }
+    },
+    {
+      "path": "thru.csv",
+      "rows": 10,
+      "max_rate_mib_s": 20000.0,
+      "min_mem_avail_mib": 3000.0,
+      "max_rate_ceiling_mib_s": 15576,
+      "abs_band_mib": 10240,
+      "runway_s": 8.0,
+      "arm_ceiling_mib": null,
+      "eta_only": {
+        "kills": 2,
+        "first_kill": {
+          "ts": "2003",
+          "mem_avail_mib": 9000.0,
+          "rate_mib_s": 20000.0
+        },
+        "trip_polls": 8,
+        "max_streak": 3,
+        "debounce_polls": 3
+      },
+      "dual": {
+        "kills": 2,
+        "first_kill": {
+          "ts": "2004",
+          "mem_avail_mib": 8000.0,
+          "rate_mib_s": 20000.0
+        },
+        "trip_polls": 7,
+        "max_streak": 3,
+        "debounce_polls": 3
+      }
+    },
+    {
+      "path": "odd.csv",
+      "rows": 3,
+      "max_rate_mib_s": 1000.0,
+      "min_mem_avail_mib": 3000.0,
+      "max_rate_ceiling_mib_s": 15576,
+      "abs_band_mib": 10240,
+      "runway_s": 8.0,
+      "arm_ceiling_mib": null,
+      "eta_only": {
+        "kills": 1,
+        "first_kill": {
+          "ts": "5",
+          "mem_avail_mib": 3000.0,
+          "rate_mib_s": 1000.0
+        },
+        "trip_polls": 3,
+        "max_streak": 3,
+        "debounce_polls": 3
+      },
+      "dual": {
+        "kills": 1,
+        "first_kill": {
+          "ts": "5",
+          "mem_avail_mib": 3000.0,
+          "rate_mib_s": 1000.0
+        },
+        "trip_polls": 3,
+        "max_streak": 3,
+        "debounce_polls": 3
+      }
+    },
+    {
+      "path": "nocol.csv",
+      "error": "unreadable"
+    },
+    {
+      "path": "missing.csv",
+      "error": "unreadable"
+    }
+  ],
+  "total_eta_only_kills": 4,
+  "total_dual_kills": 3,
+  "mem_total_mib": 124610,
+  "mem_total_source": "explicit:--mem-total-mib",
+  "max_rate_mib_s": 15576
+}

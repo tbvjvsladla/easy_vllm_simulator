@@ -1,0 +1,19 @@
+usage: publish_install_request.py [-h] --generated-utc GENERATED_UTC
+                                  [--level {L1,L2,L3}]
+                                  [--topology {single,multi}] [--force]
+                                  [--repo REPO] [--out-dir OUT_DIR]
+                                  [--print-path-only]
+
+노드블랙박스 설치 절차를 docs/request/ 수행지시서로 발행한다.
+
+options:
+  -h, --help            show this help message and exit
+  --generated-utc GENERATED_UTC
+                        발행 시각 'YYYY-MM-DDTHH:MM:SSZ' (주입 전용 — 벽시계 금지)
+  --level {L1,L2,L3}    목표 레벨(누적 적용: L3 이면 L1→L2→L3). 기본 L3
+  --topology {single,multi}
+                        미지정 시 manifest 에서 읽는다
+  --force               L3 미포함이어도 발행(plan D1-b 예외 — 문서에 사실을 적는다)
+  --repo REPO           리포 루트(기본: 마커 탐색)
+  --out-dir OUT_DIR     출력 디렉터리(기본: <repo>/docs/request)
+  --print-path-only     발행 후 경로만 stdout 으로(스크립트 소비용)

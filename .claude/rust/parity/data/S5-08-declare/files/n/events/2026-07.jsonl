@@ -1,0 +1,1 @@
+{"expires_epoch": 1785463200, "floor_mib": 36382, "kind": "budget_declare", "kv_mib": 16384, "label": "glm-47-flash", "mem_total_mib": 124610, "overhead_mib": 12288, "source": "blackbox_session", "ts": "2026-07-31T00:00:00Z", "weights_mib": 59556}

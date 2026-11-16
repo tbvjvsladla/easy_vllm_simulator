@@ -75,10 +75,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "role-contract"
+version = "0.1.0"
+dependencies = [
+ "agent-runtime-support",
+]
+
+[[package]]
 name = "terraforming-runtime"
 version = "0.1.0"
 dependencies = [
  "agent-runtime-support",
  "crc32fast",
  "miniz_oxide",
+ "role-contract",
 ]

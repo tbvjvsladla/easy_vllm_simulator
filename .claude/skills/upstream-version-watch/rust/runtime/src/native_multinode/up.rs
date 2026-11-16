@@ -424,7 +424,7 @@ impl<'a> NativeServe<'a> {
     }
     fn session(&self, name: &str, args: &[&str]) -> Vec<String> {
         let spec = self.c.node(name);
-        let mut v = sv(&["python3", &spec.session_py, "--node-dir", &spec.node_dir]);
+        let mut v = sv(&[super::session_interpreter(&spec.session_py), &spec.session_py, "--node-dir", &spec.node_dir]);
         v.extend(args.iter().map(|s| s.to_string()));
         v.extend(["--now".to_string(), utc(self.clock.now())]);
         v
@@ -534,7 +534,7 @@ impl<'a> NativeServe<'a> {
             }
         }
         let weights = resident.div_euclid(tp);
-        let floor = self.r.main.run(&sv(&["python3", &c.main.session_py, "--node-dir", ".", "budget-defaults", "--field", "ttl_s"]), 30, true)?.out.trim().to_string();
+        let floor = self.r.main.run(&sv(&[super::session_interpreter(&c.main.session_py), &c.main.session_py, "--node-dir", ".", "budget-defaults", "--field", "ttl_s"]), 30, true)?.out.trim().to_string();
         if floor.is_empty() || !floor.chars().all(|ch| ch.is_ascii_digit()) {
             return serve("예산 TTL 기본값을 blackbox_session 에서 읽지 못했다");
         }

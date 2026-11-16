@@ -1,0 +1,48 @@
+[regen] node-x → /tmp/tmpl4zdua33/node-x/envelope.json
+        state=measured · samples=15 · 원시일=1 · rollup일=1 · 결손일=1
+        하강률 max=23313.5 p99=23313.5 p50=5.0 (정확백분위=False)
+        kill 지연 실측 max=3.0 p50=3.0 n=1 (window)
+        파생: runway=7.0s · 무조건-트립 경계=17801.4 MiB/s  ⚠ 관측 최대 하강률이 이 경계를 넘는다
+[regen] sub → /tmp/tmpl4zdua33/Spark-BAD/envelope.json
+        state=empty · samples=0 · 원시일=0 · rollup일=0 · 결손일=3
+        하강률 max=None p99=None p50=None (정확백분위=True)
+        kill 지연 실측 max=None p50=None n=0 (all-time)
+        파생: runway=8.0s · 무조건-트립 경계=15576.2 MiB/s
+  [PASS] state=measured
+  [PASS] 실측 하강률 max 보존(23313.5)
+  [PASS] rollup 대체분의 max 도 합쳐진다(최대의 최대)
+  [PASS] rollup 대체분의 min 도 합쳐진다
+  [PASS] rollup 섞이면 percentiles_exact=False
+  [PASS] 음수 rate(상승)는 하강 표본에서 제외
+  [PASS] kill 지연 실측 3초·중복 제거로 n=1
+  [PASS] kill_latency_s 출처가 measured 로 표기
+  [PASS] 기본값 통과분은 default 로 표기
+  [PASS] 상시 공란 컬럼이 absent_fields 로 잡힌다
+  [PASS] 파생 runway 가 측정 kill 지연을 반영
+  [PASS] 무조건-트립 경계가 mem_total 에서 파생
+  [PASS] 관측 최대가 경계를 넘으면 표시
+  [PASS] 경계가 mem_total 변경을 따라간다
+  [PASS] 이중규칙 정수 상한이 envelope 에 실린다(124610/7=17801)
+  [PASS] 정수 상한도 mem_total 을 따라간다
+  [PASS] 절대 밴드가 정본(blackbox_eta.DEFAULTS)에서 온다
+  [PASS] 생성 산출물은 키 정합 통과
+  [PASS] ★ seed envelope 의 미지 키 2건 검출(daemon_kill_s·eta_floor_s)
+  [PASS] eta_params.provenance 는 이관 요구로 잡힌다
+  [PASS] 출처 누락도 잡힌다
+  [PASS] 문자열 값 거부
+  [PASS] 정상 최소 envelope 통과
+  [PASS] age 계산(0.5일)
+  [PASS] generated_utc 불량 → None
+  [PASS] regen 성공
+  [PASS] envelope.json 기록됨
+  [PASS] 원시 samples 미편집
+  [PASS] .tmp 잔재 없음
+  [PASS] 기록본이 키 정합 통과
+  [PASS] 재생성 이벤트 기록
+  [PASS] node_id 정규식 양성
+  [PASS] node_id 정규식 음성(hostname 잔재)
+  [PASS] 스킴 위반 node_dir 거부(rc=1)
+  [PASS] 거부 시 envelope 미기록
+  [PASS] --node-id 명시로 우회 가능
+  [PASS] 비ISO --now 거부
+self-test: PASS (37 케이스)

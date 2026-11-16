@@ -1,0 +1,4 @@
+[regen] 키 정합 검증 → n/envelope.json
+        정본 키(blackbox_eta.DEFAULTS) 11 종
+        envelope.eta_params 키: kill_latency_s
+[regen] PASS — 불일치 0

@@ -1,0 +1,6 @@
+{
+  "ttl_s": 7200,
+  "max_ttl_s": 86400,
+  "ttl_safety_mult": 3,
+  "source": "single-owner:blackbox_session.py"
+}

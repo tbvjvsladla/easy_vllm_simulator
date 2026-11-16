@@ -1,0 +1,25 @@
+usage: blackbox_session.py [-h] [--node-dir NODE_DIR] [--self-test]
+                           {start,stop,declare-budget,budget-status,renew-budget,budget-defaults,clear-budget,budget-skip,budget-block,list,slice}
+                           ...
+
+노드블랙박스 서빙 세션 사이드카
+
+positional arguments:
+  {start,stop,declare-budget,budget-status,renew-budget,budget-defaults,clear-budget,budget-skip,budget-block,list,slice}
+    start               세션 시작 + serve_start 이벤트
+    stop                세션 종료 + serve_stop 이벤트
+    declare-budget      서빙 예산 선언 → 워치독 ETA 규칙의 arm 상한 (testlog_26073123)
+    budget-status       현행 선언을 JSON 으로 읽는다(벤치 진입 게이트의 입력 · rc 3=미선언)
+    renew-budget        현행 선언의 만료만 연장(상주 서빙 · plan_26081415 C4-3)
+    budget-defaults     예산 선언 기본값의 **단일 소유자**가 그 값을 알려준다(다른 스크립트가 7200 을 손으로
+                        적지 않게)
+    clear-budget        예산 선언 해제 → 현행 ETA 규칙 복귀
+    budget-skip         무보호 진입 기록(--no-budget 탈출구 · 침묵 금지)
+    budget-block        예산 선언 미성립으로 **진입을 차단**했음을 기록(침묵 금지 · C3 기준3)
+    list                세션 목록
+    slice               세션 구간의 samples 만 출력
+
+options:
+  -h, --help            show this help message and exit
+  --node-dir NODE_DIR   docs/logs/<node_id>
+  --self-test

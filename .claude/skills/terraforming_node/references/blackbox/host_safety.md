@@ -30,7 +30,7 @@
   → **에이전트 무인 sudo 실행 ✗**(실행 주체는 사람). dry-run 선행으로 무엇을·왜·트레이드오프를 고지한다.
   **L3 를 포함하면 채팅이 아니라 `docs/request/` 수행지시서로 위임한다(§2.6.1).**
   - **레벨**(재부팅 필요 여부가 자연 경계 · 배치와 활성화는 분리 — 파일·유닛은 레벨 무관하게 항상 도착):
-    - `L1` **무재부팅** — 수집기(1초 샘플) · **ETA 워치독**(RAM 축) · **열·전력 워치독**(`thermal_watchdog.sh` + 상수 emit `blackbox_thermal.py` → 유닛 `easy-vllm-blackbox-thermal` · 누설 버킷 지속성 판정 · hard-lockup 예방) · 이벤트 통합 · 로그 수명 집행 · sudoers 단일 헬퍼(`vllm-drop-caches` 경로 1개만 NOPASSWD) · **earlyoom**(프로세스-레벨 최후선 — 빌드 평면까지 커버)
+    - `L1` **무재부팅** — 수집기(1초 샘플) · **ETA 워치독**(RAM 축) · **열·전력 워치독**(`thermal_watchdog.sh` + 상수 emit `blackbox_thermal.sh`(Rust) → 유닛 `easy-vllm-blackbox-thermal` · 누설 버킷 지속성 판정 · hard-lockup 예방) · 이벤트 통합 · 로그 수명 집행 · sudoers 단일 헬퍼(`vllm-drop-caches` 경로 1개만 NOPASSWD) · **earlyoom**(프로세스-레벨 최후선 — 빌드 평면까지 커버)
     - `L2` **무재부팅·peer 필요** — netconsole 교차 스트리밍(**multi 전용** · single 은 `N/A` 로 정직 기록)
     - `L3` **재부팅 1회** — 사후 포착 = **efi_pstore** 확보. **crashkernel(2.25 GiB 예약)·ramoops 를 설정하는 게 아니라 제거한다.**
   - **검증(결정론)**: `bash .claude/skills/terraforming_node/scripts/node_blackbox/verify_node_blackbox.sh --check`.
@@ -67,7 +67,7 @@
   나열하는 대신 **수행지시서를 발행**한다:
 
   ```bash
-  python3 .claude/skills/terraforming_node/scripts/node_blackbox/publish_install_request.py \
+  bash .claude/skills/terraforming_node/scripts/node_blackbox/publish_install_request.sh \
       --generated-utc <YYYY-MM-DDTHH:MM:SSZ> --level L3   # --topology 는 manifest 에서 읽는다
   ```
 
@@ -106,9 +106,9 @@
   | 자산 | 상태 | 소유·호출자 |
   |---|---|---|
   | `node_blackbox/install_node_blackbox.sh` · `verify_node_blackbox.sh` | **현행 설치자·검증기**(L1/L2/L3) | §2.6 Y 분기 · HITL sudo |
-  | `node_blackbox/publish_install_request.py` | **현행** — L3 지시서 발행 | §2.6.1 |
-  | `node_blackbox/mem_watchdog_eta.sh`(RAM) · `thermal_watchdog.sh`(열·전력) · `blackbox_*.py` · `logs_lifecycle.sh`(Rust) · `regen_envelope.py` · `node_identity.sh` | **현행** — systemd 상시층·데이터 평면 | 설치자가 배치 |
-  | `node_blackbox/agent_guard.py` | **현행** — 3단 응답의 1단(에이전트 예방 트리거 · 데몬 SIGKILL 보다 앞서 개입) | 서빙 중 에이전트 |
+  | `node_blackbox/publish_install_request.sh`(Rust) | **현행** — L3 지시서 발행 | §2.6.1 |
+  | `node_blackbox/mem_watchdog_eta.sh`(RAM) · `thermal_watchdog.sh`(열·전력) · `blackbox_*.sh`(Rust) · `logs_lifecycle.sh`(Rust) · `regen_envelope.sh`(Rust) · `node_identity.sh` | **현행** — systemd 상시층·데이터 평면 | 설치자가 배치 |
+  | `node_blackbox/agent_guard.sh`(Rust) | **현행** — 3단 응답의 1단(에이전트 예방 트리거 · 데몬 SIGKILL 보다 앞서 개입) | 서빙 중 에이전트 |
   | `node_blackbox/budget_renew_loop.sh` | **현행** — 상주 서빙의 예산 선언 갱신 사이드카 | `single_serve_up.sh` · `multinode_serve_smoke.sh` |
   | `node_blackbox/adversarial_stress.sh`(Rust · 원본 `.py` 보존) | **시험용 가압기** — 방어층 발동 시험(벤치마커 ✗) | 사람 지시 시험 |
   | `node_blackbox/seed_from_journal.sh`(Rust · 원본 `.py` 보존) | **Phase 0 수확기** — 레거시 저널 → `docs/logs/<node>/seed/` | 안전체계 제거 전 1회 |

@@ -25,6 +25,14 @@ fn exe(prog: &str) -> &'static str {
         "logs_lifecycle" => env!("CARGO_BIN_EXE_logs_lifecycle"),
         "adversarial_stress" => env!("CARGO_BIN_EXE_adversarial_stress"),
         "seed_from_journal" => env!("CARGO_BIN_EXE_seed_from_journal"),
+        "blackbox_eta" => env!("CARGO_BIN_EXE_blackbox_eta"),
+        "blackbox_session" => env!("CARGO_BIN_EXE_blackbox_session"),
+        "blackbox_collect" => env!("CARGO_BIN_EXE_blackbox_collect"),
+        "blackbox_thermal" => env!("CARGO_BIN_EXE_blackbox_thermal"),
+        "blackbox_events" => env!("CARGO_BIN_EXE_blackbox_events"),
+        "regen_envelope" => env!("CARGO_BIN_EXE_regen_envelope"),
+        "agent_guard" => env!("CARGO_BIN_EXE_agent_guard"),
+        "publish_install_request" => env!("CARGO_BIN_EXE_publish_install_request"),
         other => panic!("no executable for {other}"),
     }
 }

@@ -1,0 +1,8 @@
+usage: blackbox_session.py budget-skip [-h] --reason REASON [--label LABEL]
+                                       --now NOW
+
+options:
+  -h, --help       show this help message and exit
+  --reason REASON
+  --label LABEL
+  --now NOW

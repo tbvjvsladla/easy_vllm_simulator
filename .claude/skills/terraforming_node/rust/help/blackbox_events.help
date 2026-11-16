@@ -1,0 +1,10 @@
+usage: blackbox_events.py [-h] [--node-dir NODE_DIR] [--no-boot-scan]
+                          [--self-test]
+
+4개 킬 경로 -> 단일 이벤트 평면
+
+options:
+  -h, --help           show this help message and exit
+  --node-dir NODE_DIR  docs/logs/<node_id>
+  --no-boot-scan
+  --self-test

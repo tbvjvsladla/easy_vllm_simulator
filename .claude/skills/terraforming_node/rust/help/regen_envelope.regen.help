@@ -1,0 +1,15 @@
+usage: regen_envelope.py regen [-h] --now NOW [--node-id NODE_ID]
+                               [--window-days WINDOW_DAYS]
+                               [--mem-total-mib MEM_TOTAL_MIB] [-o OUTPUT]
+                               [--dry-run]
+
+options:
+  -h, --help            show this help message and exit
+  --now NOW             YYYY-MM-DDTHH:MM:SSZ (벽시계 금지)
+  --node-id NODE_ID     기본 = --node-dir 의 basename
+  --window-days WINDOW_DAYS
+  --mem-total-mib MEM_TOTAL_MIB
+                        기본 = /proc/meminfo MemTotal (원격 노드 재생성 시 명시)
+  -o OUTPUT, --output OUTPUT
+                        기본 = <node-dir>/envelope.json
+  --dry-run             stdout 으로만 출력

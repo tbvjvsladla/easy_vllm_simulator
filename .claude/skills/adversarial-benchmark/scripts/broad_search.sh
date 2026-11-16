@@ -321,12 +321,17 @@ MSG
   fi
   # ── 열 임계 미교정 게이트(유예 결함 ③). 무부하 호출은 열을 만들지 않으므로 대상이 아니다.
   if [ "$NO_LOAD" != 1 ]; then
-    # Python 을 띄우지 않는다: blackbox_thermal.py 의 PARAM_PROVENANCE 사전에서 값이 `external_report:` 로
-    #   시작하는 키만 정렬해 뽑는다(UNCALIBRATED 의 정의와 같다 · 파일 부재 = 빈 값).
-    _BT="$REPO/.claude/skills/terraforming_node/scripts/node_blackbox/blackbox_thermal.py"
+    # Python 을 띄우지 않는다: Rust `blackbox_thermal --print-uncalibrated` 가 PARAM_PROVENANCE 에서 값이
+    #   `external_report:` 로 시작하는 키(UNCALIBRATED 의 정의)를 C 정렬·쉼표 결합으로 낸다(런처 부재 = 빈 값).
+    #   런처는 있는데 실행파일이 없거나 실패하면 **판정 불가**다 — 미교정 게이트를 조용히 열지 않는다.
+    _BT="$REPO/.claude/skills/terraforming_node/scripts/node_blackbox/blackbox_thermal.sh"
     _UNCAL=""
     if [ -f "$_BT" ]; then
-      _UNCAL="$(awk '/^PARAM_PROVENANCE = \{/{f=1;next} f&&/^\}/{f=0} f&&/^[[:space:]]*"[^"]+":[[:space:]]*"external_report:/{k=$1;gsub(/[":]/,"",k);print k}' "$_BT" 2>/dev/null | LC_ALL=C sort | paste -sd, - || true)"
+      if ! _UNCAL="$(bash "$_BT" --print-uncalibrated 2>/dev/null)"; then
+        echo "[broad_search] ⚠ 셀 실행 거부 — 열 임계 교정 상태를 판정하지 못했다(bash $_BT --print-uncalibrated 실패)." >&2
+        echo "  먼저 Rust 실행파일을 빌드하라: bash $REPO/.claude/skills/terraforming_node/scripts/build_rust_packages.sh" >&2
+        exit 6
+      fi
     fi
     if [ -n "$_UNCAL" ] && [ "$ACK_UNCAL" != 1 ]; then
       echo "[broad_search] ⚠ 셀 실행 거부 — SoC 열 임계가 **미교정**이다(UNCALIBRATED: $_UNCAL)." >&2

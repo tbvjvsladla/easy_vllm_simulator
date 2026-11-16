@@ -1,0 +1,3 @@
+[thermal] 하한 가드 위반 — 거부:
+  - gpu_pwr_w must be > 0
+  - bucket_decay must be > 0

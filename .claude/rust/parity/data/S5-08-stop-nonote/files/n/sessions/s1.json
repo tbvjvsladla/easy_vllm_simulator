@@ -1,0 +1,15 @@
+{
+  "duration_s": 3450,
+  "model": "m",
+  "notes": [
+    "x"
+  ],
+  "session_id": "s1",
+  "started_epoch": 1785456150,
+  "started_utc": "2026-07-31T00:02:30Z",
+  "stopped_epoch": 1785459600,
+  "stopped_utc": "2026-07-31T01:00:00Z",
+  "tensor_parallel_size": 1,
+  "topology": "single",
+  "verdict": null
+}

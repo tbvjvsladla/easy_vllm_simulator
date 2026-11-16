@@ -1,0 +1,6 @@
+usage: blackbox_session.py budget-defaults [-h]
+                                           [--field {ttl_s,max_ttl_s,ttl_safety_mult}]
+
+options:
+  -h, --help            show this help message and exit
+  --field {ttl_s,max_ttl_s,ttl_safety_mult}

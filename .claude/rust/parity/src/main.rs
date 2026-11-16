@@ -400,6 +400,13 @@ fn remove_sandbox(sb: &Path) {
     if sb.starts_with(std::env::temp_dir()) && sb.file_name().map_or(false, |n| n.to_string_lossy().starts_with("parity-")) { let _ = fs::remove_dir_all(sb); }
 }
 
+/// `name` on this tool's PATH (not the case's), or `name` itself when it is not found there.
+fn tool_path_lookup(name: &str) -> PathBuf {
+    std::env::var_os("PATH")
+        .and_then(|p| std::env::split_paths(&p).map(|d| d.join(name)).find(|c| c.is_file()))
+        .unwrap_or_else(|| PathBuf::from(name))
+}
+
 /// Run one program for a case inside its own repository copy (cwd = the copy; setup and outputs live there too), so the
 /// entry runs against a copy and cannot touch the real repository. `rev`: a committed tree instead of the working tree.
 fn run(case: &Case, program: &str, repo: &Path, strace: bool, rev: Option<&str>) -> Result<Outcome, String> {
@@ -415,7 +422,8 @@ fn run(case: &Case, program: &str, repo: &Path, strace: bool, rev: Option<&str>)
     let log = tmp.parent().unwrap().join(format!("{}.strace", tmp.file_name().unwrap().to_string_lossy()));
     let mut cmd;
     if strace {
-        cmd = Command::new("strace");
+        // strace itself is found on the tool's own PATH: a case may set its own PATH (e.g. one without host tools).
+        cmd = Command::new(tool_path_lookup("strace"));
         cmd.args(["-f", "-e", "trace=execve", "-o"]).arg(&log).arg(&prog);
     } else { cmd = Command::new(&prog); }
     cmd.args(&case.args).current_dir(&tmp).env_remove("EASY_VLLM_SOURCE_ROOT").env("PARITY_GIT_DIR", repo.join(".git"))

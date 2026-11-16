@@ -1,0 +1,3 @@
+usage: blackbox_session.py [-h] [--node-dir NODE_DIR] [--self-test]
+                           {start,stop,declare-budget,budget-status,renew-budget,budget-defaults,clear-budget,budget-skip,budget-block,list,slice}
+                           ...

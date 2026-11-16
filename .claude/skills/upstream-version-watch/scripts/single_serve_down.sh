@@ -94,7 +94,7 @@ BB_DIR="$(_bb_dir)" || {
 NODE_ID="$(ni_resolve_node_id "$REPO" "$EXPLICIT_NODE_ID")" || {
   echo "$TAG FAIL: node_id 미해소 — 예산·세션 회수 대상 디렉터리를 정할 수 없다(fail-loud)." >&2; exit 2; }
 NODE_DIR="$REPO/docs/logs/$NODE_ID"
-SESSION_PY="$BB_DIR/blackbox_session.py"
+SESSION_SH="$BB_DIR/blackbox_session.sh"  # Rust 런처
 NOW_ISO(){ date -u +%FT%TZ; }
 
 echo "$TAG 대상: container=$CNAME · compose=$COMPOSE · config=$CONFIG · node_id=$NODE_ID$([ $DRY = 1 ] && echo ' · DRY-RUN(변경 없음)')"
@@ -161,8 +161,8 @@ fi
 #   무조건 회수한다(멱등). 이 실행이 선언한 바가 없어도 — 내리려는 그 서빙의 선언은 다른 실행이
 #   남긴 것이고, 그것을 남기는 것이 정확히 이 진입점이 고치는 결함이다.
 if [ "$DRY" = "1" ]; then
-  echo "$TAG 4/5 예산선언 회수  : (dry-run) python3 blackbox_session.py --node-dir $NODE_DIR clear-budget --now <ISO>"
-elif out="$(python3 "$SESSION_PY" --node-dir "$NODE_DIR" clear-budget --now "$(NOW_ISO)" 2>&1)"; then
+  echo "$TAG 4/5 예산선언 회수  : (dry-run) bash blackbox_session.sh --node-dir $NODE_DIR clear-budget --now <ISO>"
+elif out="$(bash "$SESSION_SH" --node-dir "$NODE_DIR" clear-budget --now "$(NOW_ISO)" 2>&1)"; then
   echo "$TAG 4/5 예산선언 회수  : DONE — $(printf '%s' "$out" | tr '\n' ' ')"
 else
   echo "$TAG 4/5 예산선언 회수  : FAIL — $out" >&2; FAILED=1
@@ -192,7 +192,7 @@ else
   if [ -n "$SESSION_ID" ]; then
     if [ "$DRY" = "1" ]; then
       echo "$TAG 5/5 세션 stop      : (dry-run) stop --session-id $SESSION_ID"
-    elif out="$(python3 "$SESSION_PY" --node-dir "$NODE_DIR" stop --session-id "$SESSION_ID" --now "$(NOW_ISO)" 2>&1)"; then
+    elif out="$(bash "$SESSION_SH" --node-dir "$NODE_DIR" stop --session-id "$SESSION_ID" --now "$(NOW_ISO)" 2>&1)"; then
       echo "$TAG 5/5 세션 stop      : DONE — $SESSION_ID"
     else
       echo "$TAG 5/5 세션 stop      : FAIL — $out" >&2; FAILED=1

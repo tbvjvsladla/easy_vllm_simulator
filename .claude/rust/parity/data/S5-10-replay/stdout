@@ -1,0 +1,92 @@
+[thermal] inc.csv                rows=150    maxW=90.3   maxSoC=47   peak(gpu/soc)=60/0 kill=2  ← 최초 ts=1787477076 rule=gpu_pwr_sustained
+[thermal] soc.csv                rows=15     maxW=10.0   maxSoC=102  peak(gpu/soc)=0/5 kill=2  ← 최초 ts=1007 rule=soc_hard_ceiling
+[thermal] odd.csv                rows=6      maxW=85.2   maxSoC=60   peak(gpu/soc)=1/0 kill=0
+[thermal] leg.csv                rows=30     maxW=45.0   maxSoC=n/a  peak(gpu/soc)=0/0 kill=0  [SoC 축 미평가]
+[thermal] 합계 kill=4 (gpu>=80W 60s 지속 · soc>=97C 30s 지속 · soc>=99C 3폴)
+{
+  "files": [
+    {
+      "path": "inc.csv",
+      "rows": 150,
+      "kills": 2,
+      "first_kill": {
+        "ts": 1787477076,
+        "rule": "gpu_pwr_sustained",
+        "gpu_pwr_w": 90.3,
+        "soc_temp_c": 47
+      },
+      "peak_gpu_bucket": 60,
+      "peak_soc_bucket": 0,
+      "gpu_sustain_s": 60,
+      "soc_sustain_s": 30,
+      "max_gpu_pwr_w": 90.3,
+      "max_soc_temp_c": 47,
+      "soc_axis_evaluated": true
+    },
+    {
+      "path": "soc.csv",
+      "rows": 15,
+      "kills": 2,
+      "first_kill": {
+        "ts": 1007,
+        "rule": "soc_hard_ceiling",
+        "gpu_pwr_w": 10.0,
+        "soc_temp_c": 99
+      },
+      "peak_gpu_bucket": 0,
+      "peak_soc_bucket": 5,
+      "gpu_sustain_s": 60,
+      "soc_sustain_s": 30,
+      "max_gpu_pwr_w": 10.0,
+      "max_soc_temp_c": 102,
+      "soc_axis_evaluated": true
+    },
+    {
+      "path": "odd.csv",
+      "rows": 6,
+      "kills": 0,
+      "first_kill": null,
+      "peak_gpu_bucket": 1,
+      "peak_soc_bucket": 0,
+      "gpu_sustain_s": 60,
+      "soc_sustain_s": 30,
+      "max_gpu_pwr_w": 85.2,
+      "max_soc_temp_c": 60,
+      "soc_axis_evaluated": true
+    },
+    {
+      "path": "leg.csv",
+      "rows": 30,
+      "kills": 0,
+      "first_kill": null,
+      "peak_gpu_bucket": 0,
+      "peak_soc_bucket": 0,
+      "gpu_sustain_s": 60,
+      "soc_sustain_s": 30,
+      "max_gpu_pwr_w": 45.0,
+      "max_soc_temp_c": null,
+      "soc_axis_evaluated": false
+    },
+    {
+      "path": "missing.csv",
+      "error": "unreadable"
+    },
+    {
+      "path": "empty.csv",
+      "error": "unreadable"
+    }
+  ],
+  "total_kills": 4,
+  "params": {
+    "gpu_pwr_w": 80,
+    "gpu_sustain_s": 60,
+    "soc_warn_c": 97,
+    "soc_sustain_s": 30,
+    "soc_hard_c": 99,
+    "soc_hard_polls": 3,
+    "bucket_decay": 1,
+    "poll_interval_s": 1,
+    "stale_after_s": 10
+  },
+  "uncalibrated": []
+}

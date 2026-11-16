@@ -1,0 +1,14 @@
+Traceback (most recent call last):
+  File "/tmp/parity-o-S5-12-regen-zero-window-3814558-1794819149890610814/.claude/skills/terraforming_node/scripts/node_blackbox/regen_envelope.py", line 730, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/tmp/parity-o-S5-12-regen-zero-window-3814558-1794819149890610814/.claude/skills/terraforming_node/scripts/node_blackbox/regen_envelope.py", line 726, in main
+    return args.func(args)
+           ^^^^^^^^^^^^^^^
+  File "/tmp/parity-o-S5-12-regen-zero-window-3814558-1794819149890610814/.claude/skills/terraforming_node/scripts/node_blackbox/regen_envelope.py", line 487, in cmd_regen
+    env = build_envelope(node_id, node_dir, now, args.window_days, mt, mts)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/parity-o-S5-12-regen-zero-window-3814558-1794819149890610814/.claude/skills/terraforming_node/scripts/node_blackbox/regen_envelope.py", line 246, in build_envelope
+    since = days[0] + "T00:00:00Z"
+            ~~~~^^^
+IndexError: list index out of range

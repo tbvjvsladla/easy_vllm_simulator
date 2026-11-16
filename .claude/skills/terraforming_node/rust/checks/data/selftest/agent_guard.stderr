@@ -1,0 +1,1 @@
+[agent-guard] WARN: envelope 에 계약 키 agent_act_s,agent_notify_s,daemon_kill_s,kill_latency_max_s,kill_threshold_mib 가 없어 리터럴 기본값을 쓴다 — regen_envelope 스키마와 이 소비자가 갈라졌다.

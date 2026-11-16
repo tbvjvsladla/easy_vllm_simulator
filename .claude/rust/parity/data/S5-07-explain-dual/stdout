@@ -1,0 +1,33 @@
+{
+  "input": {
+    "mem_avail_mib": 50772.0,
+    "rate_mib_s": 21943.0
+  },
+  "params": {
+    "kill_latency_s": 4.0,
+    "detect_margin_s": 2.0,
+    "debounce_polls": 3.0,
+    "agent_act_s": 300.0,
+    "agent_notify_s": 900.0,
+    "min_rate_mib_s": 1.0,
+    "poll_interval_s": 1.0,
+    "decl_margin_mib": 3072,
+    "decl_min_ceiling_mib": 8192,
+    "hard_floor_mib": 5120.0,
+    "abs_band_mib": 10240
+  },
+  "result": {
+    "max_rate_mib_s": 15576,
+    "abs_band_mib": 10240,
+    "eta_zero_s": 2.314,
+    "eta_actionable_s": null,
+    "band": "red",
+    "trip": false,
+    "reason": "abs_band_hold",
+    "rule": "abs_band"
+  },
+  "mem_total_mib": 124610,
+  "mem_total_source": "explicit:--mem-total-mib",
+  "max_rate_mib_s": 15576,
+  "trip_threshold_mib_at_this_rate": 10240.0
+}
