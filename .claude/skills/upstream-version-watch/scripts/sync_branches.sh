@@ -350,14 +350,19 @@ fi
 # 게이트 ELF 는 비추적 빌드 산출물이다 — 종료 시퀀스가 만든 반대 브랜치 임시 워크트리에는 target/ 가 없다.
 #   layer_ledger·inline_json 과 같은 규칙으로 찾는다: 호출자의 COMPLETION_GATE_BIN → 이 체크아웃의 빌드 →
 #   같은 저장소 주 작업 트리(정본 체크아웃)의 빌드. 어디에도 없으면 런처가 exit 2 + 빌드 안내(Python 폴백 ✗).
+#   게이트의 pre-side-effect tripwire 가 부르는 runtime_selftest ELF 도 같은 규칙이다(2026-11-17 실측: 워크트리에서
+#   게이트 ELF 만 찾아 넘겨 tripwire 가 "Rust 실행파일이 없다" 로 TRIPWIRE_FAILED — 이식이 남긴 이음매).
 _GATE_BIN_REL=".claude/rust/policy-gate/target/release/completion_gate"
 _GATE_ENV=()
-if [ "${COMPLETION_GATE_BIN+set}" != set ] && [ ! -x "$REPO_ROOT/$_GATE_BIN_REL" ]; then
-    _GB_COMMON="$(git -C "$REPO_ROOT" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
-    if [ -n "$_GB_COMMON" ] && [ -x "$(dirname -- "$_GB_COMMON")/$_GATE_BIN_REL" ]; then
-        _GATE_ENV=("COMPLETION_GATE_BIN=$(dirname -- "$_GB_COMMON")/$_GATE_BIN_REL")
+_GB_COMMON="$(git -C "$REPO_ROOT" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
+for _pair in "COMPLETION_GATE_BIN=$_GATE_BIN_REL" \
+             "RUNTIME_SELFTEST_BIN=.claude/rust/policy-selftest/target/release/runtime_selftest"; do
+    _var="${_pair%%=*}"; _rel="${_pair#*=}"
+    if [ -z "${!_var+set}" ] && [ ! -x "$REPO_ROOT/$_rel" ] \
+       && [ -n "$_GB_COMMON" ] && [ -x "$(dirname -- "$_GB_COMMON")/$_rel" ]; then
+        _GATE_ENV+=("$_var=$(dirname -- "$_GB_COMMON")/$_rel")
     fi
-fi
+done
 
 cd "$REPO_ROOT"
 
