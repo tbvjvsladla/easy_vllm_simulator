@@ -58,14 +58,14 @@ node .claude/skills/wiki-desk/src/cli.ts sync --apply   # 계획 적용(카드 �
 ## 이 프로젝트에서 (easy_vllm_simulator)
 - **계약**: `assets/project-contract.json`(입고 범위 = `docs/{plan,devlog,testlog,simlog}` · 서브 미러 `sync_staging/library_mirror/<node_id>/` ·
   `seed`(vendored 제외) · 권위 devlog 100 > testlog 85 > sub-doc 70 > plan 55 > simlog 40 > seed 25). 재구축은 `init --contract assets/project-contract.json --apply` → `sync --apply --as all`.
-- **입고 시점**: `evidence_publisher.py finalize` 와 `campaign_init.py`(publish 위상·그라운딩 질의 직전)가 `sync --apply` 를 **자동으로** 부른다
+- **입고 시점**: `evidence_publisher.sh finalize` 와 `campaign_init.sh`(publish 위상·그라운딩 질의 직전)가 `sync --apply` 를 **자동으로** 부른다
   (policy:LIBRARY_GROUNDING_FAIL_CLOSED C4). 서브에서 서고에 닿지 못하면 exit 4 · `not-yet-ingested` — 발행은 막지 않고 다음 입고가 따라잡는다.
 - **소유(`--as`)**: 메인 로컬 기본 = `main`(메인 원문 카드만) · `all` = 관리자 전체 재구축(로컬 전용) · 게이트웨이는 키의 node_id 를 강제한다.
-- **서빙 진입 게이트**: `campaign_init.py --ground` 가 통제변인 파생 질의로 이 CLI 를 부른 기록을 남기고 `--grounding-check` 가 진입을 막는다 —
+- **서빙 진입 게이트**: `campaign_init.sh --ground` 가 통제변인 파생 질의로 이 CLI 를 부른 기록을 남기고 `--grounding-check` 가 진입을 막는다 —
   0건은 통과(정직한 공백) · 게이트웨이 거절(exit 126)만 차단. 메인·서브 대칭.
 - **명명 SSOT**: `src/doc_naming.ts`(docs.md §명명). Rust 호출부는 런처 `.claude/policies/runtime/doc_naming.sh`(crate `.claude/rust/policy-gate`)로 부른다.
 - **PII 가드**: `scripts/scan-forbidden-strings.ts` — runtime_selftest tripwire ⑤ 의 커널.
-- **접근점 발급**: `terraforming_node/scripts/library_access.py`(서브 키·authorized_keys 강제명령·manifest library 블록 · HITL).
+- **접근점 발급**: `terraforming_node/scripts/library_access.sh`(서브 키·authorized_keys 강제명령·manifest library 블록 · HITL).
 
 ## 동시성 (N개 접근점 · 정본 `references/concurrency.md`)
 쓰기 = 배타 `flock` · 읽기 = 공유 `flock` · 쓰기 전 저널(kill 뒤 다음 배타 보유자가 롤백 → 중간 상태 비관측) · 멱등 원장

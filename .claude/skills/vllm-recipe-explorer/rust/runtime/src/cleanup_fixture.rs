@@ -127,7 +127,7 @@ impl Case {
             "skills",
             "vllm-recipe-explorer",
             "scripts",
-            "cleanup_docker.py",
+            "cleanup_docker.sh",
         ] {
             script = join(&script, &PyStr::new(part));
         }

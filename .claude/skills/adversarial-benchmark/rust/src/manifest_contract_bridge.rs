@@ -320,7 +320,7 @@ fn answer_main(args: &[PyValue]) -> PyValue {
     };
     match execute(
         &request,
-        b"manifest_contract.py",
+        b"manifest_contract.sh",
         &mut GitBranch::from_process(),
     ) {
         Err(error) => unsupported(error.boundary, &error.detail),

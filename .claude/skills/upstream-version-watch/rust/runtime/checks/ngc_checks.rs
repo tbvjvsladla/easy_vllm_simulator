@@ -391,7 +391,7 @@ struct Ran {
 }
 
 fn command(dir: &Path, args: &[&str], envs: &[(&str, &str)]) -> Ran {
-    let program = dir.join("resolve_ngc_tag.py");
+    let program = dir.join("resolve_ngc_tag.sh");
     if !program.exists() {
         // a hard link, not a copy: a copy holds a writable descriptor that a parallel test's fork can inherit (`ETXTBSY` on exec)
         let built = env!("CARGO_BIN_EXE_resolve_ngc_tag");
@@ -485,12 +485,12 @@ fn argument_errors_and_business_exits_keep_their_streams_and_statuses() {
     stub(&dir, &[]);
     let help = command(&dir, &["--help"], &[]);
     assert_eq!(help.status, 0);
-    assert!(help.stdout.starts_with("usage: resolve_ngc_tag.py [-h] [--arch ARCH] [--start START] [--months MONTHS]\n                          [--candidates CANDIDATES]\n                          torch_pin\n\npositional arguments:\n  torch_pin             예: 2.11.0\n"), "{}", help.stdout);
+    assert!(help.stdout.starts_with("usage: resolve_ngc_tag.sh [-h] [--arch ARCH] [--start START] [--months MONTHS]\n                          [--candidates CANDIDATES]\n                          torch_pin\n\npositional arguments:\n  torch_pin             예: 2.11.0\n"), "{}", help.stdout);
     let missing = command(&dir, &[], &[]);
     assert_eq!((missing.status, missing.stdout.as_str()), (2, ""));
     assert!(
         missing.stderr.ends_with(
-            "resolve_ngc_tag.py: error: the following arguments are required: torch_pin\n"
+            "resolve_ngc_tag.sh: error: the following arguments are required: torch_pin\n"
         ),
         "{}",
         missing.stderr
@@ -512,7 +512,7 @@ fn argument_errors_and_business_exits_keep_their_streams_and_statuses() {
     assert!(
         months
             .stderr
-            .ends_with("resolve_ngc_tag.py: error: argument --months: invalid int value: '1.5'\n"),
+            .ends_with("resolve_ngc_tag.sh: error: argument --months: invalid int value: '1.5'\n"),
         "{}",
         months.stderr
     );
@@ -564,7 +564,7 @@ fn uncaught_exceptions_report_the_original_frames() {
         &[],
     );
     assert_eq!(ran.status, 1);
-    let script = dir.join("resolve_ngc_tag.py");
+    let script = dir.join("resolve_ngc_tag.sh");
     let expected = format!(
         "Traceback (most recent call last):\n  File \"{p}\", line 139, in <module>\n    main()\n  File \"{p}\", line 96, in main\n    cands = gen_candidates(a.start, a.months)\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"{p}\", line 68, in gen_candidates\n    yy, mm = (int(x) for x in start.split(\".\"))\n    ^^^^^^\nValueError: not enough values to unpack (expected 2, got 1)\n",
         p = script.display()
@@ -657,7 +657,7 @@ fn a_malformed_start_ends_in_the_originals_error_before_the_month_cap_is_named()
     // the cap. The first case repeats the saved cli-014 malformed start ("26") with a count above the cap; nothing is probed.
     let dir = private_dir("start-before-cap");
     stub(&dir, &[]);
-    let script = dir.join("resolve_ngc_tag.py");
+    let script = dir.join("resolve_ngc_tag.sh");
     let uncaught = |start: &str, months: &str, source: &str, message: &str| {
         let ran = command(
             &dir,

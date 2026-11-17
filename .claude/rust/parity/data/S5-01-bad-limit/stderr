@@ -1,3 +1,3 @@
-usage: audit_session_ssh.py [-h] [--self-test] [--transcript TRANSCRIPT]
+usage: audit_session_ssh.sh [-h] [--self-test] [--transcript TRANSCRIPT]
                             [--sub-host SUB_HOST] [--limit LIMIT]
-audit_session_ssh.py: error: argument --limit: invalid int value: 'x'
+audit_session_ssh.sh: error: argument --limit: invalid int value: 'x'

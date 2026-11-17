@@ -34,7 +34,7 @@ const PROGRAM_NAME: &str = "selftest_sweep_repeats";
 const NORMAL_STDOUT: &str = include_str!("data/sweep_repeats/normal_stdout.txt");
 
 const RELEASE: &str = ".claude/skills/adversarial-benchmark/rust/target/release";
-const READER: &str = ".claude/skills/hint-publisher/scripts/render_bench_section.py";
+const READER: &str = ".claude/skills/hint-publisher/scripts/render_bench_section.sh";
 const SWEEP_SCRIPT: &str = ".claude/skills/adversarial-benchmark/scripts/sweep_bench.sh";
 
 /// The deployed tree the files are read from (the same default as the other checks).

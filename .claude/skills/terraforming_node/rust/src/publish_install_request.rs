@@ -314,7 +314,7 @@ pub fn render(level: &str, topology: &str, forced: bool, generated_utc: &str, ba
         add("| 재부팅 | **없음** |");
         add("| 서빙 중단 | 불요 |");
     }
-    add("| 디스크 | 로그 평면 노드당 상한 기본 512 MiB (`logs_lifecycle.py` 가 집행) |");
+    add("| 디스크 | 로그 평면 노드당 상한 기본 512 MiB (`logs_lifecycle.sh` 가 집행) |");
     if has_l3 {
         add("| RAM 회수 | crashkernel 예약 **해제** — 약 2.25 GiB 반환 |");
     }
@@ -352,14 +352,16 @@ impl role_contract::manifest_gate::BranchProbe for GitBranch {
 }
 
 fn read_topology(repo: &str) -> R<String> {
-    // the original imports `manifest_contract` from `<repo>/.claude/skills/terraforming_node/scripts` first; its absence
-    // is the same explicit refusal here (the decision itself is the linked owner's)
+    // the topology owner is `manifest_contract` (its launcher `<repo>/.claude/skills/terraforming_node/scripts/
+    // manifest_contract.sh`); a repository without that owner is still an explicit refusal (the decision itself is the
+    // linked owner's). Until plan_26111717 this checked the deleted `manifest_contract.py`, so every run without
+    // `--topology` was refused even in a complete repository.
     let path = bb::join(repo, ".claude/skills/terraforming_node/scripts");
-    if !bb::is_file(&bb::join(&path, "manifest_contract.py")) {
+    if !bb::is_file(&bb::join(&path, "manifest_contract.sh")) {
         return Err(die(
             1,
             &[format!(
-                "[bb-request] FAIL(1): manifest_contract 를 불러오지 못했다 (No module named 'manifest_contract'). 기대 경로: {path}"
+                "[bb-request] FAIL(1): manifest_contract 소유자를 찾지 못했다 (manifest_contract.sh 부재). 기대 경로: {path}"
             )],
         ));
     }
@@ -404,7 +406,7 @@ static ARGS: [Arg; 8] = [
 ];
 
 pub static SPEC: Spec = Spec {
-    prog: "publish_install_request.py",
+    prog: "publish_install_request.sh",
     usage: include_str!("../help/publish_install_request.usage"),
     help: include_str!("../help/publish_install_request.help"),
     args: &ARGS,
@@ -416,7 +418,7 @@ fn run(a: &argp::Parsed) -> R<i32> {
     let level = a.text(2).unwrap_or("L3").to_string();
     let force = a.flag(4);
     let sdir = bb::dirname(
-        &crate::owner::owner_path("node_blackbox/publish_install_request.py")
+        &crate::owner::owner_path("node_blackbox/publish_install_request.sh")
             .display()
             .to_string(),
     );

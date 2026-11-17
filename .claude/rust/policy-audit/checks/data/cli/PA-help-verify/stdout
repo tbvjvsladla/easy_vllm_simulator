@@ -1,4 +1,4 @@
-usage: policy_registry.py verify [-h] --as-of AS_OF [--registry REGISTRY]
+usage: policy_registry.sh verify [-h] --as-of AS_OF [--registry REGISTRY]
                                  [--schema SCHEMA]
                                  [--claim-bindings CLAIM_BINDINGS]
                                  [--repo-root REPO_ROOT]

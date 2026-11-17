@@ -21,5 +21,5 @@ if [ "$magic" != $'\177ELF' ]; then
   exit 2
 fi
 # `__file__` of the program this one stands for (its location, never user intent): the sibling `library_access.py` path.
-export TERRAFORMING_OWNER_PATH="$SDIR/library_access.py"
+export TERRAFORMING_OWNER_PATH="$SDIR/library_access.sh"
 exec "$BIN" "$@"

@@ -1,4 +1,4 @@
-<!-- 이 파일에서 생성물은 맨 아래 「발행 목록」 절의 마커 구간 하나뿐이다 — `hint.py catalog derive` 가 원격 발행 태그(refs/tags/hint/*)에서 그 구간만 다시 쓴다. 마커 밖은 사람이 쓰는 서사이며 파생기가 한 바이트도 바꾸지 않는다. 시점에 따라 낡는 사실(개수·분포·예시 목록)은 마커 밖에 적지 않는다. 기계 색인 = hints/index.json(같은 derive 가 전량 쓴다). -->
+<!-- 이 파일에서 생성물은 맨 아래 「발행 목록」 절의 마커 구간 하나뿐이다 — `hint.sh catalog derive` 가 원격 발행 태그(refs/tags/hint/*)에서 그 구간만 다시 쓴다. 마커 밖은 사람이 쓰는 서사이며 파생기가 한 바이트도 바꾸지 않는다. 시점에 따라 낡는 사실(개수·분포·예시 목록)은 마커 밖에 적지 않는다. 기계 색인 = hints/index.json(같은 derive 가 전량 쓴다). -->
 # hint 태그 카탈로그 — 검증된 서빙 여정의 지도
 
 이 프로젝트는 완제품(빌드된 이미지·서빙된 모델)을 배포하지 않습니다. 배포받은 *스켈레톤 + 생성엔진*으로
@@ -26,7 +26,7 @@
 ### 1. 가까운 태그를 도구에게 묻기 — `match`
 
 ```bash
-python3 .claude/skills/hint-publisher/scripts/hint.py match --vllm <V> --model <M> [--arch <A>] [--include-other] [--json]
+bash .claude/skills/hint-publisher/scripts/hint.sh match --vllm <V> --model <M> [--arch <A>] [--include-other] [--json]
 ```
 
 - git 없이 `hints/index.json` 만 읽습니다(배포 아카이브에서도 동작합니다).
@@ -111,7 +111,7 @@ arch·recipe 의 모양이 다릅니다.
 태그 이름순입니다. 묶음은 그 안의 가장 최근 발행 순서로 놓입니다. 요약 한 줄(brief)과 세대 값은 `hints/index.json`
 에 있습니다.
 
-<!-- HINTS:BEGIN derived — `hint.py catalog derive` 가 이 구간만 다시 쓴다(손으로 고치지 마라 · 구간 밖은 사람이 쓰는 서사다) -->
+<!-- HINTS:BEGIN derived — `hint.sh catalog derive` 가 이 구간만 다시 쓴다(손으로 고치지 마라 · 구간 밖은 사람이 쓰는 서사다) -->
 > 원격 `github-ssh` 의 발행 태그 **95건** · 모델 18종에서 파생 · 생성 `2026-11-17T12:26:40` KST.
 
 ### `deepseek-v4.1-flash-exl3-2.0bpw-sfxnz` (4)

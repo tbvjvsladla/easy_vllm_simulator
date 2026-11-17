@@ -1,8 +1,8 @@
 # hint 태그 발행 계약 (v8 · 2026-10-11 — 발행 게이트 통일 · REFUTE 는 표시만 · OBSERVATION-ONLY ← v7 · 2026-09-29 — 결정론 3축 + 근거 붙은 꼬리 · native 구조 통일 · 판정 표면 · 안내 커밋 부모)
 
-> 정본. 집행자는 단일 진입 `.claude/skills/hint-publisher/scripts/hint.py` 와 그 패키지 `scripts/hintlib/`
+> 정본. 집행자는 단일 진입 `.claude/skills/hint-publisher/scripts/hint.sh` 와 그 패키지 `scripts/hintlib/`
 > (naming · evidence · lineage · artifacts · template · pii · branch · tag · catalog)다. 이 문서는 **규칙과 그 이유**를 적는다 —
-> 명령별 인자는 `hint.py <명령> --help`, 운영 요약은 스킬 `.claude/skills/hint-publisher/SKILL.md` 가 든다(같은 규칙을 두 자리에
+> 명령별 인자는 `hint.sh <명령> --help`, 운영 요약은 스킬 `.claude/skills/hint-publisher/SKILL.md` 가 든다(같은 규칙을 두 자리에
 > 다시 적지 않는다). 설계 근거 `docs/plan/plan_26092908`(v7 · §3 결정 U1–U9 · §4 계약) ← `docs/plan/plan_26092119`(v6 · §3 결정
 > P1–P3·D1–D12 · §4 설계 · Execution approval O2–O6). **새 동작의 정본은 코드다** — 이 문서가 코드와 어긋나면 문서를 고친다.
 > **v7 은 발효(2026-09-29) 이후 발행분에만 적용한다** — 원격에 올라간 과거 태그(v6 이하)는 판정·교정·리콜하지 않는다(§9 · P1).
@@ -90,10 +90,10 @@
 ### 3.0 벤치 절은 손저작하지 않는다
 
 `03-benchmark.md` §3.2 부하 곡선은 `<!-- BENCH_SECTION -->` 다음 줄부터 다음 챕터 헤딩 직전까지가 **기계 렌더**다
-(`scripts/render_bench_section.py` 가 바인딩된 리포트 또는 스윕 색인을 결정론 파싱). LLM 은 이 표의 숫자를 옮기지 않는다. 린터가
+(`scripts/render_bench_section.sh` 가 바인딩된 리포트 또는 스윕 색인을 결정론 파싱). LLM 은 이 표의 숫자를 옮기지 않는다. 린터가
 같은 원천으로 in-process 재렌더해 diff 0 을 요구한다(`HINT_BENCH_SECTION_DRIFT` · 원천 없이 곡선만 있으면
 `HINT_BENCH_SECTION_UNVERIFIABLE`) — 옛 계약은 `--verify` 를 적어 두고 **부르는 게이트가 없었다**(K6). 닫힘 표지를 두지 않는 이유:
-`render_bench_section.py --verify --section 03-benchmark.md --report <리포트>` 의 절 추출 계약(제목 ~ 다음 `## `)과 바이트가 맞아야
+`render_bench_section.sh --verify --section 03-benchmark.md --report <리포트>` 의 절 추출 계약(제목 ~ 다음 `## `)과 바이트가 맞아야
 수신자도 같은 명령으로 확인할 수 있다(2026-09-22 리뷰: FACT 닫힘 표지가 절에 딸려 들어가 모든 신 형식 페이로드에서 `--verify` 가
 실패했다).
 
@@ -106,7 +106,7 @@ v5 의 C행("B 가 열리므로 도달 가능하다")은 처음에 **승격 게�
   lite-only 셀은 **경량 리포트**(`lite_bench.sh --publish-report` → 헤더 `mode: lite` · `evidence_publisher publish-lite-report`),
   반복 불성립으로 강등된 셀은 그 스윕의 리포트(`evidence_publisher init --downgrade-from full_benchmark --downgrade-reason
   <run_failed|blackbox_kill>`)다. 재분류는 **대조**다 — 바인딩된 리포트의 측정 구성 표가 같은 강등 사유를 말할 때만 열린다.
-  캠페인 셀이면 이 구동은 `hint.py publish` 가 한다(§6).
+  캠페인 셀이면 이 구동은 `hint.sh publish` 가 한다(§6).
 - **footer 바인딩 판정자는 하나**(`evidence.binding_artifact_path` · 2026-08-01/08-24/09-14 · 단일 결정자): 인증서가 있으면 인증서가
   이긴다. 없으면 `hint_map_only` · `OBSERVATION-ONLY`(기준 부재 full 셀) · 유효 rubric 의 non-PASS(권한 무관 · v8) · 비발행 권한 PASS 가 bench_report 를
   연다. 넷 다 아니면 묶을 것이 없어 **커밋 전에** 멈춘다
@@ -170,7 +170,7 @@ v4 는 "필수는 **여정 정보 하나**, 나머지 부재는 기재" 로 절�
 그 밖의 차단은 양성 검출이다(§5). 여정 = Agent 가 읽을 수 있는 형태로 *무엇을 시도했고 어디서 멈췄는지*. 없으면 그 태그는 아무 값도
 나르지 않으므로 fail-closed 다. 판정은 템플릿 린터가 한다(§8): 02 에 `kind: wall` 블록 ≥ 1(`HINT_JOURNEY_WALL_ABSENT` — "필수는 여정
 정보 하나") · 필수 챕터·필드 · 미저작 자리표시(`<<AGENT:`)·PROMPT 잔존 0 · 계보 문서 ≥ 1(`HINT_LINEAGE_EMPTY`). 옛 집행자로 적혀 있던 `selftest_hint_gate.py` 는 **실행자 0** 이었다(아무 러너에도 등록되지 않음) — 그 단언은
-각 hintlib 모듈 selftest 로 옮겨 `hint.py --self-test` 가 전종 실행한다.
+각 hintlib 모듈 selftest 로 옮겨 `hint.sh --self-test` 가 전종 실행한다.
 
 - **부재는 차단이 아니라 기재다**(인증서 · lite · 슬레이브 attestation · env 형상 · 빌드 원장 · 캠페인 인스턴스 purge 등 —
   `MISSING_CODES`). 적어야 수신자가 *무엇을 모른 채 소비하는지* 안다.
@@ -187,7 +187,7 @@ v4 는 "필수는 **여정 정보 하나**, 나머지 부재는 기재" 로 절�
 
 full 벤치는 lite 의 **상위집합**이어야 한다. 교집합이면 lite 로 잰 모델과 full 로 잰 모델의 지표 열 집합이 달라져 조건별 비교가
 깨진다. 구조적 보장: `sweep_bench.sh` 가 `lite_bench.sh` 를 **실제로 실행해서 포함**한다(병렬 목록 유지 ✗). 집행:
-`scripts/conformance_full_superset_lite.py`(adversarial-benchmark 소유 · 여기서는 인용만).
+`scripts/conformance_full_superset_lite.sh`(adversarial-benchmark 소유 · 여기서는 인용만).
 
 ### 3.2 성능 REFUTE — 표시만 · loop-until-done 분리 · OBSERVATION-ONLY (v8 · 2026-10-11 · plan_26101104 Step 1)
 
@@ -199,18 +199,18 @@ full 벤치는 lite 의 **상위집합**이어야 한다. 교집합이면 lite �
 |---|---|
 | 유효 측정(불변 · fail-closed) | rubric 계약 = `floor_tps` 유한 양수 ∧ `ratio_M_over_primary` 유한 ∧ `primary_source` 실재 ∧ `rubric_source` 출처 표시(판정기 산출물 파생). floor ≤ 0 = 공허 PASS — 어떤 판정·권한으로도 승격 ✗ |
 | 서빙 성립(불변) | runtime tier(health · OOM 없음 · `functional_smoke_passed` · identity 6키). 판정과 무관하게 먼저 막는다 |
-| `completion_gate.py` | non-PASS(REFUTE · FAIL) ∧ 유효 측정 ∧ 서빙 성립 → 승격(`BENCHMARK_VERDICT_ANNOTATED`) · 미충족 = `BENCHMARK_MEASUREMENT_INVALID` · 판정 부재 = `BENCHMARK_VERDICT_ABSENT` |
+| `completion_gate.sh` | non-PASS(REFUTE · FAIL) ∧ 유효 측정 ∧ 서빙 성립 → 승격(`BENCHMARK_VERDICT_ANNOTATED`) · 미충족 = `BENCHMARK_MEASUREMENT_INVALID` · 판정 부재 = `BENCHMARK_VERDICT_ABSENT` |
 | loop-until-done | `adversarial-benchmark` 의 **성능 게이트**로 남는다(REFUTE → 재탐색 · explore 는 해제). 발행을 막지 않는다 — 발행 시점은 셀마다 완료 즉시이고 루프의 각 시도는 별개 셀이다 |
 | 인증서 | **여전히 explicit ∧ PASS 때만 발행**한다(`judge_bench` · `publish_benchmark_record` 무변경). 승격은 *"성능이 검증됐다"* 는 주장을 만들지 못한다 — 인증서 없는 셀의 footer 는 bench_report 를 묶는다(`bench_kind: bench_report`) |
 
-**OBSERVATION-ONLY — 기준 부재 full 셀**: 사용자 목표(c)도 외부 레퍼런스(E)도 없고 expected 도 산출할 수 없어 `verdict_rule.py` 가
+**OBSERVATION-ONLY — 기준 부재 full 셀**: 사용자 목표(c)도 외부 레퍼런스(E)도 없고 expected 도 산출할 수 없어 `verdict_rule.sh` 가
 `NEEDS_RUBRIC`(사다리 공백 · `rubric.primary = null ∧ reason_code = null`)을 낸 셀(마이너 · 파인튜닝 · Unknown 아키텍처)은 work-manifest
 `benchmark.verdict = OBSERVATION-ONLY` 로 **관측 발행**한다 · 루프 없음.
 
 | 층 | 규칙 |
 |---|---|
 | `evidence_publisher publish-benchmark` | `--verdict OBSERVATION-ONLY` 는 `--verdict-json-src` 필수 · 산출물이 사다리 공백의 `NEEDS_RUBRIC` 일 때만 받는다. 물리 초과(문턱은 낙찰됐다) · spec accept_len 결손(`SPEC_ACCEPT_LEN_MISSING`)은 관측 전용이 아니다 — 거부(`PUBLISH_BENCHMARK_VERDICT_JSON_VERDICT_MISMATCH`) |
-| `completion_gate.py` | 서빙 성립 ∧ bench_report 판정 표 = `NEEDS_RUBRIC`(교차검증 · 불일치 = `BENCHMARK_OBSERVATION_ONLY_UNCORROBORATED`) ∧ 루브릭 수치 null ∧ 출처 표시 → 승격(`BENCHMARK_OBSERVATION_ONLY_PROMOTION`) · 위반 = `BENCHMARK_OBSERVATION_ONLY_INVALID` |
+| `completion_gate.sh` | 서빙 성립 ∧ bench_report 판정 표 = `NEEDS_RUBRIC`(교차검증 · 불일치 = `BENCHMARK_OBSERVATION_ONLY_UNCORROBORATED`) ∧ 루브릭 수치 null ∧ 출처 표시 → 승격(`BENCHMARK_OBSERVATION_ONLY_PROMOTION`) · 위반 = `BENCHMARK_OBSERVATION_ONLY_INVALID` |
 | 표시 | `PAYLOAD.measurement.verdict = OBSERVATION-ONLY` · 00 머리 `OBSERVATION-ONLY` 배너(판정 주장 ✗ · 인증서 없음 · 루프 없음) · 부재 = `HINT_OBSERVATION_ONLY_MARKER_MISSING` |
 
 **폐기(v8)**: v2.1 의 사람 서명 성능 면제 필드(4필드 positive key)와 그 경고 마커 · 린트 · 바인딩 원천은 **폐기**됐다 — writer 가 없어 실제로
@@ -279,7 +279,7 @@ hint/<vllm>/<model>/<arch>/q<quant>-len<n>-kv<dtype>[-<tail>][-t<YYMMDDHHMM>]
   (V9: 타 PC 옛 `…-main-native` 14건이 우연히 전부 비-Docker 라 오독 소지가 있었다 · 페이로드 README 가 읽는 법을 싣는다 §7.1).
 - 엔진 자기보고(예 `0.29.0`) · wheel 메타 원문은 이름이 아니라 `PAYLOAD.naming.vllm_observed` 와 00 사실 블록에만 산다(F13: 출처가 셋으로
   갈려 rc6 소스빌드와 릴리스가 한 이름을 썼다).
-- 축별 `{값, 출처}` 는 `PAYLOAD.naming`(`grammar: "v7"`)에 기록한다. 미리보기 = `hint.py name`(읽기 전용 · 기본 이름 + 꼬리 후보).
+- 축별 `{값, 출처}` 는 `PAYLOAD.naming`(`grammar: "v7"`)에 기록한다. 미리보기 = `hint.sh name`(읽기 전용 · 기본 이름 + 꼬리 후보).
 - **노드 축 자동 파생**(v7 · plan §4.8 V11③): `--node` 를 주지 않으면 셀 측정 TP > 노드당 GPU 이거나 멀티 serve proof · attestation 이 있을 때
   `cluster` 로 파생한다(멀티 셀 3/3 에서 사람이 `--node cluster` 를 명시하던 손작업의 제거). 모호하면 차단이다(추측 ✗).
 - **노드 축 ↔ 측정 대조**(v5 §3.-2 · 2026-09-07 `plan_26090715` R4 — 그때까지 `measured_node` 와 arch 노드 축의 대조가 어디에도 없어
@@ -306,7 +306,7 @@ hint/<vllm>/<model>/<arch>/q<quant>-len<n>-kv<dtype>[-<tail>][-t<YYMMDDHHMM>]
 - **근거 대조**(`HINT_TAIL_UNGROUNDED`): `evidence.file` 이 이 셀의 서빙 설정(서빙 yaml · 셀 env · 셀 config · native 트리플렛 — `evidence.tail_sources`
   가 publish 때 draft `inputs/tail_sources.json` 에 평탄 key→value 로 스냅샷) 중 하나이고, `key` 가 실재하며(yaml 중첩은 `a.b`), 값이 `value` 와
   일치(공백 · 따옴표 · 대소문자 정규화)해야 한다. 규칙 목록을 늘리지 않고 **거짓 꼬리만** 막는다.
-- `hint.py lint` 가 같은 대조를 저작 중에 미리 보인다. 산문 · hint-event 에 태그 이름을 글자로 적으면 막는다(`HINT_TAG_LITERAL_IN_PROSE` — 이름은
+- `hint.sh lint` 가 같은 대조를 저작 중에 미리 보인다. 산문 · hint-event 에 태그 이름을 글자로 적으면 막는다(`HINT_TAG_LITERAL_IN_PROSE` — 이름은
   사실 블록이 소유한다 · 꼬리 확정 전 이름이 남는다).
 
 ### 4.3 이름 확정 · timestamp (U7)
@@ -375,7 +375,7 @@ PII 는 배포 산출물이므로 `hintlib/pii.py` 의 `GENERIC_PII` 4종 전부
 ## 6. 발행 절차 — 셀 1개 = 태그 1개 · 단일 진입 (D9)
 
 ```
-hint.py publish  --campaign <id> --cell <cell> [--node main|sub|cluster] --generated-utc <UTC>   ← --node 는 보통 생략(§4.1 자동 파생)
+hint.sh publish  --campaign <id> --cell <cell> [--node main|sub|cluster] --generated-utc <UTC>   ← --node 는 보통 생략(§4.1 자동 파생)
   ① 셀 증거 수집(명시 id 만 · campaigns/ACTIVE 를 읽지 않는다)   ② 발행 자격 관측(§2)
   ③ 기본 이름(결정론부 · §4.1) 파생 · ref 형식 · 이름 PII · 충돌 · 발행 기록 시각 판정(채택 · 아래)   ← 여기까지 부수효과 0
   ④ evidence_publisher 구동(init → set-narrative → append-raw(simlog) → publish-benchmark | publish-lite-report →
@@ -385,11 +385,11 @@ hint.py publish  --campaign <id> --cell <cell> [--node main|sub|cluster] --gener
      README · 꼬리 후보 · `inputs/naming_base.json` · `inputs/tail_sources.json` · state.json → **정지**.
      출력 = 채울 PROMPT 목록 · LINEAGE 읽기 목록 · 다음 명령
 (저작)  Agent 가 PROMPT 절을 산문 · hint-event · 원문 발췌로 채운다(§8) · 00 §0.9 이름 꼬리 → `inputs/tail.json`(§4.2) · Agent 저작 요청 파일(§3.3) —
-        hint.py excerpt · hint.py refresh(파생 요약 미리 보기 · draft 안 쓰기만 · 커밋 뒤 `HINT_DRAFT_ALREADY_COMMITTED`) · hint.py lint(부수효과 0 ·
+        hint.sh excerpt · hint.sh refresh(파생 요약 미리 보기 · draft 안 쓰기만 · 커밋 뒤 `HINT_DRAFT_ALREADY_COMMITTED`) · hint.sh lint(부수효과 0 ·
         꼬리 대조 포함) 가 0 이 될 때까지
 (검증)  저작자가 아닌 Agent 가 산문과 FACT 블록의 사실 주장 전부를 출처와 대조해 <draft>/inputs/factcheck.json 을 쓴다(§6.7 · 항목마다
-        `target: prose|fact`) → 산문은 저작자가 고치고 · FACT 는 생산자를 고친 뒤 `hint.py refacts` → lint 0
-hint.py continue (--campaign <id> --cell <cell> | --draft <draft>) --generated-utc <UTC> [--remote origin] [--no-push]
+        `target: prose|fact`) → 산문은 저작자가 고치고 · FACT 는 생산자를 고친 뒤 `hint.sh refacts` → lint 0
+hint.sh continue (--campaign <id> --cell <cell> | --draft <draft>) --generated-utc <UTC> [--remote origin] [--no-push]
                  [--guide-commit <SHA>]                                        ← --no-push(오프라인 재생) 전용
                  [--approved-by "<사람 발화 전사>" --approved-utc <UTC>]       ← 캠페인 밖 발행만
                  [--factcheck-waiver "<사람 발화 전사>"]                        ← 사람이 사실 검증을 면제했을 때만
@@ -403,7 +403,7 @@ hint.py continue (--campaign <id> --cell <cell> | --draft <draft>) --generated-u
   ⑦ 봉인(§7.3 · footer v2 · 봉인 직전 원격 재조회) → 이 태그 1개 로컬 검증(봉인된 오브젝트를 풀어 서사 린트 포함)
   ⑧ 게이트(hint_push) → push(§6.2) → 원격 태그 오브젝트 SHA == 로컬
   ⑨ 카탈로그 파생(record-missing · §6.4) + 두 경로 자동 커밋  ⑩ 캠페인 셀이면 publish 위상(proof = refs/tags/<tag>@<원격 SHA>)
-hint.py refacts --draft <draft>   같은 generated_utc 로 FACT 블록 · PAYLOAD · LINEAGE · PROVENANCE · template_facts 재생성(저작 산문 · tail.json ·
+hint.sh refacts --draft <draft>   같은 generated_utc 로 FACT 블록 · PAYLOAD · LINEAGE · PROVENANCE · template_facts 재생성(저작 산문 · tail.json ·
                                   factcheck.json 보존 · 바뀐 FACT diff 출력 · 부수효과 = draft 안뿐 · 커밋 뒤 거부)
 ```
 
@@ -413,7 +413,7 @@ hint.py refacts --draft <draft>   같은 generated_utc 로 FACT 블록 · PAYLOA
   옛 기록이 승격 불가면 저작을 다 한 뒤에야 아는 것을 막는다(2026-09-22 리뷰). 재생 draft 의 `continue` 는 그 옛 발행 기록의
   promotion_target 을 새 태그로 다시 적는다(같은 기록의 새 판본 · 옛 태그는 판정하지 않는다 · P1).
 - **캠페인 셀의 서사 증거**: 발행기 구동은 셀의 plan · devlog · testlog 를 요구한다. 없으면 쓰기 전에 `HINT_NARRATIVE_EVIDENCE_ABSENT`
-  (셀 testlog·devlog 를 먼저 발행하고 `campaign_init.py --evidence-add` 로 등록한다) — 이것이 "문서 완료 후" 의 기계 판정이다.
+  (셀 testlog·devlog 를 먼저 발행하고 `campaign_init.sh --evidence-add` 로 등록한다) — 이것이 "문서 완료 후" 의 기계 판정이다.
 - **발행 기록 시각은 불변 — 그리고 채택된다**(v7 · plan §4.8 V11①): 셀 발행 기록이 이미 다른 `generated_utc` 로 묶였고 그 발행의 draft 가 **스캐폴드되지
   않았으면**(앞선 publish 가 스캐폴드 전에 거부 · 중단됐다) publish 가 묶인 시각을 **채택**해 진행하고 로그로 알린다(명시한 시각은 쓰지 않는다 —
   사람이 거부된 publish 의 시각을 기억해 넣던 손작업이 셀마다 3회 나왔다). 스캐폴드된 draft 가 있으면 새 시각은 같은 기록의 재바인딩이므로
@@ -436,7 +436,7 @@ hint.py refacts --draft <draft>   같은 generated_utc 로 FACT 블록 · PAYLOA
   draft 를 찾지 못하면 `HINT_LINT_DRAFT_ABSENT` 로 검증이 실패한다(검증 범위 = 전송 범위 · 린트를 조용히 건너뛰지 않는다). 자동으로
   `hints/.drafts/` 에서 태그로 찾고, 아니면 `--draft` 로 지정한다. `push` 는 `--apply` 가 없으면 dry-run 이고 dry-run 실패도 삼키지 않는다.
 - **게이트 결과의 모양**: 게이트가 걸린 명령(`continue`→`hint_finalize` · `verify`→`hint_verify` · `push`→`hint_push`)은 첫 부수효과 전에
-  `completion_gate.py authorize --mode promotion` 을 묻는다. 거부 = 게이트 JSON 원문을 stdout 에 그대로 + 그 종료코드. 게이트를 실행하지
+  `completion_gate.sh authorize --mode promotion` 을 묻는다. 거부 = 게이트 JSON 원문을 stdout 에 그대로 + 그 종료코드. 게이트를 실행하지
   못했거나 출력을 읽지 못하면 같은 모양의 결정론 포장 JSON(`allowed:false`)을 stdout 에 내고 exit 2. `publish`·`lint`·`excerpt`·`name`·
   `match`·`catalog`·`refacts`·`refresh` 는 게이트가 없다(태그·브랜치를 만들지 않는다 · match 는 수신자 평면이라 게이트를 걸면 gitless 배포본에서
   죽는다). `branch-transition` 은 발행이 아니라 형식 전환이며 사람 승인 전사를 직접 요구한다(§6.5).
@@ -460,7 +460,7 @@ hint.py refacts --draft <draft>   같은 generated_utc 로 FACT 블록 · PAYLOA
 
 | 발행 | 승인 기록(단일 원천) | writer |
 |---|---|---|
-| 캠페인 셀 | `campaign.yaml` `hint_targets[] = {node_id, cells:[명시 · 1개 이상 · 그 노드의 배정 셀], approval:{approved_by, approved_utc, source}}` — 선언 확인 팝업(기본 `declaration-popup`) 또는 셀 발행 팝업(`publish-popup`)에서 받은 사람 발화의 전사 | `campaign_init.py --hint-approve --node <n> --cells a,b --approved-by "<전사>" --utc <UTC> [--source …] [--campaign-id <id>]` |
+| 캠페인 셀 | `campaign.yaml` `hint_targets[] = {node_id, cells:[명시 · 1개 이상 · 그 노드의 배정 셀], approval:{approved_by, approved_utc, source}}` — 선언 확인 팝업(기본 `declaration-popup`) 또는 셀 발행 팝업(`publish-popup`)에서 받은 사람 발화의 전사 | `campaign_init.sh --hint-approve --node <n> --cells a,b --approved-by "<전사>" --utc <UTC> [--source …] [--campaign-id <id>]` |
 | 캠페인 밖(재생) | `continue --approved-by "<사람 발화 전사>" --approved-utc <UTC>` | 사람 발화를 받은 Agent |
 
 - 캠페인 셀에 `--approved-by` 를 주면 거부한다(`HINT_APPROVAL_SOURCE_CONFLICT` — 원천은 하나다). 전사는 한 줄이며 자리표시(`<<…>>`)는
@@ -477,14 +477,14 @@ hint.py refacts --draft <draft>   같은 generated_utc 로 FACT 블록 · PAYLOA
   저장소에서 재현 · 2026-09-22). 성공 로그는 **실제 refspec** 을 출력한다.
 - **hint 브랜치는 발행이 밀지 않는다.** 태그 push 가 페이로드 커밋 오브젝트(와 그 부모 = 안내 커밋)를 함께 나르므로 zip 은 태그만으로
   성립하고, 원격 hint 브랜치 tip(= 안내 커밋)은 발행으로 움직이지 않는다. 브랜치가 움직이는 것은 페이로드 **형식이 바뀔 때**
-  `hint.py branch-transition`(사람 승인 전사 · exact refspec `refs/heads/hint:refs/heads/hint` · non-force)뿐이다(§6.5 · U8 — 발행기에 브랜치
+  `hint.sh branch-transition`(사람 승인 전사 · exact refspec `refs/heads/hint:refs/heads/hint` · non-force)뿐이다(§6.5 · U8 — 발행기에 브랜치
   자동 push 권한 ✗).
 - push 전에 이 태그 1개를 로컬 검증하고(검증 범위 = 전송 범위), 원격에 같은 오브젝트가 이미 있으면 push 를 생략(멱등), 다른 오브젝트면
   `HINT_REMOTE_TAG_CONFLICT`(강제 ✗). push 뒤 원격 태그 오브젝트 SHA 를 로컬과 대조한다.
 - **자격증명**(2026-09-04 "could not read Username" 사건): https 원격만 토큰이 필요하다(환경변수 `GITHUB_TOKEN` → `envs/.env` 의 같은 키 ·
   없으면 `HINT_PUSH_CREDENTIAL_ABSENT`). ssh · scp형 · 로컬 경로 원격은 토큰 불요. 토큰은 argv · URL · reflog · remote.url 에 남지 않고
   (`credential.helper=` 로 상속 헬퍼를 비운다 · `GIT_TERMINAL_PROMPT=0`), 평문 http · URL 속 자격증명은 거부한다. 같은 경로를 upstream
-  `push_branches.py` 가 공개 API `hintlib.tag.git_push_authenticated` 로 재사용한다.
+  `push_branches.sh` 가 공개 API `hintlib.tag.git_push_authenticated` 로 재사용한다.
 
 ### 6.3 게이트 범위 = 이번 발행분만 (D10 · P1 의 귀결)
 
@@ -524,7 +524,7 @@ verify 는 로컬 태그 **전수**를 원격 파생 index 와 대조해 이 체
   **push 하지 않는다** — `continue --no-push` 로 로컬 봉인까지만 만들고 태그를 상류에 전달한다. 도구가 집행한다: 선언이 없으면
   push 까지 가는 `continue`(승인 확인 직후 · 커밋·봉인 전)와 단독 `push` 가 `HINT_PUSH_CENTRAL_AUTHORITY_ABSENT` 로 멈춘다(부수효과 0 ·
   2026-09-22 통합에서 옛 hint_tag push 게이트 복원).
-- 수신자 검색 `hint.py match --vllm V --model M [--arch A]` 는 읽기 전용 · gitless(`hints/index.json` 만)이며 모델 관계 = **정규화 슬러그
+- 수신자 검색 `hint.sh match --vllm V --model M [--arch A]` 는 읽기 전용 · gitless(`hints/index.json` 만)이며 모델 관계 = **정규화 슬러그
   동치 + v6 · v7 태그의 `base_model`**(PAYLOAD.identity 파생)이다. 결정론부로 1차 매칭하고 꼬리 뜻은 보조 표시다. 패턴/안티패턴 판정은 하지
   않는다 — 시간축은 수신자만 본다. family 색인
   (옛 `families.json`)은 폐기됐다(O3 · "파생 가능한데 손으로 적은 것").
@@ -549,7 +549,7 @@ verify 에서 막혔고, 브랜치를 push 하면 원격 첫 화면이 마지막
   (`HINT_ANCHOR_PARENT_NOT_GUIDE` — 형식 버전은 묻지 않는다: 뒤 형식 전환 뒤에도 앞 형식 안내 위의 태그는 유효하다) · 앵커 트리에 `PAYLOAD.json`
   (`HINT_ANCHOR_PAYLOAD_ABSENT`) · `PROVENANCE.tag` = 이 태그(`HINT_ANCHOR_PROVENANCE_TAG_MISMATCH`). 마커 도입 전 체인형 태그는 판정 대상이
   아니다(D10 · P1). 검사 범위는 이 태그 1개다(§6.3).
-- **형식 전환**(`hint.py branch-transition --remote R --generated-utc U --approved-by "<전사>" --approved-utc U`): 원격 tip 위에 이 발행기 형식의
+- **형식 전환**(`hint.sh branch-transition --remote R --generated-utc U --approved-by "<전사>" --approved-utc U`): 원격 tip 위에 이 발행기 형식의
   안내 커밋을 얹고 exact refspec 로 non-force push 한다 — **브랜치 push 의 유일한 경로**이고 사람 승인이 필수다(없으면 `HINT_APPROVAL_ABSENT` ·
   ref 쓰기 0). 원격이 이미 이 형식이면 `already-transitioned`(로컬 hint 가 다르면 원격 tip 으로 맞춤 = 옛 체인형 로컬 정리) · 원격이 더 새
   형식이면 `HINT_BRANCH_TRANSITION_DOWNGRADE` · 로컬 hint 를 옮기면 태그가 붙잡지 않는 페이로드 커밋이 고아가 되면
@@ -565,11 +565,11 @@ verify 에서 막혔고, 브랜치를 push 하면 원격 첫 화면이 마지막
 발행은 **메인 단독**이 기본이고, **single 서브(sub_mode `a2a-agent`)의 자기 셀**만 예외다 — 서브에서만 잰 셀은 메인이 관측 원시를 볼 수
 없어(D-e) 관측한 그 노드가 발행하는 것이 유일한 정합이다. 경계:
 
-- **엔진** — 발행 엔진(`hint.py` · `hintlib`)은 원격 셸을 실행하지 않고 서브 배달·릴레이 도구를 부르지 않는다(불변). 메인→서브 배달은
+- **엔진** — 발행 엔진(`hint.sh` · `hintlib`)은 원격 셸을 실행하지 않고 서브 배달·릴레이 도구를 부르지 않는다(불변). 메인→서브 배달은
   single 서브에만 엔진과 `hints/` 의 계약·어휘(`HINT_ISSUANCE_CONTRACT.md` · `vocab.json`)를 나른다 — 색인(`hints/index.json`) ·
   카탈로그(`HINTS.md`) · 역할 마커는 어느 서브에도 가지 않는다(`render_sub_env.HINT_NEVER_DELIVER`). 런타임 스킬 평면 = 런타임 3종 +
   hint-publisher(single) · 0종(멀티 Ray 워커) — 정본 `node_role_contract.TOOL_PLANE_BY_SUB_MODE`.
-- **승인** — 사람이 메인 선언에 적는다(`campaign_init.py --hint-approve --node <서브>`). 파생 선언(`--emit-slice <서브>`)이 그 노드 몫만
+- **승인** — 사람이 메인 선언에 적는다(`campaign_init.sh --hint-approve --node <서브>`). 파생 선언(`--emit-slice <서브>`)이 그 노드 몫만
   운반하고, 서브 인스턴스는 남의 몫·자기 승인을 들 수 없다(검증기 · writer 거부). 셀별 Y/N 규칙(§6.1)은 그대로다.
 - **push** — 서브 워크스페이스 git 은 local-only 그대로다(policy SUB_GIT_LOCAL_ONLY). 태그는 그 밖의 **별도 hint 클론**(경로 선언 =
   서브 `envs/.env` 의 `HINT_CLONE_DIR`)에서 정확한 태그 1개로 push 한다(§6.2). 토큰은 사람이 그 노드에 둔다(배달 ✗).
@@ -589,7 +589,7 @@ verify 에서 막혔고, 브랜치를 push 하면 원격 첫 화면이 마지막
 **절차**: 저작 → lint 0 → **다른 Agent**(저작자 ≠ 검증자)가 00~03 산문 · hint-event · **FACT 블록**의 사실 주장을 전부 뽑아 인용 출처(계보 문서 ·
 블랙박스 원장 · 엔진 로그 · docker history · 이미지 안 파일 · 인증서)와 대조 → `<draft>/inputs/factcheck.json` → 지적마다 고친다 — 산문
 (`target: prose`)은 저작자가 고치고(또는 주장을 빼고), FACT(`target: fact`)는 편집하지 않고 **지적만** 한 뒤 생산자(증거 · 도구)를 고치고
-`hint.py refacts` 로 재파생한다 → 항목을 `status: fixed` + `resolution` 으로 닫는다 → lint 0 → continue.
+`hint.sh refacts` 로 재파생한다 → 항목을 `status: fixed` + `resolution` 으로 닫는다 → lint 0 → continue.
 
 **왜 FACT 도**(v7 · 2026-09-29 · plan §4.5 V4): v6 의 "기계 전사는 오기 0" 전제가 깨졌다 — D1 FACT 가 09-12 옛 원시를 이번 측정으로 읽었고, N1
 FACT:reproduce 에 호스트 경로가 실렸고, D2 · N1 에서 기록된 값을 "미관측" 이라 적어 산문 오류를 유도했다(사실검증 부류 7 이 D2 8/13 · N1 3/7).
@@ -612,7 +612,7 @@ classes_checked: [1..7] 전부, items: [{id, where, claim, verdict: wrong|mislea
 status: open|fixed|disputed, resolution, target: prose|fact}]}`(`target` 필수 — 누가 고치는지를 보고서가 말하지 않으면 FACT 오류가 산문으로
 덮인다). author · checker 는 **역할 이름**이다(00 메타에 실린다 · 사람 이름 ✗).
 
-**게이트**(hint.py continue · 린트 0 뒤 · 봉인·커밋 전 · 부수효과 = draft 안의 00 메타 · PAYLOAD 요약뿐):
+**게이트**(hint.sh continue · 린트 0 뒤 · 봉인·커밋 전 · 부수효과 = draft 안의 00 메타 · PAYLOAD 요약뿐):
 
 - 부재 → `HINT_FACTCHECK_ABSENT` · 모양 결함(검증자 = 저작자 · 7부류 누락 · 다른 draft 의 태그 · fixed 인데 resolution 없음 · 어휘 밖)
   → `HINT_FACTCHECK_INVALID` · 판정 항목 중 `fixed` 가 아닌 것(`open` · `disputed`) → `HINT_FACTCHECK_OPEN`.
@@ -678,7 +678,7 @@ source}` · `evidence_pointers[]` · `publication{topic, manifest_ref, task_clas
   `.env.cluster`·`.env.interconnect` 는 upstream `render_dockerfile.env_tier(key)` 3층으로, 그 밖의 `.env` 는 키의 신원성 규칙으로 치환한다.
 - **서브 레시피**(multi · D3): 서빙 평면에서 메인 대비 달라지는 것은 Ray worker 역할뿐이다(같은 이미지 레시피 · 같은 compose · 같은
   `serve_runner.sh` 가 `NODE_ROLE` 로 분기). `sub_recipe.json` 은 role_diff · launch_order · env_forward · image_identity_args ·
-  per_node_values(자리표시) · preconditions · parity_attestation 을 싣고, 서브 전달 목록은 upstream `slave_forward.py` 가 **유일하게**
+  per_node_values(자리표시) · preconditions · parity_attestation 을 싣고, 서브 전달 목록은 upstream `slave_forward.sh` 가 **유일하게**
   파생한다(스모크와 hint 가 같은 함수 · 2026-07-24~09-09 다섯 번의 침묵 누락). 서브를 다시 스캔하지 않는다 — 스모크가 회수한
   attestation 만 읽는다.
 
@@ -793,7 +793,7 @@ FACT 블록 오기가 나왔으므로(§6.7) v7 은 FACT 도 사실 검증 대�
   가진 이름 = `<nic:cluster>`(2026-09-22 적대 리뷰: 1판은 최상위를 `self_role`=main 으로 붙여 서브 Ray worker 로그 줄이 `<nic:main>` 을
   읽었다 — 도구가 만든 오귀속) · 사람 식별자 → `<redacted>`. NIC 치환은 **스캐너 체계
   변경이 아니라 치환 추가**다(P3 — NIC 이름은 스캔 대상이 아니다 · 1.5 PROMPT 가 NIC 이름을 금하는데 로그 발췌가 그대로 실었다). 치환표는 기존 env 형상화 · PII 4종 규칙을 재사용한다(새 체계 ✗ · P3). 저작자는
-  `hint.py excerpt --draft <draft> --source <stem|경로|artifacts 파일명|<도구>@<rev12>> [--lines a-b] [--numbered]` 로 **린터가 대조하는 치환 후
+  `hint.sh excerpt --draft <draft> --source <stem|경로|artifacts 파일명|<도구>@<rev12>> [--lines a-b] [--numbered]` 로 **린터가 대조하는 치환 후
   원문**을 받아 옮긴다(자리표시를 추측하지 않는다 · `--numbered` = 줄마다 `L<n>` — 린터가 `§L<a>-<b>` 로 대조하는 **같은** 번호 · 2026-09-22
   S2 round 3: 2차 저작자가 번호를 얻으려 원본을 따로 grep 했다).
 - **무결성**: 인용 본문(공백 정규화)이 출처(치환 후 · 공백 정규화)의 부분 문자열이어야 한다 → 아니면 `HINT_EXCERPT_MISMATCH`. 출처 stem 은
@@ -805,12 +805,12 @@ FACT 블록 오기가 나왔으므로(§6.7) v7 은 FACT 도 사실 검증 대�
   뒤에 가려지므로 절 표지는 언제나 `§L<a>-<b>` 다. 스냅샷은 배포 zip 밖이다 — 수신자는 03 §3.4 사실 블록의 `git show` 좌표로 같은 바이트를 얻는다.
   그래서 린터는 스냅샷 **파일**이 그 origin(`git show <rev>:<경로>`)과 **바이트 동일**할 때만 출처로 쓴다 — 다르면
   `HINT_EXCERPT_SNAPSHOT_DRIFT`(저작 중 스냅샷을 고치고 발췌를 거기 맞추면 발췌 대조는 통과하고 수신자의 `git show` 는 다른 바이트를 낸다 ·
-  2026-09-22 round 3 적대 리뷰) · origin 모양 결함 · git 에서 못 읽음 = `HINT_EXCERPT_SNAPSHOT_UNVERIFIABLE`(통과 ✗). `hint.py excerpt` 도
+  2026-09-22 round 3 적대 리뷰) · origin 모양 결함 · git 에서 못 읽음 = `HINT_EXCERPT_SNAPSHOT_UNVERIFIABLE`(통과 ✗). `hint.sh excerpt` 도
   같은 대조로 거부한다.
 - **절 표지(D-c · 2026-09-22)**: 마크다운 출처면 `§<절>` 이 그 문서 제목 줄(`#`…)의 정규화 접두와 맞아야 한다(번호만 · 번호+제목) → 아니면
   `HINT_EXCERPT_SECTION_UNKNOWN`. 본문만 맞고 절 표지가 틀리면 수신자가 원문을 찾아가지 못한다.
 - **비-마크다운 출처의 절 표지 = 줄 범위**(S2 round 2): 로그 · .sh · Dockerfile · requirements · JSON 발췌의 머리는 `§L<a>-<b>`(정규화 뒤 줄
-  번호 = `hint.py excerpt --lines a-b`)다 — 다른 모양 `HINT_EXCERPT_SECTION_SHAPE`(1차: `§헤더` · `§엔진 로그` 를 린터가 받아 자리를 찾을 수
+  번호 = `hint.sh excerpt --lines a-b`)다 — 다른 모양 `HINT_EXCERPT_SECTION_SHAPE`(1차: `§헤더` · `§엔진 로그` 를 린터가 받아 자리를 찾을 수
   없었다) · 범위 밖 · 거꾸로 `HINT_EXCERPT_LINES_OUT_OF_RANGE` · 인용이 원문에는 있으나 그 줄들 안이 아님 `HINT_EXCERPT_OUTSIDE_LINES` ·
   범위가 인용 줄 수 + 2 보다 넓음 `HINT_EXCERPT_LINES_TOO_WIDE`(넓은 범위는 자리를 가리키지 못한다).
 - **서명 조각(D-c)**: wall · misdiagnosis 의 `서명` 은 출처 원문의 글자 그대로여야 하고(`HINT_SIGNATURE_MISMATCH`), `…` 로 나눈 각 조각은 공백

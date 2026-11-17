@@ -1437,7 +1437,7 @@
   "before": {},
   "after": {},
   "exit_code": 0,
-  "stdout": "usage: resolve_topology.py [-h] [--repo REPO] [--self-test]\n\n벤치 스크립트 공용 토폴로지 해소기(브랜치 이름 추론 ✗)\n\noptions:\n  -h, --help   show this help message and exit\n  --repo REPO\n  --self-test\n",
+  "stdout": "usage: resolve_topology.sh [-h] [--repo REPO] [--self-test]\n\n벤치 스크립트 공용 토폴로지 해소기(브랜치 이름 추론 ✗)\n\noptions:\n  -h, --help   show this help message and exit\n  --repo REPO\n  --self-test\n",
   "stderr": ""
  },
  {
@@ -1449,7 +1449,7 @@
   "before": {},
   "after": {},
   "exit_code": 0,
-  "stdout": "usage: resolve_topology.py [-h] [--repo REPO] [--self-test]\n\n벤치 스크립트 공용 토폴로지 해소기(브랜치 이름 추론 ✗)\n\noptions:\n  -h, --help   show this help message and exit\n  --repo REPO\n  --self-test\n",
+  "stdout": "usage: resolve_topology.sh [-h] [--repo REPO] [--self-test]\n\n벤치 스크립트 공용 토폴로지 해소기(브랜치 이름 추론 ✗)\n\noptions:\n  -h, --help   show this help message and exit\n  --repo REPO\n  --self-test\n",
   "stderr": ""
  },
  {
@@ -1462,7 +1462,7 @@
   "after": {},
   "exit_code": 2,
   "stdout": "",
-  "stderr": "usage: resolve_topology.py [-h] [--repo REPO] [--self-test]\nresolve_topology.py: error: unrecognized arguments: --unknown\n"
+  "stderr": "usage: resolve_topology.sh [-h] [--repo REPO] [--self-test]\nresolve_topology.sh: error: unrecognized arguments: --unknown\n"
  },
  {
   "id": "missing-repo",
@@ -1474,7 +1474,7 @@
   "after": {},
   "exit_code": 2,
   "stdout": "",
-  "stderr": "usage: resolve_topology.py [-h] [--repo REPO] [--self-test]\nresolve_topology.py: error: argument --repo: expected one argument\n"
+  "stderr": "usage: resolve_topology.sh [-h] [--repo REPO] [--self-test]\nresolve_topology.sh: error: argument --repo: expected one argument\n"
  },
  {
   "id": "positional",
@@ -1486,7 +1486,7 @@
   "after": {},
   "exit_code": 2,
   "stdout": "",
-  "stderr": "usage: resolve_topology.py [-h] [--repo REPO] [--self-test]\nresolve_topology.py: error: unrecognized arguments: x\n"
+  "stderr": "usage: resolve_topology.sh [-h] [--repo REPO] [--self-test]\nresolve_topology.sh: error: unrecognized arguments: x\n"
  },
  {
   "id": "empty-repo",
@@ -1526,7 +1526,7 @@
   "after": {},
   "exit_code": 2,
   "stdout": "",
-  "stderr": "usage: resolve_topology.py [-h] [--repo REPO] [--self-test]\nresolve_topology.py: error: unrecognized arguments: x\n"
+  "stderr": "usage: resolve_topology.sh [-h] [--repo REPO] [--self-test]\nresolve_topology.sh: error: unrecognized arguments: x\n"
  },
  {
   "id": "selftest",

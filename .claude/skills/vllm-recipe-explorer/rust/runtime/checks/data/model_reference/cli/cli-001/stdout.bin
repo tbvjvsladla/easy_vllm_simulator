@@ -1,4 +1,4 @@
-usage: parse_model_config.py [-h] [--self-test] [--nas-root NAS_ROOT] [--json]
+usage: parse_model_config.sh [-h] [--self-test] [--nas-root NAS_ROOT] [--json]
                              [path]
 
 config.json 결정론 파서 (vllm-recipe-explorer)

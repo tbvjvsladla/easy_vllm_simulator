@@ -434,7 +434,7 @@ const HELP: &str = "usage: {prog} [-h] [--self-test]\n\n{prog} -- Python shim ov
 /// The whole `doc_naming.py` command line: (stdout, stderr, exit code).
 pub fn main_cli(argv: &[String]) -> (String, String, i32) {
     let argv0 = argv.first().cloned().unwrap_or_default();
-    let script = crate::cli::script_path(&argv0, "doc_naming.py");
+    let script = crate::cli::script_path(&argv0, "doc_naming.sh");
     let mut repo = script.clone();
     for _ in 0..4 {
         repo.pop();
@@ -443,7 +443,7 @@ pub fn main_cli(argv: &[String]) -> (String, String, i32) {
         Ok(d) => d,
         Err(x) => return (String::new(), format!("Traceback (most recent call last):\n{}: {}\n", x.class(), x.message()), 1),
     };
-    let prog = crate::argp::prog_name(&argv0, "doc_naming.py");
+    let prog = crate::argp::prog_name(&argv0, "doc_naming.sh");
     let help = HELP.replace("{prog}", &prog);
     let usage = format!("usage: {prog} [-h] [--self-test]\n");
     let opts = [crate::argp::Opt::help(), crate::argp::Opt::flag(&["--self-test"], "self_test")];

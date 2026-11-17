@@ -1127,7 +1127,7 @@ pub fn predicate_HINT_TAG_ACTIVATION_GATE_C4() -> R {
     let remote_exec = ["ssh", "scp", "sftp", "rsync", "sshpass"];
     let banned_modules = ["paramiko", "fabric", "asyncssh", "relay", "render_sub_env", "node_role_contract", "library_access",
                           "terraforming_runtime", "ssh2", "openssh", "russh", "thrussh"];
-    let sub_tooling = ["sync_to_sub.sh", "relay.py", "render_sub_env", "fetch_sub_docs.sh", "library_access", "node_role_contract", "a2a_delegation"];
+    let sub_tooling = ["sync_to_sub.sh", "relay.sh", "relay.py", "render_sub_env", "fetch_sub_docs.sh", "library_access", "node_role_contract", "a2a_delegation"];
     let toml = read(HINT_CRATE_TOML)?;
     for line in splitlines(&toml) {
         let key = strip(line.split('=').next().unwrap_or("")).replace('-', "_");
@@ -1376,13 +1376,13 @@ pub fn predicate_HINT_TAG_ACTIVATION_GATE_C6() -> R {
     let actions: Vec<(String, String)> = cli::HINT_ACTION_FOR_CMD.iter().map(|(c, a)| (s(c), s(a))).collect();
     req(
         actions == vec![(s("continue"), s("hint_finalize")), (s("verify"), s("hint_verify")), (s("push"), s("hint_push"))],
-        format!("hint.py HINT_ACTION_FOR_CMD drifted: {actions:?}"),
+        format!("hint.sh HINT_ACTION_FOR_CMD drifted: {actions:?}"),
     )?;
     let shape = cli::parser_shape();
     let subs: BTreeSet<String> = shape.iter().map(|(n, _)| n.clone()).collect();
     req(
         ["publish", "continue", "lint", "name", "verify", "push", "catalog", "match"].iter().all(|x| subs.contains(*x)),
-        format!("hint.py subcommands drifted: {}", repr_list(&subs.iter().cloned().collect::<Vec<_>>())),
+        format!("hint.sh subcommands drifted: {}", repr_list(&subs.iter().cloned().collect::<Vec<_>>())),
     )?;
     req(
         actions.iter().all(|(_, a)| policy_gate::completion_gate::ALLOWED_ACTIONS.contains(&a.as_str())),
@@ -1401,7 +1401,7 @@ pub fn predicate_HINT_TAG_ACTIVATION_GATE_C6() -> R {
     let order = approval_order_problems(&sources);
     req(
         order.is_empty(),
-        format!("hint.py must consult the recorded Y/N (evidence.approval_for) before any branch/tag/push side effect: {}", repr_list(&order)),
+        format!("hint.sh must consult the recorded Y/N (evidence.approval_for) before any branch/tag/push side effect: {}", repr_list(&order)),
     )?;
     // executed through the real CLI dispatch: `continue` with no recorded approval refuses with HINT_APPROVAL_ABSENT
     // and moves no ref.
@@ -1556,11 +1556,11 @@ pub fn predicate_LAST_GOOD_ROLLBACK_ANCHOR_C3() -> R {
     let shape = cli::parser_shape();
     for name in ["continue", "push"] {
         let sub = shape.iter().find(|(n, _)| n == name);
-        req(sub.is_some(), format!("hint.py has no {} subcommand", repr(name)))?;
+        req(sub.is_some(), format!("hint.sh has no {} subcommand", repr(name)))?;
         let remote = sub.unwrap().1.iter().find(|(o, _)| o == "--remote");
         req(
             remote.map(|(_, d)| d.as_deref() == Some("origin")).unwrap_or(false),
-            format!("hint.py {name} --remote must default to the alias \"origin\" (the operator's own remote), not a URL"),
+            format!("hint.sh {name} --remote must default to the alias \"origin\" (the operator's own remote), not a URL"),
         )?;
     }
     // recovery restores the working tree to that anchor commit -- performed for REAL.

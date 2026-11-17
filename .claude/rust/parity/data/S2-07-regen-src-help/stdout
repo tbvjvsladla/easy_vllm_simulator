@@ -1,4 +1,4 @@
-usage: regen_build_patches_src.py [-h] [--repo REPO]
+usage: regen_build_patches_src.sh [-h] [--repo REPO]
                                   {verify,bundle,unbundle,derive,snapshot-resolutions}
                                   ...
 

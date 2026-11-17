@@ -289,7 +289,7 @@ fn request(id: i64, operation: &str, args_dto: &str, kwargs_dto: &str, globals: 
     )
 }
 
-const DEFAULT_GLOBALS: &str = "{\"argv\": [\"check_spec_layout.py\"]}";
+const DEFAULT_GLOBALS: &str = "{\"argv\": [\"check_spec_layout.sh\"]}";
 
 /// One call through the production service over `area`.
 fn call1(area: &Area, operation: &str, args_dto: &str) -> PyValue {
@@ -449,7 +449,7 @@ fn argv_of(request: &PyValue, root: &str) -> Vec<String> {
             .map(|each| text_of(&rebase_all(each, root)))
             .collect()
     } else {
-        vec!["check_spec_layout.py".to_string()]
+        vec!["check_spec_layout.sh".to_string()]
     }
 }
 
@@ -2188,7 +2188,7 @@ mod public_command_cases {
             "--method".to_string(),
             "mtp".to_string(),
         ];
-        let output = run(&work, "check_spec_layout.py", &args);
+        let output = run(&work, "check_spec_layout.sh", &args);
         assert_eq!(output.status.code(), Some(1));
         let stderr = String::from_utf8(output.stderr).expect("text");
         assert!(
@@ -2430,7 +2430,7 @@ mod stage2_cases {
     }
 
     fn run_index(work: &Area, host: &mut Counting) -> Done<PyValue> {
-        let argv = [PyStr::new("check_spec_layout.py")];
+        let argv = [PyStr::new("check_spec_layout.sh")];
         let mut world = LayoutWorld::new(host, &argv, None);
         load_index_keys(
             &mut world,
@@ -2439,7 +2439,7 @@ mod stage2_cases {
     }
 
     fn run_nextn(work: &Area, host: &mut Counting) -> Done<PyValue> {
-        let argv = [PyStr::new("check_spec_layout.py")];
+        let argv = [PyStr::new("check_spec_layout.sh")];
         let mut world = LayoutWorld::new(host, &argv, None);
         read_num_nextn(
             &mut world,

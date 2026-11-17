@@ -1,4 +1,4 @@
 [eta] envelope.eta_params 에 정본에 없는 키가 있다 — 거부(조용히 버리지 않는다):
   - daemon_kill_s (가능: abs_band_mib, agent_act_s, agent_notify_s, debounce_polls, decl_margin_mib, decl_min_ceiling_mib, detect_margin_s, hard_floor_mib, kill_latency_s, min_rate_mib_s, poll_interval_s)
   - eta_floor_s (가능: abs_band_mib, agent_act_s, agent_notify_s, debounce_polls, decl_margin_mib, decl_min_ceiling_mib, detect_margin_s, hard_floor_mib, kill_latency_s, min_rate_mib_s, poll_interval_s)
-  해소: regen_envelope.py regen 으로 재생성하거나, 정본 키로 이관하라. (임시 통과는 --allow-unknown-envelope-keys)
+  해소: regen_envelope.sh regen 으로 재생성하거나, 정본 키로 이관하라. (임시 통과는 --allow-unknown-envelope-keys)

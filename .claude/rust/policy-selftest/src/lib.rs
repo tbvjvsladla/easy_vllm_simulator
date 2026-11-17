@@ -18,14 +18,14 @@ pub mod tripwires;
 
 use std::path::PathBuf;
 
-/// The repository root the original derived from `__file__` (`.claude/policies/runtime/<x>.py` -> three parents up).
+/// The repository root the original derived from `__file__` (`.claude/policies/runtime/<x>.sh` -> three parents up).
 ///
-/// The launcher execs the binary with argv[0] = `<repo>/.claude/policies/runtime/<x>.py`; a direct start of the
+/// The launcher execs the binary with argv[0] = `<repo>/.claude/policies/runtime/<x>.sh` (the launcher itself); a direct start of the
 /// binary (`<repo>/.claude/rust/policy-selftest/target/<profile>/<bin>`) is resolved from the executable path.
 pub fn repo_root() -> PathBuf {
     if let Some(a0) = std::env::args_os().next() {
         let p = PathBuf::from(&a0);
-        if p.extension().map_or(false, |e| e == "py") {
+        if p.extension().map_or(false, |e| e == "sh") {
             let abs = if p.is_absolute() { p } else { std::env::current_dir().unwrap_or_default().join(p) };
             if let Some(r) = abs.parent().and_then(|d| d.parent()).and_then(|d| d.parent()).and_then(|d| d.parent()) {
                 return std::fs::canonicalize(r).unwrap_or_else(|_| r.to_path_buf());

@@ -1,1 +1,1 @@
-[bb-request] FAIL(1): manifest_contract 를 불러오지 못했다 (No module named 'manifest_contract'). 기대 경로: r2/.claude/skills/terraforming_node/scripts
+[bb-request] FAIL(1): manifest_contract 소유자를 찾지 못했다 (manifest_contract.sh 부재). 기대 경로: r2/.claude/skills/terraforming_node/scripts

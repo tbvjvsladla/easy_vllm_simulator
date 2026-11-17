@@ -1,1 +1,1 @@
-usage: regen_envelope.py check-keys [-h] [--envelope ENVELOPE]
+usage: regen_envelope.sh check-keys [-h] [--envelope ENVELOPE]

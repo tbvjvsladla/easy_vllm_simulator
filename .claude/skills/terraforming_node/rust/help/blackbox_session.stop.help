@@ -1,4 +1,4 @@
-usage: blackbox_session.py stop [-h] --session-id SESSION_ID --now NOW
+usage: blackbox_session.sh stop [-h] --session-id SESSION_ID --now NOW
                                 [--verdict {PASS,FAIL,REFUTE,ABORT}]
                                 [--note NOTE]
 

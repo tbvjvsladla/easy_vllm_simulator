@@ -32,7 +32,7 @@ use recipe_runtime::cliparse::{
 };
 use std::collections::BTreeMap;
 
-pub const PROGRAM: &str = "resolve_wheel.py";
+pub const PROGRAM: &str = "resolve_wheel.sh";
 
 /// The release-by-tag endpoint of the original (`API`, a module constant that is never replaced).
 pub const API: &str = "https://api.github.com/repos/vllm-project/vllm/releases/tags/v";

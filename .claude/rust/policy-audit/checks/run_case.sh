@@ -1,10 +1,10 @@
 #!/bin/bash
 # Run one CLI golden case with a given program and write its stdout/stderr/exit_code (normalised) to OUTDIR.
-#   run_case.sh CASE_DIR OUTDIR orig|rust
+#   run_case.sh CASE_DIR OUTDIR rust
 # CASE_DIR/case.sh is sourced in a fresh temporary ROOT (cwd = ROOT). It sets PROG_KIND (policy_registry|harness_verify),
 # ARGS=(...), optionally ENVS=(K=V ...), and may define setup() to build fixtures (git repos etc.). REPO = this checkout.
-# Program: `orig` = python3 .claude/policies/runtime/<kind>.py (golden capture only, needs the original),
-#          `rust` = bash .claude/policies/runtime/<kind>.sh (the Rust launcher; no Python).
+# Program: `rust` = bash .claude/policies/runtime/<kind>.sh (the Rust launcher; no Python). The goldens are frozen
+# captures of the deleted Python originals — the `orig` capture mode is retired (plan_26111717).
 # Normalisation: the ROOT path -> @ROOT@, the REPO path -> @REPO@ (both channels).
 set -uo pipefail
 CASE_DIR="$1"; OUTDIR="$2"; MODE="$3"
@@ -25,7 +25,6 @@ if declare -F setup >/dev/null; then
 fi
 cd "$ROOT" || exit 92
 case "$MODE" in
-  orig) PROGRAM=(python3 "$REPO/.claude/policies/runtime/$PROG_KIND.py") ;;
   rust) PROGRAM=(bash "$REPO/.claude/policies/runtime/$PROG_KIND.sh") ;;
   *) echo "bad mode $MODE" >&2; exit 93 ;;
 esac

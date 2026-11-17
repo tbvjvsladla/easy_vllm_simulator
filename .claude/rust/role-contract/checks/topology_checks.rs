@@ -668,15 +668,15 @@ mod owner_queries {
         let dir = scratch("link");
         let real = dir.join("other/.claude/skills/terraforming_node/scripts");
         std::fs::create_dir_all(&real).expect("dirs");
-        std::fs::write(real.join("campaign_init.py"), b"#").expect("file");
+        std::fs::write(real.join("campaign_init.sh"), b"#").expect("file");
         let caller = dir.join("caller/.claude/skills/terraforming_node/scripts");
         std::fs::create_dir_all(&caller).expect("dirs");
         std::os::unix::fs::symlink(
-            real.join("campaign_init.py"),
-            caller.join("campaign_init.py"),
+            real.join("campaign_init.sh"),
+            caller.join("campaign_init.sh"),
         )
         .expect("link");
-        let via_link = caller.join("campaign_init.py");
+        let via_link = caller.join("campaign_init.sh");
         let site = module_site(std::os::unix::ffi::OsStrExt::as_bytes(via_link.as_os_str()))
             .expect("site");
         let want = std::fs::canonicalize(dir.join("other")).expect("canonical");

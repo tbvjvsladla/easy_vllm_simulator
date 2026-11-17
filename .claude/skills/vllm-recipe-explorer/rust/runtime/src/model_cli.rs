@@ -145,7 +145,7 @@ fn dumps(value: &PyValue) -> Res<PyStr> {
 
 fn parse_spec() -> Spec {
     Spec {
-        prog: "parse_model_config.py",
+        prog: "parse_model_config.sh",
         description: "config.json 결정론 파서 (vllm-recipe-explorer)",
         options: vec![
             opt(&["-h", "--help"], "help", Kind::Help, None),
@@ -255,7 +255,7 @@ pub fn parse_main(args: &[PyStr], columns: Option<&str>) -> Run {
 
 fn crosscheck_spec() -> Spec {
     Spec {
-        prog: "crosscheck_model_card.py",
+        prog: "crosscheck_model_card.sh",
         description: "HF 원본 모델카드(번들 README) 교차검증 — config 단독파싱 함정 차단(결정론).",
         options: vec![
             opt(&["-h", "--help"], "help", Kind::Help, None),

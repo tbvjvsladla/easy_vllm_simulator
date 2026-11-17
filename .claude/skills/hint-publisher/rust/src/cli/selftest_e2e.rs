@@ -306,7 +306,7 @@ pub(super) fn _fx_repo(td: &Path) -> HR<(PathBuf, J)> {
     }
     // 의도된 차이: evidence 픽스처는 campaign_init 을 사본(.py)으로 둔다 — Rust 는 그 launcher 를 부르므로 launcher 도 사본으로 둔다
     //   (사본 옆 .py 가 호환 경로의 소유자다 · CAMPAIGN_READ_COMPAT_OWNER 기본값).
-    let ci_sh = core::REL_CAMPAIGN_INIT.trim_end_matches(".py").to_string() + ".sh";
+    let ci_sh = core::REL_CAMPAIGN_INIT.to_string();
     if root.join(&ci_sh).is_file() && !repo.join(&ci_sh).exists() {
         std::fs::copy(root.join(&ci_sh), repo.join(&ci_sh)).map_err(|e| ioe(e, &repo.join(&ci_sh)))?;
     }
@@ -1833,7 +1833,7 @@ pub(super) fn _selftest_e2e(c: &mut Ck) -> HR<()> {
     );
     write_b(&mp, &mbytes)?;
     // 번역: 원본은 게이트 .py 를 `print('not json')` 으로 바꾼다 — Rust 는 게이트를 launcher 로 부르므로 launcher 를 바꾼다.
-    let gate_sh = repo.join(core::REL_COMPLETION_GATE.trim_end_matches(".py").to_string() + ".sh");
+    let gate_sh = repo.join(core::REL_COMPLETION_GATE.to_string());
     let gate_sh_link = std::fs::read_link(&gate_sh).ok();
     let gate_sh_bytes = if gate_sh_link.is_none() && gate_sh.is_file() { Some(read_b(&gate_sh)?) } else { None };
     if gate_sh.exists() || gate_sh_link.is_some() {

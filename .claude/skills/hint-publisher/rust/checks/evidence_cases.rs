@@ -56,14 +56,16 @@ mod e1 {
         // gate absent = owner module missing (the original's _cgate_path)
         let r = e::authorize(&d, &J::from("m.json"), "x").unwrap_err();
         assert_eq!(r.code, "HINT_OWNER_MODULE_MISSING");
-        // gate source present but no native launcher = un-runnable gate (exit 2)
-        std::fs::write(d.join(".claude/policies/runtime/completion_gate.py"), "x = 1\n").unwrap();
+        // a launcher that is not the gate (its stdout is not the gate's JSON) = unreadable gate output (exit 2). The old
+        // "source present, launcher absent" case cannot occur any more: the owner path is the launcher (plan_26111717).
+        std::fs::write(d.join(".claude/policies/runtime/completion_gate.sh"), "x = 1\n").unwrap();
         let r = e::authorize(&d, &J::from("m.json"), "x").unwrap_err();
-        assert_eq!((r.code.as_str(), r.exit_code), ("HINT_GATE_SUBPROCESS_UNAVAILABLE", 2));
-        assert!(r.message.starts_with("completion_gate.py authorize 를 실행할 수 없다: "), "{}", r.message);
-        // the API presence check of cgate()
-        let r = e::cgate(&d).unwrap_err();
-        assert_eq!(r.code, "HINT_GATE_API_MISSING");
+        assert_eq!((r.code.as_str(), r.exit_code), ("HINT_GATE_OUTPUT_UNREADABLE", 2));
+        assert!(r.message.starts_with("completion_gate.sh authorize (exit="), "{}", r.message);
+        // the API presence check of cgate(): a present launcher is judged by the Rust gate source this checkout builds
+        // (not by the launcher's own text), so the API is present
+        let g = e::cgate(&d).expect("launcher present: the API comes from the built gate source");
+        assert!(g.path.ends_with(".claude/policies/runtime/completion_gate.sh"), "{:?}", g.path);
         let _ = std::fs::remove_dir_all(&d);
     }
 

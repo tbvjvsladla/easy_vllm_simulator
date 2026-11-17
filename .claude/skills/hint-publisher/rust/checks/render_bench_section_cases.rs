@@ -130,6 +130,6 @@ fn cli_verify_round_trip() {
     assert!(e.contains("-| 1 ★판정점 | 22.26 |") && e.contains("+| 1 ★판정점 | 99.99 |"));
     let (code, _, e) = hintlib::io::capture(|| r::main(&["--verify".into(), "--all".into()]));
     assert_eq!(code, 2);
-    assert!(e.ends_with("render_bench_section.py: error: unrecognized arguments: --all\n"));
+    assert!(e.ends_with("render_bench_section.sh: error: unrecognized arguments: --all\n"));
     let _ = std::fs::remove_dir_all(&dir);
 }

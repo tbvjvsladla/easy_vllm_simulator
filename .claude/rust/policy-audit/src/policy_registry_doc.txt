@@ -1,4 +1,4 @@
-policy_registry.py -- stdlib-only validator/auditor for .claude/policies/registry.yaml
+policy_registry.sh -- stdlib-only validator/auditor for .claude/policies/registry.yaml
 (plan_26072506 Phase 4, review-cycle2 remediation -- subagent-summary-0/1-20260725_213652).
 
 `registry.yaml` is plain JSON text (a valid YAML 1.2 subset) -- this module, and every consumer
@@ -6,7 +6,7 @@ in this repo, parses it with the stdlib `json` module only. PyYAML is not a depe
 in this project.
 
 Design (cycle2):
-  - Schema-shape validation reuses the sibling completion_gate.py generic Draft-07-subset
+  - Schema-shape validation reuses the sibling completion_gate.sh generic Draft-07-subset
     engine (validate_against_schema) against .claude/schemas/policy-registry.schema.json -- no
     second, hand-duplicated shape checker.
   - Every cross-field / regex-shaped rule the schema engine cannot express lives here, as small
@@ -94,11 +94,11 @@ Design (cycle2):
     punctuation-stripping into something that looks valid.
 
 Usage:
-    python3 policy_registry.py verify --as-of YYYY-MM-DD [--registry <path>] [--schema <path>]
+    python3 policy_registry.sh verify --as-of YYYY-MM-DD [--registry <path>] [--schema <path>]
         [--claim-bindings <path>] [--repo-root <path>]
-    python3 policy_registry.py check-removal --policy-id <ID> --as-of YYYY-MM-DD
+    python3 policy_registry.sh check-removal --policy-id <ID> --as-of YYYY-MM-DD
         [--registry <path>] [--schema <path>] [--claim-bindings <path>] [--repo-root <path>]
-    python3 policy_registry.py --self-test
+    python3 policy_registry.sh --self-test
 
 --claim-bindings defaults to <repo-root>/.claude/policies/claim_bindings.json (repo-root-
 relative -- NOT this script's own fixed location, unlike --registry/--schema) -- see

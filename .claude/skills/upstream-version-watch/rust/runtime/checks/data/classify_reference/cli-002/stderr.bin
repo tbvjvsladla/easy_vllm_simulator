@@ -1,2 +1,2 @@
-usage: classify_failure.py [-h] [--log LOG] [--patterns PATTERNS]
-classify_failure.py: error: unrecognized arguments: --not-an-option
+usage: classify_failure.sh [-h] [--log LOG] [--patterns PATTERNS]
+classify_failure.sh: error: unrecognized arguments: --not-an-option

@@ -21,5 +21,5 @@ fi
 unset TURN_BUDGET_VALIDATE_ONLY
 # `__file__` of the program this one stands for: exported by the Python adapter when it started this launcher, otherwise the
 # sibling `turn_budget.py` of this script (its location, never user intent). The default schema is derived from it lexically.
-export TURN_BUDGET_OWNER_PATH="${TURN_BUDGET_OWNER_PATH:-$SDIR/turn_budget.py}"
+export TURN_BUDGET_OWNER_PATH="${TURN_BUDGET_OWNER_PATH:-$SDIR/turn_budget.sh}"
 exec "$BIN" "$@"

@@ -10,7 +10,7 @@
 단 `config.yaml` 의 `reconciliation_cap`(기본 3) 한정. **캡 소진 시 무한루프 금지 → Model-C(HITL)**.
 
 전형: 누락 build 의존(`ModuleNotFoundError: setuptools_rust`), 상한 미적용 패키지(`KNOWN_INCOMPAT` 대상),
-cu-마이너 forward-compat 신호. 재발 방지가 가능하면 `regen_requirements.py` 의 천장 테이블로 **예방 이전**한다.
+cu-마이너 forward-compat 신호. 재발 방지가 가능하면 `regen_requirements.sh` 의 천장 테이블로 **예방 이전**한다.
 
 ## 2. source-build-class (exit 1)
 

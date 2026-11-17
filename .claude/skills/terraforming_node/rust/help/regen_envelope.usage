@@ -1,2 +1,2 @@
-usage: regen_envelope.py [-h] [--node-dir NODE_DIR] [--self-test]
+usage: regen_envelope.sh [-h] [--node-dir NODE_DIR] [--self-test]
                          {regen,check-keys,staleness} ...

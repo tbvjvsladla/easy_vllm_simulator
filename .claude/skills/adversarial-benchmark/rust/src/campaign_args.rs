@@ -139,7 +139,7 @@ pub const ACTIONS: [(&str, K, &[&str]); 110] = [
     ("--resume-brief", K::Flag, &[]),
 ];
 
-pub const PROG: &str = "campaign_init.py";
+pub const PROG: &str = "campaign_init.sh";
 
 /// `parser.format_usage()`: the first paragraph of the captured help.
 pub fn usage() -> &'static str {

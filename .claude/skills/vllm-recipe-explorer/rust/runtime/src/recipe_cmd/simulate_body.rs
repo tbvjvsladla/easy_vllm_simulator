@@ -798,7 +798,7 @@ pub fn cmd_simulate_engine(
     if lite_spent != 0 {
         streams.eprint(&PyStr::new(&format!("[recipe] ⓘ lite ② 차감 {}건({}) → cap {} − {} = {}", lite_spent, spent_src.clone().unwrap_or_default(), cap_declared, lite_spent, cap)));
         if reentry_status.as_deref() != Some("approved") {
-            streams.eprint(&PyStr::new(&format!("[recipe] ⚠ 재발동 결정 기록이 없다(reentry.status={}) — 사람 승인을 받았으면 `campaign_init.py --reentry-decide <cell> --decision approve --route explorer --approved-by … --utc …` 로 남겨라", reentry_status.as_deref().map_or("None".to_string(), |s| format!("'{}'", s)))));
+            streams.eprint(&PyStr::new(&format!("[recipe] ⚠ 재발동 결정 기록이 없다(reentry.status={}) — 사람 승인을 받았으면 `campaign_init.sh --reentry-decide <cell> --decision approve --route explorer --approved-by … --utc …` 로 남겨라", reentry_status.as_deref().map_or("None".to_string(), |s| format!("'{}'", s)))));
         }
     }
     if cap <= 0 {
@@ -1325,7 +1325,7 @@ fn build_lockset(cand: &PyDict, ctx: &Ctx, prov: &PyValue, trial: &PyDict, roles
     out.set("batch_source", vocab.stamp("batch_source", batch_source.as_deref())?);
     out.set("kv_source", vocab.stamp("kv_source", kv_source)?);
     out.set("gmu_source", vocab.stamp("gmu_source", Some(roles.gmu_source))?);
-    out.set("_explorer_stamp_howto", PyValue::str("recipe.py simulate 수렴이 기계 각인한 칸(2026-09-14 · plan_26091407 §4.2·§4.3): provenance·batch·batch_source·kv_cache_memory_bytes·kv_source·gmu_source·trial_provenance·batch_derivation·gmu_roles. *_source 는 값을 낸 규칙이고, 그 규칙의 입력이 실측이었는지는 trial_provenance 가 말한다. kv_source=hand 는 입력 lockset 클램프를 트라이얼이 바꾸지 않고 검증만 했다는 뜻이다."));
+    out.set("_explorer_stamp_howto", PyValue::str("recipe.sh simulate 수렴이 기계 각인한 칸(2026-09-14 · plan_26091407 §4.2·§4.3): provenance·batch·batch_source·kv_cache_memory_bytes·kv_source·gmu_source·trial_provenance·batch_derivation·gmu_roles. *_source 는 값을 낸 규칙이고, 그 규칙의 입력이 실측이었는지는 trial_provenance 가 말한다. kv_source=hand 는 입력 lockset 클램프를 트라이얼이 바꾸지 않고 검증만 했다는 뜻이다."));
     out.set("trial_provenance", prov.clone());
     out.set("measured", PyValue::Bool(str_of(prov).as_deref() == Some("measured")));
     out.set("batch_derivation", ctx.derivation.as_ref().map_or(PyValue::None, dv));

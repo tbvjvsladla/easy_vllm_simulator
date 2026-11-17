@@ -1,8 +1,8 @@
-usage: library_access.py [-h] [--topology {single,multi}] [--node NODE]
+usage: library_access.sh [-h] [--topology {single,multi}] [--node NODE]
                          [--plan | --apply | --revoke | --self-test]
                          [--approved-by APPROVED_BY] [--host-of HOST_OF]
 
-library_access.py — 서브 wiki-desk 의 서고 접근점(ssh 강제명령 게이트웨이)을 발급·회수한다.
+library_access.sh — 서브 wiki-desk 의 서고 접근점(ssh 강제명령 게이트웨이)을 발급·회수한다.
 
 options:
   -h, --help            show this help message and exit

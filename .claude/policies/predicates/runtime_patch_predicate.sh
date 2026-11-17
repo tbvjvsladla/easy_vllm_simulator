@@ -19,4 +19,4 @@ if [ "$magic" != $'\177ELF' ]; then
   printf '[runtime_patch_predicate] 먼저 Terraform Rust install/check 후 실행: bash %q\n' "$SDIR/../../skills/terraforming_node/scripts/build_rust_packages.sh" >&2
   exit 2
 fi
-exec -a "$SDIR/runtime_patch_predicate.py" "$BIN" "$@"
+exec -a "$SDIR/runtime_patch_predicate.sh" "$BIN" "$@"

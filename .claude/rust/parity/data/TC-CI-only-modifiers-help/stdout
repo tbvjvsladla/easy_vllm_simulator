@@ -1,4 +1,4 @@
-usage: campaign_init.py [-h] [--active] [--derive DERIVE] [--cell CELL]
+usage: campaign_init.sh [-h] [--active] [--derive DERIVE] [--cell CELL]
                         [--sweep SWEEP] [--context CONTEXT]
                         [--campaign-id CAMPAIGN_ID]
                         [--verify-purge-gate PREV_ID] [--close CAMP_ID]
@@ -60,7 +60,7 @@ usage: campaign_init.py [-h] [--active] [--derive DERIVE] [--cell CELL]
                         [--source declaration-popup|publish-popup] [--utc UTC]
                         [--resume-brief]
 
-campaign_init.py — 캠페인 인스턴스의 개설·경로 파생·purge 게이트 (fail-closed).
+campaign_init.sh — 캠페인 인스턴스의 개설·경로 파생·purge 게이트 (fail-closed).
 
 네 가지 일을 한다.
 
@@ -195,7 +195,7 @@ writer (campaigns/<id>/ 에 바이트를 쓰는 유일한 자리):
   --sweep-state PATH    --cell-set 이 이 sweep 기록에서 측정값·이미지 좌표를 직접 읽는다 (호출부가 값을
                         나르지 않는다 · 없으면 결손 기재)
   --escalation-add      escalation 후보 한 줄을 원장에 쌓는다 · --cell --utc 필수
-                        (--symptom 반복 · 술어 ① 은 escalation_predicate.py 가 판정한다)
+                        (--symptom 반복 · 술어 ① 은 escalation_predicate.sh 가 판정한다)
   --symptom SYMPTOM     --escalation-add 의 관측 증상(반복 가능). 호스트 평면 사인은 술어 ① 을 만들지
                         못하지만 **기록은 남는다**(부재와 무관은 다른 사실)
   --events EVENTS       --escalation-add 의 시각 대조용 노드 블랙박스 events jsonl(반복 가능)

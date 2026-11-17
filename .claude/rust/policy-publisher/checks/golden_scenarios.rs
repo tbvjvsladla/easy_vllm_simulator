@@ -1,6 +1,6 @@
 //! Golden comparison: `checks/scenarios.sh` drives the Rust `evidence_publisher` through every scenario and each step's
 //! stdout / stderr / exit code / docs tree must equal the capture of the original `evidence_publisher.py`
-//! (`checks/data/golden/`, produced by `checks/capture_goldens.sh` — re-capture needs the original .py). No Python runs
+//! (`checks/data/golden/`, produced by `checks/capture_goldens.sh` [retired with the originals · frozen · plan_26111717] — re-capture needs the original .py). No Python runs
 //! here: the program under test is the release binary started as `evidence_publisher.py` (what the launcher does).
 
 use std::path::PathBuf;
@@ -22,8 +22,8 @@ fn scenarios_match_python_goldens() {
     let bin = PathBuf::from(env!("CARGO_BIN_EXE_evidence_publisher"));
     let out = scratch("out");
     let root = scratch("root");
-    // the launcher's contract: argv[0] = <repo>/.claude/policies/runtime/evidence_publisher.py
-    let argv0 = repo.join(".claude/policies/runtime/evidence_publisher.py");
+    // the launcher's contract: argv[0] = <repo>/.claude/policies/runtime/evidence_publisher.sh
+    let argv0 = repo.join(".claude/policies/runtime/evidence_publisher.sh");
     let status = Command::new("bash")
         .arg(dir.join("checks/scenarios.sh"))
         .arg(&out)
@@ -63,7 +63,7 @@ fn builtin_self_test_passes() {
     let dir = crate_dir();
     let repo = dir.parent().and_then(|p| p.parent()).and_then(|p| p.parent()).unwrap().to_path_buf();
     let bin = PathBuf::from(env!("CARGO_BIN_EXE_evidence_publisher"));
-    let argv0 = repo.join(".claude/policies/runtime/evidence_publisher.py");
+    let argv0 = repo.join(".claude/policies/runtime/evidence_publisher.sh");
     let out = Command::new("bash")
         .args(["-c", "exec -a \"$0\" \"$1\" --self-test"])
         .arg(&argv0)

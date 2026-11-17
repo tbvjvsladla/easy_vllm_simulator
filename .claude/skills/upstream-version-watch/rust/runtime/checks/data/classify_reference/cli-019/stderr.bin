@@ -1,10 +1,10 @@
 Traceback (most recent call last):
-  File "/saved/r40/cli-019/business/node/.claude/skills/upstream-version-watch/scripts/classify_failure.py", line 91, in <module>
+  File "/saved/r40/cli-019/business/node/.claude/skills/upstream-version-watch/scripts/classify_failure.sh", line 91, in <module>
     main()
-  File "/saved/r40/cli-019/business/node/.claude/skills/upstream-version-watch/scripts/classify_failure.py", line 72, in main
+  File "/saved/r40/cli-019/business/node/.claude/skills/upstream-version-watch/scripts/classify_failure.sh", line 72, in main
     pats = load_patterns(a.patterns)
            ^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/saved/r40/cli-019/business/node/.claude/skills/upstream-version-watch/scripts/classify_failure.py", line 24, in load_patterns
+  File "/saved/r40/cli-019/business/node/.claude/skills/upstream-version-watch/scripts/classify_failure.sh", line 24, in load_patterns
     with open(path, encoding="utf-8") as f:
          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 IsADirectoryError: [Errno 21] Is a directory: '/saved/r40/cli-019/business/pattern-dir'

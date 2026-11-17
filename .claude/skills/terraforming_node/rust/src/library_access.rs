@@ -53,7 +53,7 @@ impl From<Raised> for Stop {
 }
 
 pub fn repo() -> PathBuf {
-    crate::owner::parents("library_access.py", 4)
+    crate::owner::parents("library_access.sh", 4)
 }
 
 /// The ssh transport (replaceable in the self-test, like the original's module-level `_ssh`).
@@ -347,7 +347,7 @@ fn idx<'a>(d: &'a PyValue, k: &str) -> Result<&'a PyValue, Raised> {
 
 pub fn main_library_block(main: &PyValue, aps: &PyDict) -> Result<String, Raised> {
     let mut lines = vec![
-        "library:   # 서고 접근자(wiki-desk) — 메인은 local · 서브 접근점은 library_access.py 가 발급한다(plan_26101912)".to_string(),
+        "library:   # 서고 접근자(wiki-desk) — 메인은 local · 서브 접근점은 library_access.sh 가 발급한다(plan_26101912)".to_string(),
         "  transport: local".into(),
         "  wiki_dir: __llm-wiki".into(),
         format!("  repo_root: {}", jd(Some(idx(main, "work_dir")?))?),
@@ -670,7 +670,7 @@ pub fn run(a: &Args, repo: &Path, ssh: Ssh) -> Result<i32, Stop> {
         ("preflight", PyValue::Dict(facts)),
         ("authorized_keys_marker", s(&format!("{MARKER}{}", a.node))),
         ("sub_manifest_updated", PyValue::Bool(sub_man_path.is_file())),
-        ("next", s("render_sub_env.py --sub-manifest + sync_to_sub.sh --provision 로 서브 manifest·wiki-desk 를 배달한다")),
+        ("next", s("render_sub_env.sh --sub-manifest + sync_to_sub.sh --provision 로 서브 manifest·wiki-desk 를 배달한다")),
     ]);
     println!("{}", py::dumps_pretty(&out));
     Ok(0)
@@ -838,7 +838,7 @@ fn self_test(repo: &Path) -> i32 {
 }
 
 pub static SPEC: Spec = Spec {
-    prog: "library_access.py",
+    prog: "library_access.sh",
     usage: include_str!("../help/library_access.usage"),
     help: include_str!("../help/library_access.help"),
     args: &[

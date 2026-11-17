@@ -48,11 +48,11 @@ fn simulate_argument_errors_match_the_original() {
     let run = recipe_main(&args(&["simulate"]), Some("80"), &root);
     assert_eq!(run.status, 2);
     let err = run.stderr.to_utf8().unwrap();
-    assert!(err.contains("recipe.py simulate: error: the following arguments are required: --config, --candidate"), "{err}");
+    assert!(err.contains("recipe.sh simulate: error: the following arguments are required: --config, --candidate"), "{err}");
     let run = recipe_main(&args(&["simulate", "--config", "x.yaml"]), Some("80"), &root);
     assert_eq!(run.status, 2);
     let err = run.stderr.to_utf8().unwrap();
-    assert!(err.contains("recipe.py simulate: error: the following arguments are required: --candidate"), "{err}");
+    assert!(err.contains("recipe.sh simulate: error: the following arguments are required: --candidate"), "{err}");
     let _ = std::fs::remove_dir_all(base);
 }
 
@@ -64,11 +64,11 @@ fn generate_argument_errors_match_the_original() {
     let run = recipe_main(&args(&["generate"]), Some("80"), &root);
     assert_eq!(run.status, 2);
     let err = run.stderr.to_utf8().unwrap();
-    assert!(err.contains("recipe.py generate: error: the following arguments are required: --config, --recipe-id"), "{err}");
+    assert!(err.contains("recipe.sh generate: error: the following arguments are required: --config, --recipe-id"), "{err}");
     let run = recipe_main(&args(&["generate", "--config", "x.yaml"]), Some("80"), &root);
     assert_eq!(run.status, 2);
     let err = run.stderr.to_utf8().unwrap();
-    assert!(err.contains("recipe.py generate: error: the following arguments are required: --recipe-id"), "{err}");
+    assert!(err.contains("recipe.sh generate: error: the following arguments are required: --recipe-id"), "{err}");
     let _ = std::fs::remove_dir_all(base);
 }
 

@@ -28,7 +28,7 @@
   forward-compat 의존(brittle)이다 → 많은 경우 **wheel 트랙이 부재**해 **source-build가 사실상 1차/유일** 경로가 된다.
   **단 cu-마이너 불일치 wheel 은 사전 기각 금지(전방호환 시도-우선 따름정리)** — CUDA minor forward-compat 로
   동작하는 경우가 많으니 wheel 자산이 실재하면 설치를 *시도*하고 스모크/`classify_failure` 가 중재한다
-  (`failure_patterns.yaml` 의 forward-compat "신호"(requirements-fixable) 처리·`resolve_wheel.py` 실자산-독해가 준거 패턴 —
+  (`failure_patterns.yaml` 의 forward-compat "신호"(requirements-fixable) 처리·`resolve_wheel.sh` 실자산-독해가 준거 패턴 —
   "brittle" = 리스크 라벨이지 불가 판정 아님). 타겟 arch/cuda는 `manifest.yaml`(scan)에서 읽는다(헌법에 박지 않음).
 
 ## 1. 해소 (결정론적 — `scripts/`)
@@ -119,7 +119,7 @@ bash scripts/judge_version_delta.sh \
 
 > 휘발성 wheel 파일명(cuXXX·manylinux)은 버전마다 미세하게 바뀐다(예 0.21.0=2_34 → 0.22.1=2_28).
 > 그래서 Dockerfile에 하드코딩하지 않고 `ARG VLLM_MANYLINUX`·`ARG CUDA_VERSION`으로 격리,
-> ③`resolve_wheel.py`가 GitHub 자산에서 실재 검증한 값으로 채운다. arch 는 빌드 시점 `$(uname -m)`.
+> ③`resolve_wheel.sh`가 GitHub 자산에서 실재 검증한 값으로 채운다. arch 는 빌드 시점 `$(uname -m)`.
 
 **사실/판단 분리**: change-summary·bump 제안표의 **사실 행**(torch핀·NGC태그·wheel URL·requirements delta·
 Dockerfile ARG·**버전 델타 파일/라인수**)은 ①~④ 및 §1.5 Judge 의 스크립트 JSON 출력(`resolved.json#upstream_delta`)을 **그대로 테이블화**한다.
@@ -129,7 +129,7 @@ risk-memo에 새로 도입하지 않는다. 불명·미매칭은 **"확인 필�
 
 ## 2.5 render — 통로 산출 (호출 순서 · 결함#2 codify)
 
-**render 는 단일 호출이 아니라 시퀀스다** — 빠뜨리면 serve 단계서 잠복 실패(NAS 미전파). `render_dockerfile.py` 를 아래 순서로 부른다(전부 `--topology <single|multi>` · `--manifest output/<t>/manifest.yaml`):
+**render 는 단일 호출이 아니라 시퀀스다** — 빠뜨리면 serve 단계서 잠복 실패(NAS 미전파). `render_dockerfile.sh` 를 아래 순서로 부른다(전부 `--topology <single|multi>` · `--manifest output/<t>/manifest.yaml`):
 
 ```bash
 # ① 컨테이너 정본(트랙별 Dockerfile + compose + requirements)

@@ -319,7 +319,7 @@ launcher가 소유하며 추적물이나 노드 간 배달에 복사하지 않�
 
 ## relay.sh 메모 (옛 §4 에서 이관)
 
-- `scripts/relay.sh` — **메인↔서브 턴제 릴레이 실행자**(§2.7.7a). `--task|--task-file` 첫 위임 · `--continue [--apply]` 자율 재개 · `--emit-only` · `--self-test`. 원장 `campaigns/<camp-id>/relay/<ctx>.json`, 대기 요청 같은 자리의 `pending_hitl.json`(사람이 `answer` 를 적는 자리). 경로 파생의 단일 소유자는 `scripts/campaign_init.py --derive`.
+- `scripts/relay.sh` — **메인↔서브 턴제 릴레이 실행자**(§2.7.7a). `--task|--task-file` 첫 위임 · `--continue [--apply]` 자율 재개 · `--emit-only` · `--self-test`. 원장 `campaigns/<camp-id>/relay/<ctx>.json`, 대기 요청 같은 자리의 `pending_hitl.json`(사람이 `answer` 를 적는 자리). 경로 파생의 단일 소유자는 `scripts/campaign_init.sh --derive`.
 
 #### 명시된 용량 재시도 배치
 

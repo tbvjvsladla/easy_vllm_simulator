@@ -1,4 +1,4 @@
-//! Every CLI case under checks/data/cli (captured from the original Python programs by checks/capture_goldens.sh) run
+//! Every CLI case under checks/data/cli (captured from the original Python programs by checks/capture_goldens.sh [retired with the originals · frozen · plan_26111717]) run
 //! through the Rust launchers: stdout, stderr and exit code must be byte-identical. The launchers are pointed at the
 //! binaries cargo built for this check (`POLICY_REGISTRY_BIN`, `HARNESS_VERIFY_BIN`). No Python runs here.
 

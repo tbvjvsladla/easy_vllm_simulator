@@ -529,7 +529,7 @@ pub fn build_envelope(
                 ("days_missing", strs(&missing)),
                 ("percentiles_exact", PyValue::Bool(percentiles_exact)),
                 ("absent_fields", strs(&absent_union)),
-                ("generator", py::s("regen_envelope.py")),
+                ("generator", py::s("regen_envelope.sh")),
                 (
                     "caveat",
                     py::s("백분위수는 원시 samples 가 남은 날에서만 정확하다. rollup 대체분이 있으면 `percentiles_exact=false` 이며 max/min 만 정확하다(최대의 최대·최소의 최소). kill 지연은 events 평면 1초 해상도 실측이라 seed 의 15초 재구성값을 대체한다."),
@@ -1265,21 +1265,21 @@ static STALE_ARGS: [Arg; 4] = [
 ];
 
 static REGEN: Spec = Spec {
-    prog: "regen_envelope.py regen",
+    prog: "regen_envelope.sh regen",
     usage: include_str!("../help/regen_envelope.regen.usage"),
     help: include_str!("../help/regen_envelope.regen.help"),
     args: &REGEN_ARGS,
     subs: None,
 };
 static CHECK: Spec = Spec {
-    prog: "regen_envelope.py check-keys",
+    prog: "regen_envelope.sh check-keys",
     usage: include_str!("../help/regen_envelope.check-keys.usage"),
     help: include_str!("../help/regen_envelope.check-keys.help"),
     args: &CHECK_ARGS,
     subs: None,
 };
 static STALE: Spec = Spec {
-    prog: "regen_envelope.py staleness",
+    prog: "regen_envelope.sh staleness",
     usage: include_str!("../help/regen_envelope.staleness.usage"),
     help: include_str!("../help/regen_envelope.staleness.help"),
     args: &STALE_ARGS,
@@ -1289,7 +1289,7 @@ static STALE: Spec = Spec {
 static TOP_ARGS: [Arg; 3] = [HELP, store(&["--node-dir"]), flag(&["--self-test"])];
 
 pub static SPEC: Spec = Spec {
-    prog: "regen_envelope.py",
+    prog: "regen_envelope.sh",
     usage: include_str!("../help/regen_envelope.usage"),
     help: include_str!("../help/regen_envelope.help"),
     args: &TOP_ARGS,

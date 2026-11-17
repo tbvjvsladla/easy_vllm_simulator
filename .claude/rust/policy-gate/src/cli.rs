@@ -97,12 +97,12 @@ fn fatal(text: String) -> Outcome {
 /// The whole `completion_gate.py` command line.
 pub fn completion_gate_main(argv: &[String]) -> Outcome {
     let argv0 = argv.first().cloned().unwrap_or_default();
-    let env = Env { script: script_path(&argv0, "completion_gate.py"), argv0: argv0.clone() };
+    let env = Env { script: script_path(&argv0, "completion_gate.sh"), argv0: argv0.clone() };
     let sch = match Schemas::load(&env) {
         Ok(s) => s,
         Err(e) => return fatal(format!("Traceback (most recent call last):\n  completion_gate: schema load failed: {e}")),
     };
-    let prog = prog_name(&argv0, "completion_gate.py");
+    let prog = prog_name(&argv0, "completion_gate.sh");
     let args: Vec<String> = argv.iter().skip(1).cloned().collect();
     let finish = |r: Result<cg::Exit, String>| match r {
         Ok(e) => Outcome { stdout: e.stdout, stderr: String::new(), code: e.code },

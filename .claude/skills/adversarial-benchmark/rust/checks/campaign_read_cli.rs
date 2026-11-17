@@ -26,7 +26,7 @@ use sweep_stop::cli::Streams;
 use sweep_stop::stdout::StdoutProfile;
 
 const BIN: &str = env!("CARGO_BIN_EXE_campaign_read");
-const OWNER_REL: &str = ".claude/skills/terraforming_node/scripts/campaign_init.py";
+const OWNER_REL: &str = ".claude/skills/terraforming_node/scripts/campaign_init.py"; // original capture conditions (frozen raw)
 /// The bytes a fixture puts at the program path: the retired original is never read, so any content is the same program.
 const PLACEHOLDER_OWNER: &[u8] = b"# retired campaign_init.py: only this path matters to the native program\n";
 
@@ -726,7 +726,7 @@ fn the_launcher_exports_the_program_path_beside_it_and_never_an_interpreter() {
     fs::write(&recorder, "#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$STUB_OUT.argv\"\nprintf '%s|%s' \"$CAMPAIGN_READ_COMPAT_OWNER\" \"${CAMPAIGN_READ_PYTHON-unset}\" > \"$STUB_OUT.env\"\n").unwrap();
     fs::set_permissions(&recorder, fs::Permissions::from_mode(0o755)).unwrap();
     let owner = launcher()
-        .with_file_name("campaign_init.py")
+        .with_file_name("campaign_init.sh")
         .display()
         .to_string();
     for (python, want) in [

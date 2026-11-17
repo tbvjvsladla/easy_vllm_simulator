@@ -1,4 +1,4 @@
-usage: hint.py [-h]
+usage: hint.sh [-h]
                [--repo REPO]
                [--self-test]
                <command> ...

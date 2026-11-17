@@ -412,7 +412,7 @@ fn the_resolver_runs_only_the_native_helper_and_names_a_request_for_the_retired_
     assert_eq!(without.code, 0, "{}", without.why.to_utf8().unwrap_or_default());
     assert!(matches!(&without.topology, PyValue::Str(t) if t.equals("single")));
     // a stand-in owner in the checkout changes nothing: it is never run
-    std::fs::write(owner_dir.join("topology_parity.py"), MARKER_OWNER).expect("owner");
+    std::fs::write(owner_dir.join("topology_parity.sh"), MARKER_OWNER).expect("owner");
     for falsy in [PyValue::None, PyValue::str(""), PyValue::int(0), PyValue::Bool(false)] {
         let judged = resolve(&repo, &falsy, &native).expect("resolve");
         assert_eq!(judged.code, 0);

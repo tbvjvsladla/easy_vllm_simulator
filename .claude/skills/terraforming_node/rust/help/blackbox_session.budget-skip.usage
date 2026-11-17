@@ -1,2 +1,2 @@
-usage: blackbox_session.py budget-skip [-h] --reason REASON [--label LABEL]
+usage: blackbox_session.sh budget-skip [-h] --reason REASON [--label LABEL]
                                        --now NOW

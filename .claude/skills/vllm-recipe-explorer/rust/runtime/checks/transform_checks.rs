@@ -1133,7 +1133,7 @@ mod new_cases {
         assert_eq!(closed.status.code(), Some(2));
         let text = String::from_utf8(closed.stdout).expect("text");
         assert!(
-            text.starts_with("usage: rope_scaling_translate.py"),
+            text.starts_with("usage: rope_scaling_translate.sh"),
             "{text}"
         );
         assert!(!text.contains("unrecognized arguments"));

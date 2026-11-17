@@ -727,7 +727,7 @@ fn self_test() -> i32 {
 }
 
 pub static SPEC: Spec = Spec {
-    prog: "logs_lifecycle.py",
+    prog: "logs_lifecycle.sh",
     usage: include_str!("../help/logs_lifecycle.usage"),
     help: include_str!("../help/logs_lifecycle.help"),
     args: &[

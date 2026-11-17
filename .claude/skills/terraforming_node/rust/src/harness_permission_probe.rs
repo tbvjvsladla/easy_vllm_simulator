@@ -537,7 +537,7 @@ pub fn dumps_tight_unicode(v: &PyValue) -> String {
 }
 
 pub static SPEC: Spec = Spec {
-    prog: "harness_permission_probe.py",
+    prog: "harness_permission_probe.sh",
     usage: include_str!("../help/harness_permission_probe.usage"),
     help: include_str!("../help/harness_permission_probe.help"),
     args: &[

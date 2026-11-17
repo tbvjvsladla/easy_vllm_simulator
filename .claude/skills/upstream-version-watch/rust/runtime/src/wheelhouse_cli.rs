@@ -8,7 +8,7 @@ use crate::wheelhouse_util::*;
 use crate::wheelhouse_verify::{run_verify, VerifyArgs};
 use std::path::{Path, PathBuf};
 
-const PROG: &str = "native_wheelhouse.py";
+const PROG: &str = "native_wheelhouse.sh";
 
 fn err(text: &str) {
     eprintln!("{text}");

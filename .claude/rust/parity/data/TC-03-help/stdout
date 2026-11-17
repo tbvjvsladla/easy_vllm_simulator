@@ -1,4 +1,4 @@
-usage: staleness_gate.py [-h] [--topology {single,multi}] [--repo REPO]
+usage: staleness_gate.sh [-h] [--topology {single,multi}] [--repo REPO]
                          [--observed OBSERVED] [--now NOW]
                          [--max-age-days MAX_AGE_DAYS] [--json] [--self-test]
 
@@ -8,7 +8,7 @@ options:
   -h, --help            show this help message and exit
   --topology {single,multi}
   --repo REPO
-  --observed OBSERVED   scan_node.py stdout JSON(또는 manifest 형태) HW 사실 파일
+  --observed OBSERVED   scan_node.sh stdout JSON(또는 manifest 형태) HW 사실 파일
   --now NOW             기준 시각 YYYY-MM-DD | YYYYMMDDHH (벽시계 미조회 — 주입 전용)
   --max-age-days MAX_AGE_DAYS
   --json                JSON 출력(기본과 동일)

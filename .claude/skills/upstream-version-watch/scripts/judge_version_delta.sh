@@ -24,4 +24,4 @@ if [ "$magic" != $'\177ELF' ]; then
   printf '[judge_version_delta] ERROR normal Rust ELF invalid: %s\n' "$binary" >&2
   exit 2
 fi
-exec -a "$SDIR/judge_version_delta.py" "$binary" "$@"
+exec -a "$SDIR/judge_version_delta.sh" "$binary" "$@"

@@ -65,7 +65,7 @@ fn looks_like_option(arg: &str) -> bool {
 /// (`exec -a`), else the ancestor of the native executable that holds `.claude/policies/runtime`.
 pub fn repo_root(argv0: &str) -> PathBuf {
     let p = Path::new(argv0);
-    if p.file_name().map(|n| n == "verify_distribution.py").unwrap_or(false) {
+    if p.file_name().map(|n| n == "verify_distribution.sh").unwrap_or(false) {
         let abs = std::fs::canonicalize(p).unwrap_or_else(|_| {
             std::env::current_dir().map(|d| d.join(p)).unwrap_or_else(|_| p.to_path_buf())
         });
@@ -84,7 +84,7 @@ pub fn repo_root(argv0: &str) -> PathBuf {
 }
 
 pub fn main_with(argv: Vec<String>) -> i32 {
-    let argv0 = argv.first().cloned().unwrap_or_else(|| "verify_distribution.py".into());
+    let argv0 = argv.first().cloned().unwrap_or_else(|| "verify_distribution.sh".into());
     let prog = Path::new(&argv0).file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or(argv0.clone());
     let mut json_out: Option<String> = None;
     let mut as_of: Option<String> = None;

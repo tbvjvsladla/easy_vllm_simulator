@@ -1,4 +1,4 @@
-usage: bootstrap_canary.py [-h] [--topology {single,multi}]
+usage: bootstrap_canary.sh [-h] [--topology {single,multi}]
                            [--manifest MANIFEST]
                            [--phase {discovery,permissions,caller}]
                            [--caller-harness {claude_code,codex_cli}]
@@ -16,4 +16,4 @@ usage: bootstrap_canary.py [-h] [--topology {single,multi}]
                            [--model MODEL]
                            [--backend {anthropic,kimi,minimax,meta,openai,claude-sub}]
                            [--invoke] [--self-test]
-bootstrap_canary.py: error: argument --permission-profile: not allowed with argument --sandbox-mode
+bootstrap_canary.sh: error: argument --permission-profile: not allowed with argument --sandbox-mode

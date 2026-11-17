@@ -87,7 +87,7 @@ fn build_business(root: &Path, id: &str, executable: &str) -> (PathBuf, PathBuf)
     copy_tree(&reference().join(id).join("business"), &business);
     let scripts = business.join("node/.claude/skills/terraforming_node/scripts");
     std::fs::create_dir_all(&scripts).unwrap();
-    let carrier = scripts.join("node_role_contract.py");
+    let carrier = scripts.join("node_role_contract.sh");
     std::fs::copy(executable, &carrier).unwrap();
     (business, carrier)
 }

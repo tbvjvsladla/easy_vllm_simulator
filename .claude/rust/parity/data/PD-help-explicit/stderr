@@ -1,3 +1,3 @@
-usage: verify_distribution.py [-h] [--json-out JSON_OUT]
+usage: verify_distribution.sh [-h] [--json-out JSON_OUT]
                               [--policy-as-of YYYY-MM-DD]
-verify_distribution.py: error: argument -h/--help: ignored explicit argument '1'
+verify_distribution.sh: error: argument -h/--help: ignored explicit argument '1'

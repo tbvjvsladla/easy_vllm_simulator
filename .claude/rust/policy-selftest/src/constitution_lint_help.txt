@@ -1,5 +1,5 @@
 
-constitution_lint.py -- 헌법 품질 린트 (**정보이지 판정이 아니다**)
+constitution_lint.sh -- 헌법 품질 린트 (**정보이지 판정이 아니다**)
 
 사용법:
   python3 .claude/policies/runtime/constitution_lint.py [--repo .] [--format json|text] [--self-test]

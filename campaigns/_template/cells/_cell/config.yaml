@@ -23,8 +23,8 @@ safety_margin: 0.90
 # 측정·재조정해 lockset.json 에 잠근다 — 파생값을 여기 손으로 적지 않는다. gmu 의 선언 입력은 아래
 # target_gpu.target_gmu 하나이고 배포값은 거기서 파생된다. 종전에는 승자 셀 config 에 이 축들을 손으로
 # 넣었고 뼈대에 자리가 없어 셀마다 모양이 달랐다(F1). 이 블록은 explorer 의 **입력 슬롯**이지 서빙 인자가
-# 아니다(recipe.py 는 declared_axes.tp 로 TP 를 정하지 않는다 — TP 의 권위는 여전히 manifest 다).
-# 읽는 코드는 recipe.py simulate 다(2026-09-14 · plan_26091407 단계 ②): concurrency_requirement·typical_request_tokens 는
+# 아니다(recipe.sh 는 declared_axes.tp 로 TP 를 정하지 않는다 — TP 의 권위는 여전히 manifest 다).
+# 읽는 코드는 recipe.sh simulate 다(2026-09-14 · plan_26091407 단계 ②): concurrency_requirement·typical_request_tokens 는
 #   max-num-seqs = min(요구, KV_fit@대표 길이) 산식의 입력이고, tp 는 해소 TP 와 대조해 lockset 에 기재만 한다.
 #   나머지 축(context_len·variant·ple_mode·kv_cache_dtype·control_variable)은 아직 읽는 코드가 없는 선언이다.
 #   빈칸은 --instance 검증이 막으므로, 요구가 없는 축은 추측하지 말고 null("선언하지 않았다")로 적는다.

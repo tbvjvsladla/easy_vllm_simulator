@@ -40,10 +40,10 @@ repository root derivation match the original); a missing binary is exit 2 with 
   (hash-randomized order), so its order for two or more such clauses in one policy was not deterministic.
 - The arch-variant selector check derives `image_identity` with the upstream owner's Rust library
   (`upstream_runtime::slave_forward::candidates`) instead of importing `slave_forward.py`; it still requires the owner files
-  `slave_forward.py` and the multi compose template to exist (the original's "cannot judge" gate). When the upstream bundle
-  deletes `slave_forward.py`, `arch::SLAVE_FORWARD_REL` must move to its Rust entry point (`slave_forward.sh`).
-- The contract-tree digest still hashes the bytes of `.claude/policies/runtime/policy_registry.py` under the checked
-  repo root (empty when absent), exactly as the original, so removal artifacts stay comparable.
+  to exist (the original's "cannot judge" gate): the multi compose template and `arch::SLAVE_FORWARD_REL`, which now names the
+  upstream Rust module `.claude/skills/upstream-version-watch/rust/runtime/src/slave_forward.rs` (the deleted `slave_forward.py` became it plus `slave_forward.sh`).
+- The contract-tree digest hashes the bytes of the validator source, now `.claude/rust/policy-audit/src/registry.rs`
+  (`CONTRACT_SCRIPT_REL`; the original hashed its own `policy_registry.py`). No policy carries a removal artifact, so no stored digest depends on the old input.
 - `--self-test`'s OK fixture cites `.claude/rust/runtime-support/src/schema.rs :: validate_against_schema` (tracked Rust)
   instead of `policy_registry.py :: evaluate_lifecycle`, so it survives the deletion of the Python original.
 - `harness_verify` runs its stages through the Rust launchers (`policy_registry.sh verify`, `runtime_selftest.sh`,

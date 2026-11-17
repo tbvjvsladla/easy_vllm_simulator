@@ -155,3 +155,7 @@ path = "src/bin/selftest_harness_switch.rs"
 [[bin]]
 name = "selftest_sub_hint_write_scopes"
 path = "src/bin/selftest_sub_hint_write_scopes.rs"
+
+[[test]]
+name = "install_request_owner"
+path = "checks/install_request_owner.rs"

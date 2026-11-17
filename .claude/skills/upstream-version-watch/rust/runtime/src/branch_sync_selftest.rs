@@ -1114,7 +1114,7 @@ fn test_b0_build_slot_scaffold_checksum_scope(real: &Path) -> R<()> {
 fn real_root(argv0: Option<&str>) -> Option<PathBuf> {
     if let Some(a) = argv0 {
         let p = PathBuf::from(a);
-        if p.file_name().is_some_and(|n| n == "selftest_branch_sync.py" || n == "selftest_branch_sync.sh") {
+        if p.file_name().is_some_and(|n| n == "selftest_branch_sync.sh" || n == "selftest_branch_sync.sh") {
             if let Ok(c) = std::fs::canonicalize(p.parent().filter(|d| !d.as_os_str().is_empty()).unwrap_or(Path::new("."))) {
                 return c.ancestors().nth(4).map(Path::to_path_buf);
             }
@@ -1142,7 +1142,7 @@ pub fn run(argv0: Option<String>, args: &[String]) -> i32 {
         return fault_judge(&real_ledger, args);
     }
     if !args.is_empty() {
-        eprintln!("usage: selftest_branch_sync.py (no arguments)");
+        eprintln!("usage: selftest_branch_sync.sh (no arguments)");
         return 2;
     }
     let Some(real) = real_root(argv0.as_deref()) else {

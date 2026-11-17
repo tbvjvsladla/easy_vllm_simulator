@@ -13,4 +13,4 @@ if [ "$magic" != $'\177ELF' ]; then
   printf '[topology_parity] ERROR normal Rust ELF invalid: %s\n' "$BINARY" >&2
   exit 2
 fi
-exec -a "$SDIR/topology_parity.py" "$BINARY" "$@"
+exec -a "$SDIR/topology_parity.sh" "$BINARY" "$@"

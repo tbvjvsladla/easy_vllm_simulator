@@ -55,7 +55,7 @@ Rust 실행환경 지원분은 `scripts/rust_bootstrap.sh`·`scripts/rust_toolch
 | `Agent_Card.json` | A2A 능력카드(skills[]·노드정체성) | 렌더(gitignored) |
 | `.claude/settings.local.json` | **스코프드** 권한(블랭킷 ✗) | 렌더(gitignored) |
 | `.claude/skills/vllm-recipe-explorer/` | 런타임블럭(git-tracked만) | 복제 |
-| `.claude/skills/hint-publisher/` · `hints/{HINT_ISSUANCE_CONTRACT.md,vocab.json}` · 엔진 의존(`completion_gate.py`·`evidence_publisher.py`·스키마 3·명명 shim `policies/runtime/doc_naming.py` → 정본 `wiki-desk/src/doc_naming.ts`) · `check_sub_hint_equip.sh` | single 서브 hint 엔진(정본 `render_sub_env.HINT_ENGINE_DEPENDENCIES` · 색인·카탈로그·역할 마커는 `HINT_NEVER_DELIVER` 로 영구 미배달) | 복제(a2a-agent 만) |
+| `.claude/skills/hint-publisher/` · `hints/{HINT_ISSUANCE_CONTRACT.md,vocab.json}` · 엔진 의존(`completion_gate.sh`·`evidence_publisher.sh`·스키마 3·명명 런처 `policies/runtime/doc_naming.sh` → 정본 `wiki-desk/src/doc_naming.ts`) · `check_sub_hint_equip.sh` | single 서브 hint 엔진(정본 `render_sub_env.HINT_ENGINE_DEPENDENCIES` · 색인·카탈로그·역할 마커는 `HINT_NEVER_DELIVER` 로 영구 미배달) | 복제(a2a-agent 만) |
 | `.claude/rules/comms.md` | 통신 정적계약 | 복제 |
 | `.claude/rules/strategy.topology.md` | 이 체크아웃의 특화헌법 | 복제(반대 브랜치의 특화 바이트는 옮기지 않음) |
 | `.claude/schemas/task-report.schema.json` | 자기검증 스키마 | 복제 |
@@ -69,7 +69,7 @@ Rust 실행환경 지원분은 `scripts/rust_bootstrap.sh`·`scripts/rust_toolch
 - **렌더**(결정론): `bash scripts/render_sub_env.sh --topology multi` → manifest 노드정체성을 템플릿에 치환,
   gitignored 스테이징 `output/multi/sub_provision/` 산출(서브 루트 미러). 미치환 placeholder·필수 누락 시 fail-loud.
 - **전달**(HITL) — **인가 체인이 먼저다**. `sync_to_sub.sh` 는 `--mode` 와 `--manifest` 를 **필수**로 받고,
-  `completion_gate.py authorize --action sync_to_sub` 로 포워딩해 **discovery·ssh·rsync 이전에** fail-closed 한다.
+  `completion_gate.sh authorize --action sync_to_sub` 로 포워딩해 **discovery·ssh·rsync 이전에** fail-closed 한다.
   2026-09-03 이전에는 이 문서·렌더러 출력·스크립트 자기안내 **세 곳 모두** 그 두 인자를 빠뜨려, 안내대로 치면
   `CLI_USAGE_ERROR` 로 거부됐다(B0).
 
@@ -95,9 +95,9 @@ Rust 실행환경 지원분은 `scripts/rust_bootstrap.sh`·`scripts/rust_toolch
 - 메인=client(Task 발급·리포트 검증·피드백) · 서브=remote(자율 수행·자기검증 리포트 1개). A2A 어휘 차용, HTTP 서버 ✗(전송=SSH 단발 `delegate(task)` — provider 문법은 `references/orchestration/agent-control-adapter.md`).
 - **검증 = push-attestation**: 서브가 self-verification(config-parse·schema·runner 문법·checksum·**로컬 스모크**)을 리포트에 담아 회신 → **메인은 리포트만 검증, 서브 워크스페이스 재스캔 ✗**.
 - **성공술어**: phase 별(comms.md). 예: config = triplet 생성 + 로컬 스모크 응답("린트 통과 ≠ 서빙됨").
-- **상태=파일**: `campaigns/<camp-id>/relay/<context_id>.json`("파일=세션" · 2026-09-06 루트 `tasks/` 에서 이관 · 활성 캠페인 부재 시 `_bootstrap`). 예산은 **메인이 매 attempt 단위와 함께 선언한다**(공통 `--timeout-seconds`·`--budget-source`, Claude Code의 native-turn 한도 `--max-turns`, Codex의 wall-time·outer dispatch 한도) — 옛 `max-turns=3`(2026-09-03 폐기)에 이어 그 대체물이던 **grade 표도 2026-09-05 폐기**됐다(표가 실측 없이 정본 행세를 했고 교정 소비자가 0 이었다 · `audit_26090515` G-A2). `scripts/turn_budget.py` 는 이제 선언을 **검증**만 한다(상한은 요청 스키마에서 읽는다). 소진은 terminal 이고 다음은 **더 큰 예산의 새 attempt** 이며, 그 이어붙이기는 `scripts/relay.sh --continue` 가 **본문을 조립**한다(재개의 기본은 `--supervise-step --apply` 자동 재발급이고, 사람은 팝업된 예외에서만 답·승인한다 — §2.7.7a).
+- **상태=파일**: `campaigns/<camp-id>/relay/<context_id>.json`("파일=세션" · 2026-09-06 루트 `tasks/` 에서 이관 · 활성 캠페인 부재 시 `_bootstrap`). 예산은 **메인이 매 attempt 단위와 함께 선언한다**(공통 `--timeout-seconds`·`--budget-source`, Claude Code의 native-turn 한도 `--max-turns`, Codex의 wall-time·outer dispatch 한도) — 옛 `max-turns=3`(2026-09-03 폐기)에 이어 그 대체물이던 **grade 표도 2026-09-05 폐기**됐다(표가 실측 없이 정본 행세를 했고 교정 소비자가 0 이었다 · `audit_26090515` G-A2). `scripts/turn_budget.sh` 는 이제 선언을 **검증**만 한다(상한은 요청 스키마에서 읽는다). 소진은 terminal 이고 다음은 **더 큰 예산의 새 attempt** 이며, 그 이어붙이기는 `scripts/relay.sh --continue` 가 **본문을 조립**한다(재개의 기본은 `--supervise-step --apply` 자동 재발급이고, 사람은 팝업된 예외에서만 답·승인한다 — §2.7.7a).
 - per-task 휘발값(모델명·예산·NAS 서브디렉토리)은 **Task Message** 로(manifest 복제 아님).
-- single의 독립 `a2a-agent` sub campaign은 main-derived declaration을 relay task body의 JSON으로 받고, `campaign_init.py --init <id> --plan-ref <ref> --from-slice - --apply`로 stdin에서 소비한다. 별도 slice 파일은 만들지 않는다. `--from-slice <PATH>`는 호환 입력이다. multi의 `ray-worker`는 main-owned distributed cell에 참여하므로 독립 campaign slice/자율 init 대상이 아니다.
+- single의 독립 `a2a-agent` sub campaign은 main-derived declaration을 relay task body의 JSON으로 받고, `campaign_init.sh --init <id> --plan-ref <ref> --from-slice - --apply`로 stdin에서 소비한다. 별도 slice 파일은 만들지 않는다. `--from-slice <PATH>`는 호환 입력이다. multi의 `ray-worker`는 main-owned distributed cell에 참여하므로 독립 campaign slice/자율 init 대상이 아니다.
 
 ### 2.5 완료 게이트 — model-less 카나리 라운드트립 (R1 정합)
 전달 후 메인이 **모델 없이** 부트스트랩 Task 1회. **실행자 = `scripts/bootstrap_canary.sh`**(2026-09-03 신설 · S1):
@@ -129,7 +129,7 @@ single 서브(sub_mode `a2a-agent`)는 **자기가 잰 셀을 스스로 hint 태
 |---|---|---|
 | 엔진 | `node_role_contract.TOOL_PLANE_BY_SUB_MODE["a2a-agent"]` → `render_sub_env` | `hint-publisher` + 엔진 의존. 정상 배달(§2.3)로 간다 — 별도 절차 없음 |
 | hint 클론 경로 | 서브 워크스페이스 `envs/.env` 의 `HINT_CLONE_DIR=<절대경로>` | **워크스페이스 밖**. `envs/.env` 는 서브 저작·비추적·비배달 평면이라 그 노드의 경로를 그 노드가 든다 |
-| push 역할 선언 | 서브 워크스페이스 `hints/.push_authority`(비추적) | hint.py 가 도는 체크아웃의 역할 선언. 카탈로그 권위 `hints/.central_authority` 는 메인 단독 — 서브에 두면 위반 |
+| push 역할 선언 | 서브 워크스페이스 `hints/.push_authority`(비추적) | hint.sh 가 도는 체크아웃의 역할 선언. 카탈로그 권위 `hints/.central_authority` 는 메인 단독 — 서브에 두면 위반 |
 | push 토큰 | 서브 워크스페이스 `envs/.env` 의 `GITHUB_TOKEN`(또는 환경변수) | 메인이 `envs/.env` 에서 읽는 것과 **같은 규칙**(`hintlib.tag.read_push_token`). **사람이 둔다** — 비밀은 배달 평면 ✗ |
 | PII 리터럴 | 서브 워크스페이스 `.claude/pii_terms.txt`(비추적) | 그 노드의 리터럴. hint 4종 스캔이 부재를 fail-closed 로 막는다. `.claude/**` 는 서브 에이전트가 쓸 수 없어 **사람이 둔다** |
 
@@ -152,19 +152,19 @@ single 서브(sub_mode `a2a-agent`)는 **자기가 잰 셀을 스스로 hint 태
    전달한다. exit 0 = ready · 3 = 미장착(판정 정상) · 2 = 선언 결함 · 4 = 장착 실패. 역할·원격 위반(`present_violation`·`violation`)은
    서브가 스스로 고치지 않는다 — 메인 HITL.
 5. **발행(장착 뒤 · 승인된 자기 셀만)** — 서브는 파생 선언(`--from-slice`)에 실린 `hint_targets` 의 셀만
-   `hint.py publish → 저작 → 독립 사실 검증(저작자 ≠ 검증자 · 서브 안의 별도 Agent) → continue --hint-clone "$HINT_CLONE_DIR"` 로 낸다.
+   `hint.sh publish → 저작 → 독립 사실 검증(저작자 ≠ 검증자 · 서브 안의 별도 Agent) → continue --hint-clone "$HINT_CLONE_DIR"` 로 낸다.
    카탈로그 단계는 건너뛰고(push 역할만), 서브 testlog 에 승인 출처(메인 캠페인 id · approved_by · approved_utc · 슬라이스 발급 시각) ·
    태그 · 원격 SHA · 엔진 리비전(배달 커밋)을 적는다. 메인은 회수해 자기 선언의 `hint_targets[].approval` 과 대조한 뒤 `catalog derive`.
 
 발행 자체(장착 이후)의 계약:
 
-- **승인** — 메인 선언 확인 팝업의 셀별 Y/N 을 메인이 `campaign_init.py --hint-approve --node <서브 노드> --cells …` 로 **메인 선언**에
+- **승인** — 메인 선언 확인 팝업의 셀별 Y/N 을 메인이 `campaign_init.sh --hint-approve --node <서브 노드> --cells …` 로 **메인 선언**에
   적는다. `--emit-slice <서브 노드>` 가 그 노드 몫 `hint_targets`(승인 포함)만 운반하고 메인·다른 노드 몫은 자른다(판정 =
   `node_role_contract.sub_self_publishes` 파생). 서브는 자기 인스턴스에 승인을 쓰지 못한다(writer 거부 · 검증기가 남의 몫을 거부).
-- **push** — 태그 1개를 별도 hint 클론으로만(`hint.py` · exact refspec). 카탈로그 단계는 서브에서 건너뛴다(카탈로그 = 메인 단독).
+- **push** — 태그 1개를 별도 hint 클론으로만(`hint.sh` · exact refspec). 카탈로그 단계는 서브에서 건너뛴다(카탈로그 = 메인 단독).
 - **보고** — 서브 testlog 에 승인 출처 · 태그 · 원격 태그 SHA · 엔진 리비전. 메인이 `fetch_sub_docs.sh` 로 회수 → 승인 출처 대조 →
-  `hint.py catalog derive`. 엔진 버전 어긋남은 차단하지 않고 기재한다.
-- 자체검사: `check_sub_hint_equip.sh --self-test`(verify_distribution) · `render_sub_env.sh --self-test` (4b)·(4d) · `campaign_init.py --selftest`(운반 양·음성).
+  `hint.sh catalog derive`. 엔진 버전 어긋남은 차단하지 않고 기재한다.
+- 자체검사: `check_sub_hint_equip.sh --self-test`(verify_distribution) · `render_sub_env.sh --self-test` (4b)·(4d) · `campaign_init.sh --selftest`(운반 양·음성).
 
 
 ### 2.5.2 하네스 실행환경과 실제 업무 권한 준비성
@@ -190,13 +190,13 @@ bwrap/AppArmor 설치를 요구하지 않는다. bwrap 기동 실패는 실제 �
 |---|---|---|
 | **표준** | `a2aproject/A2A` v1.0.1 `specification/a2a.proto`(JSON camelCase) | 필수: `name`·`description`·`supportedInterfaces[]`·`version`·`capabilities`·`defaultInputModes[]`·`defaultOutputModes[]`·`skills[]`. 선택: `provider`·`documentationUrl`·`securitySchemes`·`securityRequirements`·`signatures[]`·`iconUrl`(표준엔 있으나 이 계약은 `signatures` 를 거부한다 — 아래 보안 경계). **표준 밖 최상위 키 금지** |
 | **전송** | `supportedInterfaces[0]` | `url: ssh://<user>@<host>` · `protocolBinding: urn:easy-vllm:a2a-binding:ssh-claude-p:v1`(커스텀 바인딩은 **URI** — 표준 §5.8·§12.7) · `protocolVersion: "1.0"`. 전송 인증 = SSH 공개키(표준 SecurityScheme 5종 밖 → `securitySchemes` 비움 · 차이는 comms.md 가 문서화) |
-| **노드 역할** | `capabilities.extensions[urn:easy-vllm:ext:node-role:v1]` | §2.7.6(c). 값은 `node_role_contract.py` 해소 · 렌더러는 적기만 |
+| **노드 역할** | `capabilities.extensions[urn:easy-vllm:ext:node-role:v1]` | §2.7.6(c). 값은 `node_role_contract.sh` 해소 · 렌더러는 적기만 |
 | **skills 6** | `inspect`·`config`·`build`·`serve`·`bench`·`publish` | `publish` = §2.7.9 발행 Phase. 6종 미만이면 계약 위반 |
 | **HW 사실** | **카드에 없다** → 서브 manifest | 카드 = "무엇을 할 수 있나"(A2A 평면) · manifest = "무엇 위에서 도나"(HW·경로·획득 모드) |
-| **서브 manifest** | `scan_node.py --topology single --peer-ssh <sub> --model-source <m> --emit-sub-manifest output/single/sub_manifest.yaml` | 메인이 `--peer-ssh` 로 실측(HW 5종·모델 환경·egress)해 조립 · 스키마 = 메인 manifest + `self_role: sub` + `terraforming.issued_by: main`. 서브는 HW 스캔 권위 데이터를 스스로 만들지 않는다. `render_sub_env.sh --sub-manifest` 가 스테이징 `output/<topology>/manifest.yaml` 로 넣고 **설치 오버레이**가 배달한다(빌드킷 배달 평면 D10 과 무관) |
+| **서브 manifest** | `scan_node.sh --topology single --peer-ssh <sub> --model-source <m> --emit-sub-manifest output/single/sub_manifest.yaml` | 메인이 `--peer-ssh` 로 실측(HW 5종·모델 환경·egress)해 조립 · 스키마 = 메인 manifest + `self_role: sub` + `terraforming.issued_by: main`. 서브는 HW 스캔 권위 데이터를 스스로 만들지 않는다. `render_sub_env.sh --sub-manifest` 가 스테이징 `output/<topology>/manifest.yaml` 로 넣고 **설치 오버레이**가 배달한다(빌드킷 배달 평면 D10 과 무관) |
 | **Card 보안 경계** | `agent_card_contract.sh validate` | Card는 unsigned capability/discovery metadata다. `signatures`·JWS·별도 trust store는 계약 밖이며 endpoint 인증이나 실행 허가를 대신하지 않는다. |
 | **검증기** | `agent_card_contract.sh validate` · `render_sub_env --self-test` | 필수 필드·바인딩 URI·node-role 확장·skills·float 금지를 검증하고 credential 필드 재도입을 거부한다. |
-| **정체성·준비성** | SSH + `manifest_contract.py` | SSH public-key/known-host가 endpoint를 인증한다. manifest가 role·rank·HW 사실을 소유하며, sub readiness는 Flag와 `terraforming.issued_by: main`을 요구한다. 실행 허가는 work manifest·campaign assignment·scope가 별도로 소유한다. |
+| **정체성·준비성** | SSH + `manifest_contract.sh` | SSH public-key/known-host가 endpoint를 인증한다. manifest가 role·rank·HW 사실을 소유하며, sub readiness는 Flag와 `terraforming.issued_by: main`을 요구한다. 실행 허가는 work manifest·campaign assignment·scope가 별도로 소유한다. |
 
 
 ## 서브 템플릿 (옛 §4 에서 이관)

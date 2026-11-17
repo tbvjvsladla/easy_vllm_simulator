@@ -251,10 +251,12 @@ fn _link_native(repo: &Path) -> HR<()> {
         ".claude/skills/terraforming_node/scripts/campaign_template_validator.sh",
         ".claude/skills/adversarial-benchmark/scripts/parse_guidellm.sh",
     ] {
+        // copied, not linked: a launcher exports its own path as the owner (`__file__`), and resolving a linked launcher
+        // would land in the real checkout instead of this scratch one (plan_26111717).
         let (src, dst) = (root.join(rel), repo.join(rel));
         if src.is_file() && dst.symlink_metadata().is_err() {
             mkd(dst.parent().unwrap())?;
-            symlink(&src, &dst)?;
+            std::fs::copy(&src, &dst).map_err(|e| core::io_err(&e, &dst))?;
         }
     }
     Ok(())
@@ -789,7 +791,7 @@ fn st_main2(c: &mut Ck, repo: &Path, td: &Path, ev: &J, fx: &J, dk: Dk, tag: &st
     let pii1 = rj(&piip)?;
     c.ck("rebind 양성 — 옛 경로 부재(개명) → 새 경로로 재바인딩(작성자 표지)",
         peq(&rb1["rebound"], &jl![jd! {"kind" => "testlog", "from" => tl_old.as_str(), "to" => tl_new.as_str()}]) && eqs(&rec1["scaffolded"]["testlog"], &tl_new)
-        && eqs(&rec1["narrative_status"]["testlog"]["author"], "hint.py(evidence.rebind_campaign_narratives)"));
+        && eqs(&rec1["narrative_status"]["testlog"]["author"], "hint.sh(evidence.rebind_campaign_narratives)"));
     let nm = |p: &str| Path::new(p).file_name().unwrap().to_string_lossy().into_owned();
     c.ck("rebind 양성 — inputs/pii.json scanned_paths 가 새 경로를 들고 옛 경로를 버린다",
         pii1["scanned_paths"].items().iter().any(|p| ew_(p, &nm(&tl_new))) && !pii1["scanned_paths"].items().iter().any(|p| ew_(p, &nm(&tl_old))));
@@ -2232,7 +2234,7 @@ fn _selftest_v7(c: &mut Ck, repo: &Path, td: &Path, ev: &J, fx: &J, dk: Dk) -> H
     c.ck("★권한 미관측 PASS = 결손(모름을 면제로 접지 않는다)", _certificate_not_due(repo, &e_unk)?.is_none());
     c.ck("★판정 어휘 밖 = 죽는다(tripwire)", _code(measurement(&rep(&e_ref, &[("sweep", rep(&sw, &[("verdict", jd! {"verdict" => "MAYBE"})]))])))?.as_deref() == Some("HINT_MEASUREMENT_VERDICT_UNKNOWN"));
     let rep2 = "docs/benchmark/bench_report_26010215_fixture-model-nvfp4_GB10_0.9.0.md";
-    wr0(&repo.join(rep2), &["# 성능 보고서", "", "> 생성일 2026-01-02T15:00:00Z.", "", "## 판정 (표시만 — verdict_rule.py 결과)", "", "| 항목 | 값 |",
+    wr0(&repo.join(rep2), &["# 성능 보고서", "", "> 생성일 2026-01-02T15:00:00Z.", "", "## 판정 (표시만 — verdict_rule.sh 결과)", "", "| 항목 | 값 |",
         "|---|---|", "| verdict | **REFUTE** |", "| 측정 decode t/s (동시성1) | 20.98 t/s |", "| 루브릭 권한 | explore |",
         "| 루브릭 primary | 29.8 t/s (expected_achievable(roofline×MBU)) |", "| floor (primary×(1−tol)) | 25.33 t/s |",
         "| ratio (M/primary) | 0.704 |", "| tolerance | 0.15 |", "", "## 다음", ""].join("\n"))?;

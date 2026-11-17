@@ -69,7 +69,7 @@ fn opt(
 /// The parser of the original `main`.
 pub fn spec() -> Spec {
     Spec {
-        prog: "preload_ram_gate.py",
+        prog: "preload_ram_gate.sh",
         description: "로드-전 가용 RAM 게이트 (plan_26071019 §2.6)",
         options: vec![
             opt(&["-h", "--help"], "help", Kind::Help, None, None),

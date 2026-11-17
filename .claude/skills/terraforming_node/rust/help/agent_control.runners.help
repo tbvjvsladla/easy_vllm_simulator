@@ -1,4 +1,4 @@
-usage: agent_control.py runners [-h] [--provider {claude_code,codex_cli,all}]
+usage: agent_control.sh runners [-h] [--provider {claude_code,codex_cli,all}]
 
 options:
   -h, --help            show this help message and exit

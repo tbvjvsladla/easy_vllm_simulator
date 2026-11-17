@@ -34,17 +34,17 @@ OBSERVATION-ONLY)의 기계 표면 · footer v2 ④ 페이로드 커밋의 부�
 |---|---|
 | 서빙 관측(멀티 스모크의 `serve_proof_<cell>.json` · 스윕 `post_health` + 벤치 completed · lite raw/warm) | upstream `multinode_serve_smoke.sh` · `adversarial-benchmark` |
 | 트리플렛 · 런타임 패치(serve 시점 성립분) | `vllm-recipe-explorer` |
-| 빌드 레시피 · 빌드 패치 · 이미지 안 빌드 원장 · 서브 전달 목록(`slave_forward.py`) | `upstream-version-watch` |
+| 빌드 레시피 · 빌드 패치 · 이미지 안 빌드 원장 · 서브 전달 목록(`slave_forward.sh`) | `upstream-version-watch` |
 | 측정(인증서 · bench_report · 스윕 · lite) | `adversarial-benchmark` |
-| 셀 문서(testlog · devlog)와 증거 포인터 | 작업 owner · `campaign_init.py --evidence-add` |
-| 셀별 발행 사전승인(`hint_targets[].approval`) | `terraforming_node` `campaign_init.py --hint-approve` |
+| 셀 문서(testlog · devlog)와 증거 포인터 | 작업 owner · `campaign_init.sh --evidence-add` |
+| 셀별 발행 사전승인(`hint_targets[].approval`) | `terraforming_node` `campaign_init.sh --hint-approve` |
 
 ## 1. 발동 — 셀 단위 · 제안(Y/N)
 
 **그 셀의 서빙·측정·문서 완료 후** — 셀 하나가 서빙(health 200 + 추론 1회)·측정(인증서 또는 bench_report)·문서(testlog·devlog) 발행을
 마친 뒤에만 그 셀의 hint 태그 발행을 **제안(Y/N)** 한다(**무인 자동 태깅 ✗**). 캠페인 셀은 선언 확인 팝업에서 승인된
-`hint_targets[].approval`(`campaign_init.py --hint-approve`)이 그 Y/N 의 사전 기록이고, 캠페인 밖 발행은
-`hint.py continue --approved-by/--approved-utc` 전사가 그 기록이다. 승인된 Y/N 뒤의 태그 push 는 에이전트 상시승인(2026-08-24)이고,
+`hint_targets[].approval`(`campaign_init.sh --hint-approve`)이 그 Y/N 의 사전 기록이고, 캠페인 밖 발행은
+`hint.sh continue --approved-by/--approved-utc` 전사가 그 기록이다. 승인된 Y/N 뒤의 태그 push 는 에이전트 상시승인(2026-08-24)이고,
 브랜치 push(hint 브랜치 포함)는 발행에 속하지 않는다.
 
 - 발행은 캠페인 완주와 분리돼 있다(2026-09-08) — 셀이 끝나면 그 셀을 낸다. 제안 트리거는 recipe closer(`vllm-recipe-explorer`
@@ -107,7 +107,7 @@ bash $H continue --campaign <id> --cell <cell> --generated-utc <UTC>  # 승인 �
   페이로드(00~03 산문 · hint-event · **FACT 블록**)의 사실 주장을 전부 뽑아 인용 출처(계보 문서 · 원장 · 로그 · 이미지 · 인증서)와 대조하고,
   아래 7부류를 **전부** 점검한 결과를 `<draft>/inputs/factcheck.json` 으로 남긴다. 항목마다 `target: prose|fact` 로 누가 고칠지 적는다 —
   산문(`prose`)은 저작자가 고치고(또는 주장을 빼고), FACT(`fact` · 기계 전사 · 편집 ✗)는 **지적만** 하고 생산자(증거 · 도구)를 고친 뒤
-  `hint.py refacts` 로 재파생한다(v7 · 2026-09-29: "기계 전사는 오기 0" 전제가 D1 · N1 FACT 오기로 깨졌다 — 부류 7 "기록된 것을
+  `hint.sh refacts` 로 재파생한다(v7 · 2026-09-29: "기계 전사는 오기 0" 전제가 D1 · N1 FACT 오기로 깨졌다 — 부류 7 "기록된 것을
   미관측이라 함" 은 FACT 도 대상이다). 항목을 `status: fixed` + `resolution` 으로 닫은 뒤 lint 를 다시 0 으로 만든다.
 
   | # | 부류(`template.FACTCHECK_CLASSES`) | 검증자가 묻는 것 |
@@ -142,7 +142,7 @@ bash $H continue --campaign <id> --cell <cell> --generated-utc <UTC>  # 승인 �
   **두 경로(`HINTS.md` · `hints/index.json`)만 자동 커밋**(메시지 `chore(hint): 카탈로그 파생 — <태그> 발행 반영` · 추적 파일에 다른 변경이
   있으면 커밋하지 않고 경고 · 훅 우회 ✗) · 캠페인 publish 위상 순이다(계약 §6). 각 단계는 `state.json` 에 남아 **재실행은 멱등**이고
   (같은 입력 = 같은 이름 · 같은 커밋), 커밋 시각은 첫 커밋 때 적은 값을 다시 쓴다.
-- **refacts**(`hint.py refacts --draft <draft>`): 같은 `generated_utc` 로 FACT 블록 · PAYLOAD · LINEAGE · PROVENANCE · template_facts 를
+- **refacts**(`hint.sh refacts --draft <draft>`): 같은 `generated_utc` 로 FACT 블록 · PAYLOAD · LINEAGE · PROVENANCE · template_facts 를
   재생성하고 저작 산문 · `tail.json` · `factcheck.json` 은 보존한다 · 바뀐 FACT 를 diff 로 출력 · 부수효과는 draft 안뿐이다(커밋 뒤 거부).
   FACT 오기의 처방이 "`--out` 재생성 + 손 이식" 이던 손작업을 대신한다.
 - **캠페인 밖(발행 기록 재생)**: 입력은 이미 있는 발행 기록(`docs/_evidence/<topic>.json` · `evidence_publisher` 가 만든다 —
@@ -249,13 +249,13 @@ footer 도 페이로드 형식도 없고, 카탈로그는 원격 태그에서 �
 - **발행 주체 = 메인 + single 서브**(2026-10-11 · 계약 §6.6) — single 서브(a2a-agent)는 메인 선언이 승인해 파생 선언으로 운반된
   **자기 셀만** 워크스페이스 git 밖 **별도 hint 클론**에서 태그 1개로 push 하고(장착 = terraforming_node §2.5.1), 카탈로그 단계는
   건너뛰고 testlog(승인 출처·태그·원격 SHA·엔진 리비전)로 보고한다. 발행 전에 자기 캠페인 인스턴스에 셀 입력을 만든다 —
-  `campaign_init.py --cell-materialize <셀>`(+ 측정 뒤 `--cell-set`) · 없으면 셀 config · lockset · 셀 상태가 결손으로 실린다(2026-10-16 plan_26101622 F1). 멀티 서브(Ray 워커)는 발행하지 않는다. **카탈로그 파생은
+  `campaign_init.sh --cell-materialize <셀>`(+ 측정 뒤 `--cell-set`) · 없으면 셀 config · lockset · 셀 상태가 결손으로 실린다(2026-10-16 plan_26101622 F1). 멀티 서브(Ray 워커)는 발행하지 않는다. **카탈로그 파생은
   메인 단독**(`hints/.central_authority`)이다 — 서브의 testlog 를 회수해 승인 출처를 대조한 뒤 메인이 `catalog derive` 한다.
 - **태그는 불변 · 리콜 금지** — 발행 후 이름 · 본문을 고치지 않고, 원격의 과거 태그는 판정 · 교정 · 삭제하지 않는다. 개정은 새 태그로만.
 - **게이트 = 이번 발행분만** — verify · push 는 이 태그 1개만 본다. 과거 · 타 PC 태그의 결함은 신규 발행을 막지 않는다(계약 §6.3).
 - **push = 정확한 태그 1개**(`refs/tags/<그 태그>` · `--tags` ✗ · glob ✗ · `--no-follow-tags`). **hint 브랜치 push 는 발행에 속하지 않는다** —
   발행은 안내 커밋을 **읽기만** 하고 브랜치를 밀지도 로컬 `hint` 를 움직이지도 않는다. 브랜치가 움직이는 것은 페이로드 **형식 전환** 때
-  `hint.py branch-transition`(사람 승인 전사 · exact refspec · non-force)뿐이다. ssh · 로컬 원격은 토큰 불요, https 는
+  `hint.sh branch-transition`(사람 승인 전사 · exact refspec · non-force)뿐이다. ssh · 로컬 원격은 토큰 불요, https 는
   `GITHUB_TOKEN`(환경 또는 `envs/.env`)(계약 §6.2 · §6.5).
 - **카탈로그는 손으로 쓰지 않는다** — 진실원천은 `git ls-remote`. 조회 실패 = 캐시로 대체하지 않고 중단. `HINTS.md` 는 마커 구간만 생성물이고 구간 밖은 사람 서사(파생기가 건드리지 않는다).
 - **손 JSON 0** — identity · runtime · pii · promotion_target 은 도구가 쓴다. `state.json` 도 손으로 고치지 않는다. 예외는 하나 —

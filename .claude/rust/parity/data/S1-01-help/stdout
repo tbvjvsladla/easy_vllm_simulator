@@ -1,4 +1,4 @@
-usage: sweep_stop.py [-h] [--state STATE] [--now-utc NOW_UTC] [--self-test]
+usage: sweep_stop.sh [-h] [--state STATE] [--now-utc NOW_UTC] [--self-test]
 
 Broad Search 정지 조건 평가기(결정론)
 

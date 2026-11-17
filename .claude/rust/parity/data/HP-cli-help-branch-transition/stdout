@@ -1,4 +1,4 @@
-usage: hint.py branch-transition [-h] --remote REMOTE --generated-utc
+usage: hint.sh branch-transition [-h] --remote REMOTE --generated-utc
                                  GENERATED_UTC --approved-by APPROVED_BY
                                  --approved-utc APPROVED_UTC
 

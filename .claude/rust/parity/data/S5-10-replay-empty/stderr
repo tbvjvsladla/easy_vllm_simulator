@@ -1,5 +1,5 @@
-usage: blackbox_thermal.py [-h] [--emit-params EMIT_PARAMS] [--set K=V]
+usage: blackbox_thermal.sh [-h] [--emit-params EMIT_PARAMS] [--set K=V]
                            [--explain GPU_PWR_W SOC_TEMP_C]
                            [--replay CSV [CSV ...]] [--gpu-model GPU_MODEL]
                            [--self-test]
-blackbox_thermal.py: error: argument --replay: expected at least one argument
+blackbox_thermal.sh: error: argument --replay: expected at least one argument

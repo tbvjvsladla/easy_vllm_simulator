@@ -47,5 +47,5 @@ fi
 unset SCAN_NODE_VALIDATE_ONLY
 # `__file__` of the program this one stands for: exported by the Python adapter when it started this launcher, otherwise the sibling
 # `scan_node.py` of this script (its location, never user intent).
-export SCAN_NODE_OWNER_PATH="${SCAN_NODE_OWNER_PATH:-$SDIR/scan_node.py}"
+export SCAN_NODE_OWNER_PATH="${SCAN_NODE_OWNER_PATH:-$SDIR/scan_node.sh}"
 exec "$BIN" "$@"

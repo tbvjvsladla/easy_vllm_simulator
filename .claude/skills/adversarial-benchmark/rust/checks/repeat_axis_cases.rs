@@ -618,7 +618,7 @@ fn a_different_owner_program_is_answered_natively_and_python_settings_are_ignore
     );
     assert_eq!(
         String::from_utf8_lossy(&output.stdout),
-        "3\u{1f}defaulted(preset p 기본 3 · 캠페인 해소자 부재: .claude/skills/terraforming_node/scripts/campaign_init.py — 선언을 읽지 못했다)\u{1f}warm-rerun\n"
+        "3\u{1f}defaulted(preset p 기본 3 · 캠페인 해소자 부재: .claude/skills/terraforming_node/scripts/campaign_init.sh — 선언을 읽지 못했다)\u{1f}warm-rerun\n"
     );
 }
 
@@ -993,7 +993,7 @@ mod r44_routes {
         let other = fixture("r44d_other", Some(b"camp-target\n"), &["camp-target"]);
         let caller = fixture("r44d_caller", Some(b"camp-caller\n"), &["camp-caller"]);
         // the module path the owner is read through (`campaign_init.py` beside the launcher) is a symlink into the other root
-        let module = caller.0.join(".claude/skills/terraforming_node/scripts/campaign_init.py");
+        let module = caller.0.join(".claude/skills/terraforming_node/scripts/campaign_init.sh");
         let _ = std::fs::remove_file(&module);
         std::os::unix::fs::symlink(other.0.join(OWNER_REL), &module).unwrap();
         let mut rows: Vec<(String, Vec<String>)> = Vec::new();

@@ -951,7 +951,7 @@ pub const TOPOLOGY_VOCABULARY_EXEMPTIONS: [(&str, &str, &str, &str); 1] = [(
     ".claude/rules/workflow.md",
     "양노드",
     "clean 빌드(양노드) → 스모크",
-    "policy_registry.py 의 ARCH_WALL_VARIANT_LADDER 사다리 검사가 이 문구를 verbatim 으로 \
+    "policy_registry.sh 의 ARCH_WALL_VARIANT_LADDER 사다리 검사가 이 문구를 verbatim 으로 \
 요구한다 — 고치면 정책 검증이 깨진다. 어휘는 남지만 그 문장은 사다리 순서 서술이라 \
 양 토폴로지가 함께 읽는다.",
 )];

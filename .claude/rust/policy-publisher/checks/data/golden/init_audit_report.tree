@@ -52,7 +52,7 @@
 - publication_id: audit
 - task_class: read_only_audit
 - generated_utc: 2026-01-01T00:00:00Z
-- scaffold_created_by: evidence_publisher.py init
+- scaffold_created_by: evidence_publisher.sh init
 
 ## Narrative
 

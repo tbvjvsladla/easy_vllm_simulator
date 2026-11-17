@@ -39,7 +39,7 @@ fn opt(
 /// The parser of `_main`.
 pub fn spec() -> Spec {
     Spec {
-        prog: "functional_smoke.py",
+        prog: "functional_smoke.sh",
         description: "기능 스모크 검사기 (vllm-recipe-explorer Phase 2).",
         options: vec![
             opt(&["-h", "--help"], "help", Kind::Help, None, false),

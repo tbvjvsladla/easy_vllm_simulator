@@ -1,2 +1,2 @@
-usage: regen_envelope.py staleness [-h] --now NOW [--envelope ENVELOPE]
+usage: regen_envelope.sh staleness [-h] --now NOW [--envelope ENVELOPE]
                                    [--max-age-days MAX_AGE_DAYS]

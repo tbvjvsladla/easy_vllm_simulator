@@ -21,5 +21,5 @@ if [ "$magic" != $'\177ELF' ]; then
   exit 2
 fi
 # `__file__` of the program this one stands for (its location, never user intent): the sibling `staleness_gate.py` path.
-export TERRAFORMING_OWNER_PATH="$SDIR/staleness_gate.py"
+export TERRAFORMING_OWNER_PATH="$SDIR/staleness_gate.sh"
 exec "$BIN" "$@"

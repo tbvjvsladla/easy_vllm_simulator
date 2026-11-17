@@ -21,7 +21,7 @@ use recipe_runtime::escalation::Raised;
 use std::collections::BTreeMap;
 
 /// The program name of `sys.argv[0]` in the command line (every usage and error text says `check_spec_layout.py`).
-pub const PROGRAM: &str = "check_spec_layout.py";
+pub const PROGRAM: &str = "check_spec_layout.sh";
 
 fn option(
     flags: &'static [&'static str],

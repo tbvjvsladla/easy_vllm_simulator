@@ -95,12 +95,12 @@ pub fn float_repr(number: f64) -> String {
 }
 
 /// The directory of the skill's `scripts/` that this program stands in for: from the caller's `argv[0]` when a launcher executed it as
-/// `<scripts>/<name>.py`, otherwise from the executable's own place (`<skill>/rust/runtime/target/release/<bin>`).
+/// `<scripts>/<name>.sh` (its own launcher path), otherwise from the executable's own place (`<skill>/rust/runtime/target/release/<bin>`).
 pub fn scripts_dir(script: Option<&PyStr>, name: &str) -> std::path::PathBuf {
     use std::path::PathBuf;
     if let Some(path) = script.and_then(|s| s.to_utf8()) {
         let candidate = PathBuf::from(&path);
-        if candidate.file_name().and_then(|n| n.to_str()) == Some(&format!("{name}.py")) {
+        if candidate.file_name().and_then(|n| n.to_str()) == Some(&format!("{name}.sh")) {
             if let Some(parent) = candidate.parent() {
                 let parent = if parent.as_os_str().is_empty() {
                     PathBuf::from(".")

@@ -26,7 +26,7 @@
  ],
  "BAND_METRIC": "decode_tps",
  "BAND_FORMULA": "(max-min)/mean*100",
- "CAMPAIGN_INIT_REL": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+ "CAMPAIGN_INIT_REL": ".claude/skills/terraforming_node/scripts/campaign_init.sh",
  "SCHEMA_REL": "campaigns/_template/campaign.schema.json",
  "RUN_DIR_PATTERN": "^run_(\\d{2,})$",
  "AGGREGATE_KEYS": [

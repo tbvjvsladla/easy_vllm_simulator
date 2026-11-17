@@ -31,7 +31,7 @@
     "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
    }
   },
-  "stdout": "usage: resolve_bench_tool.py [-h] [--tool TOOL] [--tool-version TOOL_VERSION]\n                             [--pin PIN] [--platform PLATFORM] [--json]\n                             [--self-test]\n\n측정 도구 컨테이너 핀 해소(digest 단일 권위)\n\noptions:\n  -h, --help            show this help message and exit\n  --tool TOOL\n  --tool-version TOOL_VERSION\n                        쓸 버전(미지정 시 기록의 default_version = 마지막 스테이징분). 최신 해소는\n                        스테이징 평면의 resolve_guidellm.py 가 한다.\n  --pin PIN\n  --platform PLATFORM   예 linux/arm64 — 출력 주석용. 판정을 좁히지 않는다(위 accepted_digests\n                        주석)\n  --json\n  --self-test\n",
+  "stdout": "usage: resolve_bench_tool.sh [-h] [--tool TOOL] [--tool-version TOOL_VERSION]\n                             [--pin PIN] [--platform PLATFORM] [--json]\n                             [--self-test]\n\n측정 도구 컨테이너 핀 해소(digest 단일 권위)\n\noptions:\n  -h, --help            show this help message and exit\n  --tool TOOL\n  --tool-version TOOL_VERSION\n                        쓸 버전(미지정 시 기록의 default_version = 마지막 스테이징분). 최신 해소는\n                        스테이징 평면의 resolve_guidellm.sh 가 한다.\n  --pin PIN\n  --platform PLATFORM   예 linux/arm64 — 출력 주석용. 판정을 좁히지 않는다(위 accepted_digests\n                        주석)\n  --json\n  --self-test\n",
   "exit_code": 0,
   "environment": {
    "BENCH_TOOL_FIXTURE_STDOUT": "[\"fixture/image@sha256:a\"]",
@@ -81,7 +81,7 @@
    "BENCH_TOOL_FIXTURE_RC": "0"
   },
   "fixture_path": ".fixture-bin",
-  "stderr": "usage: resolve_bench_tool.py [-h] [--tool TOOL] [--tool-version TOOL_VERSION]\n                             [--pin PIN] [--platform PLATFORM] [--json]\n                             [--self-test]\nresolve_bench_tool.py: error: unrecognized arguments: --unknown-original\n"
+  "stderr": "usage: resolve_bench_tool.sh [-h] [--tool TOOL] [--tool-version TOOL_VERSION]\n                             [--pin PIN] [--platform PLATFORM] [--json]\n                             [--self-test]\nresolve_bench_tool.sh: error: unrecognized arguments: --unknown-original\n"
  },
  {
   "id": "002-selftest",
@@ -209,7 +209,7 @@
    "BENCH_TOOL_FIXTURE_RC": "0"
   },
   "fixture_path": ".fixture-bin",
-  "stderr": "usage: resolve_bench_tool.py [-h] [--tool TOOL] [--tool-version TOOL_VERSION]\n                             [--pin PIN] [--platform PLATFORM] [--json]\n                             [--self-test]\nresolve_bench_tool.py: error: argument --pin: expected one argument\n"
+  "stderr": "usage: resolve_bench_tool.sh [-h] [--tool TOOL] [--tool-version TOOL_VERSION]\n                             [--pin PIN] [--platform PLATFORM] [--json]\n                             [--self-test]\nresolve_bench_tool.sh: error: argument --pin: expected one argument\n"
  },
  {
   "id": "005-matching-index",

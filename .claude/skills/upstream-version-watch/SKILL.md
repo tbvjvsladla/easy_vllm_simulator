@@ -24,7 +24,7 @@ description: >-
 - **Inputs** — `config.yaml`(대상 버전·스모크 config_name·`ngc_probe_start`·`reconciliation_cap`) · `output/<topology>/manifest.yaml`(HW 사실·model_source) · 실패 시 빌드/serve 로그.
 - **Outputs** — `resolved.json`(torch핀·NGC태그·wheel·build_track·변종·**`upstream_delta` 델타 attestation**) · `output/<t>/{Dockerfile*,docker-compose.yaml,requirements.txt,.env}` · bump 제안표 + risk-memo · 스모크 판정 · **이미지 안 빌드 원장 `/opt/easy-vllm/build_ledger.json`**(`references/source-build.md` §4.1) · **멀티 스모크의 `output/multi/benchlog/{attestation,serve_proof}_<cell>.json`**(`references/multinode-build.md` 6).
 - **Mandatory procedural spine** — 아래 §Mandatory procedural spine 의 8단계(순서 고정).
-- **State transitions** — Flag(전제) → 스모크 PASS 로 이미지의 `runtime-ready` 근거를 만든다. `evidence-complete`/`promotion-ready` 판정은 `.claude/policies/runtime/completion_gate.py` 소유(이 문서가 자체 판정 ✗).
+- **State transitions** — Flag(전제) → 스모크 PASS 로 이미지의 `runtime-ready` 근거를 만든다. `evidence-complete`/`promotion-ready` 판정은 `.claude/policies/runtime/completion_gate.sh` 소유(이 문서가 자체 판정 ✗).
 - **HITL/safety boundaries** — 핀 변경·빌드·push 는 workflow S1–S4 HITL 게이트 · 스모크 모델 자동 다운로드 ✗ · 무증거 NGC/repo 오버라이드 ✗ · 추측 단정 ✗("확인 필요").
 - **Failure → reference routing** — 아래 §Failure → reference routing 표(증상 → 정확 경로).
 - **Deterministic commands** (전부 Rust 런처 `scripts/*.sh` → 노드 빌드 ELF · Python 폴백 없음) — `scripts/resolve_torch_pin.sh` · `resolve_ngc_tag.sh` · `resolve_wheel.sh` · `regen_requirements.sh`(호스트 wheel · 선언 PYTHONPATH installed; 컨테이너 안 일반 installed 검색만 `regen_requirements.py`) · `resolve_build_track.sh` · **`judge_version_delta.sh`** · `render_dockerfile.sh`(+ 공개 `--env-tier`) · **`slave_forward.sh`**(멀티 slave 전달 집합 · compose 참조 파생 단일 소유 — 스모크·hint 공용) · `check_smoke_model.sh` · **`native_multinode_serve.sh`**(Rust 런처 — up(--apply 포함)·client·down·`--self-test`; 블랙박스 세션 도구만 python3 호출 유지, 기동 기록의 PII 치환·스캔은 Rust `native_multinode/pii.rs` — 실패는 `native_launch_error` 로 표면화) · **`native_wheelhouse.sh`**(Rust 런처 — `build`·`verify`·`--self-test`; 메인 전용, 서브는 메인이 run root 에 put 한 같은 ELF) · **`selftest_branch_sync.sh`**(종료 시퀀스 기구 격리 픽스처 검사 · 메인 전용) · `classify_failure.sh` · `sync_to_sub.sh` · `multinode_serve_smoke.sh` · **`single_serve_up.sh`** · **`single_serve_down.sh`** · `container_inventory.sh`.
@@ -36,7 +36,7 @@ description: >-
 
 필수 순서다 — 앞 단계 산출 없이 뒤 단계로 가지 않는다(부분 적용 상태 빌드 금지 = 이 순서의 보장).
 
-1. **Flag 확인**(§0.0) — `manifest_contract.py --require-flag`. 미발급이면 여기서 멈추고 info-only.
+1. **Flag 확인**(§0.0) — `manifest_contract.sh --require-flag`. 미발급이면 여기서 멈추고 info-only.
 2. **resolve** — ①torch핀 → ②NGC 태그 → ③wheel URL → ④requirements 재생성 → ⑦빌드트랙 제안. 명령·근거 = `references/resolve-and-render.md` §1.
 2.5. **delta judge** — `judge_version_delta.sh` 로 `from_ref→to_ref` 3축 판정(A 빌드입력 · B 이식 스코프 · C 모델 코드경로) → `resolved.json#upstream_delta` attestation 발행. **3의 사실 행이 여기서 나온다**(손저작 금지 — 전사 오류가 구조적으로 불가능해진다). 비-0 = 델타 수집 실패(추정 금지). 계약 = `references/resolve-and-render.md` §1.5.
 3. **bump 제안표 + risk-memo** — 사실 행은 스크립트 JSON 그대로, LLM 은 리스크 해석만(`references/resolve-and-render.md` §2). HITL 게이트 ①.
@@ -74,7 +74,7 @@ description: >-
 
 ## hint 태그 발동 (bump closer) — **소유는 `hint-publisher`**
 
-bump 사이클 안에서 서빙·측정·문서가 끝난 **셀마다**, 그 셀의 파생 이름(`hint.py name --campaign <id> --cell <cell>` · 캠페인 밖이면 `--publication <topic>`)이 새 태그이면
+bump 사이클 안에서 서빙·측정·문서가 끝난 **셀마다**, 그 셀의 파생 이름(`hint.sh name --campaign <id> --cell <cell>` · 캠페인 밖이면 `--publication <topic>`)이 새 태그이면
 hint 발행을 제안한다. 발동 규칙(셀 단위 · 제안 Y/N · 무인 자동 태깅 금지 · 승인 기록)의 정본은 `.claude/skills/hint-publisher/SKILL.md`
 §1 이다 — 여기서 다시 적지 않는다. 옛 "bump 전체 종결부" 트리거는 발행을 캠페인 완주와 분리한 2026-09-08 결정과 어긋나 은퇴했다
 (2026-09-21 `plan_26092119` §4.10).
@@ -82,7 +82,7 @@ hint 발행을 제안한다. 발동 규칙(셀 단위 · 제안 Y/N · 무인 �
 > **2026-08-20 이관**(`plan_26082009`): 절차·엔진·계약·템플릿·린터의 정본은 **스킬 `hint-publisher`** 다.
 > 이 스킬은 **제안 트리거만** 갖는다 — 발행 조건 A(서빙 성공)는 `vllm-recipe-explorer`,
 > B(lite 계측)는 `adversarial-benchmark` 소유이므로 엔진이 여기 있을 이유가 없었다(배치 오류).
-> 넘길 때 함께 전달할 것: 캠페인 id + 셀 id(캠페인 밖이면 발행 기록 토픽). 이름·증거·승격 기록은 `hint.py publish` 가 셀 증거에서
+> 넘길 때 함께 전달할 것: 캠페인 id + 셀 id(캠페인 밖이면 발행 기록 토픽). 이름·증거·승격 기록은 `hint.sh publish` 가 셀 증거에서
 > 파생한다(손 JSON ✗ · 2026-09-21).
 
 절차 `.claude/skills/hint-publisher/SKILL.md` · 헌법 §hint 배포 레이어 따름정리 §발동 시점 ·
@@ -184,7 +184,6 @@ hint 태그의 로컬 오브젝트 부재면 그 원격의 fetch 명령을 안�
 - `scripts/render_dockerfile.sh` — 렌더 시퀀스(template · `--materialize-configs` · `--materialize-env`) + source-build 가드 3출구(상속/시도-빌드/발견 — `references/source-build.md` §3.1).
 - `scripts/check_smoke_model.sh` — ⑤ no-download NAS 모델 실재 체크.
 - `scripts/classify_failure.sh` + `failure_patterns.yaml` — ⑥ 실패 결정론 분류(미지→Model-C). Rust 실행 파일로 저장소 registry의 빌드/스모크 로그를 분류한다.
-- `scripts/classify_failure.py` — 하네스 경로에서 실행되지 않는다. 남은 소비자는 기초층 술어의 in-process import 뿐이다(그 묶음 이식 때 걷힌다).
 - `scripts/sync_to_sub.sh` — 멀티노드 [전달](dry-run 기본/`--apply`, 체크섬, 빌딩블럭 제외).
 - `scripts/multinode_serve_smoke.sh` — 2노드 Ray 서빙+multi-smoke 오케스트레이션. **teardown(`--down`)은 멀티 전용**이다(경로가 `output/multi/` 고정 · SSH 슬레이브 전제).
   - 스모크 합격 기준은 **생성 실재**다(2026-08-22 · W-10): `content` 비었고 `reasoning` 만 있으면
@@ -205,7 +204,7 @@ hint 태그의 로컬 오브젝트 부재면 그 원격의 fetch 명령을 안�
   경로 신설이다).
 - `scripts/container_inventory.sh` — **read-only 인벤토리**(빌드된 이미지 · 서빙 중 컨테이너 ·
   envfile 참조 관계). 아무것도 지우거나 내리지 않는다(정리는 down 진입점, 이미지 회수는
-  explorer `cleanup_docker.py` 소유). **크기로 노드를 비교하지 않는다** — storage driver 가 다르면
+  explorer `cleanup_docker.sh` 소유). **크기로 노드를 비교하지 않는다** — storage driver 가 다르면
   같은 내용이 45.5GB 대 30.8GB 로 보인 실측이 있다. 신원은 digest 가 답한다.
   `docker` 조회가 rc≠0 이면 **부재가 아니라 판정 불가**로 멈춘다.
 - `scripts/single_serve_down.sh` — **단일노드 정규 teardown 진입점**(2026-08-22 신설 · W-6).

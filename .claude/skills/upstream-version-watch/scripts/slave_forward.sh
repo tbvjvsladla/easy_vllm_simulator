@@ -24,4 +24,4 @@ if [ "$magic" != $'\177ELF' ]; then
   printf '[slave_forward] ERROR normal Rust ELF invalid: %s\n' "$binary" >&2
   exit 2
 fi
-exec -a "$SDIR/slave_forward.py" "$binary" "$@"
+exec -a "$SDIR/slave_forward.sh" "$binary" "$@"

@@ -170,10 +170,10 @@ pub fn run_self_test() -> SelfTestReport {
             ),
     );
     rec.check(
-        "T11 도움말은 터미널 폭에 따라 달라지고 프로그램 이름은 parse_bench.py",
+        "T11 도움말은 터미널 폭에 따라 달라지고 프로그램 이름은 parse_bench.sh",
         PARSE_BENCH
             .usage(200)
-            .starts_with("usage: parse_bench.py [-h] --bench-json BENCH_JSON")
+            .starts_with("usage: parse_bench.sh [-h] --bench-json BENCH_JSON")
             && PARSE_BENCH.usage(30) != PARSE_BENCH.usage(200)
             && PARSE_BENCH.help(80).contains("--engine-log ENGINE_LOG"),
     );

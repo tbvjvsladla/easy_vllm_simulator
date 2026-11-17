@@ -2,7 +2,7 @@
 
 > 두 개의 **서로 다른 모드**를 담는다: ① lite = serve 성공 직후 자동으로 도는 inform-only 스냅샷,
 > ② full 종결 발행 = 적대 게이트가 끝난 뒤의 report/인증서. 둘 다 **done-게이트가 아니다**
-> (done-게이트는 `verdict_rule.py` 독점).
+> (done-게이트는 `verdict_rule.sh` 독점).
 
 ## 1. 경량(lite) 모드 — inform-only · 기본 ON (plan_26071115 · Phase B)
 
@@ -29,7 +29,7 @@
   `spec_decode_acceptance_length` 원문은 `lite_metrics.build` 의 `accept_len`(+`accept_len_src`)으로 올라가 lite 등급 인증서·full 인증서의
   `lite_accept_len`(+`_src`)과 경량 리포트 측정 환경 표의 같은 이름 행에 실린다(spec 꺼짐 = N/A · 판정 입력 `accept_len` 과 이름을 가른다).
   hint 발행기는 β 보존 자리(`lite_publish/<config>_<UTC>/`)를 raw `measured_utc` = 리포트 생성일 조인으로 찾는다(최신 고르기 ✗).
-- **inform-only**(성능): **성능 PASS/FAIL 판정 없음 · 자동 loop-back 없음**. `verdict_rule.py` 에 투입하지 않는다(done-게이트는 오직
+- **inform-only**(성능): **성능 PASS/FAIL 판정 없음 · 자동 loop-back 없음**. `verdict_rule.sh` 에 투입하지 않는다(done-게이트는 오직
   full 경로 소유 — 기능≠성능 따름정리 불변). lite 출력이 커뮤니티/레퍼런스 대비 **심각한 괴리**로 보이면 →
   **이상징후 안내 + full 승격 권유**까지만(자동 재탐색 ✗).
 - **괴리 판단 = 에이전트 재량**: `references.md` §4 HW-스코프 baseline·포럼 수치 대비 *정성 판단*.
@@ -53,7 +53,7 @@
   **측정 구성 표**(`bench_mode=lite` · `bench_mode_kind=declared-lite`(기록 모양은 `classify_cell.declared_lite_record`) · 도구
   `vllm-bench-serve` · 반복 1 · `downgrade_reason` 없음) · lite 지표 5종 표(lite_metrics 표 그대로) · 환경 스냅샷. 판정·루프라인·
   동시성 곡선·인증서는 **없다**. 명명 키(model·gpu·vllm)는 raw 가 남긴 config yaml·envfile·manifest·엔진 로그 경로에서
-  `sweep_bench` 조립부와 같은 규칙으로 파생하고(`render_report.lite_identity` · 두 자리는 `scripts/selftest_lite_report.py` 가
+  `sweep_bench` 조립부와 같은 규칙으로 파생하고(`render_report.lite_identity` · 두 자리는 `scripts/selftest_lite_report.sh` 가
   교차검증), 측정시각은 raw 의 `measured_utc`(부하 직전 호스트 UTC)다 — 없으면 exit 2(날조 ✗).
   - **기본은 발행하지 않는다**(자동 핸드오프 경로에 부작용 ✗): ① 서빙 직후 자동 lite 는 **관측·inform-only 한정** 예외다.
     ② `sweep_bench.sh` 가 이 스크립트를 lite 레그로 부른다 — 레그가 리포트를 내면 같은 시간대·같은 조합의 full 리포트가
@@ -89,7 +89,7 @@
   serve 에 **반복 ≥3**(`repeat_kind=warm-rerun` · `cold-restart` 는 선언 슬롯만). 반복은 분산·신뢰성의 최소조건이다:
   1회 측정에는 산포 추정치가 없고, 다른 도구·조건의 밴드를 빌리면 추론이 틀린다(`audit_26091323` §2.4b).
   - **반복 수**: `sweep_bench.sh --repeats N`(귀속 `--repeats-source` · 없으면 Agent 선택이라 비기본은 escalate 거부) > 활성 캠페인 `campaign.yaml budgets.repeats` > 프리셋 기본값
-    (해소·하한의 소유 `repeat_axis.py` · 출처는 `sweep_index.repetition.requested_source`). **N<3 은 exit 2** —
+    (해소·하한의 소유 `repeat_axis.sh` · 출처는 `sweep_index.repetition.requested_source`). **N<3 은 exit 2** —
     반복을 낮춰 full 을 선언하지 않는다(lite 만 재려면 §1 lite 통로). Broad Search 에서는 `init` 이 이 값을
     `declared_budget.repeats` 로 예산에 싣고 `cell` 이 넘긴다(셀 비용 = 레벨 × 반복 — 벽시계 예산의 근거).
   - **반복 대상은 레벨 측정 레그**다. lite 선행 레그는 1회(cold TTFT 는 반복하면 cold 가 아니다)이고, 레벨 run
@@ -104,7 +104,7 @@
     멈춘다 — 끊긴 동시성은 반복해 버티지 못한 포화 경계라 상위도 무너진다(클램프와 같은 이유 · 요청 N>3 에서
     완주가 이미 ≥3 인 레벨이어도 같다). 시각 대조 창 = 직전 run 시작~끊긴 run 끝(클램프는 아래 측정 레벨의 마지막 run 시작~
     클램프 run 끝).
-  - **강등(기계 이벤트만 · 확정 `classify_cell.py` post-hoc)** — 반복 조건의 범위는 **판정점**(동시성 1 · 인증서·판정이
+  - **강등(기계 이벤트만 · 확정 `classify_cell.sh` post-hoc)** — 반복 조건의 범위는 **판정점**(동시성 1 · 인증서·판정이
     묶이는 레벨)이다(2026-09-14 리뷰 정정: 종전의 "측정 레벨 전체 완주 min" 은 같은 포화 경계를 첫 run 실패면 full·
     둘째 run 실패면 lite 로 반대로 판정했다):
     ① 멈춘 자리의 창 안에 **집행된** 블랙박스 사살(KILL_EVENT_KINDS · 같은 노드 허용오차 0)이 있으면 레벨·run 순번과 무관하게
@@ -145,7 +145,7 @@
     로 회수한 뒤 `sweep_bench.sh <config> --topology multi --reassemble-only [--cross-node-tolerance-s N --cross-node-tolerance-source <출처>]`
     로 판정 기록을 다시 쓰고(측정시각 승계 · 재측정 0) 판정·발행을 잇는다. 노드 간 허용오차는 **선언으로만** 온다(두 노드 시계 동기
     오차를 잰 명령·시각을 출처로 적는다 · 매직넘버 ✗).
-  - **판정 기록을 쓰는 손**: `sweep_bench.sh` 종료부가 `classify_cell.py --sweep-index … --events-from-repo <repo>
+  - **판정 기록을 쓰는 손**: `sweep_bench.sh` 종료부가 `classify_cell.sh --sweep-index … --events-from-repo <repo>
     --manifest output/<topology>/manifest.yaml --write-bench-mode` 를 부른다(측정·재조립 둘 다 · 대조 대상 노드는 index meta
     `topology`·`measured_node` 와 manifest 로 정한다) — 정규 경로(sweep_bench → judge_bench → render_report·인증서)와
     Broad Search 가 **같은 기록 하나**를 읽는다. 기록은 원자적으로 쓰이고 `sweep_index_generated_utc` 로 측정에 묶인다.
@@ -158,14 +158,14 @@
 
     | 자리 | 반복 수 | 출처 |
     |---|---|---|
-    | `repeat_axis.py resolve` 출력(sweep_bench 셸 변수) | `REPEATS` | `REPEATS_SOURCE` |
+    | `repeat_axis.sh resolve` 출력(sweep_bench 셸 변수) | `REPEATS` | `REPEATS_SOURCE` |
     | `sweep_index.json` `repetition` | `requested` | `requested_source` |
     | 대표 `level_NN/measured.json` | `repeats_requested` | `repeats_requested_source` |
     | Broad Search 상태 `declared_budget` | `repeats` | `repeats_source` |
-    | `sweep_stop.py` 정지 판정 | `declared_budget.repeats` | `budget_repeats_source`(미선언이면 `absent(…)`) |
+    | `sweep_stop.sh` 정지 판정 | `declared_budget.repeats` | `budget_repeats_source`(미선언이면 `absent(…)`) |
 
   - ⚠ 정상 E2E(판정점 반복 완주 · 사살 없음 — 포화 경계에서 스윕이 멈추는 클램프 포함)는 강등 경로를 밟지 않는다 —
-    그 경로는 `scripts/selftest_sweep_repeats.py` 실패주입이 지킨다.
+    그 경로는 `scripts/selftest_sweep_repeats.sh` 실패주입이 지킨다.
 - **사람용 report(항상)** — `render_report.sh --sweep-index <sweep_index.json> --verdict-json <verdict> [--roofline-json]`
   → `docs/benchmark/bench_report_<YYMMDDHH>_<model>_<gpu>_<vllm>.md`. **PASS/FAIL 무관 발행**("왜 느렸나"도 사람이 봐야).
   **inform-only**(verdict 를 *표시만* — 판정권한 ✗·verdict_rule 독점) · 결정론 렌더(LLM 표·숫자 저작 ✗) · N/A fail-soft.
@@ -188,7 +188,7 @@
   않고 판정 기록을 읽는다. 반복 축 이전 산출물(repetition 없음)은 종전대로다.
   인증서는 대표 run 1회 값과 스윕 측정시각 1개만 실어 반복이 인증서 키(강한 6키 + `measured_utc`)를 늘리지 않는다.
   **`rubric_authority: weak|explicit|explore`** 를 검증결과 블록에 함께 싣는다(2026-08-22 · `plan_26082219` A6) —
-  승격 판정기(`completion_gate.py`)가 *어느 권한에서 잰 판정인지*를 인증서에서 직접 읽어야 explore 계약
+  승격 판정기(`completion_gate.sh`)가 *어느 권한에서 잰 판정인지*를 인증서에서 직접 읽어야 explore 계약
   (성능 판정=서술 · 승격 게이트=서빙 성립+유효 측정)을 집행할 수 있다. 결측은 `N/A` fail-soft이며,
   **legacy 인증서(필드 부재)는 관용**한다(값역 검사만 — 스키마가 늘었다고 기존 판정을 뒤집지 않는다).
   같은 판정기가 `floor_tps > 0` ∧ `ratio_M_over_primary` 실수 ∧ `primary_source` 실재를 **fail-closed** 로
@@ -198,7 +198,7 @@
   `bash .claude/policies/runtime/evidence_publisher.sh publish-benchmark … --verdict-json-src <verdict.json>`.
   그러면 `rubric_authority`·`floor_tps`·`ratio_M_over_primary`·`primary_source` 가 출처 표시
   (`rubric_source: verdict_json`)와 함께 work-manifest 의 `benchmark` 오브젝트에 실리고,
-  `completion_gate.py` 가 인증서 부재 시 이 채널을 fallback 으로 읽는다.
+  `completion_gate.sh` 가 인증서 부재 시 이 채널을 fallback 으로 읽는다.
   **이 플래그를 빠뜨리면 non-PASS 런은 `BENCHMARK_MEASUREMENT_INVALID` 로 막힌다** — 값이 없어서가 아니라 통로를
   안 열어서다(2026-08-24 실측 결함: bench report 는 "루브릭 권한 = explore" 를 적고 있는데 게이트는 못 봤다).
   계약은 인증서와 **동일**하다(`floor>0` ∧ `ratio` 유한 ∧ `primary_source` 실재 ∧ 출처 표시) — 완화가 아니라 carrier
@@ -211,4 +211,4 @@
 - **비용 규율**: 재탐색 루프 **내부는 값싼 단일점 판정** 유지 · 스윕·리치리포트는 **종결 1회**만. 오케스트레이션은
   **에이전트 매개**(스킬↔스킬 직접호출 ✗). **done-게이트는 여전히 verdict 독점** · lite 는 기본적으로 채팅 표만이고
   문서는 lite-only 셀이 `--publish-report` 로 명시할 때만 낸다(§1 · 판정·인증서는 어느 경우에도 없다).
-- 발행 경로·명명 SSOT = `.claude/skills/wiki-desk/src/doc_naming.ts`(파이썬 shim `.claude/policies/runtime/doc_naming.py`)(generated_utc→KST) · 증거 계약은 `.claude/policies/runtime/completion_gate.py` 가 판정.
+- 발행 경로·명명 SSOT = `.claude/skills/wiki-desk/src/doc_naming.ts`(Rust 런처 `.claude/policies/runtime/doc_naming.sh`)(generated_utc→KST) · 증거 계약은 `.claude/policies/runtime/completion_gate.sh` 가 판정.

@@ -33,7 +33,7 @@ pub const KNOWN_PROVIDERS: &[&str] = &["claude_code", "codex_cli"];
 pub const EXIT_INVALID_REQUEST: i64 = 2;
 
 fn owner() -> PathBuf {
-    crate::owner::owner_path("agent_control.py")
+    crate::owner::owner_path("agent_control.sh")
 }
 
 /// `REPO_ROOT` (`Path(__file__).resolve().parents[4]`).
@@ -606,7 +606,7 @@ fn cmd_runners(provider: &str) -> Res<i32> {
 }
 
 static INVOKE: Spec = Spec {
-    prog: "agent_control.py invoke",
+    prog: "agent_control.sh invoke",
     usage: include_str!("../help/agent_control.invoke.usage"),
     help: include_str!("../help/agent_control.invoke.help"),
     args: &[HELP, store(&["--request"]).required(), store(&["--result-file"]), store(&["--dispatch-id"])],
@@ -614,7 +614,7 @@ static INVOKE: Spec = Spec {
 };
 
 static RUNNERS: Spec = Spec {
-    prog: "agent_control.py runners",
+    prog: "agent_control.sh runners",
     usage: include_str!("../help/agent_control.runners.usage"),
     help: include_str!("../help/agent_control.runners.help"),
     args: &[HELP, store(&["--provider"]).choices(&["claude_code", "codex_cli", "all"])],
@@ -622,7 +622,7 @@ static RUNNERS: Spec = Spec {
 };
 
 pub static SPEC: Spec = Spec {
-    prog: "agent_control.py",
+    prog: "agent_control.sh",
     usage: include_str!("../help/agent_control.usage"),
     help: include_str!("../help/agent_control.help"),
     args: &[HELP, flag(&["--self-test"])],

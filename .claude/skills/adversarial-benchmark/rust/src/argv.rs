@@ -19,7 +19,7 @@ use crate::pystr::{is_decimal_digit, PyStr};
 use num_bigint::BigInt;
 
 /// The program name argparse derives from `sys.argv[0]` of the original `sweep_stop.py`.
-pub const PROG: &str = "sweep_stop.py";
+pub const PROG: &str = "sweep_stop.sh";
 
 /// How an argparse action consumes arguments (`store` with one value, `store_true`, or `help`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -191,7 +191,7 @@ pub const JSON_FLAG: usize = 3;
 
 /// The original `parse_bench.py` parser.
 pub const PARSE_BENCH: Spec = Spec {
-    prog: "parse_bench.py",
+    prog: "parse_bench.sh",
     actions: &[
         ActionDef {
             name: "-h/--help",
@@ -221,7 +221,7 @@ pub mod lite_args {
 
 /// The original `lite_metrics.py` parser: required `--raw-json`, the flags `--json` and `--judge`.
 pub const LITE_METRICS: Spec = Spec {
-    prog: "lite_metrics.py",
+    prog: "lite_metrics.sh",
     actions: &[
         ActionDef {
             name: "-h/--help",
@@ -255,7 +255,7 @@ pub mod bench_tool_args {
 /// The original `resolve_bench_tool.py` parser: `--tool`, `--tool-version`, `--pin`, `--platform`, `--json`,
 /// `--self-test`, all optional.
 pub const BENCH_TOOL: Spec = Spec {
-    prog: "resolve_bench_tool.py",
+    prog: "resolve_bench_tool.sh",
     actions: &[
         ActionDef {
             name: "-h/--help",
@@ -295,7 +295,7 @@ pub mod resolve_guidellm_args {
 /// The original `resolve_guidellm.py` parser: `--version`, `--repo`, `--record`, `--record-path`, `--json`,
 /// `--self-test`, all optional (an option may be abbreviated to any unambiguous prefix, as in argparse).
 pub const RESOLVE_GUIDELLM: Spec = Spec {
-    prog: "resolve_guidellm.py",
+    prog: "resolve_guidellm.sh",
     actions: &[
         ActionDef {
             name: "-h/--help",
@@ -331,7 +331,7 @@ pub mod resolve_topology_args {
 /// The original `resolve_topology.py` parser: `--repo REPO` and `--self-test`, both optional (an option may be
 /// abbreviated to any unambiguous prefix, as in argparse).
 pub const RESOLVE_TOPOLOGY: Spec = Spec {
-    prog: "resolve_topology.py",
+    prog: "resolve_topology.sh",
     actions: &[
         ActionDef {
             name: "-h/--help",
@@ -362,7 +362,7 @@ pub mod turn_budget_args {
 /// The original `turn_budget.py` parser (`main()`): `--max-turns` and `--timeout-seconds` as `type=int`, `--source`, `--caps`
 /// and `--self-test`; every option is optional and may be abbreviated to an unambiguous prefix.
 pub const TURN_BUDGET: Spec = Spec {
-    prog: "turn_budget.py",
+    prog: "turn_budget.sh",
     actions: &[
         ActionDef {
             name: "-h/--help",
@@ -410,7 +410,7 @@ pub mod classify_args {
 /// The original `classify_cell.py` parser: the cell-closing and bench-mode options, every one optional (the program
 /// itself decides which are required, after parsing).
 pub const CLASSIFY_CELL: Spec = Spec {
-    prog: "classify_cell.py",
+    prog: "classify_cell.sh",
     actions: &[
         ActionDef {
             name: "-h/--help",
@@ -479,7 +479,7 @@ pub mod guidellm_args {
 
 /// The original `parse_guidellm.py` parser.
 pub const PARSE_GUIDELLM: Spec = Spec {
-    prog: "parse_guidellm.py",
+    prog: "parse_guidellm.sh",
     actions: &[
         ActionDef {
             name: "-h/--help",
@@ -537,7 +537,7 @@ pub const ACCEPT_LEN_SOURCE_NAMES: &[&str] = &["measured", "declared", "declared
 
 /// The original `roofline.py` parser.
 pub const ROOFLINE: Spec = Spec {
-    prog: "roofline.py",
+    prog: "roofline.sh",
     actions: &[
         ActionDef {
             name: "-h/--help",
@@ -603,7 +603,7 @@ pub const E_SEARCH_NAMES: &[&str] = &["hit", "empty", "no"];
 
 /// The original `verdict_rule.py` parser.
 pub const VERDICT_RULE: Spec = Spec {
-    prog: "verdict_rule.py",
+    prog: "verdict_rule.sh",
     actions: &[
         ActionDef {
             name: "-h/--help",
@@ -695,7 +695,7 @@ const HELP_DEFINITION: ActionDef = ActionDef {
 /// The top parser of `repeat_axis.py`: `-h`, `--self-test` and the subcommand word, which [`crate::repeat_cli`]
 /// dispatches (this table covers the options before it).
 pub const REPEAT_AXIS: Spec = Spec {
-    prog: "repeat_axis.py",
+    prog: "repeat_axis.sh",
     actions: &[HELP_DEFINITION, flag("--self-test")],
     options: &[
         ("-h", HELP_ACTION),
@@ -707,7 +707,7 @@ pub const REPEAT_AXIS: Spec = Spec {
 
 /// The `resolve` subparser.
 pub const REPEAT_AXIS_RESOLVE: Spec = Spec {
-    prog: "repeat_axis.py resolve",
+    prog: "repeat_axis.sh resolve",
     actions: &[
         HELP_DEFINITION,
         text_option("--repeats", false),
@@ -730,7 +730,7 @@ pub const REPEAT_AXIS_RESOLVE: Spec = Spec {
 
 /// The `record-run` subparser.
 pub const REPEAT_AXIS_RECORD_RUN: Spec = Spec {
-    prog: "repeat_axis.py record-run",
+    prog: "repeat_axis.sh record-run",
     actions: &[
         HELP_DEFINITION,
         text_option("--run-dir", true),
@@ -757,7 +757,7 @@ pub const REPEAT_AXIS_RECORD_RUN: Spec = Spec {
 
 /// The `aggregate-level` subparser (`--kind` defaults to `warm-rerun` in the program, not here).
 pub const REPEAT_AXIS_AGGREGATE_LEVEL: Spec = Spec {
-    prog: "repeat_axis.py aggregate-level",
+    prog: "repeat_axis.sh aggregate-level",
     actions: &[
         HELP_DEFINITION,
         text_option("--level-dir", true),
@@ -815,7 +815,7 @@ pub mod bench_preset_args {
 /// The top parser of `bench_preset.py`: `-h`, `--self-test` and the subcommand word, which
 /// [`crate::bench_preset_cli`] dispatches.
 pub const BENCH_PRESET: Spec = Spec {
-    prog: "bench_preset.py",
+    prog: "bench_preset.sh",
     actions: &[HELP_DEFINITION, flag("--self-test")],
     options: &[
         ("-h", HELP_ACTION),
@@ -827,7 +827,7 @@ pub const BENCH_PRESET: Spec = Spec {
 
 /// The `validate` subparser.
 pub const BENCH_PRESET_VALIDATE: Spec = Spec {
-    prog: "bench_preset.py validate",
+    prog: "bench_preset.sh validate",
     actions: &[HELP_DEFINITION, text_option("--preset", false)],
     options: &[
         ("-h", HELP_ACTION),
@@ -839,7 +839,7 @@ pub const BENCH_PRESET_VALIDATE: Spec = Spec {
 
 /// The `default` subparser.
 pub const BENCH_PRESET_DEFAULT: Spec = Spec {
-    prog: "bench_preset.py default",
+    prog: "bench_preset.sh default",
     actions: &[
         HELP_DEFINITION,
         required_option("--knob", Conversion::Text),
@@ -856,7 +856,7 @@ pub const BENCH_PRESET_DEFAULT: Spec = Spec {
 
 /// The `resolve` subparser.
 pub const BENCH_PRESET_RESOLVE: Spec = Spec {
-    prog: "bench_preset.py resolve",
+    prog: "bench_preset.sh resolve",
     actions: &[
         HELP_DEFINITION,
         required_option("--tool", Conversion::Text),
@@ -1532,7 +1532,7 @@ pub mod render_report_args {
 
 /// The original `render_report.py` parser.
 pub const RENDER_REPORT: Spec = Spec {
-    prog: "render_report.py",
+    prog: "render_report.sh",
     actions: &[
         ActionDef {
             name: "-h/--help",
@@ -1574,7 +1574,7 @@ pub mod sweep_map_args {
 
 /// The original `render_sweep_map.py` parser.
 pub const RENDER_SWEEP_MAP: Spec = Spec {
-    prog: "render_sweep_map.py",
+    prog: "render_sweep_map.sh",
     actions: &[
         ActionDef {
             name: "-h/--help",
@@ -1608,7 +1608,7 @@ pub mod max_report_args {
 
 /// The original `render_max_report.py` parser (`--max-index` is required).
 pub const RENDER_MAX_REPORT: Spec = Spec {
-    prog: "render_max_report.py",
+    prog: "render_max_report.sh",
     actions: &[
         ActionDef {
             name: "-h/--help",
@@ -1640,7 +1640,7 @@ pub mod publish_args {
 
 /// The original `publish_benchmark_record.py` parser.
 pub const PUBLISH_BENCHMARK_RECORD: Spec = Spec {
-    prog: "publish_benchmark_record.py",
+    prog: "publish_benchmark_record.sh",
     actions: &[
         ActionDef {
             name: "-h/--help",
@@ -1676,7 +1676,7 @@ const HELP_DEF: ActionDef = ActionDef {
 /// The top-level parser of `dataset_prep.py`: `-h` and the required subcommand (handled by the dispatcher in
 /// [`crate::dataset_prep_cli`], because the subcommand word hands the rest of the line to its own parser).
 pub const DATASET_TOP: Spec = Spec::with_layouts(
-    "dataset_prep.py",
+    "dataset_prep.sh",
     &[HELP_DEF],
     &[("-h", HELP_ACTION), ("--help", HELP_ACTION)],
     crate::help_layouts_dataset_prep::LAYOUTS_TOP,
@@ -1695,7 +1695,7 @@ pub mod dataset_prepare_args {
 }
 
 pub const DATASET_PREPARE: Spec = Spec::with_layouts(
-    "dataset_prep.py prepare",
+    "dataset_prep.sh prepare",
     &[
         HELP_DEF,
         text_option("--spec", true),
@@ -1737,7 +1737,7 @@ pub mod dataset_slice_args {
 }
 
 pub const DATASET_SLICE: Spec = Spec::with_layouts(
-    "dataset_prep.py slice",
+    "dataset_prep.sh slice",
     &[
         HELP_DEF,
         text_option("--spec", true),
@@ -1776,7 +1776,7 @@ pub mod dataset_synthetic_args {
 }
 
 pub const DATASET_SYNTHETIC_SIDECAR: Spec = Spec::with_layouts(
-    "dataset_prep.py synthetic-sidecar",
+    "dataset_prep.sh synthetic-sidecar",
     &[
         HELP_DEF,
         text_option("--input-len", true),

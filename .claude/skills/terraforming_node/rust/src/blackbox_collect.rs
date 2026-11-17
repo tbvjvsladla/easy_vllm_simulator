@@ -986,7 +986,7 @@ static ARGS: [Arg; 7] = [
 ];
 
 pub static SPEC: Spec = Spec {
-    prog: "blackbox_collect.py",
+    prog: "blackbox_collect.sh",
     usage: include_str!("../help/blackbox_collect.usage"),
     help: include_str!("../help/blackbox_collect.help"),
     args: &ARGS,

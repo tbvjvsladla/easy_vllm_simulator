@@ -1,2 +1,2 @@
-usage: hint.py lint [-h] --draft DRAFT [--json]
-hint.py lint: error: argument --json: ignored explicit argument '1'
+usage: hint.sh lint [-h] --draft DRAFT [--json]
+hint.sh lint: error: argument --json: ignored explicit argument '1'

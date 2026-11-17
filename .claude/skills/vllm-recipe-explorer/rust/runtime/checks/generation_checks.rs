@@ -941,7 +941,7 @@ mod parser_cases {
 import argparse, contextlib, io, json, os, sys
 os.environ['COLUMNS'] = '80'
 def generator():
-    p = argparse.ArgumentParser(prog='gen_recipe_set.py', description="DGX Spark 서빙용 3종 세트(.yaml+.sh+.env) 생성")
+    p = argparse.ArgumentParser(prog='gen_recipe_set.sh', description="DGX Spark 서빙용 3종 세트(.yaml+.sh+.env) 생성")
     p.add_argument("--parsed", required=True, help="parse_model_config 결과 JSON 경로")
     p.add_argument("--recipe", required=True, help="선택된 레시피 후보 JSON 경로")
     p.add_argument("--name", required=True, help="3종 세트 base 이름")
@@ -955,7 +955,7 @@ def generator():
     p.add_argument("--force", action="store_true", help="기존 파일 덮어쓰기 허용")
     return p
 def feedback():
-    p = argparse.ArgumentParser(prog='feedback_log.py', description="vllm-recipe-explorer 되먹임 로그(JSONL) append.")
+    p = argparse.ArgumentParser(prog='feedback_log.sh', description="vllm-recipe-explorer 되먹임 로그(JSONL) append.")
     p.add_argument("--path", default="DEFAULT", help="JSONL 로그 경로(기본=feedback/recipe_feedback.jsonl)")
     p.add_argument("--model-id", required=True)
     p.add_argument("--quantization", required=True)

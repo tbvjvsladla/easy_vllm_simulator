@@ -96,9 +96,9 @@ fn test_manifest_contract_enforces_ternary_model_source() -> R {
 /// `check_smoke_model` is the upstream runtime's Rust program (`smoke_model.rs`, started by `check_smoke_model.sh`).
 fn test_check_smoke_model_has_no_download_machinery() -> R {
     let launcher = read(".claude/skills/upstream-version-watch/scripts/check_smoke_model.sh")?;
-    assert_in("exec -a \"$SDIR/check_smoke_model.py\" \"$binary\"", &launcher, Some("check_smoke_model.sh must start the native program"))?;
+    assert_in("exec -a \"$SDIR/check_smoke_model.sh\" \"$binary\"", &launcher, Some("check_smoke_model.sh must start the native program"))?;
     let src = read(".claude/skills/upstream-version-watch/rust/runtime/src/smoke_model.rs")?;
-    assert_in("pub const PROGRAM: &str = \"check_smoke_model.py\";", &src, Some("smoke_model.rs must be the check_smoke_model program"))?;
+    assert_in("pub const PROGRAM: &str = \"check_smoke_model.sh\";", &src, Some("smoke_model.rs must be the check_smoke_model program"))?;
     for banned in ["ureq", "reqwest", "hf_http", "snapshot_download", "huggingface_hub", "Command::new(\"wget\")", "Command::new(\"curl\")", "\"wget\"", "\"curl\"", "\"git-lfs\"", "\"lfs\""] {
         assert_not_in(banned, &src, None)?;
     }

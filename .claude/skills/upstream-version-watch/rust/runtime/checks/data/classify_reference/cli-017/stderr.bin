@@ -1,7 +1,7 @@
 Traceback (most recent call last):
-  File "/saved/r40/cli-017/business/node/.claude/skills/upstream-version-watch/scripts/classify_failure.py", line 91, in <module>
+  File "/saved/r40/cli-017/business/node/.claude/skills/upstream-version-watch/scripts/classify_failure.sh", line 91, in <module>
     main()
-  File "/saved/r40/cli-017/business/node/.claude/skills/upstream-version-watch/scripts/classify_failure.py", line 75, in main
+  File "/saved/r40/cli-017/business/node/.claude/skills/upstream-version-watch/scripts/classify_failure.sh", line 75, in main
     m = re.search(p["signature"], text)
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   File "/usr/lib/python3.12/re/__init__.py", line 177, in search

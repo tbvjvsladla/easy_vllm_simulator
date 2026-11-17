@@ -1,4 +1,4 @@
-usage: hint.py continue [-h] [--campaign CAMPAIGN] [--cell CELL] [--draft DRAFT] [--node {main,sub,cluster}]
+usage: hint.sh continue [-h] [--campaign CAMPAIGN] [--cell CELL] [--draft DRAFT] [--node {main,sub,cluster}]
                         --generated-utc GENERATED_UTC [--approved-by APPROVED_BY] [--approved-utc APPROVED_UTC]
                         [--remote REMOTE] [--no-push] [--factcheck-waiver FACTCHECK_WAIVER] [--hint-clone PATH]
                         [--guide-commit SHA]

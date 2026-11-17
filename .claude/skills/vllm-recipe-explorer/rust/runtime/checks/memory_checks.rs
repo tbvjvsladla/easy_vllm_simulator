@@ -1839,7 +1839,7 @@ mod startup_cases {
     /// error line (a literal suffix of the saved text, not a newline guess).
     fn saved_usage_of_case_1() -> Vec<u8> {
         let all = saved(1, "stderr_hex");
-        let error_line = "preload_ram_gate.py: error: one of the arguments --model-host-path --checkpoint-bytes is required\n";
+        let error_line = "preload_ram_gate.sh: error: one of the arguments --model-host-path --checkpoint-bytes is required\n";
         assert!(all.ends_with(error_line.as_bytes()));
         all[..all.len() - error_line.len()].to_vec()
     }
@@ -1862,7 +1862,7 @@ mod startup_cases {
         let ran = run_request(&bundle, 1, &tricky, "");
         let mut want = saved_usage_of_case_1();
         want.extend_from_slice(
-            b"preload_ram_gate.py: error: unrecognized arguments: --bad\nerror: x\n",
+            b"preload_ram_gate.sh: error: unrecognized arguments: --bad\nerror: x\n",
         );
         assert_eq!(ran.output.stderr, want);
         assert_eq!(ran.output.status.code(), Some(2));

@@ -41,7 +41,7 @@ fn run_case(case: &str) -> Result<(), String> {
     let rest: Vec<&str> = words.collect();
     let real = std::fs::canonicalize(&root).unwrap();
     let out = Command::new(bin(prog))
-        .arg0(real.join(".claude/policies/runtime").join(format!("{prog}.py")))
+        .arg0(real.join(".claude/policies/runtime").join(format!("{prog}.sh")))
         .args(&rest)
         .current_dir(&real)
         .env_remove("GIT_DIR")

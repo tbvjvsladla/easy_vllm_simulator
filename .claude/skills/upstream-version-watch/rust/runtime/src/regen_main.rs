@@ -41,7 +41,7 @@ use recipe_runtime::cliparse::{
 use std::collections::BTreeMap;
 use std::os::unix::ffi::OsStringExt;
 
-pub const PROGRAM: &str = "regen_requirements.py";
+pub const PROGRAM: &str = "regen_requirements.sh";
 const INSTALLED_SOURCE: &str = "importlib.metadata.distribution('vllm').metadata (container)";
 const SELF_TEST_PASS: &str = "[regen] self-test PASS: exact version, prior guard, wheel/installed metadata, malformed identity";
 const EXEMPTION_NOTE: &str = "KNOWN_INCOMPAT exemption: transformers<5.15.0 omitted for exact METADATA Version 0.32.0; compatibility and smoke unverified.";
@@ -380,7 +380,7 @@ fn build_header(
         "\n# base 제공분(torch/torchvision/torchaudio/setuptools)은 제외(--no-deps 보호).\n# extra(fastapi[standard] 등)는 그대로 — pip 가 빌드 시 transitive(uvicorn→uvloop) 해소.\n",
     );
     if !parsed.applied.is_empty() {
-        header.push_str("# ⚠ KNOWN_INCOMPAT 천장 적용(시간드리프트 회귀 차단; upstream 수정 시 regen_requirements.py KNOWN_INCOMPAT 에서 제거): ");
+        header.push_str("# ⚠ KNOWN_INCOMPAT 천장 적용(시간드리프트 회귀 차단; upstream 수정 시 regen_requirements.sh KNOWN_INCOMPAT 에서 제거): ");
         header.push_str(&joined(&parsed.applied, "; "));
         header.push_str("\n");
     }

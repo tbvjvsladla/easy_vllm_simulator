@@ -25,4 +25,4 @@ if [ "$magic" != $'\177ELF' ]; then
   printf '[native_wheelhouse] ERROR normal Rust ELF invalid: %s\n' "$binary" >&2
   exit 2
 fi
-exec -a "$SDIR/native_wheelhouse.py" "$binary" "$@"
+exec -a "$SDIR/native_wheelhouse.sh" "$binary" "$@"

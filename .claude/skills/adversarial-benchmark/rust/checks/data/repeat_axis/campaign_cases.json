@@ -11,7 +11,7 @@
       "value": [
         null,
         null,
-        "\ucea0\ud398\uc778 \ud574\uc18c\uc790 \ubd80\uc7ac: .claude/skills/terraforming_node/scripts/campaign_init.py \u2014 \uc120\uc5b8\uc744 \uc77d\uc9c0 \ubabb\ud588\ub2e4"
+        "\ucea0\ud398\uc778 \ud574\uc18c\uc790 \ubd80\uc7ac: .claude/skills/terraforming_node/scripts/campaign_init.sh \u2014 \uc120\uc5b8\uc744 \uc77d\uc9c0 \ubabb\ud588\ub2e4"
       ]
     },
     "original_tree_unchanged": true
@@ -30,7 +30,7 @@
       "kind": "value",
       "value": [
         3,
-        "defaulted(preset frozen-preset \uae30\ubcf8 3 \u00b7 \ucea0\ud398\uc778 \ud574\uc18c\uc790 \ubd80\uc7ac: .claude/skills/terraforming_node/scripts/campaign_init.py \u2014 \uc120\uc5b8\uc744 \uc77d\uc9c0 \ubabb\ud588\ub2e4)"
+        "defaulted(preset frozen-preset \uae30\ubcf8 3 \u00b7 \ucea0\ud398\uc778 \ud574\uc18c\uc790 \ubd80\uc7ac: .claude/skills/terraforming_node/scripts/campaign_init.sh \u2014 \uc120\uc5b8\uc744 \uc77d\uc9c0 \ubabb\ud588\ub2e4)"
       ]
     },
     "original_tree_unchanged": true
@@ -1626,7 +1626,7 @@
     "expected": {
       "kind": "exception",
       "type": "RepeatAxisError",
-      "message": "\ubc18\ubcf5 \uc218 \uc120\uc5b8\uc774 \uc5c6\uace0(\ucea0\ud398\uc778 \ud574\uc18c\uc790 \ubd80\uc7ac: .claude/skills/terraforming_node/scripts/campaign_init.py \u2014 \uc120\uc5b8\uc744 \uc77d\uc9c0 \ubabb\ud588\ub2e4) \ud504\ub9ac\uc14b \uae30\ubcf8\uac12\ub3c4 \ubc1b\uc9c0 \ubabb\ud588\ub2e4 \u2014 \uae30\ubcf8\uac12\uc758 \uc790\ub9ac\ub294 \ud504\ub9ac\uc14b \ud558\ub098\ub2e4(bench_preset.py \uac00 \ub118\uae34\ub2e4 \u00b7 \ucf54\ub4dc \uc548 \uc22b\uc790\ub85c \uba54\uc6b0\uc9c0 \uc54a\ub294\ub2e4)"
+      "message": "\ubc18\ubcf5 \uc218 \uc120\uc5b8\uc774 \uc5c6\uace0(\ucea0\ud398\uc778 \ud574\uc18c\uc790 \ubd80\uc7ac: .claude/skills/terraforming_node/scripts/campaign_init.sh \u2014 \uc120\uc5b8\uc744 \uc77d\uc9c0 \ubabb\ud588\ub2e4) \ud504\ub9ac\uc14b \uae30\ubcf8\uac12\ub3c4 \ubc1b\uc9c0 \ubabb\ud588\ub2e4 \u2014 \uae30\ubcf8\uac12\uc758 \uc790\ub9ac\ub294 \ud504\ub9ac\uc14b \ud558\ub098\ub2e4(bench_preset.sh \uac00 \ub118\uae34\ub2e4 \u00b7 \ucf54\ub4dc \uc548 \uc22b\uc790\ub85c \uba54\uc6b0\uc9c0 \uc54a\ub294\ub2e4)"
     },
     "original_tree_unchanged": true
   },
@@ -1660,7 +1660,7 @@
     "expected": {
       "kind": "exception",
       "type": "RepeatAxisError",
-      "message": "\ubc18\ubcf5 \uc218 \uc120\uc5b8\uc774 \uc5c6\uace0(\ucea0\ud398\uc778 \ud574\uc18c\uc790 \ubd80\uc7ac: .claude/skills/terraforming_node/scripts/campaign_init.py \u2014 \uc120\uc5b8\uc744 \uc77d\uc9c0 \ubabb\ud588\ub2e4) \ud504\ub9ac\uc14b \uae30\ubcf8\uac12\ub3c4 \ubc1b\uc9c0 \ubabb\ud588\ub2e4 \u2014 \uae30\ubcf8\uac12\uc758 \uc790\ub9ac\ub294 \ud504\ub9ac\uc14b \ud558\ub098\ub2e4(bench_preset.py \uac00 \ub118\uae34\ub2e4 \u00b7 \ucf54\ub4dc \uc548 \uc22b\uc790\ub85c \uba54\uc6b0\uc9c0 \uc54a\ub294\ub2e4)"
+      "message": "\ubc18\ubcf5 \uc218 \uc120\uc5b8\uc774 \uc5c6\uace0(\ucea0\ud398\uc778 \ud574\uc18c\uc790 \ubd80\uc7ac: .claude/skills/terraforming_node/scripts/campaign_init.sh \u2014 \uc120\uc5b8\uc744 \uc77d\uc9c0 \ubabb\ud588\ub2e4) \ud504\ub9ac\uc14b \uae30\ubcf8\uac12\ub3c4 \ubc1b\uc9c0 \ubabb\ud588\ub2e4 \u2014 \uae30\ubcf8\uac12\uc758 \uc790\ub9ac\ub294 \ud504\ub9ac\uc14b \ud558\ub098\ub2e4(bench_preset.sh \uac00 \ub118\uae34\ub2e4 \u00b7 \ucf54\ub4dc \uc548 \uc22b\uc790\ub85c \uba54\uc6b0\uc9c0 \uc54a\ub294\ub2e4)"
     },
     "original_tree_unchanged": true
   },
@@ -1679,7 +1679,7 @@
       "kind": "value",
       "value": [
         3,
-        "defaulted(preset frozen-preset \uae30\ubcf8 3 \u00b7 \ucea0\ud398\uc778 \ud574\uc18c\uc790 \ubd80\uc7ac: .claude/skills/terraforming_node/scripts/campaign_init.py \u2014 \uc120\uc5b8\uc744 \uc77d\uc9c0 \ubabb\ud588\ub2e4)"
+        "defaulted(preset frozen-preset \uae30\ubcf8 3 \u00b7 \ucea0\ud398\uc778 \ud574\uc18c\uc790 \ubd80\uc7ac: .claude/skills/terraforming_node/scripts/campaign_init.sh \u2014 \uc120\uc5b8\uc744 \uc77d\uc9c0 \ubabb\ud588\ub2e4)"
       ]
     },
     "original_tree_unchanged": true

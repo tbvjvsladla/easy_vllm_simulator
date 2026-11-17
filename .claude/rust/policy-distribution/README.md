@@ -23,8 +23,8 @@ codes and result shape are unchanged, only the child argv differs (the report ne
 | `production_claim_predicates` | `python3 <repo>/.claude/policies/predicates/claim_predicates.py` | `bash <repo>/.claude/policies/predicates/claim_predicates.sh` |
 | `production_companion_predicates` | `python3 -m unittest discover -s <dir> -p '*_predicate.py'` | every `<dir>/*_predicate.sh` in name order, first failure's code; exit 5 (unittest "no tests") when there is none |
 
-Every other bundle's program (hint.py, render_sub_env.py, manifest_contract.py, … and all `.sh` self-tests) runs exactly as
-before, with the absolute `python3` found on PATH standing in for `sys.executable`. The caller-side reference date
+Every other bundle's program (hint.sh, render_sub_env.sh, manifest_contract.sh, … and all `.sh` self-tests) also runs through
+its Rust launcher (`bash <dir>/<x>.sh`; was `python3 <x>.py`, plan_26111615 — the `.py` programs are deleted). The caller-side reference date
 (`harness_verify.observe_as_of`) is implemented here (`clock.rs`); `policy-audit`'s harness_verify has the same rule —
 one should re-export the other once both land.
 
@@ -46,8 +46,7 @@ Residual divergences (no gate decision on the repository's inputs depends on the
 - `policy_distribution::policy_registry_check(runner, repo, record)` / `policy_registry_check_with(runner, repo, record,
   |name, argv, expected| …)` — `_policy_registry_check` with an injectable `_run` (the original self-test monkeypatched
   `_run` to capture argv).
-- `policy_distribution::child_python() -> Vec<String>` — `_child_python` (`[<abs python3>]`).
-- `policy_distribution::verify_with(repo, record, &Hooks{run, gitless, flag_issued, python})` — `verify()` with its three
+- `policy_distribution::verify_with(repo, record, &Hooks{run, gitless, flag_issued})` — `verify()` with its three
   side-effecting seams injectable.
 
 ## Checks

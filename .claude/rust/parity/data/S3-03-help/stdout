@@ -1,4 +1,4 @@
-usage: turn_budget.py [-h] [--max-turns MAX_TURNS]
+usage: turn_budget.sh [-h] [--max-turns MAX_TURNS]
                       [--timeout-seconds TIMEOUT_SECONDS] [--source SOURCE]
                       [--caps] [--self-test]
 

@@ -599,7 +599,7 @@ fn err(text: &str) {
 }
 
 fn usage_error(msg: &str) -> i32 {
-    err(&format!("usage: slave_forward.py [-h] [--self-test] {{prefix,json,default,non-identity}} ...\nslave_forward.py: error: {msg}\n"));
+    err(&format!("usage: slave_forward.sh [-h] [--self-test] {{prefix,json,default,non-identity}} ...\nslave_forward.sh: error: {msg}\n"));
     2
 }
 
@@ -674,7 +674,7 @@ pub fn run(args: &[String]) -> i32 {
     }
     // top-level `-h/--help` (the original's argparse page; the subcommand set includes the port's `non-identity`)
     if args.first().is_some_and(|a| a == "-h" || a == "--help") {
-        out("usage: slave_forward.py [-h] [--self-test] {prefix,json,default,non-identity} ...\n\nslave 전달 변수 파생(compose 참조 단일 소유)\n\npositional arguments:\n  {prefix,json,default,non-identity}\n\noptions:\n  -h, --help            show this help message and exit\n  --self-test\n");
+        out("usage: slave_forward.sh [-h] [--self-test] {prefix,json,default,non-identity} ...\n\nslave 전달 변수 파생(compose 참조 단일 소유)\n\npositional arguments:\n  {prefix,json,default,non-identity}\n\noptions:\n  -h, --help            show this help message and exit\n  --self-test\n");
         return 0;
     }
     if args.is_empty() {

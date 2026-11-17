@@ -1,4 +1,4 @@
-usage: render_sub_env.py [-h] [--topology {single,multi}]
+usage: render_sub_env.sh [-h] [--topology {single,multi}]
                          [--manifest MANIFEST] [--out OUT]
                          [--no-runtime-block] [--tracked-list TRACKED_LIST]
                          [--sub-manifest SUB_MANIFEST]

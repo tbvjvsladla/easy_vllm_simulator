@@ -1,4 +1,4 @@
-usage: campaign_template_validator.py [-h] [--campaign CAMPAIGN]
+usage: campaign_template_validator.sh [-h] [--campaign CAMPAIGN]
                                       [--instance INSTANCE] [--template]
                                       [--acceptance INSTANCE] [--selftest]
-campaign_template_validator.py: error: unrecognized arguments: --bogus
+campaign_template_validator.sh: error: unrecognized arguments: --bogus

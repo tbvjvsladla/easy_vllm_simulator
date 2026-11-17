@@ -1196,7 +1196,7 @@ pub fn _render_readme(ctx: &_Ctx) -> HR<String> {
         } else {
             format!(
                 "  `{BENCH_DOC}` §3.2 의 부하 곡선은 `<!-- BENCH_SECTION -->` 다음 줄부터 다음 챕터 헤딩 직전까지가 기계 렌더다 — \
-                 원천 리포트를 가진 쪽은 `render_bench_section.py --verify --section {BENCH_DOC} --report <리포트>` 로 diff 0 을 \
+                 원천 리포트를 가진 쪽은 `render_bench_section.sh --verify --section {BENCH_DOC} --report <리포트>` 로 diff 0 을 \
                  다시 확인할 수 있다."
             )
         },
@@ -1441,7 +1441,7 @@ pub fn render_scaffold(repo: &Path, facts: &J, payload_dir: &Path, snapshot_path
         return core::fail(
             "HINT_SCAFFOLD_EXISTS",
             format!("기존 저작물을 덮지 않는다: {} ({})", core::posix(payload_dir), exist.join(", ")),
-            Some("이어서 저작하려면 `hint.py continue` · 새로 시작하려면 드래프트를 지우고 publish 를 다시 한다."),
+            Some("이어서 저작하려면 `hint.sh continue` · 새로 시작하려면 드래프트를 지우고 publish 를 다시 한다."),
         );
     }
     let mut rendered: Vec<(String, String)> = Vec::new();
@@ -2637,7 +2637,7 @@ pub fn lint_with(
                     "HINT_EXCERPT_SECTION_SHAPE",
                     fname,
                     ln,
-                    format!("비-마크다운 출처 `{}` 의 발췌 머리는 `§L<a>-<b>`(줄 범위)다: `§{}` — `hint.py excerpt --lines a-b` 번호", loc.1, ex.section),
+                    format!("비-마크다운 출처 `{}` 의 발췌 머리는 `§L<a>-<b>`(줄 범위)다: `§{}` — `hint.sh excerpt --lines a-b` 번호", loc.1, ex.section),
                 ),
                 Some(lm) => {
                     let a = int_of(group(&lm, 1).unwrap_or("0"));
@@ -2662,7 +2662,7 @@ pub fn lint_with(
                             "HINT_EXCERPT_OUTSIDE_LINES",
                             fname,
                             ln,
-                            format!("인용은 출처 `{}` 에 있으나 `§L{a}-{b}` 줄 안이 아니다 — `hint.py excerpt --lines` 번호로 고친다", loc.1),
+                            format!("인용은 출처 `{}` 에 있으나 `§L{a}-{b}` 줄 안이 아니다 — `hint.sh excerpt --lines` 번호로 고친다", loc.1),
                         );
                     }
                 }
@@ -3301,7 +3301,7 @@ pub fn update_facts(repo: &Path, payload_dir: &Path, changes: &J, snapshot_path:
         None => default_snapshot_path(payload_dir)?,
     };
     if !snap.is_file() {
-        return core::fail("HINT_FACT_SNAPSHOT_ABSENT", format!("facts 스냅샷 부재: {}", core::posix(&snap)), Some("hint.py publish 가 만든 드래프트에서 실행한다."));
+        return core::fail("HINT_FACT_SNAPSHOT_ABSENT", format!("facts 스냅샷 부재: {}", core::posix(&snap)), Some("hint.sh publish 가 만든 드래프트에서 실행한다."));
     }
     let old = _normalize_facts(&load_snapshot(&snap)?)?;
     let Some(ch) = changes.as_dict() else {

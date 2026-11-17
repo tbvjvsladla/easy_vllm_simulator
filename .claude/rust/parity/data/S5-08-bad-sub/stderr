@@ -1,4 +1,4 @@
-usage: blackbox_session.py [-h] [--node-dir NODE_DIR] [--self-test]
+usage: blackbox_session.sh [-h] [--node-dir NODE_DIR] [--self-test]
                            {start,stop,declare-budget,budget-status,renew-budget,budget-defaults,clear-budget,budget-skip,budget-block,list,slice}
                            ...
-blackbox_session.py: error: argument cmd: invalid choice: 'nope' (choose from 'start', 'stop', 'declare-budget', 'budget-status', 'renew-budget', 'budget-defaults', 'clear-budget', 'budget-skip', 'budget-block', 'list', 'slice')
+blackbox_session.sh: error: argument cmd: invalid choice: 'nope' (choose from 'start', 'stop', 'declare-budget', 'budget-status', 'renew-budget', 'budget-defaults', 'clear-budget', 'budget-skip', 'budget-block', 'list', 'slice')

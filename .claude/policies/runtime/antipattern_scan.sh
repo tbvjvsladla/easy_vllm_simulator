@@ -17,4 +17,4 @@ if [ "$magic" != $'\177ELF' ]; then
   printf '[antipattern_scan] ERROR normal Rust ELF invalid: %s\n' "$BIN" >&2
   exit 2
 fi
-exec -a "$SDIR/antipattern_scan.py" "$BIN" "$@"
+exec -a "$SDIR/antipattern_scan.sh" "$BIN" "$@"

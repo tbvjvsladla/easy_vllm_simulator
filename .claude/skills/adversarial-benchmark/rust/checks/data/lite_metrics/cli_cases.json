@@ -1610,7 +1610,7 @@
       }
     },
     "exit_code": 0,
-    "stdout": "usage: lite_metrics.py [-h] --raw-json RAW_JSON [--json] [--judge]\n\nlite 5\uc885 \uba54\ud2b8\ub9ad \uacb0\uc815\ub860 \ud30c\uc11c/\ub80c\ub354\ub7ec + lite \ud310\uc815\n\noptions:\n  -h, --help           show this help message and exit\n  --raw-json RAW_JSON  lite_bench.sh \uc0b0\ucd9c raw readings JSON\n  --json               \uad6c\uc870\ud654 JSON \ucd9c\ub825(\ud45c \ub300\uc2e0)\n  --judge              \ud310\uc815\ud574 raw \uc5d0 lite_verdict\u00b7lite_exit\u00b7\uc0ac\uc720\ub97c **\uc81c\uc790\ub9ac \uae30\ub85d**\ud558\uace0 \ud310\uc815 \uc904\uc744\n                       \ucd9c\ub825\ud55c\ub2e4(\ud638\ucd9c\ubd80 lite_bench.sh)\n",
+    "stdout": "usage: lite_metrics.sh [-h] --raw-json RAW_JSON [--json] [--judge]\n\nlite 5\uc885 \uba54\ud2b8\ub9ad \uacb0\uc815\ub860 \ud30c\uc11c/\ub80c\ub354\ub7ec + lite \ud310\uc815\n\noptions:\n  -h, --help           show this help message and exit\n  --raw-json RAW_JSON  lite_bench.sh \uc0b0\ucd9c raw readings JSON\n  --json               \uad6c\uc870\ud654 JSON \ucd9c\ub825(\ud45c \ub300\uc2e0)\n  --judge              \ud310\uc815\ud574 raw \uc5d0 lite_verdict\u00b7lite_exit\u00b7\uc0ac\uc720\ub97c **\uc81c\uc790\ub9ac \uae30\ub85d**\ud558\uace0 \ud310\uc815 \uc904\uc744\n                       \ucd9c\ub825\ud55c\ub2e4(\ud638\ucd9c\ubd80 lite_bench.sh)\n",
     "stderr": "",
     "json_engine_key_order_unordered": false
   },
@@ -1709,7 +1709,7 @@
     },
     "exit_code": 2,
     "stdout": "",
-    "stderr": "usage: lite_metrics.py [-h] --raw-json RAW_JSON [--json] [--judge]\nlite_metrics.py: error: the following arguments are required: --raw-json\n",
+    "stderr": "usage: lite_metrics.sh [-h] --raw-json RAW_JSON [--json] [--judge]\nlite_metrics.sh: error: the following arguments are required: --raw-json\n",
     "json_engine_key_order_unordered": false
   },
   {
@@ -1811,7 +1811,7 @@
     },
     "exit_code": 2,
     "stdout": "",
-    "stderr": "usage: lite_metrics.py [-h] --raw-json RAW_JSON [--json] [--judge]\nlite_metrics.py: error: unrecognized arguments: --bad\n",
+    "stderr": "usage: lite_metrics.sh [-h] --raw-json RAW_JSON [--json] [--judge]\nlite_metrics.sh: error: unrecognized arguments: --bad\n",
     "json_engine_key_order_unordered": false
   }
 ]

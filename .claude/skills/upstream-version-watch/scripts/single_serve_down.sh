@@ -61,7 +61,7 @@ EF_ROOT="output/single/.env"          # 마운트 경로 치환(NAS/quant/tiktok
 #   down 은 되지만 경고를 남긴다(기동 때 같은 값으로 떴는지 알 수 없기 때문).
 ENVFILES=(--env-file "$EF")
 if [ -f "$EF_ROOT" ]; then ENVFILES=(--env-file "$EF_ROOT" --env-file "$EF")
-else echo "$TAG ⚠ $EF_ROOT 부재 — 마운트 변수는 compose 기본값으로 해소된다(render_dockerfile.py --materialize-env 선행 권장)."; fi
+else echo "$TAG ⚠ $EF_ROOT 부재 — 마운트 변수는 compose 기본값으로 해소된다(render_dockerfile.sh --materialize-env 선행 권장)."; fi
 
 val(){ grep -E "^$1=" "$EF" | head -1 | cut -d= -f2-; }
 CNAME="$(val CONTAINER_NAME)"

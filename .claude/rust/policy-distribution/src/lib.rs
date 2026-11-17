@@ -18,7 +18,7 @@ pub use checks::{
     Hooks,
 };
 pub use clock::{observe_as_of, AsOfRecord, UtcInstant};
-pub use runner::{child_python, run};
+pub use runner::run;
 
 /// `observe_policy_as_of` (`_observe_policy_as_of` of the original).
 pub fn observe_policy_as_of(explicit: Option<&str>, now_utc: Option<UtcInstant>) -> Result<AsOfRecord, String> {

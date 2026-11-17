@@ -46,6 +46,6 @@ fi
 unset MANIFEST_CONTRACT_VALIDATE_ONLY
 # The program path the traceback frames name (the reviewed original's location beside this launcher — its location, not user
 # intent; the file itself need not exist). No interpreter variable is honoured any more: every shape is native.
-export MANIFEST_CONTRACT_COMPAT_OWNER="${MANIFEST_CONTRACT_COMPAT_OWNER:-$SDIR/manifest_contract_compat_owner.py}"
+export MANIFEST_CONTRACT_COMPAT_OWNER="${MANIFEST_CONTRACT_COMPAT_OWNER:-$SDIR/manifest_contract.sh}"
 unset MANIFEST_CONTRACT_PYTHON MANIFEST_CONTRACT_COMPAT_PYTHON MANIFEST_CONTRACT_PUBLIC_ARGV0
 exec "$BIN" "$@"

@@ -271,7 +271,7 @@ mod tests {
     ];
 
     fn program_and(items: &[&str]) -> Vec<PyStr> {
-        let mut all = vec!["/x/validate_runtime_patch.py"];
+        let mut all = vec!["/x/validate_runtime_patch.sh"];
         all.extend_from_slice(items);
         argv(&all)
     }
@@ -298,11 +298,11 @@ mod tests {
         assert_eq!(exit.status, 2);
         assert_eq!(
             exit.error.to_utf8().unwrap(),
-            "validate_runtime_patch.py: error: the following arguments are required: action, --patch, --topology, --config-dir, --env-dir, --resolution\n"
+            "validate_runtime_patch.sh: error: the following arguments are required: action, --patch, --topology, --config-dir, --env-dir, --resolution\n"
         );
         assert_eq!(
             exit.usage.to_utf8().unwrap(),
-            "usage: validate_runtime_patch.py [-h] --patch PATCH --topology {multi,single}\n                                 --config-dir CONFIG_DIR --env-dir ENV_DIR\n                                 --resolution RESOLUTION\n                                 {stamp,verify}\n"
+            "usage: validate_runtime_patch.sh [-h] --patch PATCH --topology {multi,single}\n                                 --config-dir CONFIG_DIR --env-dir ENV_DIR\n                                 --resolution RESOLUTION\n                                 {stamp,verify}\n"
         );
     }
 
@@ -312,7 +312,7 @@ mod tests {
             .expect_err("exit");
         assert_eq!(
             exit.error.to_utf8().unwrap(),
-            "validate_runtime_patch.py: error: argument action: invalid choice: 'unknown' (choose from 'stamp', 'verify')\n"
+            "validate_runtime_patch.sh: error: argument action: invalid choice: 'unknown' (choose from 'stamp', 'verify')\n"
         );
     }
 
@@ -339,7 +339,7 @@ mod tests {
         let exit = parse_arguments(&program_and(&["-h"]), Some("80")).expect_err("exit");
         assert_eq!(exit.status, 0);
         let help = exit.help.to_utf8().unwrap();
-        assert!(help.starts_with("usage: validate_runtime_patch.py [-h] --patch PATCH"));
+        assert!(help.starts_with("usage: validate_runtime_patch.sh [-h] --patch PATCH"));
         assert!(
             help.contains("\n\npositional arguments:\n  {stamp,verify}\n\noptions:\n  -h, --help")
         );

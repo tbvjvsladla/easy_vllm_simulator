@@ -563,7 +563,7 @@ pub fn active_bytes_moe(
     })?;
     let n = int_call(num_experts)?;
     if !k.is_positive() {
-        return Err(die(lit("MoE 인데 top-k(num_experts_per_tok 류) 불명 — config 키를 확인하고 roofline.py 의 pick 목록에 등재하라")));
+        return Err(die(lit("MoE 인데 top-k(num_experts_per_tok 류) 불명 — config 키를 확인하고 roofline.sh 의 pick 목록에 등재하라")));
     }
     let ratio = true_divide(&k, &n)?;
     let routed_float = float_from_int(&routed)?;

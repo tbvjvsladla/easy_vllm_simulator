@@ -95,10 +95,10 @@ cd "$REPO"
 EF="output/multi/envs/.env.${CONFIG}"   # 산출물 통로 분리(plan_26062312): compose·env 는 output/multi/ 아래
 [ -f "$EF" ] || { echo "[mn] FAIL: $EF 없음"; exit 3; }
 EFC="output/multi/envs/.env.cluster"    # Ray 클러스터-배포 env(Band2, S6 env-split). compose 보간(${MASTER_HOST_IP}·${SLAVE_HOST_IP}·${RAY_PORT})에 필요.
-[ -f "$EFC" ] || { echo "[mn] FAIL: $EFC 없음 — 'render_dockerfile.py --cluster-envfile --topology multi --manifest output/multi/manifest.yaml -o $EFC' 선행(S6)"; exit 3; }
+[ -f "$EFC" ] || { echo "[mn] FAIL: $EFC 없음 — 'render_dockerfile.sh --cluster-envfile --topology multi --manifest output/multi/manifest.yaml -o $EFC' 선행(S6)"; exit 3; }
 # 통로 self-containment 전제(plan_26062321 I1/I2): 러너 스크립트가 통로에 materialize 됐는지 fail-loud.
 for s in serve_runner.sh debug-init.sh; do
-  [ -f "output/multi/configs/$s" ] || { echo "[mn] FAIL: 통로 미완결 — output/multi/configs/$s 부재. 먼저 'render_dockerfile.py --materialize-configs --topology multi' 실행(후 sync_to_sub.sh --apply)"; exit 3; }
+  [ -f "output/multi/configs/$s" ] || { echo "[mn] FAIL: 통로 미완결 — output/multi/configs/$s 부재. 먼저 'render_dockerfile.sh --materialize-configs --topology multi' 실행(후 sync_to_sub.sh --apply)"; exit 3; }
 done
 val(){ grep -E "^$1=" "$EF" | head -1 | cut -d= -f2-; }
 MC=$(val MASTER_CONTAINER_NAME); PORT=$(val SERVING_PORT)
@@ -123,7 +123,7 @@ SF="$SDIR/slave_forward.sh"
 PENV_FILE="output/multi/.env"
 # 결함#2b 배선의 부재는 **소리 낸다**(audit_26090115: `--materialize-env` 를 빠뜨리면 옛 스모크는 MOUNTVARS="" 로 조용히
 #   진행했고 compose 기본 마운트가 모델 부재로 이어졌다). 차단은 새 게이트라 사람 결정 몫 — 여기서는 경고만 한다.
-[ -f "$PENV_FILE" ] || echo "[mn] ⚠ $PENV_FILE 부재 — 마운트 경로(NAS/QUANT/TIKTOKEN/PLE)가 셀 env 또는 compose 기본값으로 폴백한다(render_dockerfile.py --materialize-env --topology multi 로 생성)." >&2
+[ -f "$PENV_FILE" ] || echo "[mn] ⚠ $PENV_FILE 부재 — 마운트 경로(NAS/QUANT/TIKTOKEN/PLE)가 셀 env 또는 compose 기본값으로 폴백한다(render_dockerfile.sh --materialize-env --topology multi 로 생성)." >&2
 COMPOSE_MULTI="output/multi/docker-compose.yaml"
 SFA=(--cell-env "$EF" --project-env "$PENV_FILE" --compose "$COMPOSE_MULTI" --cluster-env "$EFC")
 IMG=$(val IMAGE_TAG); BDF=$(val BUILD_DOCKERFILE)
@@ -454,7 +454,7 @@ if [ "$_bd" = "Dockerfile" ]; then   # wheel 트랙에만 적용(source-build �
         "") echo "[mn] FAIL(ABI): $_n 이미지에서 torch 버전을 읽지 못했다 — 검증 불가는 통과가 아니다." >&2; exit 3 ;;
         *)  echo "[mn] FAIL(ABI 불일치): $_n 이미지 torch=$_got 인데 vLLM $_tag_ver 는 $_want* 를 요구한다." >&2
             echo "[mn]   → wheel 의 _C 확장이 베이스 torch 와 ABI 가 갈린다(기동 시 undefined symbol)." >&2
-            echo "[mn]   → requirements 가 torch 를 끌어올렸는지 확인하라: 'regen_requirements.py --from-wheel-url <이 버전의 wheel> -o output/multi/requirements.txt'" >&2
+            echo "[mn]   → requirements 가 torch 를 끌어올렸는지 확인하라: 'regen_requirements.sh --from-wheel-url <이 버전의 wheel> -o output/multi/requirements.txt'" >&2
             exit 3 ;;
       esac
     done

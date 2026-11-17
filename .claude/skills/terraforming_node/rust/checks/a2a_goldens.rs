@@ -186,7 +186,7 @@ fn run_stage(stage: &str) {
             .current_dir(&root)
             .env_remove("EASY_VLLM_SOURCE_ROOT")
             .env("PARITY_GIT_DIR", repo.join(".git"))
-            .env("TERRAFORMING_OWNER_PATH", root.join(&orig))
+            .env("TERRAFORMING_OWNER_PATH", root.join(orig.trim_end_matches(".py").to_string() + ".sh"))
             .env("TERRAFORMING_BIN_DIR", bin_dir())
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())

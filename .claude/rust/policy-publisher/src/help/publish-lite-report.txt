@@ -1,4 +1,4 @@
-usage: evidence_publisher.py publish-lite-report [-h] [--repo-root REPO_ROOT]
+usage: evidence_publisher.sh publish-lite-report [-h] [--repo-root REPO_ROOT]
                                                  --topic TOPIC --generated-utc
                                                  GENERATED_UTC
                                                  --bench-report-src

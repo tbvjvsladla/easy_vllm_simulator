@@ -121,7 +121,7 @@ pub fn run(args: &[String]) -> i32 {
                 1,
                 Some("HTTPS_NEEDS_HINTLIB"),
                 "rust-native (https remote needs hintlib credential path; not ported)".to_string(),
-                "https remote: authenticated push is owned by hintlib (Python); use push_branches.py".to_string(),
+                "https remote: authenticated push is owned by hintlib (Python); use push_branches.sh".to_string(),
             )
         } else {
             match push_local(&repo, &remote, &refspec, dry, &SCOPE_ARGS) {

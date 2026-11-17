@@ -286,7 +286,7 @@
     },
     "axis_B_port_scope": {
       "applicable": true,
-      "note": "이식 스코프와 델타가 겹친다 → `regen_build_patches_src.py derive` 재파생 필수. 재파생 후 silent_revert_risk == [] 가 될 때까지 진행 금지(계획 §5.3).",
+      "note": "이식 스코프와 델타가 겹친다 → `regen_build_patches_src.sh derive` 재파생 필수. 재파생 후 silent_revert_risk == [] 가 될 때까지 진행 금지(계획 §5.3).",
       "overlap": [
         "vllm/model_executor/models/qwen3_dspark.py"
       ],
@@ -402,7 +402,7 @@
     "from_ref": "v0.27.0",
     "from_sha": "4bdc8a788d2e2ce9165d552b3d4d8b72604626bf",
     "generated_kst": "26082212",
-    "judge": "judge_version_delta.py (P1:D0+D1 · P2:D2)",
+    "judge": "judge_version_delta.sh (P1:D0+D1 · P2:D2)",
     "limitations": [
       "C축(모델 코드경로 도달성) 미구현 — 전역 verdict 에 기능 무영향 근거는 들어있지 않다.",
       "정적 판정은 증명이 아니다(E3 Hyrum · E9 정적 불건전성) — 스모크가 최종 중재자다.",

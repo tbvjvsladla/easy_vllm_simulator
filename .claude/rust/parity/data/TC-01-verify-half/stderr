@@ -1,4 +1,4 @@
-usage: bootstrap_canary.py [-h] [--topology {single,multi}]
+usage: bootstrap_canary.sh [-h] [--topology {single,multi}]
                            [--manifest MANIFEST]
                            [--phase {discovery,permissions,caller}]
                            [--caller-harness {claude_code,codex_cli}]
@@ -16,4 +16,4 @@ usage: bootstrap_canary.py [-h] [--topology {single,multi}]
                            [--model MODEL]
                            [--backend {anthropic,kimi,minimax,meta,openai,claude-sub}]
                            [--invoke] [--self-test]
-bootstrap_canary.py: error: --verify-request/--verify-result require both, without --invoke/--emit
+bootstrap_canary.sh: error: --verify-request/--verify-result require both, without --invoke/--emit

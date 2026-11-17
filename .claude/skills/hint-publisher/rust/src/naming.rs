@@ -355,7 +355,7 @@ pub fn parse_tag(name: &str) -> HR<TagName> {
             return fail(
                 "HINT_NAME_SHAPE",
                 format!("이름 형태 위반(hint/<vllm>/<model>/<arch>/<recipe> 5세그먼트): {}", py_repr(name)),
-                Some("이름은 손으로 짓지 않는다 — `hint.py name --campaign <id> --cell <cell>` 이 파생 이름을 보여 준다."),
+                Some("이름은 손으로 짓지 않는다 — `hint.sh name --campaign <id> --cell <cell>` 이 파생 이름을 보여 준다."),
             )
         }
     };
@@ -547,7 +547,7 @@ fn _arch_message(why: &str) -> String {
 
 pub fn validate_new_name(tag: &str) -> HR<()> {
     let t = parse_tag(tag)?;
-    let remedy = Some("이름은 손으로 짓지 않는다 — `hint.py name --campaign <id> --cell <cell>` 로 파생 이름과 축별 출처를 본다.");
+    let remedy = Some("이름은 손으로 짓지 않는다 — `hint.sh name --campaign <id> --cell <cell>` 로 파생 이름과 축별 출처를 본다.");
     if !_VLLM_SEGMENT_RE().is_match(&t.vllm) {
         return fail(
             "HINT_VLLM_SEGMENT_SHAPE",
@@ -1504,7 +1504,7 @@ fn _underivable<T>(axis: &str, why: &str, source: Option<&str>) -> HR<T> {
         "HINT_AXIS_UNDERIVABLE",
         format!("{axis} 축을 파생하지 못했다: {why} — 이름을 지어내지 않는다."),
         Some(&format!(
-            "필요한 증거: {} (관측 기록: {}). `hint.py name --campaign <id> --cell <cell>` 로 축별 출처를 확인한다.",
+            "필요한 증거: {} (관측 기록: {}). `hint.sh name --campaign <id> --cell <cell>` 로 축별 출처를 확인한다.",
             _axis_evidence(axis),
             source.filter(|s| !s.is_empty()).unwrap_or("없음")
         )),

@@ -846,7 +846,7 @@ static ARGS: [Arg; 15] = [
 ];
 
 pub static SPEC: Spec = Spec {
-    prog: "agent_guard.py",
+    prog: "agent_guard.sh",
     usage: include_str!("../help/agent_guard.usage"),
     help: include_str!("../help/agent_guard.help"),
     args: &ARGS,

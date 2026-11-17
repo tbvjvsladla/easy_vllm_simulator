@@ -3,14 +3,14 @@
 #
 #   fixtures.sh list                    case names, one per line
 #   fixtures.sh build <case> <dir>      build <dir> (must not exist) as the fixture of <case>
-#   fixtures.sh capture <repo>          (needs python3 + the ORIGINAL .py) run the originals on every case and write
-#                                       checks/data/cli/<case>/{stdout,stderr,exit_code}; the fixture root is written as <ROOT>
 #
+# The goldens checks/data/cli/<case>/{stdout,stderr,exit_code} are frozen: they were captured from the original Python
+# programs, which are deleted (plan_26111615), so the capture mode is retired (plan_26111717).
 # Each fixture is a minimal canonical repository (CLAUDE.md, rules/workflow.md, policies/registry.yaml, branch
 # single-node) whose untracked overlay carries the programs the ORIGINAL loads from the checked root
 # (antipattern_scan.py, topology_parity.py) and the wiki-desk forbidden-string scanner; one mutation per case
 # drives exactly one tripwire branch. The cargo check builds the same fixture and runs the native binary with
-# argv[0] = <fixture>/.claude/policies/runtime/<name>.py (the launcher's own repository-root rule).
+# argv[0] = <fixture>/.claude/policies/runtime/<name>.sh (the launcher's own repository-root rule).
 set -euo pipefail
 SELF="${BASH_SOURCE[0]}"
 CHECKS="$(cd "${SELF%/*}" && pwd)"
@@ -185,42 +185,9 @@ argv_of() {
   esac
 }
 
-capture_one() {
-  local case="$1" out="$CHECKS/data/cli/$1" tmp
-  tmp="$(mktemp -d)"
-  build "$case" "$tmp/r" >/dev/null
-  local D="$tmp/r" rc=0
-  read -r -a a <<<"$(argv_of "$case")"
-  mkdir -p "$out"
-  set +e
-  if [ "${case#tw-}" != "$case" ]; then
-    # the original's own entry with root = the fixture and the scanner the fixture carries (CLAUDE_DIR rebased)
-    (cd "$D" && python3 -B -c '
-import sys
-from pathlib import Path
-sys.path.insert(0, sys.argv[1])
-import runtime_selftest as r
-root = Path(sys.argv[2])
-r.CLAUDE_DIR = root / ".claude"
-sys.exit(r.run_tripwires(root))' "$REPO/.claude/policies/runtime" "$D") >"$out/stdout" 2>"$out/stderr"
-    rc=$?
-  else
-    (cd "$D" && python3 -B "$REPO/.claude/policies/runtime/${a[0]}.py" "${a[@]:1}") >"$out/stdout" 2>"$out/stderr"
-    rc=$?
-    if [ "$case" = ap-inventory ]; then cp "$D/inv.jsonl" "$out/inv.jsonl"; fi
-  fi
-  set -e
-  printf '%s\n' "$rc" > "$out/exit_code"
-  local real; real="$(cd "$D" && pwd -P)"
-  sed -i "s|$real|<ROOT>|g; s|$D|<ROOT>|g" "$out/stdout" "$out/stderr"
-  rm -rf "$tmp"
-  echo "captured $case rc=$rc"
-}
-
 case "${1:-}" in
   list) printf '%s\n' "${CASES[@]}" ;;
   build) build "$2" "$3" ;;
   argv) argv_of "$2" ;;
-  capture) for c in "${CASES[@]}"; do capture_one "$c"; done ;;
-  *) echo "usage: fixtures.sh list|build <case> <dir>|argv <case>|capture <repo>" >&2; exit 2 ;;
+  *) echo "usage: fixtures.sh list|build <case> <dir>|argv <case>" >&2; exit 2 ;;
 esac

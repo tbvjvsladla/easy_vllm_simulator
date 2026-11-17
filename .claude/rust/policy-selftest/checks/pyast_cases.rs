@@ -1,5 +1,5 @@
 //! Parser fidelity: every case in `checks/data/pyast/cases.json` (source text + the CPython 3.12 `ast.walk` digest of
-//! the node kinds the originals inspect, captured by `checks/capture_goldens.sh`) must parse to the same digest.
+//! the node kinds the originals inspect, captured by `checks/capture_goldens.sh` [retired with the originals · frozen · plan_26111717]) must parse to the same digest.
 //! `PYAST_EXTRA_FILES` (newline-separated paths) additionally reports parse errors for ad hoc corpora.
 use policy_selftest::pyast::{self, Kind};
 

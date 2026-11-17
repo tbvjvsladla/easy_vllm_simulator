@@ -30,7 +30,7 @@
 | dataset_duplicate_sampling | N/A |
 | dataset_tokenizer | N/A |
 
-## 판정 (표시만 — verdict_rule.py 결과)
+## 판정 (표시만 — verdict_rule.sh 결과)
 
 | 항목 | 값 |
 |---|---|
@@ -63,7 +63,7 @@
 
 ## 반복 축 · 재현 밴드 (full 정의 = lite ∪ GuideLLM × 반복 ≥3)
 
-> full 정의는 레벨마다 같은 running serve 에 **반복 ≥3** 이다. 위 스윕 표와 판정점·인증서는 **대표 run(첫 완주 run) 하나**의 값이다(평균·합성 ✗). 재현 밴드는 **기재**다 — 판정 게이트는 불변이고 분산은 강등 사유가 아니다. 반복 불성립(판정점 run 실패 · 스윕이 멈춘 자리의 블랙박스 kill)만 셀을 lite 로 강등하며 확정은 `classify_cell.py` 가 한다. 포화 경계에서 스윕이 멈춘 것(적응 상한 클램프)은 강등이 아니다.
+> full 정의는 레벨마다 같은 running serve 에 **반복 ≥3** 이다. 위 스윕 표와 판정점·인증서는 **대표 run(첫 완주 run) 하나**의 값이다(평균·합성 ✗). 재현 밴드는 **기재**다 — 판정 게이트는 불변이고 분산은 강등 사유가 아니다. 반복 불성립(판정점 run 실패 · 스윕이 멈춘 자리의 블랙박스 kill)만 셀을 lite 로 강등하며 확정은 `classify_cell.sh` 가 한다. 포화 경계에서 스윕이 멈춘 것(적응 상한 클램프)은 강등이 아니다.
 
 - bench_mode: 미확정 — absent(bench_mode.json 부재 — 이 스윕을 분류한 기록이 없다)
 
@@ -106,4 +106,4 @@
 | 입력 길이(sweep) | 1024 |
 
 ---
-_결정론 렌더 = `render_report.py`(LLM 표저작 ✗) · 참조 체인: bench JSON → 이 report → testlog(판정) → devlog(서사)._
+_결정론 렌더 = `render_report.sh`(LLM 표저작 ✗) · 참조 체인: bench JSON → 이 report → testlog(판정) → devlog(서사)._

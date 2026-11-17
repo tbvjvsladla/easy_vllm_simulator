@@ -19,4 +19,4 @@ if [ "$magic" != $'\177ELF' ]; then
   printf '[completion_gate] ERROR normal Rust ELF invalid: %s\n' "$BIN" >&2
   exit 2
 fi
-exec -a "$SDIR/completion_gate.py" "$BIN" "$@"
+exec -a "$SDIR/completion_gate.sh" "$BIN" "$@"

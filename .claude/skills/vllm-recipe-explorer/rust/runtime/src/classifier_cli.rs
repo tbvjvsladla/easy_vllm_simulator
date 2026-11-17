@@ -31,7 +31,7 @@ fn opt(
 /// The parser of the original `_main`.
 pub fn spec() -> Spec {
     Spec {
-        prog: "sim_classify.py",
+        prog: "sim_classify.sh",
         description: "트라이얼 결과 결정론 분류기 (vllm-recipe-explorer Phase 2).",
         options: vec![
             opt(&["-h", "--help"], "help", Kind::Help, None, false),

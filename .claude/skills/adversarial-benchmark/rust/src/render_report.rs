@@ -288,7 +288,7 @@ pub fn repetition_section(
         "## 반복 축 · 재현 밴드 (full 정의 = lite ∪ GuideLLM × 반복 ≥3)",
     ));
     add(PyStr::default());
-    add(lit!("> full 정의는 레벨마다 같은 running serve 에 **반복 ≥3** 이다. 위 스윕 표와 판정점·인증서는 **대표 run(첫 완주 run) 하나**의 값이다(평균·합성 ✗). 재현 밴드는 **기재**다 — 판정 게이트는 불변이고 분산은 강등 사유가 아니다. 반복 불성립(판정점 run 실패 · 스윕이 멈춘 자리의 블랙박스 kill)만 셀을 lite 로 강등하며 확정은 `classify_cell.py` 가 한다. 포화 경계에서 스윕이 멈춘 것(적응 상한 클램프)은 강등이 아니다."));
+    add(lit!("> full 정의는 레벨마다 같은 running serve 에 **반복 ≥3** 이다. 위 스윕 표와 판정점·인증서는 **대표 run(첫 완주 run) 하나**의 값이다(평균·합성 ✗). 재현 밴드는 **기재**다 — 판정 게이트는 불변이고 분산은 강등 사유가 아니다. 반복 불성립(판정점 run 실패 · 스윕이 멈춘 자리의 블랙박스 kill)만 셀을 lite 로 강등하며 확정은 `classify_cell.sh` 가 한다. 포화 경계에서 스윕이 멈춘 것(적응 상한 클램프)은 강등이 아니다."));
     add(PyStr::default());
     add(Row::of(lit!("- bench_mode: "))
         .text(&bench_mode_view(bench_mode_record, bench_mode_status)?)
@@ -668,7 +668,7 @@ pub fn build_md(
 
     let verdict_name = get_or(verdict, "verdict", &WORD_N_SLASH_A)?;
     let rubric = get_or_else(verdict, "rubric", empty_dict())?;
-    lines.add(lit!("## 판정 (표시만 — verdict_rule.py 결과)"));
+    lines.add(lit!("## 판정 (표시만 — verdict_rule.sh 결과)"));
     lines.add(lit!(""));
     lines.add(lit!("| 항목 | 값 |"));
     lines.add(lit!("|---|---|"));
@@ -937,7 +937,7 @@ pub fn build_md(
     );
     lines.add(lit!(""));
     lines.add(lit!("---"));
-    lines.add(lit!("_결정론 렌더 = `render_report.py`(LLM 표저작 ✗) · 참조 체인: bench JSON → 이 report → testlog(판정) → devlog(서사)._"));
+    lines.add(lit!("_결정론 렌더 = `render_report.sh`(LLM 표저작 ✗) · 참조 체인: bench JSON → 이 report → testlog(판정) → devlog(서사)._"));
     lines.into_document()
 }
 
@@ -1039,7 +1039,7 @@ pub fn build_lite_md(raw: &PyValue, lite: &PyValue, identity: &PyValue) -> Res<P
     lines.add(
         Row::of(lit!("> cold(warmup 0 단일요청 → cold TTFT) 1회 + warm burst(N="))
             .text(&na(get(raw, "burst_n")?))
-            .fixed(lit!(" · conc=1 · warmup 1) 1회. 산정·표 렌더는 `lite_metrics.py`(결정론)이며 이 문서는 그 표를 옮기지 않고 그대로 싣는다. 결측은 `N/A`(대체값 ✗)."))
+            .fixed(lit!(" · conc=1 · warmup 1) 1회. 산정·표 렌더는 `lite_metrics.sh`(결정론)이며 이 문서는 그 표를 옮기지 않고 그대로 싣는다. 결측은 `N/A`(대체값 ✗)."))
             .done(),
     );
     lines.add(lit!(""));
@@ -1103,7 +1103,7 @@ pub fn build_lite_md(raw: &PyValue, lite: &PyValue, identity: &PyValue) -> Res<P
     );
     lines.add(lit!(""));
     lines.add(lit!("---"));
-    lines.add(lit!("_결정론 렌더 = `render_report.py --lite-only`(LLM 표저작 ✗) · 참조 체인: lite raw → 이 report → testlog(판정) → devlog(서사)._"));
+    lines.add(lit!("_결정론 렌더 = `render_report.sh --lite-only`(LLM 표저작 ✗) · 참조 체인: lite raw → 이 report → testlog(판정) → devlog(서사)._"));
     lines.into_document()
 }
 

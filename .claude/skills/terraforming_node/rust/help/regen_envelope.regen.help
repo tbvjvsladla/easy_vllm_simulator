@@ -1,4 +1,4 @@
-usage: regen_envelope.py regen [-h] --now NOW [--node-id NODE_ID]
+usage: regen_envelope.sh regen [-h] --now NOW [--node-id NODE_ID]
                                [--window-days WINDOW_DAYS]
                                [--mem-total-mib MEM_TOTAL_MIB] [-o OUTPUT]
                                [--dry-run]

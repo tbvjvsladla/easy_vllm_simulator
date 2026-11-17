@@ -1,6 +1,6 @@
-usage: render_sub_env.py [-h] [--topology {single,multi}]
+usage: render_sub_env.sh [-h] [--topology {single,multi}]
                          [--manifest MANIFEST] [--out OUT]
                          [--no-runtime-block] [--tracked-list TRACKED_LIST]
                          [--sub-manifest SUB_MANIFEST]
                          [--hint-write-scopes HINT_WRITE_SCOPES] [--self-test]
-render_sub_env.py: error: argument --topology: invalid choice: 'x' (choose from 'single', 'multi')
+render_sub_env.sh: error: argument --topology: invalid choice: 'x' (choose from 'single', 'multi')

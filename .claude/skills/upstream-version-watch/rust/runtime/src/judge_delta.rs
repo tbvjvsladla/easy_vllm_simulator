@@ -16,7 +16,7 @@ use std::path::{Component, Path, PathBuf};
 mod selftest;
 use std::process::Command;
 
-pub const PROGRAM: &str = "judge_version_delta.py";
+pub const PROGRAM: &str = "judge_version_delta.sh";
 const SCHEMA_VERSION: i64 = 1;
 const DEFAULT_REPO: &str = "vllm-project/vllm";
 
@@ -643,7 +643,7 @@ fn axis_b(
         "NO_IMPACT"
     };
     let note = if !overlap.is_empty() {
-        "이식 스코프와 델타가 겹친다 → `regen_build_patches_src.py derive` 재파생 필수. 재파생 후 silent_revert_risk == [] 가 될 때까지 진행 금지(계획 §5.3)."
+        "이식 스코프와 델타가 겹친다 → `regen_build_patches_src.sh derive` 재파생 필수. 재파생 후 silent_revert_risk == [] 가 될 때까지 진행 금지(계획 §5.3)."
     } else {
         "이식 스코프와 델타 교차 없음."
     };
@@ -892,7 +892,7 @@ fn run_pipeline(i: &Inputs) -> Result<PyValue, Fail> {
         reader = BlobReader { cache: None, recorded: dget(rp, "upstream_blob_sha"), to_sha_hint: dget(rp, "to_sha").and_then(sval) };
     } else {
         let Some(cache) = i.repo_cache else {
-            return Err(Fail(3, die_text("델타 수집 실패 — --repo-cache 가 없다. GitHub compare API 폴백은 이식되지 않았다(Python judge_version_delta.py 사용). **추정하지 않는다**(계획 D0/R4).")));
+            return Err(Fail(3, die_text("델타 수집 실패 — --repo-cache 가 없다. GitHub compare API 폴백은 이식되지 않았다(Python judge_version_delta.sh 사용). **추정하지 않는다**(계획 D0/R4).")));
         };
         match collect_delta_git(cache, i.from_ref, i.to_ref) {
             Ok(d) => delta = d,
@@ -929,7 +929,7 @@ fn run_pipeline(i: &Inputs) -> Result<PyValue, Fail> {
     meta.set("delta_source_detail", delta.delta_source_detail.clone());
     meta.set("repo", pstr(i.repo));
     meta.set("generated_kst", i.generated_kst.clone());
-    meta.set("judge", pstr("judge_version_delta.py (P1:D0+D1 · P2:D2)"));
+    meta.set("judge", pstr("judge_version_delta.sh (P1:D0+D1 · P2:D2)"));
     if !matches!(delta.ahead_by, PyValue::None) {
         meta.set("ahead_by", delta.ahead_by.clone());
     }
@@ -1057,7 +1057,7 @@ fn opt(flags: &'static [&'static str], dest: &'static str, kind: Kind, help: &'s
 pub fn spec() -> Spec {
     Spec {
         prog: PROGRAM,
-        description: "judge_version_delta.py — 버전 델타 영향판정 Judge (P1:D0+D1 · P2:D2)",
+        description: "judge_version_delta.sh — 버전 델타 영향판정 Judge (P1:D0+D1 · P2:D2)",
         options: vec![
             Opt { flags: &["-h", "--help"], dest: "help", kind: Kind::Help, help: None, required: false, group: None },
             opt(&["--repo"], "repo", Kind::Text, "상류 리포 owner/name"),
@@ -1108,7 +1108,7 @@ pub fn run(script: Option<&PyStr>, args: &[PyStr]) -> i32 {
 
 fn run_inner(script: Option<&PyStr>, values: &Values) -> Result<i32, Fail> {
     let not_ported = |what: &str| {
-        Err(Fail(2, format!("[judge] {what} 는 Rust 로 이식되지 않았다 — judge_version_delta.py 를 사용한다")))
+        Err(Fail(2, format!("[judge] {what} 는 Rust 로 이식되지 않았다 — judge_version_delta.sh 를 사용한다")))
     };
     if gate_cli::flag(values, "self_test") {
         return Ok(selftest::run_selftest());

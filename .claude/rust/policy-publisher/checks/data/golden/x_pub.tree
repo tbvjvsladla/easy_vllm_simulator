@@ -1168,7 +1168,7 @@ measured_node: main
 - publication_id: trial
 - task_class: harness_change
 - generated_utc: 2026-01-01T00:30:29Z
-- scaffold_created_by: evidence_publisher.py init
+- scaffold_created_by: evidence_publisher.sh init
 
 ## Narrative
 
@@ -1183,7 +1183,7 @@ _PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence
 - publication_id: cap
 - task_class: capacity_rejection
 - generated_utc: 2026-01-01T01:00:00Z
-- scaffold_created_by: evidence_publisher.py init
+- scaffold_created_by: evidence_publisher.sh init
 
 ## Narrative
 
@@ -1198,7 +1198,7 @@ _PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence
 - publication_id: bench
 - task_class: full_benchmark
 - generated_utc: 2026-01-01T02:00:00Z
-- scaffold_created_by: evidence_publisher.py init
+- scaffold_created_by: evidence_publisher.sh init
 
 ## Narrative
 
@@ -1214,7 +1214,7 @@ _PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence
 - publication_id: downbad
 - task_class: full_benchmark
 - generated_utc: 2026-01-01T03:00:00Z
-- scaffold_created_by: evidence_publisher.py init
+- scaffold_created_by: evidence_publisher.sh init
 
 ## Narrative
 
@@ -1229,7 +1229,7 @@ _PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence
 - publication_id: downbad2
 - task_class: full_benchmark
 - generated_utc: 2026-01-01T03:00:00Z
-- scaffold_created_by: evidence_publisher.py init
+- scaffold_created_by: evidence_publisher.sh init
 
 ## Narrative
 
@@ -1244,7 +1244,7 @@ _PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence
 - publication_id: downempty
 - task_class: full_benchmark
 - generated_utc: 2026-01-01T03:00:00Z
-- scaffold_created_by: evidence_publisher.py init
+- scaffold_created_by: evidence_publisher.sh init
 
 ## Narrative
 
@@ -1259,7 +1259,7 @@ _PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence
 - publication_id: downfull
 - task_class: full_benchmark
 - generated_utc: 2026-01-01T03:00:00Z
-- scaffold_created_by: evidence_publisher.py init
+- scaffold_created_by: evidence_publisher.sh init
 
 ## Narrative
 
@@ -1274,7 +1274,7 @@ _PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence
 - publication_id: downlegacy
 - task_class: full_benchmark
 - generated_utc: 2026-01-01T03:00:00Z
-- scaffold_created_by: evidence_publisher.py init
+- scaffold_created_by: evidence_publisher.sh init
 
 ## Narrative
 
@@ -1289,7 +1289,7 @@ _PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence
 - publication_id: downnoreport
 - task_class: full_benchmark
 - generated_utc: 2026-01-01T03:00:00Z
-- scaffold_created_by: evidence_publisher.py init
+- scaffold_created_by: evidence_publisher.sh init
 
 ## Narrative
 
@@ -1304,7 +1304,7 @@ _PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence
 - publication_id: lite
 - task_class: hint_map_only
 - generated_utc: 2026-01-01T03:00:00Z
-- scaffold_created_by: evidence_publisher.py init
+- scaffold_created_by: evidence_publisher.sh init
 
 ## Narrative
 
@@ -1321,7 +1321,7 @@ _PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence
 - publication_id: piix
 - task_class: full_benchmark
 - generated_utc: 2026-01-01T03:00:00Z
-- scaffold_created_by: evidence_publisher.py init
+- scaffold_created_by: evidence_publisher.sh init
 
 ## Narrative
 
@@ -1338,7 +1338,7 @@ _PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence
 - publication_id: down
 - task_class: full_benchmark
 - generated_utc: 2026-01-01T03:00:00Z
-- scaffold_created_by: evidence_publisher.py init
+- scaffold_created_by: evidence_publisher.sh init
 
 ## Narrative
 
@@ -1353,7 +1353,7 @@ _PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence
 - publication_id: nar
 - task_class: harness_change
 - generated_utc: 2026-01-01T07:00:00Z
-- scaffold_created_by: evidence_publisher.py init
+- scaffold_created_by: evidence_publisher.sh init
 
 ## Narrative
 
@@ -1369,7 +1369,7 @@ _PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence
 - publication_id: trial
 - task_class: harness_change
 - generated_utc: 2026-01-01T00:30:29Z
-- scaffold_created_by: evidence_publisher.py init
+- scaffold_created_by: evidence_publisher.sh init
 
 ## Narrative
 
@@ -1384,7 +1384,7 @@ _PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence
 - publication_id: cap
 - task_class: capacity_rejection
 - generated_utc: 2026-01-01T01:00:00Z
-- scaffold_created_by: evidence_publisher.py init
+- scaffold_created_by: evidence_publisher.sh init
 
 ## Narrative
 
@@ -1401,7 +1401,7 @@ capacity plan.
 - publication_id: downbad
 - task_class: full_benchmark
 - generated_utc: 2026-01-01T03:00:00Z
-- scaffold_created_by: evidence_publisher.py init
+- scaffold_created_by: evidence_publisher.sh init
 
 ## Narrative
 
@@ -1416,7 +1416,7 @@ _PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence
 - publication_id: downbad2
 - task_class: full_benchmark
 - generated_utc: 2026-01-01T03:00:00Z
-- scaffold_created_by: evidence_publisher.py init
+- scaffold_created_by: evidence_publisher.sh init
 
 ## Narrative
 
@@ -1431,7 +1431,7 @@ _PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence
 - publication_id: downempty
 - task_class: full_benchmark
 - generated_utc: 2026-01-01T03:00:00Z
-- scaffold_created_by: evidence_publisher.py init
+- scaffold_created_by: evidence_publisher.sh init
 
 ## Narrative
 
@@ -1446,7 +1446,7 @@ _PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence
 - publication_id: downfull
 - task_class: full_benchmark
 - generated_utc: 2026-01-01T03:00:00Z
-- scaffold_created_by: evidence_publisher.py init
+- scaffold_created_by: evidence_publisher.sh init
 
 ## Narrative
 
@@ -1461,7 +1461,7 @@ _PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence
 - publication_id: downlegacy
 - task_class: full_benchmark
 - generated_utc: 2026-01-01T03:00:00Z
-- scaffold_created_by: evidence_publisher.py init
+- scaffold_created_by: evidence_publisher.sh init
 
 ## Narrative
 
@@ -1476,7 +1476,7 @@ _PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence
 - publication_id: downnoreport
 - task_class: full_benchmark
 - generated_utc: 2026-01-01T03:00:00Z
-- scaffold_created_by: evidence_publisher.py init
+- scaffold_created_by: evidence_publisher.sh init
 
 ## Narrative
 
@@ -1491,7 +1491,7 @@ _PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence
 - publication_id: lite
 - task_class: hint_map_only
 - generated_utc: 2026-01-01T03:00:00Z
-- scaffold_created_by: evidence_publisher.py init
+- scaffold_created_by: evidence_publisher.sh init
 
 ## Narrative
 
@@ -1508,7 +1508,7 @@ _PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence
 - publication_id: piix
 - task_class: full_benchmark
 - generated_utc: 2026-01-01T03:00:00Z
-- scaffold_created_by: evidence_publisher.py init
+- scaffold_created_by: evidence_publisher.sh init
 
 ## Narrative
 
@@ -1525,7 +1525,7 @@ _PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence
 - publication_id: down
 - task_class: full_benchmark
 - generated_utc: 2026-01-01T03:00:00Z
-- scaffold_created_by: evidence_publisher.py init
+- scaffold_created_by: evidence_publisher.sh init
 
 ## Narrative
 
@@ -1540,7 +1540,7 @@ _PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence
 - publication_id: nar
 - task_class: harness_change
 - generated_utc: 2026-01-01T07:00:00Z
-- scaffold_created_by: evidence_publisher.py init
+- scaffold_created_by: evidence_publisher.sh init
 
 ## Narrative
 
@@ -1557,7 +1557,7 @@ _PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence
 - publication_id: audit
 - task_class: read_only_audit
 - generated_utc: 2026-01-01T00:00:00Z
-- scaffold_created_by: evidence_publisher.py init
+- scaffold_created_by: evidence_publisher.sh init
 
 ## Narrative
 
@@ -1593,7 +1593,7 @@ _PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence
 - publication_id: trial
 - task_class: harness_change
 - generated_utc: 2026-01-01T00:30:29Z
-- scaffold_created_by: evidence_publisher.py init
+- scaffold_created_by: evidence_publisher.sh init
 
 ## Narrative
 
@@ -1608,7 +1608,7 @@ _PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence
 - publication_id: cap
 - task_class: capacity_rejection
 - generated_utc: 2026-01-01T01:00:00Z
-- scaffold_created_by: evidence_publisher.py init
+- scaffold_created_by: evidence_publisher.sh init
 
 ## Narrative
 
@@ -1623,7 +1623,7 @@ _PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence
 - publication_id: bench
 - task_class: full_benchmark
 - generated_utc: 2026-01-01T02:00:00Z
-- scaffold_created_by: evidence_publisher.py init
+- scaffold_created_by: evidence_publisher.sh init
 
 ## Narrative
 
@@ -1638,7 +1638,7 @@ _PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence
 - publication_id: downbad
 - task_class: full_benchmark
 - generated_utc: 2026-01-01T03:00:00Z
-- scaffold_created_by: evidence_publisher.py init
+- scaffold_created_by: evidence_publisher.sh init
 
 ## Narrative
 
@@ -1653,7 +1653,7 @@ _PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence
 - publication_id: downbad2
 - task_class: full_benchmark
 - generated_utc: 2026-01-01T03:00:00Z
-- scaffold_created_by: evidence_publisher.py init
+- scaffold_created_by: evidence_publisher.sh init
 
 ## Narrative
 
@@ -1668,7 +1668,7 @@ _PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence
 - publication_id: downempty
 - task_class: full_benchmark
 - generated_utc: 2026-01-01T03:00:00Z
-- scaffold_created_by: evidence_publisher.py init
+- scaffold_created_by: evidence_publisher.sh init
 
 ## Narrative
 
@@ -1683,7 +1683,7 @@ _PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence
 - publication_id: downfull
 - task_class: full_benchmark
 - generated_utc: 2026-01-01T03:00:00Z
-- scaffold_created_by: evidence_publisher.py init
+- scaffold_created_by: evidence_publisher.sh init
 
 ## Narrative
 
@@ -1698,7 +1698,7 @@ _PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence
 - publication_id: downlegacy
 - task_class: full_benchmark
 - generated_utc: 2026-01-01T03:00:00Z
-- scaffold_created_by: evidence_publisher.py init
+- scaffold_created_by: evidence_publisher.sh init
 
 ## Narrative
 
@@ -1713,7 +1713,7 @@ _PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence
 - publication_id: downnoreport
 - task_class: full_benchmark
 - generated_utc: 2026-01-01T03:00:00Z
-- scaffold_created_by: evidence_publisher.py init
+- scaffold_created_by: evidence_publisher.sh init
 
 ## Narrative
 
@@ -1728,7 +1728,7 @@ _PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence
 - publication_id: lite
 - task_class: hint_map_only
 - generated_utc: 2026-01-01T03:00:00Z
-- scaffold_created_by: evidence_publisher.py init
+- scaffold_created_by: evidence_publisher.sh init
 
 ## Narrative
 
@@ -1745,7 +1745,7 @@ _PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence
 - publication_id: piix
 - task_class: full_benchmark
 - generated_utc: 2026-01-01T03:00:00Z
-- scaffold_created_by: evidence_publisher.py init
+- scaffold_created_by: evidence_publisher.sh init
 
 ## Narrative
 
@@ -1762,7 +1762,7 @@ _PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence
 - publication_id: down
 - task_class: full_benchmark
 - generated_utc: 2026-01-01T03:00:00Z
-- scaffold_created_by: evidence_publisher.py init
+- scaffold_created_by: evidence_publisher.sh init
 
 ## Narrative
 

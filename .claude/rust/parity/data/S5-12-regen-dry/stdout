@@ -71,7 +71,7 @@
     "days_missing": [
       "2026-07-29"
     ],
-    "generator": "regen_envelope.py",
+    "generator": "regen_envelope.sh",
     "percentiles_exact": false,
     "resolution_s": 1,
     "source": "rollup+1Hz samples",

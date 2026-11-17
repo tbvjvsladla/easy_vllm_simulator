@@ -1,4 +1,4 @@
-usage: evidence_publisher.py publish-benchmark [-h] [--repo-root REPO_ROOT]
+usage: evidence_publisher.sh publish-benchmark [-h] [--repo-root REPO_ROOT]
                                                --topic TOPIC --verdict
                                                {PASS,REFUTE,FAIL,OBSERVATION-ONLY}
                                                --generated-utc GENERATED_UTC
@@ -16,7 +16,7 @@ options:
   --bench-report-src BENCH_REPORT_SRC
   --certificate-src CERTIFICATE_SRC
   --verdict-json-src VERDICT_JSON_SRC
-                        verdict_rule.py 산출물(JSON, repo-relative). rubric
+                        verdict_rule.sh 산출물(JSON, repo-relative). rubric
                         authority/floor/ratio/primary_source 를
                         record.benchmark 로 옮겨 REFUTE 런에서도 승격 판정기가 루브릭 권한을 읽게
                         한다(인증서는 PASS 전용이라 REFUTE 의 carrier 가 못 된다 —

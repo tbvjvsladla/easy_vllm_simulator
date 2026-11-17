@@ -22,6 +22,6 @@ fi
 unset CAMPAIGN_VALIDATOR_VALIDATE_ONLY
 # The program path the checkout root is derived from (`parents[4]` of the retired campaign_template_validator.py beside this
 # launcher — its location, not user intent; the file itself need not exist). No interpreter variable is honoured any more.
-export CAMPAIGN_VALIDATOR_COMPAT_OWNER="${CAMPAIGN_VALIDATOR_COMPAT_OWNER:-$SDIR/campaign_template_validator.py}"
+export CAMPAIGN_VALIDATOR_COMPAT_OWNER="${CAMPAIGN_VALIDATOR_COMPAT_OWNER:-$SDIR/campaign_template_validator.sh}"
 unset CAMPAIGN_VALIDATOR_PYTHON CAMPAIGN_VALIDATOR_COMPAT_PYTHON
 exec "$BIN" "$@"

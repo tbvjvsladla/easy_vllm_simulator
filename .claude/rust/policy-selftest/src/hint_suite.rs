@@ -407,7 +407,7 @@ fn cli(f: &Fx, args: &[&str]) -> R<Out> {
 fn cli_ok(f: &Fx, what: &str, args: &[&str]) -> R<Out> {
     let o = cli(f, args)?;
     require(o.code == 0, || {
-        format!("hint.py {what} failed: rc={} stdout={:?} stderr={:?}", o.code, tail(&o.stdout, 900), tail(&o.stderr, 1500))
+        format!("hint.sh {what} failed: rc={} stdout={:?} stderr={:?}", o.code, tail(&o.stdout, 900), tail(&o.stderr, 1500))
     })?;
     Ok(o)
 }
@@ -775,7 +775,7 @@ pub fn hint_cli_publication(root: &Path) -> R<()> {
     let (o, parsed) = lint_json(&f, &draft)?;
     let codes = match &parsed {
         Some(J::List(l)) => l.iter().map(|i| i["code"].display()).collect::<Vec<_>>(),
-        _ => return Err(fail(format!("hint.py lint --json produced no JSON: {:?}", tail(&o.stderr, 500)))),
+        _ => return Err(fail(format!("hint.sh lint --json produced no JSON: {:?}", tail(&o.stderr, 500)))),
     };
     require(codes.is_empty(), || "sealed draft no longer lints clean against its own manifest".into())?;
 

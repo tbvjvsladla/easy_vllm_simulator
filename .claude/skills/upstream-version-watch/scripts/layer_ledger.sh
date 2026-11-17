@@ -25,4 +25,4 @@ if [ "$magic" != $'\177ELF' ]; then
   printf '[layer_ledger] ERROR normal Rust ELF invalid: %s\n' "$binary" >&2
   exit 2
 fi
-exec -a "$SDIR/layer_ledger.py" "$binary" "$@"
+exec -a "$SDIR/layer_ledger.sh" "$binary" "$@"

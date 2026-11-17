@@ -1,7 +1,7 @@
-usage: blackbox_eta.py [-h] [--node-dir NODE_DIR] [--emit-params EMIT_PARAMS]
+usage: blackbox_eta.sh [-h] [--node-dir NODE_DIR] [--emit-params EMIT_PARAMS]
                        [--set K=V] [--allow-unknown-envelope-keys]
                        [--explain MEM_MIB RATE_MIB_S]
                        [--mem-total-mib MEM_TOTAL_MIB]
                        [--replay CSV [CSV ...]]
                        [--replay-arm-ceiling REPLAY_ARM_CEILING] [--self-test]
-blackbox_eta.py: error: 알 수 없는 파라미터 'bogus' (가능: abs_band_mib, agent_act_s, agent_notify_s, debounce_polls, decl_margin_mib, decl_min_ceiling_mib, detect_margin_s, hard_floor_mib, kill_latency_s, min_rate_mib_s, poll_interval_s)
+blackbox_eta.sh: error: 알 수 없는 파라미터 'bogus' (가능: abs_band_mib, agent_act_s, agent_notify_s, debounce_polls, decl_margin_mib, decl_min_ceiling_mib, detect_margin_s, hard_floor_mib, kill_latency_s, min_rate_mib_s, poll_interval_s)

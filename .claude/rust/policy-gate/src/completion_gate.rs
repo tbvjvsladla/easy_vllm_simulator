@@ -1756,7 +1756,7 @@ fn authorize_tripwire_failure(env: &Env, repo_root: &Path) -> Result<Option<Stri
     let selftest = env.script_dir().join("runtime_selftest.sh");
     if !selftest.is_file() {
         eprintln!(
-            "[authorize] tripwire SKIPPED (runtime_selftest.sh absent beside completion_gate.py — isolated fixture copy); pre-side-effect tripwires NOT run"
+            "[authorize] tripwire SKIPPED (runtime_selftest.sh absent beside completion_gate.sh — isolated fixture copy); pre-side-effect tripwires NOT run"
         );
         return Ok(None);
     }
@@ -2730,7 +2730,7 @@ pub fn cmd_verify(sch: &Schemas, env: &Env, manifest_arg: &str, repo_root_arg: O
             if !lite_cert_ok {
                 rs.add(
                     "HINT_MAP_REQUIRES_LITE_PASS_CERTIFICATE",
-                    "hint_map_only 발행 자격은 lite 등급 인증서(benchmark_mode: lite · verdict: not_applicable · lite_verdict: pass)가 연다 — evidence.certificate 가 없거나 lite 등급이 아니다. lite_bench.sh --publish-report(β) 또는 강등 셀 판정(γ)이 발행하고 evidence_publisher.py publish-lite-report --certificate-src 로 바인딩한다.",
+                    "hint_map_only 발행 자격은 lite 등급 인증서(benchmark_mode: lite · verdict: not_applicable · lite_verdict: pass)가 연다 — evidence.certificate 가 없거나 lite 등급이 아니다. lite_bench.sh --publish-report(β) 또는 강등 셀 판정(γ)이 발행하고 evidence_publisher.sh publish-lite-report --certificate-src 로 바인딩한다.",
                 );
             } else {
                 eligible = true;

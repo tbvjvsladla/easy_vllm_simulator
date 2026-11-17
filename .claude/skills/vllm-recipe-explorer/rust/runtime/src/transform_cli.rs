@@ -200,7 +200,7 @@ fn opt(
 /// The parser of `rope_scaling_translate.main`.
 pub fn rope_spec() -> Spec {
     Spec {
-        prog: "rope_scaling_translate.py",
+        prog: "rope_scaling_translate.sh",
         description: "컨텍스트 확장 선언 → serve 인자 번역 (R8)",
         options: vec![
             opt(&["-h", "--help"], "help", Kind::Help, None),
@@ -233,7 +233,7 @@ pub fn rope_spec() -> Spec {
 /// The parser of `parse_vllm_log._main`.
 pub fn log_spec() -> Spec {
     Spec {
-        prog: "parse_vllm_log.py",
+        prog: "parse_vllm_log.sh",
         description: "vLLM 서빙 로그 파서 (vllm-recipe-explorer Phase 2).",
         options: vec![
             opt(&["-h", "--help"], "help", Kind::Help, None),

@@ -1,8 +1,8 @@
-usage: render_native_triplet.py [-h] [--self-test] [--source-cell SOURCE_CELL]
+usage: render_native_triplet.sh [-h] [--self-test] [--source-cell SOURCE_CELL]
                                 [--cell CELL] [--topology {multi}]
                                 [--repo REPO] [--apply | --check]
 
-render_native_triplet.py — Docker 트리플렛에서 native(Docker 없음) 트리플렛을 **결정론 파생**한다.
+render_native_triplet.sh — Docker 트리플렛에서 native(Docker 없음) 트리플렛을 **결정론 파생**한다.
 
 options:
   -h, --help            show this help message and exit

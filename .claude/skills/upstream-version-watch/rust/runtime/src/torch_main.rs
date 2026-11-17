@@ -32,7 +32,7 @@ use recipe_runtime::escalation::Raised;
 use std::collections::BTreeMap;
 
 /// The program name of every usage text (`sys.argv[0]`'s basename), whatever the executable is called.
-pub const PROGRAM: &str = "resolve_torch_pin.py";
+pub const PROGRAM: &str = "resolve_torch_pin.sh";
 
 /// `REFS`: the tag first, then the release branch.
 const REFS: [&str; 2] = ["v{v}", "releases/v{v}"];

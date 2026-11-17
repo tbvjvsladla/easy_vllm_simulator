@@ -353,7 +353,7 @@ pub struct Ctx {
 
 impl Ctx {
     pub fn from_owner() -> Ctx {
-        let owner = crate::owner::owner_path("render_sub_env.py");
+        let owner = crate::owner::owner_path("render_sub_env.sh");
         let here = owner.parent().map(Path::to_path_buf).unwrap_or_default();
         let repo: PathBuf = here.ancestors().nth(4).map(Path::to_path_buf).unwrap_or_default();
         Ctx { here: here.display().to_string(), repo: repo.display().to_string() }
@@ -1776,7 +1776,7 @@ pub const BLACKBOX_FILES: [(&str, u32); 17] = [
 // ── main ────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 pub static SPEC: Spec = Spec {
-    prog: "render_sub_env.py",
+    prog: "render_sub_env.sh",
     usage: include_str!("../help/render_sub_env.usage"),
     help: include_str!("../help/render_sub_env.help"),
     args: &[

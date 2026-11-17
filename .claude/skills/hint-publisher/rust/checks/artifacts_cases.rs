@@ -64,7 +64,7 @@ mod a1 {
         let ro = a::_DockerReadOnly { real: Some(Rc::new(|_: &[String], _: u64| Ok(Proc::default()))) };
         assert!(!ro.image_probe());
         let p = ro.run(&s(&["docker", "run", "x"]), 60).unwrap();
-        assert_eq!((p.returncode, p.stderr.as_str()), (125, "hint.py --docker-read-only: 이미지 실행(원장 탐침) 거부"));
+        assert_eq!((p.returncode, p.stderr.as_str()), (125, "hint.sh --docker-read-only: 이미지 실행(원장 탐침) 거부"));
         assert_eq!(ro.run(&s(&["docker", "history", "x"]), 60).unwrap().returncode, 0);
     }
 

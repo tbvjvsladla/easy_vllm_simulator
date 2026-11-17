@@ -24,4 +24,4 @@ if [ "$magic" != $'\177ELF' ]; then
   printf '[selftest_branch_sync] ERROR normal Rust ELF invalid: %s\n' "$binary" >&2
   exit 2
 fi
-exec -a "$SDIR/selftest_branch_sync.py" "$binary" "$@"
+exec -a "$SDIR/selftest_branch_sync.sh" "$binary" "$@"

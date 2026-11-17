@@ -1,5 +1,5 @@
-usage: blackbox_thermal.py [-h] [--emit-params EMIT_PARAMS] [--set K=V]
+usage: blackbox_thermal.sh [-h] [--emit-params EMIT_PARAMS] [--set K=V]
                            [--explain GPU_PWR_W SOC_TEMP_C]
                            [--replay CSV [CSV ...]] [--gpu-model GPU_MODEL]
                            [--self-test]
-blackbox_thermal.py: error: argument --explain: expected 2 arguments
+blackbox_thermal.sh: error: argument --explain: expected 2 arguments

@@ -1,4 +1,4 @@
-usage: roofline.py [-h] --model-path MODEL_PATH [--nas-root NAS_ROOT]
+usage: roofline.sh [-h] --model-path MODEL_PATH [--nas-root NAS_ROOT]
                    [--quant-root QUANT_ROOT] [--manifest MANIFEST] [--tp TP]
                    [--accept-len ACCEPT_LEN]
                    [--accept-len-source {measured,declared,declared-absent,absent}]

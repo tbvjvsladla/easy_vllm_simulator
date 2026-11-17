@@ -1,4 +1,4 @@
-usage: completion_gate.py verify [-h] --manifest MANIFEST
+usage: completion_gate.sh verify [-h] --manifest MANIFEST
                                  [--repo-root REPO_ROOT]
 
 options:

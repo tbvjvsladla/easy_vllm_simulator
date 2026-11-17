@@ -1,5 +1,5 @@
 //! Stage ordering and exit-code mapping of the Rust harness_verify with fake stage launchers in a temporary tree (the
-//! program is started with argv0 = <tree>/.claude/policies/runtime/harness_verify.py, as its launcher does). Stage 2/3
+//! program is started with argv0 = <tree>/.claude/policies/runtime/harness_verify.sh, as its launcher does). Stage 2/3
 //! could not be golden-captured from the original without running the real suites; these checks pin the contract the
 //! original states (stop at the first failing stage; 1/2 propagate, runtime -> 4, predicates -> 3; the companion suite
 //! runs every companion even after one fails, as `unittest discover` does). No Python runs here.
@@ -40,7 +40,7 @@ fn run(t: &Tree, args: &[&str], env: &[(&str, &str)]) -> (i32, String, String, S
     let log = t.0.join("log");
     let _ = std::fs::remove_file(&log);
     let mut c = Command::new(env!("CARGO_BIN_EXE_harness_verify"));
-    c.arg0(t.0.join(".claude/policies/runtime/harness_verify.py")).args(args).env("HV_LOG", &log);
+    c.arg0(t.0.join(".claude/policies/runtime/harness_verify.sh")).args(args).env("HV_LOG", &log);
     for (k, v) in env {
         c.env(k, v);
     }
@@ -64,7 +64,7 @@ fn all_green_runs_every_stage_in_order() {
         out,
         "registry out\nruntime out\nclaim out\ncompanion out\npatch out\n\
 [harness_verify] reference date: as_of=2026-01-15 source=explicit-caller-input observed_utc=None repro: --as-of 2026-01-15\n\
-[harness_verify] stage 1/3: policy_registry.py verify --as-of 2026-01-15\n\
+[harness_verify] stage 1/3: policy_registry.sh verify --as-of 2026-01-15\n\
 [harness_verify] stage 2/3: constitution-owned runtime regression probe\n\
 [harness_verify] stage 3/3: constitution-owned production predicates\n\
 [harness_verify] PASS: policy audit, runtime regression, and production predicates green.\n"

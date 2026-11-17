@@ -1,4 +1,4 @@
-usage: campaign_init.py [-h] [--active] [--derive DERIVE] [--cell CELL]
+usage: campaign_init.sh [-h] [--active] [--derive DERIVE] [--cell CELL]
                         [--sweep SWEEP] [--context CONTEXT]
                         [--campaign-id CAMPAIGN_ID]
                         [--verify-purge-gate PREV_ID] [--close CAMP_ID]
@@ -59,4 +59,4 @@ usage: campaign_init.py [-h] [--active] [--derive DERIVE] [--cell CELL]
                         [--hint-approve] [--cells A,B] [--approved-by TEXT]
                         [--source declaration-popup|publish-popup] [--utc UTC]
                         [--resume-brief]
-campaign_init.py: error: ambiguous option: --evidence could match --evidence-add, --evidence-untag, --evidence-relocate, --evidence-prune-stubs
+campaign_init.sh: error: ambiguous option: --evidence could match --evidence-add, --evidence-untag, --evidence-relocate, --evidence-prune-stubs

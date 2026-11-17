@@ -2557,7 +2557,7 @@ pub fn drive_publisher(repo: &Path, ev: &J, topic: &J, generated_utc: &J, draft_
         _publisher(
             &repo,
             "set-narrative",
-            &sv(&["--topic", &topic, "--kind", kind, "--narrative-file", &ps(&narr[kind]), "--author", "hint.py(evidence.drive_publisher)", "--generated-utc", &gu]),
+            &sv(&["--topic", &topic, "--kind", kind, "--narrative-file", &ps(&narr[kind]), "--author", "hint.sh(evidence.drive_publisher)", "--generated-utc", &gu]),
             &[0],
         )?;
     }
@@ -2671,7 +2671,7 @@ pub fn _finalize(repo: &Path, topic: &str, inputs: &Path) -> HR<PathBuf> {
             return core::fail(
                 "HINT_PUBLISHER_INPUTS_ABSENT",
                 format!("도구가 쓴 발행기 입력 부재: {}", core::posix(&inputs.join(f))),
-                Some("`hint.py publish` 가 draft 의 inputs/ 를 만든다 — 손으로 쓰지 않는다."),
+                Some("`hint.sh publish` 가 draft 의 inputs/ 를 만든다 — 손으로 쓰지 않는다."),
             );
         }
     }
@@ -2696,7 +2696,7 @@ pub fn set_promotion_target(repo: &Path, topic: &J, tag: &J, topology: &J, ancho
         return core::fail(
             "HINT_PUBLISHER_INPUTS_ABSENT",
             "finalize 재실행에 draft 의 inputs/ 가 필요하다(draft_dir 미지정).",
-            Some("hint.py continue 가 state.json 의 draft 경로를 넘긴다."),
+            Some("hint.sh continue 가 state.json 의 draft 경로를 넘긴다."),
         );
     };
     let (topic, tag, topology, anchor) = (ps(topic), ps(tag), ps(topology), ps(anchor));
@@ -2773,7 +2773,7 @@ pub fn rebind_campaign_narratives(repo: &Path, ev: &J, topic: &J, generated_utc:
         _publisher(
             &repo,
             "set-narrative",
-            &sv(&["--topic", &topic, "--kind", &ps(&r["kind"]), "--narrative-file", &ps(&r["to"]), "--author", "hint.py(evidence.rebind_campaign_narratives)", "--generated-utc", &gu]),
+            &sv(&["--topic", &topic, "--kind", &ps(&r["kind"]), "--narrative-file", &ps(&r["to"]), "--author", "hint.sh(evidence.rebind_campaign_narratives)", "--generated-utc", &gu]),
             &[0],
         )?;
     }

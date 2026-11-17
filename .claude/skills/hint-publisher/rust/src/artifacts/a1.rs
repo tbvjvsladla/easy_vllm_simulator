@@ -760,7 +760,7 @@ impl DockerRunner for _DockerReadOnly {
                 None => subprocess_run(argv, timeout),
             };
         }
-        Ok(core::Proc { returncode: 125, stdout: String::new(), stderr: "hint.py --docker-read-only: 이미지 실행(원장 탐침) 거부".into() })
+        Ok(core::Proc { returncode: 125, stdout: String::new(), stderr: "hint.sh --docker-read-only: 이미지 실행(원장 탐침) 거부".into() })
     }
 }
 
@@ -2133,7 +2133,7 @@ pub fn _plane(c: &_Ctx) -> HR<(String, String)> {
     core::fail(
         "HINT_PLANE_UNDERIVABLE",
         "실행 평면을 파생할 신호가 없다(셀 env 에 IMAGE_TAG·BUILD_DOCKERFILE 없음 · evidence.plane 없음).",
-        Some("docker 셀이면 셀 env 에 이미지 선택자(IMAGE_TAG·BUILD_DOCKERFILE)를 둔다. native 셀이면 native serve proof(plane=native · native_multinode_serve.py 산출)가 있어야 evidence 가 `plane` 을 넘긴다(2026-09-23 plan_26092311 배선). '신호 없음 = native' 로 추측하지 않는다."),
+        Some("docker 셀이면 셀 env 에 이미지 선택자(IMAGE_TAG·BUILD_DOCKERFILE)를 둔다. native 셀이면 native serve proof(plane=native · native_multinode_serve.sh 산출)가 있어야 evidence 가 `plane` 을 넘긴다(2026-09-23 plan_26092311 배선). '신호 없음 = native' 로 추측하지 않는다."),
     )
 }
 

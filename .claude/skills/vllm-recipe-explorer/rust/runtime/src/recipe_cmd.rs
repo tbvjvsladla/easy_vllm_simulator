@@ -368,7 +368,7 @@ fn estimate_spec() -> Spec {
         group,
     };
     Spec {
-        prog: "recipe.py estimate",
+        prog: "recipe.sh estimate",
         description: "",
         options: vec![
             opt(&["-h", "--help"], "help", Kind::Help, None, false, None),
@@ -427,7 +427,7 @@ fn cmd_estimate(
     if get(&cfg, "target_gpu").map_or(false, |v| v.is_truthy()) {
         return Err(die(
             7,
-            "config.target_gpu 정의됨 — Phase-1(estimate)은 gmu-only 라 절대 KV 클램프를 emit 하지 않는다(헌법 §KV 절대클램프 따름정리 · plan_26070809_47_07 §2). `recipe.py simulate --config <config> --candidate <lockset.json>` 로 Phase-2 측정경로를 사용하세요(타겟 예산은 config.target_gpu 가 그대로 소비됨).",
+            "config.target_gpu 정의됨 — Phase-1(estimate)은 gmu-only 라 절대 KV 클램프를 emit 하지 않는다(헌법 §KV 절대클램프 따름정리 · plan_26070809_47_07 §2). `recipe.sh simulate --config <config> --candidate <lockset.json>` 로 Phase-2 측정경로를 사용하세요(타겟 예산은 config.target_gpu 가 그대로 소비됨).",
         ));
     }
     let target = get(&cfg, "target_model").unwrap_or(PyValue::None);
@@ -550,9 +550,9 @@ fn generate_spec() -> Spec {
         required,
         group: None,
     };
-    const CONFIG_HELP: &str = "입력 config.yaml 경로. **필수다 — 루트 기본값은 2026-09-06 에 제거했다**(plan_26090616): 기본값이 `config.yaml` 이었기 때문에 캠페인이 셀마다 만든 변형이 저장소 루트에 쌓였고 21개가 공개 원격까지 추적 누출됐다. 자리는 `campaign_init.py --derive config --cell <cell-id>` 로 파생하라.";
+    const CONFIG_HELP: &str = "입력 config.yaml 경로. **필수다 — 루트 기본값은 2026-09-06 에 제거했다**(plan_26090616): 기본값이 `config.yaml` 이었기 때문에 캠페인이 셀마다 만든 변형이 저장소 루트에 쌓였고 21개가 공개 원격까지 추적 누출됐다. 자리는 `campaign_init.sh --derive config --cell <cell-id>` 로 파생하라.";
     Spec {
-        prog: "recipe.py generate",
+        prog: "recipe.sh generate",
         description: "",
         options: vec![
             opt(&["-h", "--help"], "help", Kind::Help, None, false),
@@ -960,9 +960,9 @@ fn simulate_spec() -> Spec {
         required,
         group: None,
     };
-    const CONFIG_HELP: &str = "입력 config.yaml 경로. **필수다 — 루트 기본값은 2026-09-06 에 제거했다**(plan_26090616): 기본값이 `config.yaml` 이었기 때문에 캠페인이 셀마다 만든 변형이 저장소 루트에 쌓였고 21개가 공개 원격까지 추적 누출됐다. 자리는 `campaign_init.py --derive config --cell <cell-id>` 로 파생하라.";
+    const CONFIG_HELP: &str = "입력 config.yaml 경로. **필수다 — 루트 기본값은 2026-09-06 에 제거했다**(plan_26090616): 기본값이 `config.yaml` 이었기 때문에 캠페인이 셀마다 만든 변형이 저장소 루트에 쌓였고 21개가 공개 원격까지 추적 누출됐다. 자리는 `campaign_init.sh --derive config --cell <cell-id>` 로 파생하라.";
     Spec {
-        prog: "recipe.py simulate",
+        prog: "recipe.sh simulate",
         description: "",
         options: vec![
             opt(&["-h", "--help"], "help", Kind::Help, None, false),
@@ -977,7 +977,7 @@ fn simulate_spec() -> Spec {
             opt(&["--timeout"], "timeout", Kind::Int, Some("/health 폴링 타임아웃(초)"), false),
             opt(&["--overhead-mib"], "overhead_mib", Kind::Int, Some("예산 선언 overhead(MiB). 미지정 시 config.budget_overhead_mib → run_trial 기본값 순. 실측값이 있으면 넘긴다"), false),
             opt(&["--force"], "force", Kind::Flag, Some("수렴 시 3종 세트 덮어쓰기 허용"), false),
-            opt(&["--lockset-out"], "lockset_out", Kind::Text, Some("수렴 시 기계 각인한 lockset(provenance=explorer-phase2 · batch_source·gmu_source·kv_source · trial_provenance)을 쓸 경로. 캠페인 셀이면 `campaign_init.py --derive lockset --cell <id>` 로 파생한 셀 lockset(보통 --candidate 와 같은 파일)을 준다. 다른 기존 파일은 --force 로만 덮어쓴다. 미지정이면: --candidate 가 캠페인 셀 lockset(campaigns/<id>/cells/<cell>/lockset.json)이면 그 파일에 쓰고, 그 밖이면 run_summary.json 의 lockset 칸에만 남는다(plan_26091407 §4.2)"), false),
+            opt(&["--lockset-out"], "lockset_out", Kind::Text, Some("수렴 시 기계 각인한 lockset(provenance=explorer-phase2 · batch_source·gmu_source·kv_source · trial_provenance)을 쓸 경로. 캠페인 셀이면 `campaign_init.sh --derive lockset --cell <id>` 로 파생한 셀 lockset(보통 --candidate 와 같은 파일)을 준다. 다른 기존 파일은 --force 로만 덮어쓴다. 미지정이면: --candidate 가 캠페인 셀 lockset(campaigns/<id>/cells/<cell>/lockset.json)이면 그 파일에 쓰고, 그 밖이면 run_summary.json 의 lockset 칸에만 남는다(plan_26091407 §4.2)"), false),
         ],
         group_required: false,
         positional: None,
@@ -1019,7 +1019,7 @@ fn cmd_generate(
     if get(&cfg, "target_gpu").map_or(false, |v| v.is_truthy()) {
         return Err(die(
             7,
-            "config.target_gpu 정의됨 — Phase-1(generate)은 gmu-only 라 절대 KV 클램프를 emit 하지 않는다(헌법 §KV 절대클램프 따름정리 · plan_26070809_47_07 §2). `recipe.py simulate --config <config> --candidate <lockset.json>` 로 Phase-2 측정경로를 사용하세요(타겟 예산은 config.target_gpu 가 그대로 소비됨).",
+            "config.target_gpu 정의됨 — Phase-1(generate)은 gmu-only 라 절대 KV 클램프를 emit 하지 않는다(헌법 §KV 절대클램프 따름정리 · plan_26070809_47_07 §2). `recipe.sh simulate --config <config> --candidate <lockset.json>` 로 Phase-2 측정경로를 사용하세요(타겟 예산은 config.target_gpu 가 그대로 소비됨).",
         ));
     }
     let last_ranking = join(feedback_dir, &s(".last_ranking.json"));
@@ -1029,7 +1029,7 @@ fn cmd_generate(
             Message::new()
                 .lit("이전 estimate 산출물 없음: ")
                 .text(&last_ranking)
-                .lit(". 먼저 `recipe.py estimate` 를 실행하라.")
+                .lit(". 먼저 `recipe.sh estimate` 를 실행하라.")
                 .done(),
         ));
     }
@@ -1263,7 +1263,7 @@ fn declared_axis_tp(cfg: &PyValue) -> (Option<i64>, &'static str, String) {
     }
 }
 
-const TOP_USAGE: &str = "usage: recipe.py [-h] {estimate,generate,simulate} ...";
+const TOP_USAGE: &str = "usage: recipe.sh [-h] {estimate,generate,simulate} ...";
 
 /// `recipe.py ...`: `main(argv)`. `skill_root` is the deployed skill (the binary's anchor).
 pub fn recipe_main(args: &[PyStr], columns: Option<&str>, skill_root: &PyStr) -> Run {
@@ -1295,7 +1295,7 @@ pub fn recipe_main(args: &[PyStr], columns: Option<&str>, skill_root: &PyStr) ->
         }
         _ => {
             streams.eprint(&PyStr::new(TOP_USAGE));
-            streams.eprint(&PyStr::new("recipe.py: error: the following arguments are required: command"));
+            streams.eprint(&PyStr::new("recipe.sh: error: the following arguments are required: command"));
             return streams.finish(2);
         }
     }

@@ -1,4 +1,4 @@
-usage: relay.py [-h] [--topology {single,multi}] [--manifest MANIFEST]
+usage: relay.sh [-h] [--topology {single,multi}] [--manifest MANIFEST]
                 [--context-id CONTEXT_ID] [--max-turns MAX_TURNS]
                 [--provider {claude_code,codex_cli}]
                 [--max-dispatches MAX_DISPATCHES]

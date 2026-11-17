@@ -589,7 +589,7 @@ pub fn resolve_repeats(
             return Err(repeat_axis_error(cat!(
                 "반복 수 선언이 없고(",
                 why,
-                ") 프리셋 기본값도 받지 못했다 — 기본값의 자리는 프리셋 하나다(bench_preset.py 가 넘긴다 · 코드 안 숫자로 메우지 않는다)"
+                ") 프리셋 기본값도 받지 못했다 — 기본값의 자리는 프리셋 하나다(bench_preset.sh 가 넘긴다 · 코드 안 숫자로 메우지 않는다)"
             )));
         }
         let preset = request.preset_source.display_text();

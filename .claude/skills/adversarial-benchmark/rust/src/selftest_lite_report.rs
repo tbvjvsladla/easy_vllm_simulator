@@ -60,7 +60,7 @@ const CHILD_SECONDS: u64 = 120;
 const FULL_RENDER_SECONDS: u64 = 60;
 const RELEASE_DIRECTORY: &str = ".claude/skills/adversarial-benchmark/rust/target/release";
 
-const GATE_STUB: &str = ".claude/skills/terraforming_node/scripts/manifest_contract.py";
+const GATE_STUB: &str = ".claude/skills/terraforming_node/scripts/manifest_contract.sh";
 const GATE_LAUNCHER_STUB: &str = ".claude/skills/terraforming_node/scripts/manifest_contract.sh";
 /// Test-plane launcher stub of the Flag gate (a shell program; nothing in the sandbox runs Python): the availability
 /// check passes and every gate call passes. The callers also require the owner file beside it to exist

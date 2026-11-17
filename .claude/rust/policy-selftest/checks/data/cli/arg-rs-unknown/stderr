@@ -1,2 +1,2 @@
-usage: runtime_selftest.py [-h] [--tripwires-only]
-runtime_selftest.py: error: unrecognized arguments: extra
+usage: runtime_selftest.sh [-h] [--tripwires-only]
+runtime_selftest.sh: error: unrecognized arguments: extra

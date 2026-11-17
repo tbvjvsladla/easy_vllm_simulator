@@ -19,4 +19,4 @@ if [ "$magic" != $'\177ELF' ]; then
   printf '[harness_verify] ERROR normal Rust ELF invalid: %s\n' "$BINARY" >&2
   exit 2
 fi
-exec -a "$SDIR/harness_verify.py" "$BINARY" "$@"
+exec -a "$SDIR/harness_verify.sh" "$BINARY" "$@"

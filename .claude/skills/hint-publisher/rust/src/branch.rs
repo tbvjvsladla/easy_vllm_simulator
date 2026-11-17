@@ -454,7 +454,7 @@ pub fn payload_files(payload_dir: &Path) -> HR<Vec<String>> {
         return core::fail(
             "HINT_PAYLOAD_REQUIRED_ABSENT",
             format!("필수 최상위 파일 부재: {}", strs_repr(&missing)),
-            Some("hint.py publish 가 스캐폴드를 만든다 — 지우지 않았는지 확인한다."),
+            Some("hint.sh publish 가 스캐폴드를 만든다 — 지우지 않았는지 확인한다."),
         );
     }
     let mut rels = w.rels;
@@ -824,7 +824,7 @@ pub fn _validate_payload_docs(root: &Path, rels: &[String], message: &str) -> HR
         return core::fail(
             &code,
             format!("페이로드 문서 정합 {}건:\n  {}", probs.len(), probs.join("\n  ")),
-            Some("hint.py publish 가 만든 스캐폴드를 손으로 고치지 않았는지 확인하고, 저작을 마친 뒤 hint.py continue 로 다시 실행한다."),
+            Some("hint.sh publish 가 만든 스캐폴드를 손으로 고치지 않았는지 확인하고, 저작을 마친 뒤 hint.sh continue 로 다시 실행한다."),
         );
     }
     Ok(payload["tag"].display())
@@ -866,7 +866,7 @@ pub fn _update_hint_ref(repo: &Path, new: &str, expected_old: Option<&str>) -> H
         return core::fail(
             "HINT_BRANCH_CAS_CONFLICT",
             format!("{HINT_BRANCH_REF} 가 그 사이 바뀌었다(기대 {}) — 덮지 않는다: {}", core::head_chars(&old, 12), py_strip(&r.stderr)),
-            Some("다른 발행이 끼어들었다. 브랜치 상태를 확인하고 hint.py continue 를 다시 실행한다."),
+            Some("다른 발행이 끼어들었다. 브랜치 상태를 확인하고 hint.sh continue 를 다시 실행한다."),
         );
     }
     Ok(())
@@ -946,7 +946,7 @@ pub fn _format_mismatch(where_: &str, sha: &str, fmt: Option<&str>, why: Option<
         "HINT_BRANCH_FORMAT_MISMATCH",
         format!("{where_} {} 는 발행기 형식 {BRANCH_FORMAT} 의 안내 커밋이 아니다 — {tail}", core::head_chars(sha, 12)),
         Some(
-            "형식 전환이 필요하다: 사람 승인(G2) 뒤 `hint.py branch-transition --remote <원격> --generated-utc <UTC> \
+            "형식 전환이 필요하다: 사람 승인(G2) 뒤 `hint.sh branch-transition --remote <원격> --generated-utc <UTC> \
              --approved-by \"<사람 발화 전사>\" --approved-utc <UTC>` 가 그 위에 v7 안내 커밋을 얹고 exact refspec 로 \
              non-force push 한다(발행은 브랜치를 밀지 않는다).",
         ),
@@ -1003,7 +1003,7 @@ pub fn guide_commit(repo: &Path, remote: &str, pinned: Option<&str>) -> HR<(Stri
             return core::fail(
                 "HINT_BRANCH_GUIDE_ABSENT",
                 format!("원격 {} 에 {HINT_BRANCH_REF} 가 없다 — 페이로드 커밋의 부모(안내 커밋)가 없다.", crate::value::py_repr(remote)),
-                Some("형식 전환 명령(`hint.py branch-transition` · 사람 승인)으로 안내 커밋을 만든다."),
+                Some("형식 전환 명령(`hint.sh branch-transition` · 사람 승인)으로 안내 커밋을 만든다."),
             )
         }
     };
@@ -1414,7 +1414,7 @@ pub fn require_payload_anchor(repo: &Path, tag: &str, anchor: &str) -> HR<()> {
                 "앵커 {c12} 의 부모가 안내 커밋이 아니다 — {why}. 계약 §6: 태그는 안내 커밋 위의 페이로드 커밋을 \
                  가리킨다. 소스 트리 커밋에 봉인하면 zip 에 산출물 대신 저장소 소스가 담긴다(2026-09-07 실증: native 3종)."
             ),
-            Some("hint.py continue 로 페이로드 커밋부터 만든다(부모 = 원격 hint tip 의 안내 커밋 · 봉인은 그 커밋에만 한다)."),
+            Some("hint.sh continue 로 페이로드 커밋부터 만든다(부모 = 원격 hint tip 의 안내 커밋 · 봉인은 그 커밋에만 한다)."),
         );
     }
     if read_blob_bytes(repo, &commit, PAYLOAD_JSON)?.is_none() {

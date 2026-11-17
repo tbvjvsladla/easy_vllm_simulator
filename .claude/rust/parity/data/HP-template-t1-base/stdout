@@ -22,5 +22,5 @@
 {"id": "b-measurement_env_nodes", "kind": "value", "value": "_노드별 env 관측 없음 — 01 §1.4 측정 env 관측 표가 비었다._"}
 {"id": "b-tool_snapshots", "kind": "value", "value": "_측정 도구 원문 스냅샷 없음 — 측정 시각 이전 커밋의 도구 원문을 고정하지 못했다(evidence.tool_snapshots) · 도구가 정한 인자는 원문 없이 단정하지 않는다._"}
 {"id": "b-name_tail", "kind": "value", "value": "**기본 이름**(꼬리 전) `hint/0.29.0rc6/fixture-model-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len262144-kvauto-plemmap-spec3-eager` — 꼬리 미확정. 아래는 옛 v6 뒤 3축(ple · spec · graph)의 결정론 파생을 돌린 **후보**다(강제 ✗ · 이 셀을 가르는 노브만 고른다 · 셋을 v6 순서 그대로 쓰면 거부된다).\n\n_후보 없음 — naming.tail_candidates 가 후보를 내지 못했다(꼬리는 저작자가 서빙 설정에서 직접 고른다)._"}
-{"id": "b-dataset_provenance", "kind": "value", "value": "### 데이터셋 출처\n\n_데이터셋 출처 미관측 — facts 에 dataset_provenance 가 없다(생산자 evidence.dataset_provenance · 이 판 이전 draft 면 `hint.py refacts` 로 재파생)._"}
+{"id": "b-dataset_provenance", "kind": "value", "value": "### 데이터셋 출처\n\n_데이터셋 출처 미관측 — facts 에 dataset_provenance 가 없다(생산자 evidence.dataset_provenance · 이 판 이전 draft 면 `hint.sh refacts` 로 재파생)._"}
 {"id": "b-lite_summary", "kind": "value", "value": ""}

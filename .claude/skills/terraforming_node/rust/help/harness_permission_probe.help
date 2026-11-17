@@ -1,4 +1,4 @@
-usage: harness_permission_probe.py [-h] --workspace WORKSPACE --topology
+usage: harness_permission_probe.sh [-h] --workspace WORKSPACE --topology
                                    {single,multi} --role {main,sub} --nonce
                                    NONCE
 

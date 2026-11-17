@@ -333,7 +333,7 @@ fn branch_helpers_follow_the_owner() {
         .expect("conflict");
     assert_eq!(
         conflict.to_utf8().unwrap(),
-        "요청 topology='multi' 이 체크아웃 브랜치가 고르는 통로 'single' 와 다르다 — 브랜치를 바꾸거나 요청을 바꿔라(자동 교정하지 않는다). 정본 술어: topology_parity.py"
+        "요청 topology='multi' 이 체크아웃 브랜치가 고르는 통로 'single' 와 다르다 — 브랜치를 바꾸거나 요청을 바꿔라(자동 교정하지 않는다). 정본 술어: topology_parity.sh"
     );
     assert!(
         branch_topology_conflict(&mut Lane(Some("single-node")), b"/r", Some("single")).is_none()

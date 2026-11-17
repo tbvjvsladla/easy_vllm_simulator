@@ -115,7 +115,7 @@
 ],
 "exit": 2,
 "stdout": "",
-"stderr": "usage: quant_table.py [-h] [--quant QUANT] [--serve-bpw SERVE_BPW]\n                      [--dtype DTYPE] [--json]\nquant_table.py: error: unrecognized arguments: --\n"
+"stderr": "usage: quant_table.sh [-h] [--quant QUANT] [--serve-bpw SERVE_BPW]\n                      [--dtype DTYPE] [--json]\nquant_table.sh: error: unrecognized arguments: --\n"
 },
 {
 "id": "malformed-file",

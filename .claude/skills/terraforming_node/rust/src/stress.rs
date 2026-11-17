@@ -401,7 +401,7 @@ fn self_test() -> i32 {
 }
 
 pub static SPEC: Spec = Spec {
-    prog: "adversarial_stress.py",
+    prog: "adversarial_stress.sh",
     usage: include_str!("../help/adversarial_stress.usage"),
     help: include_str!("../help/adversarial_stress.help"),
     args: &[

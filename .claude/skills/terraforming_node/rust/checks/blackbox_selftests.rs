@@ -39,7 +39,7 @@ fn check(prog: &str, exe: &str) -> Vec<String> {
         .arg("--self-test")
         .current_dir(&nb)
         .env("PATH", "/nonexistent-bin")
-        .env("TERRAFORMING_OWNER_PATH", nb.join(format!("{prog}.py")))
+        .env("TERRAFORMING_OWNER_PATH", nb.join(format!("{prog}.sh")))
         .env_remove("COLUMNS")
         .stdin(Stdio::null())
         .output()

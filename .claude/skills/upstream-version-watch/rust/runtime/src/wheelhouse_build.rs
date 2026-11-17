@@ -1365,7 +1365,7 @@ pub fn build(
         ("elapsed_s_monotonic", J::Float((t0.elapsed().as_secs_f64() * 10.0).round() / 10.0)),
     ]);
     let mut req = vec![
-        "# native_wheelhouse.py 생성 — 정확 핀(이미지 설치본 그대로) · pip install --no-index 전용".to_string(),
+        "# native_wheelhouse.sh 생성 — 정확 핀(이미지 설치본 그대로) · pip install --no-index 전용".to_string(),
         format!("# image {} {} · generated_utc {generated_utc}", meta.tag.clone().unwrap_or_else(|| "None".into()), meta.id),
     ];
     let mut pins: Vec<String> = records.iter().filter(|r| r.wheel.is_some()).map(|r| format!("{}=={}", r.name, r.version)).collect();

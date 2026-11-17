@@ -1,4 +1,4 @@
-usage: verdict_rule.py [-h] [--measured MEASURED] [--roofline ROOFLINE]
+usage: verdict_rule.sh [-h] [--measured MEASURED] [--roofline ROOFLINE]
                        [--reference-tps REFERENCE_TPS]
                        [--target-tps TARGET_TPS]
                        [--authority {weak,explicit,explore}]
@@ -12,8 +12,8 @@ usage: verdict_rule.py [-h] [--measured MEASURED] [--roofline ROOFLINE]
 
 options:
   -h, --help            show this help message and exit
-  --measured MEASURED   parse_bench.py JSON
-  --roofline ROOFLINE   roofline.py JSON
+  --measured MEASURED   parse_bench.sh JSON
+  --roofline ROOFLINE   roofline.sh JSON
   --reference-tps REFERENCE_TPS
                         E: 외부 현실-달성치(검증기 (b) 외부검색 산물). 유한 양수만 — 0/음수/NaN 은
                         exit 2

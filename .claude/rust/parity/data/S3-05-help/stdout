@@ -1,4 +1,4 @@
-usage: scan_node.py [-h] [--topology {single,multi,auto}] [--peer-ip PEER_IP]
+usage: scan_node.sh [-h] [--topology {single,multi,auto}] [--peer-ip PEER_IP]
                     [--peer-port PEER_PORT] [--peer-ssh PEER_SSH]
                     [--compose COMPOSE] [--env-interconnect ENV_INTERCONNECT]
                     [--bandwidth-gbps BANDWIDTH_GBPS]

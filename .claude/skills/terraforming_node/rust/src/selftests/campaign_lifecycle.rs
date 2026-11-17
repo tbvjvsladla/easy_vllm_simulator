@@ -47,7 +47,7 @@ struct Fx {
 }
 
 fn owner_of(root: &Path) -> PathBuf {
-    root.join(".claude/skills/terraforming_node/scripts/campaign_init.py")
+    root.join(".claude/skills/terraforming_node/scripts/campaign_init.sh")
 }
 
 fn copy_tree(src: &Path, dst: &Path) {

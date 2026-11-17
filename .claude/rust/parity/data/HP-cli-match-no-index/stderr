@@ -1,2 +1,2 @@
 [hint] FAIL HINT_CATALOG_INDEX_ABSENT: hints/index.json 가 없다.
-  → 중앙 저장소라면 `hint.py catalog derive` 로 만든다. 배포본이라면 hints/index.json 이 함께 온다 — 체크아웃을 확인한다.
+  → 중앙 저장소라면 `hint.sh catalog derive` 로 만든다. 배포본이라면 hints/index.json 이 함께 온다 — 체크아웃을 확인한다.

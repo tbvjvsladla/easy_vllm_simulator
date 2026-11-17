@@ -121,13 +121,13 @@ fn executable_without_the_bridge_is_the_native_scanner_command_line() {
     };
     let help = run(&["-h"]);
     assert_eq!(help.status.code(), Some(0));
-    assert!(String::from_utf8_lossy(&help.stdout).starts_with("usage: scan_node.py [-h]"));
+    assert!(String::from_utf8_lossy(&help.stdout).starts_with("usage: scan_node.sh [-h]"));
     assert!(help.stderr.is_empty());
     let bad = run(&["--bogus"]);
     assert_eq!(bad.status.code(), Some(2), "argparse's own usage error");
     assert!(bad.stdout.is_empty());
     assert!(String::from_utf8_lossy(&bad.stderr)
-        .ends_with("scan_node.py: error: unrecognized arguments: --bogus\n"));
+        .ends_with("scan_node.sh: error: unrecognized arguments: --bogus\n"));
     let selftest = run(&["--self-test"]);
     assert_eq!(selftest.status.code(), Some(0), "c31: --self-test is native; the original's 59 checks run in Rust");
     assert!(String::from_utf8_lossy(&selftest.stdout).ends_with("self-test: 59/59 PASS\n"));

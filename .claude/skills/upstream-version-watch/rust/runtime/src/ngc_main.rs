@@ -26,7 +26,7 @@ use recipe_runtime::cliparse::{
     format_usage, parse, terminal_width, Kind, Opt, Outcome, Positional, Spec, Value,
 };
 
-pub const PROGRAM: &str = "resolve_ngc_tag.py";
+pub const PROGRAM: &str = "resolve_ngc_tag.sh";
 const ARCHITECTURES: [&str; 2] = ["arm64", "amd64"];
 const NO_CANDIDATES: &str = "--candidates 또는 --start 필요";
 const PREFIX_NOTE: &str = "prefix-match — 최종 중재=스모크";

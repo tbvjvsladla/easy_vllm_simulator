@@ -13,7 +13,7 @@ use ring::digest::{digest, SHA256};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-pub const PROGRAM: &str = "render_native_triplet.py";
+pub const PROGRAM: &str = "render_native_triplet.sh";
 const TOOL: &str = "render_native_triplet.py";
 const SLAVE_SERVICE: &str = "vllm-slave-serve";
 const NEVER_FORWARD: [&str; 1] = ["CONFIG_FILE"];
@@ -612,9 +612,9 @@ pub fn render(repo: &Path, topology: &str, source_cell: &str, cell: &str) -> Res
         format!("# {cell} native 서빙 러너 — {TOOL} 가 Docker 트리플렛 {source_cell} 에서 렌더(손저작 ✗)."),
         format!("#   원본 {} sha256={} 의 `vllm serve --config … --served-model-name …` 를", rel("sh"), &sha256_text(&sh_src)[..16]),
         "#   호스트 venv 로 옮긴 것이다. 컨테이너 전용 arming(arm_patch.sh·tiktoken /encodings)은 렌더가 fail-closed 로 막는다.".to_string(),
-        "#   기동 주체는 native_multinode_serve.py up 이다 — 셀 env·캐시 격리 env·LD_LIBRARY_PATH·NATIVE_VENV 를 주입해 이 파일을 실행한다.".to_string(),
+        "#   기동 주체는 native_multinode_serve.sh up 이다 — 셀 env·캐시 격리 env·LD_LIBRARY_PATH·NATIVE_VENV 를 주입해 이 파일을 실행한다.".to_string(),
         "set -euo pipefail".to_string(),
-        ": \"${NATIVE_VENV:?NATIVE_VENV(run root 의 venv) 미주입 — native_multinode_serve.py up 이 주입한다}\"".to_string(),
+        ": \"${NATIVE_VENV:?NATIVE_VENV(run root 의 venv) 미주입 — native_multinode_serve.sh up 이 주입한다}\"".to_string(),
         ": \"${CONFIG_FILE:?CONFIG_FILE 미주입(셀 env)}\"".to_string(),
         ": \"${SERVING_MODEL_NAME:?SERVING_MODEL_NAME 미주입(셀 env)}\"".to_string(),
         "HERE=\"$(cd \"$(dirname \"${BASH_SOURCE[0]}\")\" && pwd)\"".to_string(),
@@ -684,7 +684,7 @@ fn opt(flags: &'static [&'static str], dest: &'static str, kind: Kind, group: Op
 pub fn spec() -> Spec {
     Spec {
         prog: PROGRAM,
-        description: "render_native_triplet.py — Docker 트리플렛에서 native(Docker 없음) 트리플렛을 **결정론 파생**한다.",
+        description: "render_native_triplet.sh — Docker 트리플렛에서 native(Docker 없음) 트리플렛을 **결정론 파생**한다.",
         options: vec![
             opt(&["-h", "--help"], "help", Kind::Help, None),
             opt(&["--self-test"], "self_test", Kind::Flag, None),

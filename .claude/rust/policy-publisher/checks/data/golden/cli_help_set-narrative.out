@@ -1,4 +1,4 @@
-usage: evidence_publisher.py set-narrative [-h] [--repo-root REPO_ROOT]
+usage: evidence_publisher.sh set-narrative [-h] [--repo-root REPO_ROOT]
                                            --topic TOPIC --kind
                                            {plan,devlog,testlog,report}
                                            --narrative-file NARRATIVE_FILE

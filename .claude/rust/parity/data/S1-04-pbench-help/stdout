@@ -1,4 +1,4 @@
-usage: parse_bench.py [-h] --bench-json BENCH_JSON [--engine-log ENGINE_LOG]
+usage: parse_bench.sh [-h] --bench-json BENCH_JSON [--engine-log ENGINE_LOG]
                       [--json]
 
 vllm bench serve 결과 + engine-log 파싱 → 측정 M

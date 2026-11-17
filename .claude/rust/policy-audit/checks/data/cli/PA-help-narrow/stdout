@@ -1,7 +1,7 @@
-usage: policy_registry.py [-h] [--self-test]
+usage: policy_registry.sh [-h] [--self-test]
                           {verify,check-removal} ...
 
-policy_registry.py -- stdlib-only validator/auditor for
+policy_registry.sh -- stdlib-only validator/auditor for
 .claude/policies/registry.yaml (plan_26072506 Phase 4,
 review-cycle2 remediation -- subagent-
 summary-0/1-20260725_213652). `registry.yaml` is plain
@@ -9,7 +9,7 @@ JSON text (a valid YAML 1.2 subset) -- this module, and
 every consumer in this repo, parses it with the stdlib
 `json` module only. PyYAML is not a dependency anywhere in
 this project. Design (cycle2): - Schema-shape validation
-reuses the sibling completion_gate.py generic
+reuses the sibling completion_gate.sh generic
 Draft-07-subset engine (validate_against_schema) against
 .claude/schemas/policy-registry.schema.json -- no second,
 hand-duplicated shape checker. - Every cross-field /
@@ -136,13 +136,13 @@ not spuriously reported as malformed -- while a genuinely
 malformed token's ORIGINAL (unstripped) text is still what
 gets reported, so a case like `policy:ALSO_BAD-ID!` is not
 silently "fixed" by punctuation-stripping into something
-that looks valid. Usage: python3 policy_registry.py verify
+that looks valid. Usage: python3 policy_registry.sh verify
 --as-of YYYY-MM-DD [--registry <path>] [--schema <path>]
 [--claim-bindings <path>] [--repo-root <path>] python3
-policy_registry.py check-removal --policy-id <ID> --as-of
+policy_registry.sh check-removal --policy-id <ID> --as-of
 YYYY-MM-DD [--registry <path>] [--schema <path>] [--claim-
 bindings <path>] [--repo-root <path>] python3
-policy_registry.py --self-test --claim-bindings defaults
+policy_registry.sh --self-test --claim-bindings defaults
 to <repo-root>/.claude/policies/claim_bindings.json (repo-
 root- relative -- NOT this script's own fixed location,
 unlike --registry/--schema) -- see _load_inputs_or_emit's

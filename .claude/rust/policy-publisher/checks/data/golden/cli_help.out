@@ -1,8 +1,8 @@
-usage: evidence_publisher.py [-h] [--self-test]
+usage: evidence_publisher.sh [-h] [--self-test]
                              {init,append-raw,set-narrative,record-capacity-rejection,publish-benchmark,publish-lite-report,set-promotion-target,finalize}
                              ...
 
-evidence_publisher.py -- hybrid evidence publisher (plan_26072506 Phase 2)
+evidence_publisher.sh -- hybrid evidence publisher (plan_26072506 Phase 2)
 
 positional arguments:
   {init,append-raw,set-narrative,record-capacity-rejection,publish-benchmark,publish-lite-report,set-promotion-target,finalize}
@@ -25,7 +25,7 @@ positional arguments:
                         authorization binds to (emitted into the work-manifest
                         by the next `finalize` · X6 · plan_26092119)
     finalize            build a work-manifest from the publication record and
-                        delegate to completion_gate.py verify
+                        delegate to completion_gate.sh verify
 
 options:
   -h, --help            show this help message and exit

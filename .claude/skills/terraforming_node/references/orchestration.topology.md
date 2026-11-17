@@ -2,7 +2,7 @@
 
 **topology: single** · layer: topology · 경로 규약 `*.topology.md` · policy:BRANCH_CONSTITUTION_LAYERING
 
-> 자기선언 헤더는 위 한 줄이다(`topology_parity.py` 가 읽는 바이트). 이 파일은 **특화층**이라 같은
+> 자기선언 헤더는 위 한 줄이다(`topology_parity.sh`(Rust) 가 읽는 바이트). 이 파일은 **특화층**이라 같은
 > 경로가 `multi-node` 에서는 다른 내용이고 브랜치 동기화가 옮기지 않는다.
 >
 > `terraforming_node` SKILL.md §2.7.9(노드 오케스트레이터 — Phase 감독)가 이 파일을 참조한다.

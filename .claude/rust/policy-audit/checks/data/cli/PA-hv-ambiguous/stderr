@@ -1,4 +1,4 @@
-usage: harness_verify.py [-h] [--as-of AS_OF] [--registry REGISTRY]
+usage: harness_verify.sh [-h] [--as-of AS_OF] [--registry REGISTRY]
                          [--schema SCHEMA] [--claim-bindings CLAIM_BINDINGS]
                          [--repo-root REPO_ROOT]
-harness_verify.py: error: ambiguous option: --re could match --registry, --repo-root
+harness_verify.sh: error: ambiguous option: --re could match --registry, --repo-root

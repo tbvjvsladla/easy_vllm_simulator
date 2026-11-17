@@ -23,7 +23,7 @@ fi
 unset CAMPAIGN_READ_VALIDATE_ONLY
 # The program path the checkout root is derived from (`parents[4]` of the retired campaign_init.py beside this launcher — its
 # location, not user intent; the file itself need not exist).
-export CAMPAIGN_READ_COMPAT_OWNER="${CAMPAIGN_READ_COMPAT_OWNER:-$SDIR/campaign_init.py}"
+export CAMPAIGN_READ_COMPAT_OWNER="${CAMPAIGN_READ_COMPAT_OWNER:-$SDIR/campaign_init.sh}"
 # No interpreter variable is honoured any more (there is no Python route).
 unset CAMPAIGN_READ_PYTHON CAMPAIGN_READ_COMPAT_PYTHON
 exec "$BIN" "$@"

@@ -1,4 +1,4 @@
-usage: blackbox_session.py slice [-h] --session-id SESSION_ID
+usage: blackbox_session.sh slice [-h] --session-id SESSION_ID
 
 options:
   -h, --help            show this help message and exit

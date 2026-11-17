@@ -19,7 +19,7 @@ use crate::jd;
 pub const EXIT_LOCAL_TAG_OBJECT_MISSING: i64 = 4;
 pub const CENTRAL_FLAG: &str = "hints/.central_authority";
 pub const HINTS_BEGIN_PREFIX: &str = "<!-- HINTS:BEGIN derived";
-pub const HINTS_BEGIN: &str = "<!-- HINTS:BEGIN derived — `hint.py catalog derive` 가 이 구간만 다시 쓴다(손으로 고치지 마라 · 구간 밖은 사람이 쓰는 서사다) -->";
+pub const HINTS_BEGIN: &str = "<!-- HINTS:BEGIN derived — `hint.sh catalog derive` 가 이 구간만 다시 쓴다(손으로 고치지 마라 · 구간 밖은 사람이 쓰는 서사다) -->";
 pub const HINTS_END: &str = "<!-- HINTS:END -->";
 pub const CATALOG_COLUMNS: [&str; 6] = ["태그", "arch", "vLLM", "판정", "bench_mode", "결손"];
 pub const INDEX_SCHEMA: i64 = 5;
@@ -679,7 +679,7 @@ pub fn render_derived_block(index: &J) -> HR<String> {
     Ok(lines.join("\n") + "\n")
 }
 
-pub const HINTS_SCAFFOLD_HEAD: &str = "<!-- 이 파일에서 생성물은 아래 마커 구간뿐이다 — `hint.py catalog derive` 가 그 구간만 다시 쓴다. 구간 밖은 사람이 쓰는 서사다. -->\n# hint 태그 카탈로그\n\n> 사람 서사가 아직 없다 — 파생기가 마커 쌍만 둔 골격이다.\n\n";
+pub const HINTS_SCAFFOLD_HEAD: &str = "<!-- 이 파일에서 생성물은 아래 마커 구간뿐이다 — `hint.sh catalog derive` 가 그 구간만 다시 쓴다. 구간 밖은 사람이 쓰는 서사다. -->\n# hint 태그 카탈로그\n\n> 사람 서사가 아직 없다 — 파생기가 마커 쌍만 둔 골격이다.\n\n";
 
 /// Byte offsets of the derived block content.
 fn _locate_bytes(text: &str) -> HR<(usize, usize)> {
@@ -878,7 +878,7 @@ pub fn load_index(repo: &Path) -> HR<J> {
         return _fail(
             "HINT_CATALOG_INDEX_ABSENT",
             format!("{} 가 없다.", core::REL_INDEX),
-            Some("중앙 저장소라면 `hint.py catalog derive` 로 만든다. 배포본이라면 hints/index.json 이 함께 온다 — 체크아웃을 확인한다."),
+            Some("중앙 저장소라면 `hint.sh catalog derive` 로 만든다. 배포본이라면 hints/index.json 이 함께 온다 — 체크아웃을 확인한다."),
             1,
         );
     }

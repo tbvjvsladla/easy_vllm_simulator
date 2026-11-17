@@ -1,7 +1,7 @@
-usage: hint.py publish [-h] [--campaign CAMPAIGN] [--cell CELL]
+usage: hint.sh publish [-h] [--campaign CAMPAIGN] [--cell CELL]
                        [--publication PUBLICATION] [--replay]
                        [--node {main,sub,cluster}] --generated-utc
                        GENERATED_UTC [--lineage-add PATH=REASON] [--out OUT]
                        [--remote REMOTE] [--no-remote-check]
                        [--docker-read-only | --docker-probe]
-hint.py publish: error: argument --node: invalid choice: 'x' (choose from 'main', 'sub', 'cluster')
+hint.sh publish: error: argument --node: invalid choice: 'x' (choose from 'main', 'sub', 'cluster')

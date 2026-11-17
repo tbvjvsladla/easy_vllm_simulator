@@ -1,4 +1,4 @@
-usage: campaign_template_validator.py [-h] [--campaign CAMPAIGN]
+usage: campaign_template_validator.sh [-h] [--campaign CAMPAIGN]
                                       [--instance INSTANCE] [--template]
                                       [--acceptance INSTANCE] [--selftest]
-campaign_template_validator.py: error: argument --campaign: expected one argument
+campaign_template_validator.sh: error: argument --campaign: expected one argument

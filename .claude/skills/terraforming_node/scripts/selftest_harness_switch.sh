@@ -21,5 +21,5 @@ if [ "$magic" != $'\177ELF' ]; then
   exit 2
 fi
 # The scripts directory under test (the retired program's location, never user intent; the file itself need not exist).
-export TERRAFORMING_OWNER_PATH="$SDIR/selftest_harness_switch.py"
+export TERRAFORMING_OWNER_PATH="$SDIR/selftest_harness_switch.sh"
 exec "$BIN" "$@"

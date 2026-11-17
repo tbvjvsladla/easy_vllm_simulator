@@ -16,7 +16,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 
-pub const PROGRAM: &str = "render_dockerfile.py";
+pub const PROGRAM: &str = "render_dockerfile.sh";
 pub const RUNNER_SCRIPTS: [&str; 3] = ["serve_runner.sh", "debug-init.sh", "arm_patch.sh"];
 
 type Env = BTreeMap<String, String>;
@@ -339,7 +339,7 @@ pub fn render_nccl_envfile(manifest: &V) -> Result<String, Raised> {
     let env = build_nccl_env(manifest)?;
     let preset_key = manifest.get("interconnect").and_then(|ic| ic.get("platform_preset")).map_or("None".to_string(), V::py_str);
     let header = vec![
-        "# .env.interconnect — manifest-driven NCCL/RDMA env (render_dockerfile.py 생성·비추적).".to_string(),
+        "# .env.interconnect — manifest-driven NCCL/RDMA env (render_dockerfile.sh 생성·비추적).".to_string(),
         format!("# 원천: manifest.interconnect(①환경값) + NCCL_PRESETS[{preset_key}](②프리셋) + NCCL_INVARIANTS(③불변)."),
         "# 회귀 oracle: fixtures/nccl_env_dgx-spark-gb10.golden (집합 동치). 손수정 금지 — manifest/preset 을 고칠 것.".to_string(),
         String::new(),
@@ -408,7 +408,7 @@ pub fn render_cluster_envfile(manifest: &V) -> Result<String, Raised> {
     let env = build_cluster_env(manifest)?;
     let preset_key = manifest.get("interconnect").filter(|v| v.truthy()).and_then(|ic| ic.get("platform_preset")).map_or("None".to_string(), V::py_str);
     let header = vec![
-        "# .env.cluster — manifest-driven Ray 클러스터-배포 env (render_dockerfile.py --cluster-envfile 생성·비추적).".to_string(),
+        "# .env.cluster — manifest-driven Ray 클러스터-배포 env (render_dockerfile.sh --cluster-envfile 생성·비추적).".to_string(),
         format!("# 원천: manifest.nodes[](①환경값) + CLUSTER_PRESETS[{preset_key}](②프리셋) + CLUSTER_INVARIANTS(③불변)."),
         "# Band2(토폴로지-keyed, 서브 전파). 손수정 금지 — manifest.nodes/preset 을 고칠 것.".to_string(),
         String::new(),
@@ -590,7 +590,7 @@ fn materialize_env(repo: &str, topology: &str, manifest: &V) -> Result<PathBuf, 
     let dst = dst_dir.join(".env");
     let ple_mmap = or_str("ple_mmap_host_path");
     let mut body = format!(
-        "# 프로젝트-레벨 env (compose 변수치환) — render_dockerfile.py --materialize-env 가 manifest 에서 생성.\n\
+        "# 프로젝트-레벨 env (compose 변수치환) — render_dockerfile.sh --materialize-env 가 manifest 에서 생성.\n\
 # docker compose 가 docker-compose.yaml 의 ${{NAS_MODEL_PATH}}·${{QUANT_MODEL_PATH}}·${{TIKTOKEN_HOST_PATH}} 치환에 사용.\n\
 # gitignored(output/* — PII). 손수정 금지 — manifest(nas_model_path·quant_model_path·tiktoken_host_path·ple_mmap_host_path)를 고칠 것.\n\
 NAS_MODEL_PATH={nas}\n\
@@ -616,7 +616,7 @@ fn opt(flags: &'static [&'static str], dest: &'static str, kind: Kind) -> Opt {
 pub fn spec() -> Spec {
     Spec {
         prog: PROGRAM,
-        description: "render_dockerfile.py — G2 결정론 렌더러",
+        description: "render_dockerfile.sh — G2 결정론 렌더러",
         options: vec![
             opt(&["-h", "--help"], "help", Kind::Help),
             opt(&["--self-test"], "self_test", Kind::Flag),

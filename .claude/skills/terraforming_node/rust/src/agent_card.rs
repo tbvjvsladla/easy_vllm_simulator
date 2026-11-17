@@ -746,7 +746,7 @@ fn self_test() -> i32 {
 }
 
 static VALIDATE: Spec = Spec {
-    prog: "agent_card_contract.py validate",
+    prog: "agent_card_contract.sh validate",
     usage: include_str!("../help/agent_card_contract.validate.usage"),
     help: include_str!("../help/agent_card_contract.validate.help"),
     args: &[
@@ -758,7 +758,7 @@ static VALIDATE: Spec = Spec {
 };
 
 pub static SPEC: Spec = Spec {
-    prog: "agent_card_contract.py",
+    prog: "agent_card_contract.sh",
     usage: include_str!("../help/agent_card_contract.usage"),
     help: include_str!("../help/agent_card_contract.help"),
     args: &[HELP, flag(&["--self-test"])],

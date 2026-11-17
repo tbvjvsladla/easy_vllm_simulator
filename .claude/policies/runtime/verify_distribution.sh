@@ -19,4 +19,4 @@ if [ "$magic" != $'\177ELF' ]; then
   printf '[verify_distribution] ERROR normal Rust ELF invalid: %s\n' "$BIN" >&2
   exit 2
 fi
-exec -a "$SDIR/verify_distribution.py" "$BIN" "$@"
+exec -a "$SDIR/verify_distribution.sh" "$BIN" "$@"

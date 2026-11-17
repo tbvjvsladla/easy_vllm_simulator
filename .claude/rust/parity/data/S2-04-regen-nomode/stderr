@@ -1,4 +1,4 @@
-usage: regen_requirements.py [-h]
+usage: regen_requirements.sh [-h]
                              (--from-wheel-url FROM_WHEEL_URL | --use-installed | --self-test)
                              [-o OUT]
-regen_requirements.py: error: one of the arguments --from-wheel-url --use-installed --self-test is required
+regen_requirements.sh: error: one of the arguments --from-wheel-url --use-installed --self-test is required

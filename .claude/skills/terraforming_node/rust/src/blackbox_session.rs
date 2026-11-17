@@ -977,7 +977,7 @@ pub fn cmd_budget_defaults(a: &A) -> R<i32> {
         ("ttl_s", PyValue::int(DEFAULT_TTL_S)),
         ("max_ttl_s", PyValue::int(MAX_TTL_S)),
         ("ttl_safety_mult", PyValue::int(TTL_SAFETY_MULT)),
-        ("source", py::s("single-owner:blackbox_session.py")),
+        ("source", py::s("single-owner:blackbox_session.sh")),
     ]);
     match a.field.as_deref().filter(|f| !f.is_empty()) {
         Some(f) => println!("{}", bb::s(py::get(&doc, f).unwrap())),
@@ -1796,22 +1796,22 @@ macro_rules! sub_spec {
         };
     };
 }
-sub_spec!(START, "blackbox_session.py start", "start", START_ARGS);
-sub_spec!(STOP, "blackbox_session.py stop", "stop", STOP_ARGS);
-sub_spec!(DECLARE, "blackbox_session.py declare-budget", "declare-budget", DECLARE_ARGS);
-sub_spec!(STATUS, "blackbox_session.py budget-status", "budget-status", STATUS_ARGS);
-sub_spec!(RENEW, "blackbox_session.py renew-budget", "renew-budget", RENEW_ARGS);
-sub_spec!(DEFAULTS_S, "blackbox_session.py budget-defaults", "budget-defaults", DEFAULTS_ARGS);
-sub_spec!(CLEAR, "blackbox_session.py clear-budget", "clear-budget", CLEAR_ARGS);
-sub_spec!(SKIP, "blackbox_session.py budget-skip", "budget-skip", SKIP_ARGS);
-sub_spec!(BLOCK, "blackbox_session.py budget-block", "budget-block", BLOCK_ARGS);
-sub_spec!(LIST, "blackbox_session.py list", "list", LIST_ARGS);
-sub_spec!(SLICE, "blackbox_session.py slice", "slice", SLICE_ARGS);
+sub_spec!(START, "blackbox_session.sh start", "start", START_ARGS);
+sub_spec!(STOP, "blackbox_session.sh stop", "stop", STOP_ARGS);
+sub_spec!(DECLARE, "blackbox_session.sh declare-budget", "declare-budget", DECLARE_ARGS);
+sub_spec!(STATUS, "blackbox_session.sh budget-status", "budget-status", STATUS_ARGS);
+sub_spec!(RENEW, "blackbox_session.sh renew-budget", "renew-budget", RENEW_ARGS);
+sub_spec!(DEFAULTS_S, "blackbox_session.sh budget-defaults", "budget-defaults", DEFAULTS_ARGS);
+sub_spec!(CLEAR, "blackbox_session.sh clear-budget", "clear-budget", CLEAR_ARGS);
+sub_spec!(SKIP, "blackbox_session.sh budget-skip", "budget-skip", SKIP_ARGS);
+sub_spec!(BLOCK, "blackbox_session.sh budget-block", "budget-block", BLOCK_ARGS);
+sub_spec!(LIST, "blackbox_session.sh list", "list", LIST_ARGS);
+sub_spec!(SLICE, "blackbox_session.sh slice", "slice", SLICE_ARGS);
 
 static TOP_ARGS: [Arg; 3] = [HELP, store(&["--node-dir"]), flag(&["--self-test"])];
 
 pub static SPEC: Spec = Spec {
-    prog: "blackbox_session.py",
+    prog: "blackbox_session.sh",
     usage: include_str!("../help/blackbox_session.usage"),
     help: include_str!("../help/blackbox_session.help"),
     args: &TOP_ARGS,

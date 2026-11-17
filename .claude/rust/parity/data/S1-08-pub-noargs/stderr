@@ -1,5 +1,5 @@
-usage: publish_benchmark_record.py [-h] [--sweep-index SWEEP_INDEX]
+usage: publish_benchmark_record.sh [-h] [--sweep-index SWEEP_INDEX]
                                    [--verdict-json VERDICT_JSON]
                                    [--lite-raw-json LITE_RAW_JSON]
                                    [--out-dir OUT_DIR] [--stdout]
-publish_benchmark_record.py: error: full 경로는 --sweep-index 와 --verdict-json 이 필수다(lite-only 셀은 --lite-raw-json)
+publish_benchmark_record.sh: error: full 경로는 --sweep-index 와 --verdict-json 이 필수다(lite-only 셀은 --lite-raw-json)

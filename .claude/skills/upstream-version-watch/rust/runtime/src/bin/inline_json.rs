@@ -118,7 +118,7 @@ fn cmd_gate_unreadable_branches(a: &[String]) -> i32 {
         return 2;
     }
     let mode = if a[0] == "experimental" || a[0] == "promotion" { Some(a[0].as_str()) } else { None };
-    let msg = format!("completion_gate.py authorize (exit={}) did not produce parseable JSON stdout", a[2]);
+    let msg = format!("completion_gate.sh authorize (exit={}) did not produce parseable JSON stdout", a[2]);
     gate_unreadable("sync_branches", "SYNC_BRANCHES_GATE_OUTPUT_UNREADABLE", &msg, mode);
     0
 }

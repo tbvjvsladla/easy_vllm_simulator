@@ -1,4 +1,4 @@
-usage: hint.py push [-h] --tag TAG [--remote REMOTE] [--apply] [--draft DRAFT]
+usage: hint.sh push [-h] --tag TAG [--remote REMOTE] [--apply] [--draft DRAFT]
 
 options:
   -h, --help       show this help message and exit

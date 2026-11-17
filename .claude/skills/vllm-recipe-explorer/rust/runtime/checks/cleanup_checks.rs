@@ -2251,7 +2251,7 @@ mod new_cases {
                 "{given:?}"
             );
         }
-        let usage = "usage: cleanup_docker.py [-h] [--apply] [--cache-age-hours CACHE_AGE_HOURS]\n                         [--keep KEEP]\n";
+        let usage = "usage: cleanup_docker.sh [-h] [--apply] [--cache-age-hours CACHE_AGE_HOURS]\n                         [--keep KEEP]\n";
         let before = work.standin.state().counter;
         for (args, message) in [
             (
@@ -2281,7 +2281,7 @@ mod new_cases {
             assert!(output.stdout.is_empty(), "{args:?}");
             assert_eq!(
                 String::from_utf8_lossy(&output.stderr),
-                format!("{usage}cleanup_docker.py: error: {message}\n"),
+                format!("{usage}cleanup_docker.sh: error: {message}\n"),
                 "{args:?}"
             );
         }
@@ -2316,17 +2316,17 @@ mod width_cases {
         };
         assert_eq!(
             run("200"),
-            "usage: cleanup_docker.py [-h] [--apply] [--cache-age-hours CACHE_AGE_HOURS] [--keep KEEP]\ncleanup_docker.py: error: unrecognized arguments: --bogus\n"
+            "usage: cleanup_docker.sh [-h] [--apply] [--cache-age-hours CACHE_AGE_HOURS] [--keep KEEP]\ncleanup_docker.sh: error: unrecognized arguments: --bogus\n"
         );
         assert_eq!(
             run("80"),
-            "usage: cleanup_docker.py [-h] [--apply] [--cache-age-hours CACHE_AGE_HOURS]\n                         [--keep KEEP]\ncleanup_docker.py: error: unrecognized arguments: --bogus\n"
+            "usage: cleanup_docker.sh [-h] [--apply] [--cache-age-hours CACHE_AGE_HOURS]\n                         [--keep KEEP]\ncleanup_docker.sh: error: unrecognized arguments: --bogus\n"
         );
         // A width too small for the name (24 columns of prefix and name exceed 0.75 of 28): the name alone, then the options wrapped
         // to the indent of the prefix, one oversized part on a line of its own (argparse's `format_usage`).
         assert_eq!(
             run("30"),
-            "usage: cleanup_docker.py\n       [-h] [--apply]\n       [--cache-age-hours CACHE_AGE_HOURS]\n       [--keep KEEP]\ncleanup_docker.py: error: unrecognized arguments: --bogus\n"
+            "usage: cleanup_docker.sh\n       [-h] [--apply]\n       [--cache-age-hours CACHE_AGE_HOURS]\n       [--keep KEEP]\ncleanup_docker.sh: error: unrecognized arguments: --bogus\n"
         );
         assert_eq!(work.standin.state().counter, Some(0));
     }
@@ -3407,10 +3407,10 @@ mod events_cases {
             .2
             .to_utf8()
             .expect("text")
-            .starts_with("usage: cleanup_docker.py"));
+            .starts_with("usage: cleanup_docker.sh"));
         assert_eq!(
             seen.writes[1].2.to_utf8().expect("text"),
-            "cleanup_docker.py: error: unrecognized arguments: --bogus\n"
+            "cleanup_docker.sh: error: unrecognized arguments: --bogus\n"
         );
         let (class, message) = exception_of(record_of(&seen));
         assert_eq!((class.as_str(), message.as_str()), ("SystemExit", "2"));
@@ -3662,7 +3662,7 @@ mod events_cases {
         assert!(text
             .to_utf8()
             .expect("text")
-            .starts_with("usage: cleanup_docker.py"));
+            .starts_with("usage: cleanup_docker.sh"));
         assert_eq!(seen.writes.len(), 1);
         let (class, message) = exception_of(record_of(&seen));
         assert_eq!(class, "UnicodeEncodeError");

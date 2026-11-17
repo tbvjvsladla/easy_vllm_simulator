@@ -56,8 +56,8 @@ pub(crate) struct Opts {
 }
 
 fn usage_error(msg: &str) -> i32 {
-    eprintln!("usage: regen_build_patches_src.py [-h] [--repo REPO] {{verify,bundle,unbundle,derive,snapshot-resolutions,modules-kind,modules-files,snapshot-modules,snapshot-post}} ...");
-    eprintln!("regen_build_patches_src.py: error: {msg}");
+    eprintln!("usage: regen_build_patches_src.sh [-h] [--repo REPO] {{verify,bundle,unbundle,derive,snapshot-resolutions,modules-kind,modules-files,snapshot-modules,snapshot-post}} ...");
+    eprintln!("regen_build_patches_src.sh: error: {msg}");
     2
 }
 

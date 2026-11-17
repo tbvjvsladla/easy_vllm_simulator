@@ -1,5 +1,5 @@
-usage: blackbox_thermal.py [-h] [--emit-params EMIT_PARAMS] [--set K=V]
+usage: blackbox_thermal.sh [-h] [--emit-params EMIT_PARAMS] [--set K=V]
                            [--explain GPU_PWR_W SOC_TEMP_C]
                            [--replay CSV [CSV ...]] [--gpu-model GPU_MODEL]
                            [--self-test]
-blackbox_thermal.py: error: --explain / --emit-params / --replay / --self-test 중 하나가 필요합니다
+blackbox_thermal.sh: error: --explain / --emit-params / --replay / --self-test 중 하나가 필요합니다

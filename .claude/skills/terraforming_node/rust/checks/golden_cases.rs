@@ -128,7 +128,7 @@ fn s5_goldens() {
         }
         let outputs = strs(py::get(c, "outputs"));
         let before = snapshot(&root, &outputs);
-        let owner = root.join(entry.trim_end_matches(".sh").to_string() + ".py");
+        let owner = root.join(&entry); // the launcher exports its own path (plan_26111717)
         let mut cmd = Command::new(exe(&prog));
         cmd.args(strs(py::get(c, "args")))
             .current_dir(&root)

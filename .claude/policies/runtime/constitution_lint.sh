@@ -17,4 +17,4 @@ if [ "$magic" != $'\177ELF' ]; then
   printf '[constitution_lint] ERROR normal Rust ELF invalid: %s\n' "$BIN" >&2
   exit 2
 fi
-exec -a "$SDIR/constitution_lint.py" "$BIN" "$@"
+exec -a "$SDIR/constitution_lint.sh" "$BIN" "$@"

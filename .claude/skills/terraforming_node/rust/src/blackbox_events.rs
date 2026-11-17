@@ -963,7 +963,7 @@ static ARGS: [Arg; 4] = [
 ];
 
 pub static SPEC: Spec = Spec {
-    prog: "blackbox_events.py",
+    prog: "blackbox_events.sh",
     usage: include_str!("../help/blackbox_events.usage"),
     help: include_str!("../help/blackbox_events.help"),
     args: &ARGS,

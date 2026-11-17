@@ -1,7 +1,7 @@
 # 인라인 Python 허용목록 — plan_26111615 pass 3 (inline_python_scan 의 데이터 · c2o-s2-inline-python 허용 목록의 추적 계승).
 # 한 줄 = <repo 상대경로>\t<그 줄에 들어 있어야 할 리터럴>\t<분류>\t<사유>. '#' 줄과 빈 줄은 무시한다.
 # 분류: container = vLLM 컨테이너(또는 그 이미지) 안에서 도는 Python — vLLM 이 Python 이므로 그 메인 언어다.
-#       golden-capture = 원본 Python 대비 골든 재캡처 도구(사람이 명시적으로 돌린다 · 하네스·검사·self-test 는 부르지 않는다).
+#       (golden-capture 분류는 2026-11-17 퇴역 — 원본 .py 가 삭제돼 재캡처할 수 없다 · 골든은 동결 · plan_26111717)
 # 호스트·서브 하네스가 Python 을 띄우는 줄은 여기 올리지 않는다 — Rust 로 옮긴다. Dockerfile* 은 스캐너가 in-image 로 센다.
 .claude/skills/adversarial-benchmark/scripts/lite_bench.sh	docker exec "$CTR" python3 -c	container	client 평면 health 를 서빙 컨테이너 안의 python3 urllib 로 잰다(컨테이너 네트워크 시점)
 .claude/skills/upstream-version-watch/assets/configs/arm_patch.sh	python3 -c 'import sysconfig	container	serve 컨테이너 안에서 source 된다 — 그 이미지 python 의 purelib 에 런타임 패치 .pth 를 건다
@@ -13,19 +13,4 @@
 .claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh	docker run --rm '$IMG' python3 -c 'import torch	container	빌드 후 대조: sub 이미지 안 torch 버전(ssh 는 docker 만 부른다)
 .claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh	docker run --rm --entrypoint python3 "$IMG" -c 'import vllm	container	빌드 후 대조: main 이미지 안 vllm 버전
 .claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh	docker run --rm --entrypoint python3 '$IMG' -c 'import vllm	container	빌드 후 대조: sub 이미지 안 vllm 버전(ssh 는 docker 만 부른다)
-.claude/rust/policy-audit/checks/capture_citations.sh	python3 - "$REPO/.claude/policies/runtime"	golden-capture	policy-audit 인용 골든을 원본 Python 에서 재캡처
-.claude/rust/policy-audit/checks/capture_ids.sh	python3 - "$TMP/tree"	golden-capture	policy-audit id 골든을 원본 Python 에서 재캡처
-.claude/rust/policy-audit/checks/run_case.sh	orig) PROGRAM=(python3	golden-capture	`orig` 프로그램 = 원본 .py(골든 캡처 전용 · Rust 검사는 `rust` 만 쓴다)
-.claude/rust/policy-distribution/checks/capture_goldens.sh	python3 -B - "$ORIG"	golden-capture	verify_distribution 골든을 원본 Python 에서 재캡처
-.claude/rust/policy-gate/checks/capture_goldens.sh	python3 -B "$ORIG"	golden-capture	completion_gate 골든을 원본 Python 에서 재캡처
-.claude/rust/policy-gate/checks/capture_goldens.sh	python3 -B "$DN"	golden-capture	doc_naming 골든을 원본 Python 에서 재캡처
-.claude/rust/policy-predicates/checks/capture_goldens.sh	python3 -B .claude/policies/predicates/claim_predicates.py	golden-capture	claim_predicates 골든을 원본 Python 에서 재캡처
-.claude/rust/policy-predicates/checks/capture_goldens.sh	python3 -B - "$DATA" "$rc"	golden-capture	골든 판정 JSON 조립(재캡처 도구 안)
-.claude/rust/policy-predicates/checks/capture_goldens.sh	python3 -B -m unittest	golden-capture	동반 술어 unittest 원본 결과 재캡처
-.claude/rust/policy-predicates/checks/capture_goldens.sh	units="$(python3 -B -c	golden-capture	unittest 결과 집계(재캡처 도구 안)
-.claude/rust/policy-predicates/checks/capture_goldens.sh	python3 -B - "$REPO" "$DATA"	golden-capture	골든 메타 조립(재캡처 도구 안)
-.claude/rust/policy-publisher/checks/capture_goldens.sh	python3 -B "$ORIG"	golden-capture	evidence_publisher 골든을 원본 Python 에서 재캡처
-.claude/rust/policy-selftest/checks/capture_goldens.sh	python3 -I - "$CHECKS/data/pyast"	golden-capture	pyast 골든을 원본 Python ast 로 재캡처
-.claude/rust/policy-selftest/checks/fixtures.sh	(cd "$D" && python3 -B -c '	golden-capture	`fixtures.sh capture` 전용: 원본 런타임 셀프테스트 재캡처
-.claude/rust/policy-selftest/checks/fixtures.sh	(cd "$D" && python3 -B "$REPO/.claude/policies/runtime/	golden-capture	`fixtures.sh capture` 전용: 원본 .py 실행 결과 재캡처
 configs/arm_patch.sh	python3 -c 'import sysconfig	container	serve 컨테이너 안에서 source 된다 — 그 이미지 python 의 purelib 에 런타임 패치 .pth 를 건다
