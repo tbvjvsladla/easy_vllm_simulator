@@ -904,12 +904,8 @@ pub fn verify_with(repo: &Path, record: AsOfRecord, hooks: &Hooks) -> Result<PyV
                           ("paths", list_strs(&build_assets.iter().map(|p| rel(p, repo)).collect::<Vec<_>>()))]));
 
     let node_identity_keys = ["MASTER_HOST_IP", "SLAVE_HOST_IP", "SSH_USER"];
-    let pii = [
-        ("private-ipv4", re(r"\b(?:192\.168\.|10\.\d{1,3}\.|172\.(?:1[6-9]|2\d|3[01])\.)\d{1,3}(?:\.\d{1,3})?")),
-        ("email", re(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")),
-        ("abs-op-path", re(r"/(?:mnt|home)/[A-Za-z0-9._/-]+")),
-        ("spark-host", re(r"spark-[0-9a-f]{3,}")),
-    ];
+    // The four generic deploy patterns are the canonical ones (docs.md §PII 정본 = hint-publisher `pii`; plan_26111708 A5).
+    let pii = hintlib::pii::GENERIC_PII();
     let mut content_defects: Vec<String> = Vec::new();
     let content = (|| -> Result<(), PyError> {
         let mut envs = glob(&build_asset_root.join("model_inputs/envs"), ".env.*");
@@ -934,8 +930,13 @@ pub fn verify_with(repo: &Path, record: AsOfRecord, hooks: &Hooks) -> Result<PyV
             let text = read_text_replace(&p)?;
             for (i, line) in splitlines(&text).into_iter().enumerate() {
                 for (name, pat) in &pii {
-                    if let Ok(Some(m)) = pat.find(line) {
-                        content_defects.push(format!("{rp}:{} 배포 PII {name}: {}", i + 1, m.as_str()));
+                    match pat.try_find_spans(line) {
+                        Ok(spans) => {
+                            if let Some(&(s, e)) = spans.first() {
+                                content_defects.push(format!("{rp}:{} 배포 PII {name}: {}", i + 1, &line[s..e]));
+                            }
+                        }
+                        Err(err) => content_defects.push(format!("{rp}:{} 배포 PII {name}: 스캔 불가 {err}", i + 1)),
                     }
                 }
             }

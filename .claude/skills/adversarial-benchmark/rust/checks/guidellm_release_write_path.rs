@@ -62,6 +62,7 @@ fn rich_document() -> PyValue {
         DictKey::Other(NonStringKey {
             identity: identity.into(),
             repr: repr.into(),
+            value: None,
         })
     };
     document.insert_key(key("None", "None"), PyValue::str("none key"));

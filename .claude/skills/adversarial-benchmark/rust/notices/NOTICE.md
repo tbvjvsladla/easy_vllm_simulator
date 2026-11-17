@@ -4,6 +4,12 @@ This directory is the owner-local place for notices of material that parts of th
 assigns no license to the project's original code (`publish = false`; the Cargo `license` field is left unset on
 purpose). Full license texts, downloaded 2026-11-04 from the primary URLs below, sit next to this file.
 
+Since plan_26111708 A2 (2026-11-17) the rows for `src/pyjson.rs`, `src/pyvalue.rs`, `src/pystr.rs`, `src/pynumber.rs`, `src/pyops.rs`,
+`src/pydyn.rs`, `src/pyformat.rs`, `src/pysort.rs`, `src/pylower.rs`, `src/pyyaml/` and the three Unicode tables name code this
+crate no longer carries a copy of: it re-exports the shared modules of `agent-runtime-support` (`.claude/rust/runtime-support`,
+whose `notices/NOTICE.md` is the owner notice) and links them into its executables, so the notices and license texts here still
+apply to what this crate ships.
+
 | Derived file | Derived from (exact version, primary source) | License | Changes |
 |---|---|---|---|
 | `src/utc.rs` | CPython **v3.12.3** `Modules/_datetimemodule.c` — `_find_isoformat_datetime_separator`, `parse_isoformat_date`, `parse_isoformat_time`, `parse_hh_mm_ss_ff`, `iso_to_ymd`, `_sanitize_isoformat_str`, `tzinfo_from_isoformat_results`, `datetime_fromisoformat` — <https://github.com/python/cpython/blob/v3.12.3/Modules/_datetimemodule.c>; and `Lib/_pydatetime.py` — the ordinal/calendar helpers (`_days_before_year`, `_ymd2ord`, `_ord2ymd`) — <https://github.com/python/cpython/blob/v3.12.3/Lib/_pydatetime.py> | PSF License (`CPython-3.12.3-LICENSE.txt`) | Translated from C/Python to Rust; C strings modelled as bytes plus an implicit NUL; only the `fromisoformat` → `astimezone(utc)` path is kept; errors are returned as the exception text. |

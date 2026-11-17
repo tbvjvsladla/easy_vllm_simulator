@@ -9,8 +9,8 @@ tables they need, and `failure::Failure` (class name plus message).
 
 It contains no skill, node, topology, serving or orchestration rule, starts no process, opens no connection and reads no file or
 credential (the YAML reader takes the bytes its caller read). Owner packages depend on it by path
-(`../../../rust/runtime-support` from `.claude/skills/<skill>/rust`) and re-export the modules under their old paths, so
-a type keeps one nominal identity. Only `num-bigint` and `num-traits` (the versions the owner packages already lock) are
+(`../../../rust/runtime-support` from `.claude/skills/<skill>/rust`) and use the modules by these paths; the benchmark owner
+re-exports them under its old paths (`sweep_stop::py*`, plan_26111708 A2), so a type keeps one nominal identity. Only `num-bigint` and `num-traits` (the versions the owner packages already lock) are
 dependencies. Third-party notices (PSF, PyYAML MIT, Unicode License V3) are in `notices/`.
 
 Checks: `cargo test --release --lib` (47 unit tests, moved with their modules); the behavioural checks of every consumer

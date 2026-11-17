@@ -95,7 +95,7 @@ pub(crate) fn dict_key(value: &PyValue) -> Result<DictKey, Failure> {
         }
         other => (format!("v:{}", other.repr()), other.repr()),
     };
-    Ok(DictKey::Other(NonStringKey { identity, repr }))
+    Ok(DictKey::Other(NonStringKey { identity, repr, value: None }))
 }
 
 /// One element of the iterable handed to `dict(...)`: a two-item sequence (a list, a two-character string, or a

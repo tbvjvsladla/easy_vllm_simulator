@@ -117,6 +117,16 @@ impl Re {
     pub fn fullmatch<'t>(&self, s: &'t str) -> Option<Captures<'t>> {
         self.full.captures(s).ok().flatten()
     }
+    /// `re.finditer` match spans as byte offsets — an engine error (the backtracking limit) is returned, never dropped as "no match"
+    /// (plan_26111708 A5: the generic PII patterns' callers outside this crate keep their fail-loud contract).
+    pub fn try_find_spans(&self, s: &str) -> Result<Vec<(usize, usize)>, String> {
+        let mut out = Vec::new();
+        for found in self.search.find_iter(s) {
+            let m = found.map_err(|e| e.to_string())?;
+            out.push((m.start(), m.end()));
+        }
+        Ok(out)
+    }
     /// `re.finditer` captures.
     pub fn finditer<'r, 't>(&'r self, s: &'t str) -> impl Iterator<Item = Captures<'t>> + 'r
     where

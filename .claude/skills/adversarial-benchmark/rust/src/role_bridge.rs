@@ -21,7 +21,7 @@
 use crate::classify_cell_owner::{Descriptor, Raised};
 use crate::guidellm::Failure;
 use crate::pystr::PyStr;
-use crate::pyvalue::{DictKey, NonStringKey, Opaque, PyDict, PyValue};
+use crate::pyvalue::{DictKey, Opaque, PyDict, PyValue};
 use agent_runtime_support::pystr::PyStr as QStr;
 use agent_runtime_support::pyvalue::PyValue as QValue;
 use role_contract::load::LoadFailure;
@@ -157,19 +157,16 @@ fn text(value: &QStr) -> PyStr {
     PyStr::from_code_points(value.code_points().to_vec())
 }
 
-fn is_cycle_marker(opaque: &agent_runtime_support::pyvalue::Opaque) -> bool {
+fn is_cycle_marker(opaque: &Opaque) -> bool {
     matches!(
         (opaque.type_name, opaque.repr.as_str()),
         ("list", "[...]") | ("dict", "{...}")
     )
 }
 
-fn opaque(value: &agent_runtime_support::pyvalue::Opaque) -> PyValue {
-    PyValue::Opaque(Opaque {
-        type_name: value.type_name,
-        repr: value.repr.clone(),
-        truthy: value.truthy,
-    })
+fn opaque(value: &Opaque) -> PyValue {
+    // One nominal value type since plan_26111708 A2: the library value is this crate's value, kept whole.
+    PyValue::Opaque(value.clone())
 }
 
 /// A scalar of the library's value family as this crate's value (containers are handles, never passed here).
@@ -213,10 +210,7 @@ fn materialize_value(value: &QValue) -> Result<PyValue, RoleFailure> {
                 match other {
                     None => out.insert(text(key), item),
                     Some(other) => out.insert_key(
-                        DictKey::Other(NonStringKey {
-                            identity: other.identity.clone(),
-                            repr: other.repr.clone(),
-                        }),
+                        DictKey::Other(other.clone()),
                         item,
                     ),
                 }

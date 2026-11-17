@@ -24,3 +24,5 @@ path = "checks/pure_goldens.rs"
 agent-runtime-support = { path = "../runtime-support" }
 # Python `re` patterns of the original (lookbehind in the retirement-consumer scan, lazy DOTALL shell-array capture).
 fancy-regex = "=0.19.2"
+# The canonical generic PII patterns (docs.md §PII 정본 = hint-publisher `pii`; plan_26111708 A5 — no second copy here).
+hint-publisher = { path = "../../skills/hint-publisher/rust" }

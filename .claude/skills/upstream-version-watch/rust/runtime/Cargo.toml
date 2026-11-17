@@ -238,6 +238,8 @@ role-contract = { path = "../../../../rust/role-contract" }
 agent-runtime-support = { path = "../../../../rust/runtime-support" }
 # The recipe owner's public generic pieces (argparse model, stdout buffering, JSON-lines requests, benchmark harness), read-only.
 recipe-runtime = { path = "../../../vllm-recipe-explorer/rust/runtime" }
+# The canonical generic PII patterns (docs.md §PII 정본 = hint-publisher `pii`; plan_26111708 A5 — no second copy here).
+hint-publisher = { path = "../../../hint-publisher/rust" }
 # Already in the dependency graph at the locked versions.
 num-bigint = "0.4"
 num-traits = "0.2"

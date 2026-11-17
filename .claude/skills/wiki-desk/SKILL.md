@@ -63,7 +63,7 @@ node .claude/skills/wiki-desk/src/cli.ts sync --apply   # 계획 적용(카드 �
 - **소유(`--as`)**: 메인 로컬 기본 = `main`(메인 원문 카드만) · `all` = 관리자 전체 재구축(로컬 전용) · 게이트웨이는 키의 node_id 를 강제한다.
 - **서빙 진입 게이트**: `campaign_init.py --ground` 가 통제변인 파생 질의로 이 CLI 를 부른 기록을 남기고 `--grounding-check` 가 진입을 막는다 —
   0건은 통과(정직한 공백) · 게이트웨이 거절(exit 126)만 차단. 메인·서브 대칭.
-- **명명 SSOT**: `src/doc_naming.ts`(docs.md §명명). 파이썬 호출부는 shim `.claude/policies/runtime/doc_naming.py` 로 부른다.
+- **명명 SSOT**: `src/doc_naming.ts`(docs.md §명명). Rust 호출부는 런처 `.claude/policies/runtime/doc_naming.sh`(crate `.claude/rust/policy-gate`)로 부른다.
 - **PII 가드**: `scripts/scan-forbidden-strings.ts` — runtime_selftest tripwire ⑤ 의 커널.
 - **접근점 발급**: `terraforming_node/scripts/library_access.py`(서브 키·authorized_keys 강제명령·manifest library 블록 · HITL).
 
