@@ -1,4 +1,4 @@
-usage: evidence_publisher.py init [-h] [--repo-root REPO_ROOT] --topic TOPIC
+usage: evidence_publisher.sh init [-h] [--repo-root REPO_ROOT] --topic TOPIC
                                   --task-class
                                   {model_serving_strategy,full_benchmark,harness_change,capacity_rejection,minor_patch,read_only_audit,hint_map_only}
                                   --generated-utc GENERATED_UTC

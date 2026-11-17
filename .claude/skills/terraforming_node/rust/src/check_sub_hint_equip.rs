@@ -28,7 +28,7 @@ enum Fail {
 }
 
 fn default_workspace() -> PathBuf {
-    crate::owner::parents("check_sub_hint_equip.py", 4)
+    crate::owner::parents("check_sub_hint_equip.sh", 4)
 }
 
 /// `Path.resolve()` (non-strict): the longest existing prefix is canonicalised, the rest is appended lexically.
@@ -450,7 +450,7 @@ fn equip_push_authority(ws: &Path, utc: Option<&str>) -> Result<&'static str, Fa
     let parent = f.parent().unwrap();
     std::fs::create_dir_all(parent).map_err(|e| Fail::Raised(crate::raise::Raised::os(&e, &disp(parent))))?;
     let body = format!(
-        "# hint 태그 push 역할 선언(비추적 · 배달 ✗ · 카탈로그 권위 아님) — check_sub_hint_equip.py 가 썼다{}\n",
+        "# hint 태그 push 역할 선언(비추적 · 배달 ✗ · 카탈로그 권위 아님) — check_sub_hint_equip.sh 가 썼다{}\n",
         utc.filter(|u| !u.is_empty()).map_or(String::new(), |u| format!(" · {u}"))
     );
     std::fs::write(&f, body).map_err(|e| Fail::Raised(crate::raise::Raised::os(&e, &disp(&f))))?;
@@ -606,7 +606,7 @@ fn self_test() -> i32 {
 // ── CLI ──────────────────────────────────────────────────────────────────────────────────────
 
 pub static SPEC: Spec = Spec {
-    prog: "check_sub_hint_equip.py",
+    prog: "check_sub_hint_equip.sh",
     usage: include_str!("../help/check_sub_hint_equip.usage"),
     help: include_str!("../help/check_sub_hint_equip.help"),
     args: &[

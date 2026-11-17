@@ -24,4 +24,4 @@ if [ "$magic" != $'\177ELF' ]; then
   printf '[resolve_torch_pin] ERROR normal Rust ELF invalid: %s\n' "$binary" >&2
   exit 2
 fi
-exec -a "$SDIR/resolve_torch_pin.py" "$binary" "$@"
+exec -a "$SDIR/resolve_torch_pin.sh" "$binary" "$@"

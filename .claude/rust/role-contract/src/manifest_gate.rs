@@ -382,7 +382,7 @@ pub fn branch_topology_conflict(
         return None;
     }
     Some(PyStr::new(&format!(
-        "요청 topology={} 이 체크아웃 브랜치가 고르는 통로 {} 와 다르다 — 브랜치를 바꾸거나 요청을 바꿔라(자동 교정하지 않는다). 정본 술어: topology_parity.py",
+        "요청 topology={} 이 체크아웃 브랜치가 고르는 통로 {} 와 다르다 — 브랜치를 바꾸거나 요청을 바꿔라(자동 교정하지 않는다). 정본 술어: topology_parity.sh",
         PyStr::new(explicit).repr(),
         PyStr::new(&derived).repr()
     )))

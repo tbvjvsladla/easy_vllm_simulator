@@ -225,21 +225,14 @@ fn the_diagnostics_precede_the_output_on_a_merged_stream_even_when_the_output_ov
 #[test]
 fn a_terminal_cannot_be_opened_under_the_guard_so_the_tty_order_is_proven_only_by_the_merged_stream_rule(
 ) {
-    let probe = Command::new("python3")
-        .arg("-B")
-        .arg("-c")
-        .arg("import pty\npty.openpty()")
-        .output()
-        .expect("python3");
-    if probe.status.success() {
-        eprintln!("PTY available: a real terminal run is possible but is not written in this proposal (NOT_RUN)");
-    } else {
-        eprintln!(
-            "NOT_RUN: no pty device in this environment ({})",
-            String::from_utf8_lossy(&probe.stderr)
-                .lines()
-                .last()
-                .unwrap_or("")
-        );
+    // PTY availability probe without a host interpreter (was `python3 -c 'import pty; pty.openpty()'` — plan_26111717):
+    // opening the pseudo-terminal multiplexer is the same capability check `openpty()` starts with.
+    let probe = std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open("/dev/ptmx");
+    match probe {
+        Ok(_) => eprintln!("PTY available: a real terminal run is possible but is not written in this proposal (NOT_RUN)"),
+        Err(e) => eprintln!("NOT_RUN: no pty device in this environment ({e})"),
     }
 }

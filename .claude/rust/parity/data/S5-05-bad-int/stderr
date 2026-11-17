@@ -1,8 +1,8 @@
-usage: adversarial_stress.py [-h] [--endpoint ENDPOINT] [--model MODEL]
+usage: adversarial_stress.sh [-h] [--endpoint ENDPOINT] [--model MODEL]
                              [--concurrency CONCURRENCY]
                              [--prompt-tokens PROMPT_TOKENS]
                              [--max-tokens MAX_TOKENS] [--multimodal]
                              [--duration-s DURATION_S] [--timeout-s TIMEOUT_S]
                              [--stop-file STOP_FILE] [--report-s REPORT_S]
                              [--self-test]
-adversarial_stress.py: error: argument --concurrency: invalid int value: '1.5'
+adversarial_stress.sh: error: argument --concurrency: invalid int value: '1.5'

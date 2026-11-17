@@ -1,4 +1,4 @@
-usage: quant_table.py [-h]
+usage: quant_table.sh [-h]
                       [--quant QUANT]
                       [--serve-bpw SERVE_BPW]
                       [--dtype DTYPE]

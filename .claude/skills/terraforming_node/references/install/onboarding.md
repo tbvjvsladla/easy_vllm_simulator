@@ -18,14 +18,14 @@
 > **chicken-and-egg 차단(plan_26063009_44_23 D2·D3·D4)**: "이 HW가 single이냐 multi이냐"는 **스캔보다 먼저 인터뷰로 결정**한다. 브랜치는 작업공간 선택기일 뿐 토폴로지를 *결정*하지 않는다(브랜치⇒토폴로지 추론 금지 — 이게 갭의 직접원인이었음).
 
 - **0.5.1 fresh-clone 능동 발동**(헌법 §스킬 오케스트레이션 척추): 미테라포밍 신호 = `config.yaml` 부재 **AND** `output/single/manifest.yaml` 부재 **AND** `output/multi/manifest.yaml` 부재. 감지 시 일반 오리엔테이션("뭐 할까요?")보다 **온보딩을 능동 제안**한다. 단 능동성 고도 = **제안**(감지→제안→사용자 응답→인터뷰→승인→스캔) — 자동 스캔 ✗("무단 스캔 금지" 보존).
-- **0.5.2 토폴로지 인터뷰**(가장 먼저): *"이 HW 환경은 ① 단일노드(이 머신 1대)인가, ② N대 PC를 고속망으로 묶은 멀티노드(DGX Spark식 병렬)인가?"* 사용자 선언이 `scan_node.py --topology <답>` 의 `declared` 입력이 된다.
-- **0.5.3 fail-closed(D3)**: 토폴로지 미선언 시 스캔/emit 금지. 결정론 백스톱 = `scan_node.py --emit-manifest` 가 `--topology auto`면 **거부(비0 종료 3 — `emit_gate`, --self-test 회귀)**. 추정 토폴로지로 manifest 기입 불가.
+- **0.5.2 토폴로지 인터뷰**(가장 먼저): *"이 HW 환경은 ① 단일노드(이 머신 1대)인가, ② N대 PC를 고속망으로 묶은 멀티노드(DGX Spark식 병렬)인가?"* 사용자 선언이 `scan_node.sh --topology <답>` 의 `declared` 입력이 된다.
+- **0.5.3 fail-closed(D3)**: 토폴로지 미선언 시 스캔/emit 금지. 결정론 백스톱 = `scan_node.sh --emit-manifest` 가 `--topology auto`면 **거부(비0 종료 3 — `emit_gate`, --self-test 회귀)**. 추정 토폴로지로 manifest 기입 불가.
 - **0.5.4 브랜치 ≠ 토폴로지(D4)**: 선언 토폴로지가 현재 git 브랜치와 어긋나면(예: `single-node` 브랜치인데 "multi" 선언) → `evaluate_gate` 3자-일치 단언이 **fail-closed(blocked·비0)** + **HITL 브랜치전환 안내**(`git checkout <single-node|multi-node>` 후 재개 — 스크립트 자동전환 ✗: 워킹파일을 바꾸는 행위라 사람이 한다). 정렬 후 진행.
 - **0.5.5 분기**: **single** → §1S 단일노드 온보딩(짧음) · **multi** → §1 멀티노드 진입 루틴(5-전제조건 인터뷰부터).
 - **0.5.6 드리프트 가드(D7, 경량)**: 온보딩 단계상태를 추적한다 — `토폴로지 결정 → 모델획득모드 → 0차 init-plan → 스캔 → 게이트 → manifest+Flag → 호스트 안전체계(세션 최종 Y/N·선택)`(single) / `+ 5-전제조건 → 성능 → manifest+Flag → 서브 환경구축 → 카나리 → 호스트 안전체계(세션 최종 Y/N·선택)`(multi). **호스트 안전체계는 Flag 발급 이후 세션 최종 선택조항**(§2.6 — 표준 절차 완수와 분리, plan_26071115). 사이드퀘스트(예: GPU/드라이버 디버깅) 후 **미완 단계로 복귀**(미완을 사람 머릿속에만 두지 않음). 범용 워크플로 todo 시스템은 범위 밖(헌법 파킹).
 - **0.5.7 모델 획득 모드 인터뷰 (토폴로지 직후 · 헌법 §모델 획득 모드 따름정리 3종 · plan_26063018)**: *"모델을 어떻게 확보하나?"* — **managed**(사전 다운로드된 관리 NAS 경로 read-only 마운트) · **ephemeral**(컨테이너 내부 HF 캐시 임시 다운로드, 컨테이너 down→삭제 · **다수 기본**) · **custom**(지정 경로 저장·볼륨마운트). scan 이 `nas_model_path` 존재를 bool 탐지해 *"아마도 managed"* **제안**(사실=탐지·제안=판단). 답 → manifest `model_source`(+ `nas_model_path`/`custom_model_paths`/`hf_token_env_file` 포인터). **이 인터뷰 없으면 `manifest_contract` 가 info-only 유지**(Flag complete 만으론 불충분 — model_source valid 이중요건). 토폴로지-무관(single·multi 공통).
 - **0.5.8 0차 init-plan 발행 (스캔 前 · "로그=에이전트" 철학 · 헌법 계획 게이트)**: 스캔 착수 전, 에이전트가 인터뷰 답에서 **real `docs/plan/` init-plan 을 *대신 초안***(토폴로지·획득모드·스캔할 HW·branch 정합·완료 시 Flag) → **배포자 자기-HITL 승인**(*불편하지 않게 유도* — 무게가 아니라 경험; 약간의 강요는 의도된 철학). 이 plan 은 `wiki-desk` 가 색인(자기개선 루프 *자동 기둥*) → 배포자가 Agent 를 능숙히 다루는 *수동 기둥* 습관화. 승인 후 §1S/§1.3 스캔.
-- **0.5.9 훅 배선 (클론 로컬 · 토폴로지 중립 · 1회)**: `git config core.hooksPath .claude/hooks`. 훅 파일(`.claude/hooks/pre-commit`)은 추적 빌딩블럭이라 클론에 실리지만 **이 설정은 `.git/config` 라 실리지 않는다** — 설정하지 않으면 커밋 병목의 tripwire 가 배포본에서 한 번도 돌지 않는다("만든 것과 도는 것은 다르다"). 확인: `python3 .claude/policies/runtime/runtime_selftest.py --tripwires-only` 가 WARN 없이 `[tripwire] PASS` 를 낸다(미배선이면 WARN, FAIL 아님). **순서(2026-11-09)**: 이 훅의 tripwire 실행기(`runtime_selftest.py --tripwires-only`)는 import 연쇄(`evidence_publisher`→`doc_naming`→벤치 `reporting_native`)로 B 의 `bench_reporting_api` ELF 를 요구한다 — 훅은 그 노드의 정상 빌드(`build_rust.sh`) 뒤에 배선한다(새 클론의 첫 온보딩 중 커밋이 막히지 않게). 미빌드 노드에서 켠 훅이 커밋을 거부하는 것은 정상 차단이며 `--no-verify` 우회 금지(D3).
+- **0.5.9 훅 배선 (클론 로컬 · 토폴로지 중립 · 1회)**: `git config core.hooksPath .claude/hooks`. 훅 파일(`.claude/hooks/pre-commit`)은 추적 빌딩블럭이라 클론에 실리지만 **이 설정은 `.git/config` 라 실리지 않는다** — 설정하지 않으면 커밋 병목의 tripwire 가 배포본에서 한 번도 돌지 않는다("만든 것과 도는 것은 다르다"). 확인: `bash .claude/policies/runtime/runtime_selftest.sh --tripwires-only` 가 WARN 없이 `[tripwire] PASS` 를 낸다(미배선이면 WARN, FAIL 아님). **순서(2026-11-09)**: 이 훅의 tripwire 실행기(`runtime_selftest.sh --tripwires-only`)는 import 연쇄(`evidence_publisher`→`doc_naming`→벤치 `reporting_native`)로 B 의 `bench_reporting_api` ELF 를 요구한다 — 훅은 그 노드의 정상 빌드(`build_rust.sh`) 뒤에 배선한다(새 클론의 첫 온보딩 중 커밋이 막히지 않게). 미빌드 노드에서 켠 훅이 커밋을 거부하는 것은 정상 차단이며 `--no-verify` 우회 금지(D3).
 
 ## 1S. 단일노드 온보딩 (topology=single — 짧은 경로)
 
@@ -53,7 +53,7 @@ provider 별 실행문법은 `references/orchestration/agent-control-adapter.md`
 ### 1.2 사용자 승인 게이트 (판단)
 인터뷰 응답 수집 → 사용자가 **명시 승인**해야 스캔 시작.
 
-### 1.3 스캔 (결정론 — `scripts/scan_node.py`)
+### 1.3 스캔 (결정론 — `scripts/scan_node.sh`)
 - **라이브 멀티 명령(정본)**: `--peer-ip` 와 `--peer-ssh` 는 **서로 대체 불가한 별개 플래그**이며 **둘 다** 필요하다.
   ```bash
   bash scripts/scan_node.sh --topology multi \
@@ -82,7 +82,7 @@ provider 별 실행문법은 `references/orchestration/agent-control-adapter.md`
   ssh <sub> 'ib_write_bw -d <hca> -F' >/tmp/srv.log 2>&1 &   # 로컬에서 SSH 백그라운드(서버는 서브 foreground 유지)
   sleep 3; ib_write_bw -d <hca> -F <sub_RoCE_IP>             # 클라(메인) — BW average[MB/sec] ×8/1000 = Gb/s
   ```
-  도메인별 측정 → 합산. 결과를 `scan_node.py --bandwidth-gbps <합산>` 으로 주입해 게이트 최종판정.
+  도메인별 측정 → 합산. 결과를 `scan_node.sh --bandwidth-gbps <합산>` 으로 주입해 게이트 최종판정.
 
 ### 1.5 토폴로지 게이트 + 3자-일치 단언 (결정론 — `scan_node.evaluate_gate`)
 > **토폴로지 무관 공통**: α(single) 분기·3자-일치 단언은 §1S 단일 경로도 사용한다 — 본 절은 §1(multi) 아래 있으나 게이트 로직 자체는 양 토폴로지 공통(single 독자도 참조).
@@ -92,7 +92,7 @@ provider 별 실행문법은 `references/orchestration/agent-control-adapter.md`
 - **3자-일치 단언**: `git branch ⇒ topology` ↔ `output/<topology>/manifest.yaml` ↔ scan(인터커넥트 유무) 불일치 시 blocked.
 
 ### 1.6 manifest 기입 (HITL)
-검증 통과 시 `scan_node.py --emit-manifest` 가 topology+interconnect 블록 산출 → **사람 확인 후** `output/multi/manifest.yaml` 반영. **무증거 기입 금지.**
+검증 통과 시 `scan_node.sh --emit-manifest` 가 topology+interconnect 블록 산출 → **사람 확인 후** `output/multi/manifest.yaml` 반영. **무증거 기입 금지.**
 - **재발급(이미 운영 중인 노드)**: 반영은 emit 블록이 가진 최상위 키만 바꾼다 — `library` 등 스캔 밖 키는 보존하고, 병합 **뒤에** 서고 접근점을 다시 발급한다(순서·사유 정본 = `references/orchestration/grounding_exchange.md` §재발급). single 도 같다.
 
 ### 1.7 서브 work_dir 프로비저닝 게이트 (HITL — R2 불변식, plan_26062320)

@@ -1201,7 +1201,7 @@ fn sec_native(st: &mut St, fx: &mut Fx, nfix: &mut Vec<PathBuf>) -> HR<()> {
     let src_sha = core::head_chars(&core::sha256_file(&out.join("envs").join(format!(".env.{cell}")))?, 16);
     wt(
         &out.join("envs").join(format!(".env.{ncell}")),
-        &format!("# ⚙ 렌더 산출물 — render_native_triplet.py 가 Docker 셀 env output/multi/envs/.env.{cell} (sha256={src_sha}) 에서 파생.\nCONFIG_FILE={ncell}\n"),
+        &format!("# ⚙ 렌더 산출물 — render_native_triplet.sh 가 Docker 셀 env output/multi/envs/.env.{cell} (sha256={src_sha}) 에서 파생.\nCONFIG_FILE={ncell}\n"),
     )?;
     mkd(&repo.join("output/multi/benchlog"))?;
     wt(&repo.join("output/multi/benchlog/fx_engine.log"), "INFO boot\nINFO fixture patch 70 fired for layer.0\n")?;

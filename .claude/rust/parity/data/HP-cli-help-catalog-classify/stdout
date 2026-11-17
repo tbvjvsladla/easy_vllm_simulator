@@ -1,4 +1,4 @@
-usage: hint.py catalog classify [-h] --index INDEX --rc RC
+usage: hint.sh catalog classify [-h] --index INDEX --rc RC
 
 options:
   -h, --help     show this help message and exit

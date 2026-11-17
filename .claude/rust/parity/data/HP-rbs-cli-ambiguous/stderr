@@ -1,4 +1,4 @@
-usage: render_bench_section.py [-h] [--report REPORT]
+usage: render_bench_section.sh [-h] [--report REPORT]
                                [--sweep-index SWEEP_INDEX] [--section SECTION]
                                [--out OUT] [--verify] [--selftest]
-render_bench_section.py: error: ambiguous option: --s could match --sweep-index, --section, --selftest
+render_bench_section.sh: error: ambiguous option: --s could match --sweep-index, --section, --selftest

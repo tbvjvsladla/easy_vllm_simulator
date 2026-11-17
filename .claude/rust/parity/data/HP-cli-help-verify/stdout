@@ -1,4 +1,4 @@
-usage: hint.py verify [-h] --tag TAG [--draft DRAFT] [--hint-clone PATH]
+usage: hint.sh verify [-h] --tag TAG [--draft DRAFT] [--hint-clone PATH]
 
 options:
   -h, --help         show this help message and exit

@@ -1,4 +1,4 @@
-usage: evidence_publisher.py record-capacity-rejection [-h]
+usage: evidence_publisher.sh record-capacity-rejection [-h]
                                                        [--repo-root REPO_ROOT]
                                                        --topic TOPIC
                                                        --gate-evidence-src

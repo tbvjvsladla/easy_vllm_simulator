@@ -117,9 +117,9 @@ pub fn predicate_MODEL_ACQUISITION_TERNARY_GATE_C2() -> R {
     // check_smoke_model is the upstream runtime's Rust program (`smoke_model.rs` behind `check_smoke_model.sh`); the
     // crosscheck CLI is the recipe runtime's `model_cli.rs` (plan_26111615: the `.py` modules are no longer evidence).
     let launcher = read(".claude/skills/upstream-version-watch/scripts/check_smoke_model.sh")?;
-    req(launcher.contains("exec -a \"$SDIR/check_smoke_model.py\" \"$binary\""), "check_smoke_model.sh must start the native smoke-model program")?;
+    req(launcher.contains("exec -a \"$SDIR/check_smoke_model.sh\" \"$binary\""), "check_smoke_model.sh must start the native smoke-model program")?;
     let src = read(".claude/skills/upstream-version-watch/rust/runtime/src/smoke_model.rs")?;
-    req(src.contains("pub const PROGRAM: &str = \"check_smoke_model.py\";"), "smoke_model.rs must be the check_smoke_model program")?;
+    req(src.contains("pub const PROGRAM: &str = \"check_smoke_model.sh\";"), "smoke_model.rs must be the check_smoke_model program")?;
     for banned in ["ureq", "reqwest", "hf_http", "urllib", "requests", "snapshot_download", "huggingface_hub", "wget", "curl", "TcpStream", "UdpSocket", "std::net", "socket", "libc::system", "popen", "Popen"] {
         req(!src.contains(banned), format!("no download/shell mechanism {} may appear in check_smoke_model (smoke_model.rs)", repr(banned)))?;
     }
@@ -240,7 +240,7 @@ pub fn predicate_VARIANT_IMAGE_BUILD_VS_SERVE_PLANE_C1() -> R {
     req(mn.contains("COMPOSE_MULTI=\"output/multi/docker-compose.yaml\"") && mn.contains("--compose \"$COMPOSE_MULTI\"") && mn.contains("--cell-env \"$EF\""),
         "the forward set must be derived from the SAME compose and the SAME model env file the smoke runs with")?;
     let assign = splitlines(&mn).into_iter().find(|l| l.starts_with("SLAVE_IMGVARS=")).unwrap_or("");
-    req(assign.contains("\"$SF\" prefix --group image_identity,cluster"), "SLAVE_IMGVARS must be assigned from slave_forward.py (image_identity,cluster) -- no hand-written list")?;
+    req(assign.contains("\"$SF\" prefix --group image_identity,cluster"), "SLAVE_IMGVARS must be assigned from slave_forward.sh (image_identity,cluster) -- no hand-written list")?;
     req(!mn.contains("${IMG:+IMAGE_TAG="), "the retired hand-written SLAVE_IMGVARS list must not come back")?;
     let find = |needle: &str| splitlines(&mn).into_iter().find(|l| l.contains(needle)).ok_or_else(|| Fail::new("StopIteration", ""));
     req(find("--profile slave build")?.contains("$SLAVE_IMGVARS"), "slave build invocation must carry the image-identity vars")?;

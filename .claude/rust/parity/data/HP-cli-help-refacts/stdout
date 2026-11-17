@@ -1,4 +1,4 @@
-usage: hint.py refacts [-h] --draft DRAFT [--docker-read-only]
+usage: hint.sh refacts [-h] --draft DRAFT [--docker-read-only]
 
 options:
   -h, --help          show this help message and exit

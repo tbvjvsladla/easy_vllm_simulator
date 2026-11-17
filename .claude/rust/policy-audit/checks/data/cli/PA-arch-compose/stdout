@@ -5,28 +5,28 @@
   "violations": [
     {
       "clause_id": null,
-      "message": "'deepseek-v4-flash-sm12x-port-0.27.0' selector 'SM12X_PORT' is not derived by slave_forward.py as cluster-wide image identity from the multi compose template (the compose must pass it as a build-arg)",
+      "message": "'deepseek-v4-flash-sm12x-port-0.27.0' selector 'SM12X_PORT' is not derived by slave_forward.sh as cluster-wide image identity from the multi compose template (the compose must pass it as a build-arg)",
       "path": ".claude/policies/arch_variant_ledger.json.source_build_variants.deepseek-v4-flash-sm12x-port-0.27.0.build_patch_selectors.SM12X_PORT",
       "policy_id": "ARCH_WALL_VARIANT_LADDER",
       "reason_code": "ARCH_VARIANT_PORT_SELECTOR_NOT_CLUSTER_WIDE"
     },
     {
       "clause_id": null,
-      "message": "'deepseek-v4-flash-sm12x-port-0.27.1' selector 'SM12X_PORT' is not derived by slave_forward.py as cluster-wide image identity from the multi compose template (the compose must pass it as a build-arg)",
+      "message": "'deepseek-v4-flash-sm12x-port-0.27.1' selector 'SM12X_PORT' is not derived by slave_forward.sh as cluster-wide image identity from the multi compose template (the compose must pass it as a build-arg)",
       "path": ".claude/policies/arch_variant_ledger.json.source_build_variants.deepseek-v4-flash-sm12x-port-0.27.1.build_patch_selectors.SM12X_PORT",
       "policy_id": "ARCH_WALL_VARIANT_LADDER",
       "reason_code": "ARCH_VARIANT_PORT_SELECTOR_NOT_CLUSTER_WIDE"
     },
     {
       "clause_id": null,
-      "message": "'deepseek-v41-flash-sm12x-port-0.30.0' selector 'SM12X_PORT' is not derived by slave_forward.py as cluster-wide image identity from the multi compose template (the compose must pass it as a build-arg)",
+      "message": "'deepseek-v41-flash-sm12x-port-0.30.0' selector 'SM12X_PORT' is not derived by slave_forward.sh as cluster-wide image identity from the multi compose template (the compose must pass it as a build-arg)",
       "path": ".claude/policies/arch_variant_ledger.json.source_build_variants.deepseek-v41-flash-sm12x-port-0.30.0.build_patch_selectors.SM12X_PORT",
       "policy_id": "ARCH_WALL_VARIANT_LADDER",
       "reason_code": "ARCH_VARIANT_PORT_SELECTOR_NOT_CLUSTER_WIDE"
     },
     {
       "clause_id": null,
-      "message": "'deepseek-v41-flash-sm12x-port-0.32.0' selector 'SM12X_PORT' is not derived by slave_forward.py as cluster-wide image identity from the multi compose template (the compose must pass it as a build-arg)",
+      "message": "'deepseek-v41-flash-sm12x-port-0.32.0' selector 'SM12X_PORT' is not derived by slave_forward.sh as cluster-wide image identity from the multi compose template (the compose must pass it as a build-arg)",
       "path": ".claude/policies/arch_variant_ledger.json.source_build_variants.deepseek-v41-flash-sm12x-port-0.32.0.build_patch_selectors.SM12X_PORT",
       "policy_id": "ARCH_WALL_VARIANT_LADDER",
       "reason_code": "ARCH_VARIANT_PORT_SELECTOR_NOT_CLUSTER_WIDE"

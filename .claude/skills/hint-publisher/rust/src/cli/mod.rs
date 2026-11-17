@@ -97,7 +97,7 @@ pub fn _log(msg: &str) {
 // ── 파서 ──────────────────────────────────────────────────────────────────────────────────────
 fn build_parser() -> Parser {
     let node_axis: Vec<&str> = crate::evidence::NODE_AXIS.to_vec();
-    let mut p = Parser::new("hint.py", Some("hint-publisher 단일 CLI — 셀 1개 = 태그 1개(plan_26092119 · v7 plan_26092908)."));
+    let mut p = Parser::new("hint.sh", Some("hint-publisher 단일 CLI — 셀 1개 = 태그 1개(plan_26092119 · v7 plan_26092908)."));
     p.add(Act::opt("--repo", K::Store).help("저장소 루트(기본: 현재 디렉터리의 git 최상위) — 서브명령 앞에 둔다"));
     p.add(Act::opt("--self-test", K::True).help("전 모듈 자체검사 + 파서 검사 + 격리 E2E(라이브 비의존)"));
     p.add_subparsers("cmd", "<command>", false);

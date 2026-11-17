@@ -203,7 +203,7 @@ fn arg_or(values: &BTreeMap<&'static str, Value>, dest: &str, default: PyValue) 
 
 fn quant_table_spec() -> Spec {
     Spec {
-        prog: "quant_table.py",
+        prog: "quant_table.sh",
         description: "quant 바이트 테이블 해소(벤더링) — quant/dtype → bpw.",
         options: vec![
             help_option(),
@@ -279,7 +279,7 @@ pub fn quant_table(args: &[PyStr], columns: Option<&str>) -> Run {
 
 fn estimate_spec() -> Spec {
     Spec {
-        prog: "estimate_vram.py",
+        prog: "estimate_vram.sh",
         description: "결정론 VRAM 추정기 (vllm-recipe-explorer).",
         options: vec![
             help_option(),
@@ -409,7 +409,7 @@ fn rank_spec() -> Spec {
         &["--parsed"],
         "parsed",
         Kind::Text,
-        Some("parse_model_config.py 의 JSON 출력 파일 경로"),
+        Some("parse_model_config.sh 의 JSON 출력 파일 경로"),
     );
     parsed.required = true;
     let mut candidates = opt(
@@ -434,7 +434,7 @@ fn rank_spec() -> Spec {
     );
     budget.required = true;
     Spec {
-        prog: "rank_recipes.py",
+        prog: "rank_recipes.sh",
         description: "Rank vLLM serving recipes against a VRAM budget hard-gate.",
         options: vec![
             help_option(),

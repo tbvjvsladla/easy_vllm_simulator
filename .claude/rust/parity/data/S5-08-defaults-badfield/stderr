@@ -1,3 +1,3 @@
-usage: blackbox_session.py budget-defaults [-h]
+usage: blackbox_session.sh budget-defaults [-h]
                                            [--field {ttl_s,max_ttl_s,ttl_safety_mult}]
-blackbox_session.py budget-defaults: error: argument --field: invalid choice: 'x' (choose from 'ttl_s', 'max_ttl_s', 'ttl_safety_mult')
+blackbox_session.sh budget-defaults: error: argument --field: invalid choice: 'x' (choose from 'ttl_s', 'max_ttl_s', 'ttl_safety_mult')

@@ -1,6 +1,6 @@
 //! Golden checks: the Rust `completion_gate` (through its launcher, as harness callers run it) must reproduce, byte
 //! for byte, the stdout / stderr / exit code the ORIGINAL Python program produced on the same fixture
-//! (`checks/data/cg/golden/*`, captured by `checks/capture_goldens.sh`). No Python is executed here.
+//! (`checks/data/cg/golden/*`, captured by `checks/capture_goldens.sh` [retired with the originals · frozen · plan_26111717]). No Python is executed here.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -65,7 +65,7 @@ fn run_case(id: &str, args: &str) -> Option<String> {
     let out = Command::new("bash")
         .arg("-c")
         .arg("exec -a \"$0\" \"$GATE_BIN\" \"$@\"")
-        .arg(repo.join(".claude/policies/runtime/completion_gate.py"))
+        .arg(repo.join(".claude/policies/runtime/completion_gate.sh"))
         .args(&argv)
         .current_dir(&tmp)
         .env("GATE_BIN", env!("CARGO_BIN_EXE_completion_gate"))

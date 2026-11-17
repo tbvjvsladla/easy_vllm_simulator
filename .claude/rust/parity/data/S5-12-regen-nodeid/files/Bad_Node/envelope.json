@@ -73,7 +73,7 @@
       "2026-07-30",
       "2026-07-31"
     ],
-    "generator": "regen_envelope.py",
+    "generator": "regen_envelope.sh",
     "percentiles_exact": true,
     "resolution_s": 1,
     "source": "rollup+1Hz samples",

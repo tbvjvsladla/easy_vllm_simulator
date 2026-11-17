@@ -44,7 +44,7 @@ REPO="$(_find_repo "$SDIR" || (cd "$SDIR/../../../../.." 2>/dev/null && pwd))"
 # 부재를 조용히 넘기지 않는다 — 없으면 옛 hostname 파생으로 되돌아갈 길이 아니라 배달 결손이다.
 [ -f "$SDIR/node_identity.sh" ] || {
   echo "[bb-install] FAIL: $SDIR/node_identity.sh 부재 — node_id 해소기가 배달되지 않았다." >&2
-  echo "[bb-install]       메인: 리포 무결성 확인 · 서브: render_sub_env.py 재배달." >&2; exit 1; }
+  echo "[bb-install]       메인: 리포 무결성 확인 · 서브: render_sub_env.sh 재배달." >&2; exit 1; }
 # shellcheck source=node_identity.sh
 . "$SDIR/node_identity.sh"
 APPLY=0; LEVEL="L1"; SUGGEST=0

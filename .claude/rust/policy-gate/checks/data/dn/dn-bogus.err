@@ -1,2 +1,2 @@
-usage: doc_naming.py [-h] [--self-test]
-doc_naming.py: error: unrecognized arguments: --bogus
+usage: doc_naming.sh [-h] [--self-test]
+doc_naming.sh: error: unrecognized arguments: --bogus

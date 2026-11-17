@@ -1,4 +1,4 @@
-usage: blackbox_session.py declare-budget [-h] --mem-total-mib MEM_TOTAL_MIB
+usage: blackbox_session.sh declare-budget [-h] --mem-total-mib MEM_TOTAL_MIB
                                           --weights-mib WEIGHTS_MIB --kv-mib
                                           KV_MIB --overhead-mib OVERHEAD_MIB
                                           [--ttl-s TTL_S]

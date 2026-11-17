@@ -69,7 +69,7 @@ const fn action(
 
 /// The original `scan_node.py` parser (registration order of `main()`).
 pub const SCAN_NODE: Spec = Spec::with_layouts(
-    "scan_node.py",
+    "scan_node.sh",
     &[
         action("-h/--help", Kind::Help, Conversion::Text, &[]),
         action(

@@ -45,7 +45,7 @@ knob 마다 세 가지가 보인다.
 입력 텍스트의 **출처**만 바꾼다. 길이와 판정은 그대로다.
 
 - 입력은 전처리가 `input_len` 토큰에 정확히 맞춘다(모델 토크나이저 기준). 출력은 `ignore_eos` 로 `output_len` 에 고정한다.
-- 판정(`verdict_rule.py` · roofline)은 데이터셋과 무관하게 결과 지표만 본다. 단, **CNN 셀은 CNN 셀끼리만 비교한다**.
+- 판정(`verdict_rule.sh` · roofline)은 데이터셋과 무관하게 결과 지표만 본다. 단, **CNN 셀은 CNN 셀끼리만 비교한다**.
 - 전부 `owner: user` 다. 스윕 플래그가 없다 — 프리셋을 작성하거나 사람 핀(`--pin`)으로만 바뀐다.
 
 | knob | 값 | 닫는 방식 |
@@ -207,4 +207,4 @@ bash $S/render_report.sh --sweep-index $D/sweep_index.json --verdict-json $D/ver
 - `--bench-budget-mib <N>` 은 프리셋 `bench_budget_mib` 선택지 중 **벤치 예산 게이트가 말하는 상한 이하**를 고른다. 상한은
   `--dry-run` 이 아니라 실측 진입 때 `run_bench` 게이트가 계산한다(노드 서빙 예산 선언의 바닥 − 절대밴드). 막히면
   `[run_bench] STOP(벤치 예산 게이트)` 와 상한이 출력되고 측정은 시작되지 않는다 — 그 상한 이하 선택지로 다시 돌린다.
-- 리포트는 `render_report.py` 가 낸다(`judge_bench` 는 인증서만 다룬다 · 인증서는 explicit ∧ PASS 때만).
+- 리포트는 `render_report.sh` 가 낸다(`judge_bench` 는 인증서만 다룬다 · 인증서는 explicit ∧ PASS 때만).

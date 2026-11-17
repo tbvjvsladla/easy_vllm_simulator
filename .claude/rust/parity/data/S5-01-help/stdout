@@ -1,7 +1,7 @@
-usage: audit_session_ssh.py [-h] [--self-test] [--transcript TRANSCRIPT]
+usage: audit_session_ssh.sh [-h] [--self-test] [--transcript TRANSCRIPT]
                             [--sub-host SUB_HOST] [--limit LIMIT]
 
-audit_session_ssh.py — 세션 transcript 의 **무단 서브 스캔** 감사 (술어 A1).
+audit_session_ssh.sh — 세션 transcript 의 **무단 서브 스캔** 감사 (술어 A1).
 
 왜 있는가(2026-09-08 · plan_26090813 §4.7 · camp-26090721 사후감사 F3):
     헌법 노드제어 ① 은 *"메인은 서브를 무단 스캔·직접 교정하지 않는다 — 상향 회수는 문서기반"*
@@ -18,10 +18,10 @@ audit_session_ssh.py — 세션 transcript 의 **무단 서브 스캔** 감사 (
     ssh 로 돈다). 금지는 그 스크립트 **밖에서** 세션이 직접 여는 ssh 다. 그래서 이 감사는
     "명령 문자열이 허가 스크립트를 부르는가" 를 묻고, 그렇지 않은 채 서브를 향하면 위반이다.
 
-    허가 스크립트: relay.py · agent_control.py · sync_to_sub.sh · fetch_sub_docs.sh ·
-                   library_access.py · multinode_*_smoke.sh · scan_node.py(승인된 온보딩 스캔)
+    허가 스크립트: relay.sh · agent_control.sh · sync_to_sub.sh · fetch_sub_docs.sh ·
+                   library_access.sh · multinode_*_smoke.sh · scan_node.sh(승인된 온보딩 스캔)
 
-  사용:  audit_session_ssh.py --transcript <session.jsonl> --sub-host spark-xxxx
+  사용:  audit_session_ssh.sh --transcript <session.jsonl> --sub-host spark-xxxx
   종료:  0 = 위반 0 · 1 = 위반 있음 · 2 = 입력 오류
 
 options:

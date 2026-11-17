@@ -1,4 +1,4 @@
-usage: manifest_contract.py [-h] [--topology {single,multi}] [--repo REPO]
+usage: manifest_contract.sh [-h] [--topology {single,multi}] [--repo REPO]
                             [--require-flag] [--json] [--self-test]
 
 테라포밍-완수 Flag 게이트 결정론 리더

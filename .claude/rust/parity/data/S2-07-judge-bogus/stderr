@@ -1,4 +1,4 @@
-usage: judge_version_delta.py [-h] [--repo REPO] [--from-ref FROM_REF]
+usage: judge_version_delta.sh [-h] [--repo REPO] [--from-ref FROM_REF]
                               [--to-ref TO_REF]
                               [--generated-kst GENERATED_KST]
                               [--repo-cache REPO_CACHE]
@@ -9,4 +9,4 @@ usage: judge_version_delta.py [-h] [--repo REPO] [--from-ref FROM_REF]
                               [--write-resolved] [--emit-fixture EMIT_FIXTURE]
                               [--fixture FIXTURE]
                               [--check-fixture CHECK_FIXTURE] [--self-test]
-judge_version_delta.py: error: unrecognized arguments: --bogus
+judge_version_delta.sh: error: unrecognized arguments: --bogus

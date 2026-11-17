@@ -147,7 +147,7 @@ fn inherit_eligibility<'a>(ngc_tag: &str, vllm_version: &str, entry: &InheritEnt
         ck(
             "attestation_present",
             false,
-            "렌더 입력(resolved)에 'upstream_delta' 블록이 없다 — judge_version_delta.py --write-resolved 로 발행하지 않았거나 다른 resolved 를 렌더 중이다".into(),
+            "렌더 입력(resolved)에 'upstream_delta' 블록이 없다 — judge_version_delta.sh --write-resolved 로 발행하지 않았거나 다른 resolved 를 렌더 중이다".into(),
         );
         return (false, checks, None);
     };
@@ -231,7 +231,7 @@ fn patch_guard_with(ledger: &[InheritEntry], ngc_tag: &str, vllm: &str, resolved
             );
             let es = |v: Option<&V>| echo_safe(&v.map_or("None".to_string(), V::py_str));
             return format!(
-                "RUN echo \"[guard] source-build key ({ngc_tag} x vLLM {vllm}): INHERITED from {}.\" && \\\n    echo \"  -> basis: upstream_delta {} verdict={} {}\" && \\\n    echo \"  -> attestation: {} (judge_version_delta.py · provenance={} · delta_source={})\" && \\\n    echo \"  -> approved_by: {} @ {} (HITL 게이트 G1.6 — 이 항목은 사람이 손으로 등재했다. Judge 는 가드를 넓히지 않는다)\" && \\\n    echo \"  -> scope: 상속되는 것은 **빌드 키**(패치 셋 적용가능성)뿐이다. 기능 판정 아님 — axis_C={}.\" && \\\n    echo \"  -> arbiter = smoke (workflow S3 · HITL 게이트 ③). 상속은 스모크를 면제하지 않는다.\" && \\\n    echo \"  -> 출구① 계약: .claude/skills/upstream-version-watch/references/source-build.md §3.1\"",
+                "RUN echo \"[guard] source-build key ({ngc_tag} x vLLM {vllm}): INHERITED from {}.\" && \\\n    echo \"  -> basis: upstream_delta {} verdict={} {}\" && \\\n    echo \"  -> attestation: {} (judge_version_delta.sh · provenance={} · delta_source={})\" && \\\n    echo \"  -> approved_by: {} @ {} (HITL 게이트 G1.6 — 이 항목은 사람이 손으로 등재했다. Judge 는 가드를 넓히지 않는다)\" && \\\n    echo \"  -> scope: 상속되는 것은 **빌드 키**(패치 셋 적용가능성)뿐이다. 기능 판정 아님 — axis_C={}.\" && \\\n    echo \"  -> arbiter = smoke (workflow S3 · HITL 게이트 ③). 상속은 스모크를 면제하지 않는다.\" && \\\n    echo \"  -> 출구① 계약: .claude/skills/upstream-version-watch/references/source-build.md §3.1\"",
                 echo_safe(&base_s),
                 echo_safe(&format!("{}->{}", opt_repr_py(att.get("from_ref")), opt_repr_py(att.get("to_ref")))),
                 es(att.get("verdict")),
@@ -247,7 +247,7 @@ fn patch_guard_with(ledger: &[InheritEntry], ngc_tag: &str, vllm: &str, resolved
         let reasons: Vec<String> = checks.iter().filter(|(_, ok, _)| !ok).map(|(n, _, d)| format!("{n}: {d}")).collect();
         let reasons = if reasons.is_empty() { "unknown".to_string() } else { reasons.join("; ") };
         return format!(
-            "RUN echo \"ERROR: source-build key ({ngc_tag} x vLLM {vllm}) declares an INHERITED_SOURCE_BUILD_KEYS entry, but the inheritance is NOT eligible.\" && \\\n    echo \"  -> refused: {}\" && \\\n    echo \"  -> 상속은 **증거로만** 성립한다 — 성립 조건 정본 = .claude/skills/upstream-version-watch/references/source-build.md §3.1. 선언은 증거가 아니다.\" && \\\n    echo \"  -> --allow-unvalidated 로 우회되지 않는다 — 이것은 미검증 키가 아니라 **원장 항목의 결함**이다(D3: 우회 말고 경로를 고친다).\" && \\\n    echo \"  -> fix: judge_version_delta.py 를 재실행해 resolved.json#upstream_delta 를 갱신하거나, INHERITED 항목을 지우고 출구②(--allow-unvalidated)/③(source-build.md §3)로 간다.\" && exit 1",
+            "RUN echo \"ERROR: source-build key ({ngc_tag} x vLLM {vllm}) declares an INHERITED_SOURCE_BUILD_KEYS entry, but the inheritance is NOT eligible.\" && \\\n    echo \"  -> refused: {}\" && \\\n    echo \"  -> 상속은 **증거로만** 성립한다 — 성립 조건 정본 = .claude/skills/upstream-version-watch/references/source-build.md §3.1. 선언은 증거가 아니다.\" && \\\n    echo \"  -> --allow-unvalidated 로 우회되지 않는다 — 이것은 미검증 키가 아니라 **원장 항목의 결함**이다(D3: 우회 말고 경로를 고친다).\" && \\\n    echo \"  -> fix: judge_version_delta.sh 를 재실행해 resolved.json#upstream_delta 를 갱신하거나, INHERITED 항목을 지우고 출구②(--allow-unvalidated)/③(source-build.md §3)로 간다.\" && exit 1",
             echo_safe(&reasons)
         );
     }
@@ -321,7 +321,7 @@ fn build_context_with(ledger: &[InheritEntry], manifest: &V, resolved: &V, allow
             return Err(Raised {
                 class: "SystemExit",
                 message: format!(
-                    "[render] FAIL: source-build 인데 resolved.source_build.torch_cuda_arch 미해소({}) — resolve_build_track.py 를 --sm-arch 또는 manifest compute_capability(terraforming_node 스캔)로 다시 돌려라. 다른 GPU 의 arch 를 기본값으로 쓰지 않는다.",
+                    "[render] FAIL: source-build 인데 resolved.source_build.torch_cuda_arch 미해소({}) — resolve_build_track.sh 를 --sm-arch 또는 manifest compute_capability(terraforming_node 스캔)로 다시 돌려라. 다른 GPU 의 arch 를 기본값으로 쓰지 않는다.",
                     opt_repr(a)
                 ),
             });
@@ -438,7 +438,7 @@ pub(crate) mod selftest;
 // ── build ledger stanza ────────────────────────────────────────────────────────────────────────────
 
 const LEDGER_STANZA_HEAD: &str = "# ═════════════════════════════════════════════════════════════════════════════\n\
-# [빌드 원장] /opt/easy-vllm/build_ledger.json — 이미지 자기서술(render_dockerfile.py 단일 소유 주입)\n\
+# [빌드 원장] /opt/easy-vllm/build_ledger.json — 이미지 자기서술(render_dockerfile.sh 단일 소유 주입)\n\
 #   build-arg 목록 = 이 템플릿의 `^ARG` 줄에서 렌더 시 파생 · 분류 = 상태 줄 > 로그 토큰 > 종료코드.\n\
 #   **마지막 RUN** 이어야 한다 — 이 레이어만 바뀌면 `_C` 컴파일 캐시가 보존된다.\n\
 #   `import vllm._C` 금지(빌드 시 libcuda 없음) · 베이스 사실은 파일에서 읽는다(ARG 가 ENV 를 가린다).\n\

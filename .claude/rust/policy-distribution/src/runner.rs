@@ -16,27 +16,6 @@ pub enum Outcome {
     Failed(String),
 }
 
-/// `sys.executable` analogue for the OTHER bundles' Python programs this driver still runs: the absolute path of
-/// `python3` found on the caller's PATH (absolute so an override `PATH=/nonexistent` cannot hide it, exactly like
-/// `sys.executable`), or the bare name when PATH has none.
-pub fn python_executable() -> String {
-    if let Some(path) = std::env::var_os("PATH") {
-        for dir in std::env::split_paths(&path) {
-            let candidate = dir.join("python3");
-            if candidate.is_file() {
-                return candidate.to_string_lossy().into_owned();
-            }
-        }
-    }
-    "python3".to_string()
-}
-
-/// `_child_python()`: the interpreter argv prefix. The Rust driver has no interpreter flags of its own to preserve
-/// (`-I`/`-S`/`-O`/`-B` belonged to the Python driver process), so this is `[python3]`.
-pub fn child_python() -> Vec<String> {
-    vec![python_executable()]
-}
-
 fn decode(bytes: &[u8]) -> String {
     universal_newlines(&String::from_utf8_lossy(bytes))
 }

@@ -1,4 +1,4 @@
-usage: blackbox_session.py budget-status [-h] [--now NOW]
+usage: blackbox_session.sh budget-status [-h] [--now NOW]
 
 options:
   -h, --help  show this help message and exit

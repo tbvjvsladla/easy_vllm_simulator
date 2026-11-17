@@ -1,4 +1,4 @@
-usage: seed_from_journal.py [-h] [--node-id NODE_ID] [--journal JOURNAL]
+usage: seed_from_journal.sh [-h] [--node-id NODE_ID] [--journal JOURNAL]
                             [--logs-root LOGS_ROOT]
                             [--generated-utc GENERATED_UTC]
                             [--min-retention MIN_RETENTION]

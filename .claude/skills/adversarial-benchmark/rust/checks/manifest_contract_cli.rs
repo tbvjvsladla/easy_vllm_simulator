@@ -102,7 +102,7 @@ fn exact_grammar_accepts_only_the_handled_shapes() {
 #[test]
 fn every_shape_and_every_source_takes_the_native_route() {
     let dir = scratch("routes");
-    let reviewed = dir.join("manifest_contract.py");
+    let reviewed = dir.join("manifest_contract.sh");
     std::fs::write(&reviewed, REVIEWED_MANIFEST_CONTRACT).unwrap();
     let owner = |path: &Path| path.as_os_str().as_bytes().to_vec();
     for (shape, env) in [

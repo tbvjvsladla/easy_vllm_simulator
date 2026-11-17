@@ -2999,7 +2999,7 @@ pub fn _f_dataset_provenance(c: &_Ctx) -> HR<String> {
     let dp = dd(c.facts, "dataset_provenance");
     let mut out = vec!["### 데이터셋 출처".to_string(), String::new()];
     if !dp.truthy() {
-        out.push("_데이터셋 출처 미관측 — facts 에 dataset_provenance 가 없다(생산자 evidence.dataset_provenance · 이 판 이전 draft 면 `hint.py refacts` 로 재파생)._".into());
+        out.push("_데이터셋 출처 미관측 — facts 에 dataset_provenance 가 없다(생산자 evidence.dataset_provenance · 이 판 이전 draft 면 `hint.sh refacts` 로 재파생)._".into());
         return Ok(out.join("\n"));
     }
     if dp.get_str("status") == Some(crate::evidence::DATASET_STATUS_INFERRED) {

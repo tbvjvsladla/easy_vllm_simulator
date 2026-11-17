@@ -30,7 +30,7 @@ use recipe_runtime::cliparse::{
 use std::collections::BTreeMap;
 use std::os::unix::ffi::OsStringExt;
 
-pub const PROGRAM: &str = "classify_failure.py";
+pub const PROGRAM: &str = "classify_failure.sh";
 const UNKNOWN_NOTE: &str =
     "알려진 패턴 미매칭 → Model-C: LLM 이 {proposed_class, evidence} 제시 후 사람 승인.";
 

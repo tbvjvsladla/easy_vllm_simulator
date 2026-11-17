@@ -7,7 +7,7 @@
   "before": {},
   "after": {},
   "exit_code": 0,
-  "stdout": "usage: resolve_guidellm.py [-h] [--version VERSION] [--repo REPO] [--record]\n                           [--record-path RECORD_PATH] [--json] [--self-test]\n\nGuideLLM 버전 해소(기본 = 최신 릴리즈 · 선언 override)\n\noptions:\n  -h, --help            show this help message and exit\n  --version VERSION     이 버전을 쓴다(네트워크 조회 ✗)\n  --repo REPO\n  --record              해소 결과를 bench_tool_pin.json 에 병합\n  --record-path RECORD_PATH\n  --json\n  --self-test\n",
+  "stdout": "usage: resolve_guidellm.sh [-h] [--version VERSION] [--repo REPO] [--record]\n                           [--record-path RECORD_PATH] [--json] [--self-test]\n\nGuideLLM 버전 해소(기본 = 최신 릴리즈 · 선언 override)\n\noptions:\n  -h, --help            show this help message and exit\n  --version VERSION     이 버전을 쓴다(네트워크 조회 ✗)\n  --repo REPO\n  --record              해소 결과를 bench_tool_pin.json 에 병합\n  --record-path RECORD_PATH\n  --json\n  --self-test\n",
   "stderr": ""
  },
  {
@@ -18,7 +18,7 @@
   "before": {},
   "after": {},
   "exit_code": 0,
-  "stdout": "usage: resolve_guidellm.py [-h] [--version VERSION] [--repo REPO] [--record]\n                           [--record-path RECORD_PATH] [--json] [--self-test]\n\nGuideLLM 버전 해소(기본 = 최신 릴리즈 · 선언 override)\n\noptions:\n  -h, --help            show this help message and exit\n  --version VERSION     이 버전을 쓴다(네트워크 조회 ✗)\n  --repo REPO\n  --record              해소 결과를 bench_tool_pin.json 에 병합\n  --record-path RECORD_PATH\n  --json\n  --self-test\n",
+  "stdout": "usage: resolve_guidellm.sh [-h] [--version VERSION] [--repo REPO] [--record]\n                           [--record-path RECORD_PATH] [--json] [--self-test]\n\nGuideLLM 버전 해소(기본 = 최신 릴리즈 · 선언 override)\n\noptions:\n  -h, --help            show this help message and exit\n  --version VERSION     이 버전을 쓴다(네트워크 조회 ✗)\n  --repo REPO\n  --record              해소 결과를 bench_tool_pin.json 에 병합\n  --record-path RECORD_PATH\n  --json\n  --self-test\n",
   "stderr": ""
  },
  {
@@ -41,7 +41,7 @@
   "after": {},
   "exit_code": 2,
   "stdout": "",
-  "stderr": "usage: resolve_guidellm.py [-h] [--version VERSION] [--repo REPO] [--record]\n                           [--record-path RECORD_PATH] [--json] [--self-test]\nresolve_guidellm.py: error: unrecognized arguments: --unknown\n"
+  "stderr": "usage: resolve_guidellm.sh [-h] [--version VERSION] [--repo REPO] [--record]\n                           [--record-path RECORD_PATH] [--json] [--self-test]\nresolve_guidellm.sh: error: unrecognized arguments: --unknown\n"
  },
  {
   "id": "004-missing-version-value",
@@ -52,7 +52,7 @@
   "after": {},
   "exit_code": 2,
   "stdout": "",
-  "stderr": "usage: resolve_guidellm.py [-h] [--version VERSION] [--repo REPO] [--record]\n                           [--record-path RECORD_PATH] [--json] [--self-test]\nresolve_guidellm.py: error: argument --version: expected one argument\n"
+  "stderr": "usage: resolve_guidellm.sh [-h] [--version VERSION] [--repo REPO] [--record]\n                           [--record-path RECORD_PATH] [--json] [--self-test]\nresolve_guidellm.sh: error: argument --version: expected one argument\n"
  },
  {
   "id": "005-unknown-positional",
@@ -63,7 +63,7 @@
   "after": {},
   "exit_code": 2,
   "stdout": "",
-  "stderr": "usage: resolve_guidellm.py [-h] [--version VERSION] [--repo REPO] [--record]\n                           [--record-path RECORD_PATH] [--json] [--self-test]\nresolve_guidellm.py: error: unrecognized arguments: unexpected\n"
+  "stderr": "usage: resolve_guidellm.sh [-h] [--version VERSION] [--repo REPO] [--record]\n                           [--record-path RECORD_PATH] [--json] [--self-test]\nresolve_guidellm.sh: error: unrecognized arguments: unexpected\n"
  },
  {
   "id": "006-missing-record-value",
@@ -76,7 +76,7 @@
   "after": {},
   "exit_code": 2,
   "stdout": "",
-  "stderr": "usage: resolve_guidellm.py [-h] [--version VERSION] [--repo REPO] [--record]\n                           [--record-path RECORD_PATH] [--json] [--self-test]\nresolve_guidellm.py: error: argument --record-path: expected one argument\n"
+  "stderr": "usage: resolve_guidellm.sh [-h] [--version VERSION] [--repo REPO] [--record]\n                           [--record-path RECORD_PATH] [--json] [--self-test]\nresolve_guidellm.sh: error: argument --record-path: expected one argument\n"
  },
  {
   "id": "007-no-digest-option",
@@ -90,7 +90,7 @@
   "after": {},
   "exit_code": 2,
   "stdout": "",
-  "stderr": "usage: resolve_guidellm.py [-h] [--version VERSION] [--repo REPO] [--record]\n                           [--record-path RECORD_PATH] [--json] [--self-test]\nresolve_guidellm.py: error: unrecognized arguments: --digest sha256:x\n"
+  "stderr": "usage: resolve_guidellm.sh [-h] [--version VERSION] [--repo REPO] [--record]\n                           [--record-path RECORD_PATH] [--json] [--self-test]\nresolve_guidellm.sh: error: unrecognized arguments: --digest sha256:x\n"
  },
  {
   "id": "008-declared-0",

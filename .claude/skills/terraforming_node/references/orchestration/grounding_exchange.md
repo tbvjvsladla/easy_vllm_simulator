@@ -93,7 +93,7 @@ bash .claude/skills/terraforming_node/scripts/library_access.sh --topology <t> -
 
 HW 재스캔·서브 재설치·주소 변경 뒤에는 접근자도 다시 선다. 순서가 판정을 바꾸므로 아래 순서를 지킨다.
 
-1. **메인 스캔**: `scan_node.py --topology <t> --peer-ssh <user>@<sub 관리 hostname> --sub-work-dir <dir> --model-source <m> --emit-manifest --emit-sub-manifest output/<t>/sub_manifest.yaml`.
+1. **메인 스캔**: `scan_node.sh --topology <t> --peer-ssh <user>@<sub 관리 hostname> --sub-work-dir <dir> --model-source <m> --emit-manifest --emit-sub-manifest output/<t>/sub_manifest.yaml`.
    - multi 는 `--peer-ip <sub RoCE IP>` 와 **성능 실측**(`--bandwidth-gbps <합산> --per-port-gbps <포트당>` · onboarding §1.4 `ib_write_bw`)도 필수다 — 없으면 `pending-perf` 로 서브 manifest 발행이 거부된다(정상 차단 · 옛 실측값을 다시 넣지 않는다).
    - `--peer-ssh` 의 host 부분이 서브 `nodes[].hostname`(서브 CLAUDE.md `SUB_HOSTNAME`)이 된다 — IP 를 넘기면 hostname 자리에 IP 가 들어간다.
 2. **메인 manifest 병합(HITL)**: emit 블록이 **가진 키만**(중첩 키 포함) 바꾸고 나머지는 보존한다.
@@ -108,8 +108,8 @@ HW 재스캔·서브 재설치·주소 변경 뒤에는 접근자도 다시 선�
 
 #### 그라운딩 게이트 — 메인·서브 대칭
 
-- `campaign_init.py --ground --utc <t>` 는 통제변인에서 파생한 질의로 사서를 부른다. 그리고 `campaigns/<id>/grounding/<utc>.json`에 request·export·attestation 모양으로 기록한다. 서브는 같은 함수가 접근자(ssh)로 메인 서고에 묻는다.
-- 판정은 `campaign_init.py --grounding-check`(exit 4)가 한다. 이 판정은 `single_serve_up.sh`·`run_trial.py` 진입 백스톱에서 돈다. **못 찾음(unresolved)은 통과**한다(정직한 공백은 기재 후 진행). **거절(refused = 게이트웨이 exit 126)만 차단**한다. 서고에 닿지 못한 경우는 사유를 단 unresolved로 기재한다.
+- `campaign_init.sh --ground --utc <t>` 는 통제변인에서 파생한 질의로 사서를 부른다. 그리고 `campaigns/<id>/grounding/<utc>.json`에 request·export·attestation 모양으로 기록한다. 서브는 같은 함수가 접근자(ssh)로 메인 서고에 묻는다.
+- 판정은 `campaign_init.sh --grounding-check`(exit 4)가 한다. 이 판정은 `single_serve_up.sh`·`run_trial.sh` 진입 백스톱에서 돈다. **못 찾음(unresolved)은 통과**한다(정직한 공백은 기재 후 진행). **거절(refused = 게이트웨이 exit 126)만 차단**한다. 서고에 닿지 못한 경우는 사유를 단 unresolved로 기재한다.
 - 누락은 기계가 잡는다(기록 부재 = 서빙 진입 차단). 거짓은 사람이 리뷰한다. 결정이 인용한 `path:시작-끝`이 실제로 그 결정을 뒷받침하는지는 사람이 읽는다.
 
 #### 동시성

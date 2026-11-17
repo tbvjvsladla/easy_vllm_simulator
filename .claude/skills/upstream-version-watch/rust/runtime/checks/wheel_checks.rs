@@ -505,7 +505,7 @@ fn replay_saved_case(case: &str, scratch: &Path) -> Vec<String> {
     let case_argv: Vec<String> = items(member(&execution, "argv"))
         .into_iter()
         .map(text_of)
-        .skip_while(|item| !item.ends_with("resolve_wheel.py"))
+        .skip_while(|item| !item.ends_with("resolve_wheel.sh"))
         .skip(1)
         .collect();
     command.args(&case_argv);

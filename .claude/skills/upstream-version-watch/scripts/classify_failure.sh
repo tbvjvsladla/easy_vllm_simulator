@@ -24,4 +24,4 @@ if [ "$magic" != $'\177ELF' ]; then
   printf '[classify_failure] ERROR normal Rust ELF invalid: %s\n' "$binary" >&2
   exit 2
 fi
-exec -a "$SDIR/classify_failure.py" "$binary" "$@"
+exec -a "$SDIR/classify_failure.sh" "$binary" "$@"

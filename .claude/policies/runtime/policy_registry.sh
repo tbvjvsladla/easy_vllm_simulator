@@ -18,4 +18,4 @@ if [ "$magic" != $'\177ELF' ]; then
   printf '[policy_registry] ERROR normal Rust ELF invalid: %s\n' "$BINARY" >&2
   exit 2
 fi
-exec -a "$SDIR/policy_registry.py" "$BINARY" "$@"
+exec -a "$SDIR/policy_registry.sh" "$BINARY" "$@"

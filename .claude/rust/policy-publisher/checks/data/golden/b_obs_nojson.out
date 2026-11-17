@@ -1,6 +1,6 @@
 {
   "messages": {
-    "PUBLISH_BENCHMARK_OBSERVATION_ONLY_REQUIRES_VERDICT_JSON": "--verdict OBSERVATION-ONLY requires --verdict-json-src (verdict_rule.py 산출물의 NEEDS_RUBRIC · 사다리 공백이 근거다 — 선언만으로 판정을 회피할 수 없다)"
+    "PUBLISH_BENCHMARK_OBSERVATION_ONLY_REQUIRES_VERDICT_JSON": "--verdict OBSERVATION-ONLY requires --verdict-json-src (verdict_rule.sh 산출물의 NEEDS_RUBRIC · 사다리 공백이 근거다 — 선언만으로 판정을 회피할 수 없다)"
   },
   "ok": false,
   "reason_codes": [

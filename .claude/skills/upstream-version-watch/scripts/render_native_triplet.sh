@@ -24,4 +24,4 @@ if [ "$magic" != $'\177ELF' ]; then
   printf '[render_native_triplet] ERROR normal Rust ELF invalid: %s\n' "$binary" >&2
   exit 2
 fi
-exec -a "$SDIR/render_native_triplet.py" "$binary" "$@"
+exec -a "$SDIR/render_native_triplet.sh" "$binary" "$@"

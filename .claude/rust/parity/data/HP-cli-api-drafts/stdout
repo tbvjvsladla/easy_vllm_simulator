@@ -11,18 +11,18 @@
 {"id": "r10", "kind": "value", "value": null}
 {"id": "r11", "kind": "value", "value": {"schema_version": 1, "documents": [], "kind": "x"}}
 {"id": "r12", "kind": "value", "value": null}
-{"id": "r13", "kind": "exception", "type": "HintError", "code": "HINT_LINEAGE_UNREADABLE", "message": "전체 계보가 없다(draft inputs/LINEAGE.full.json) — 페이로드 LINEAGE.json 은 수신자 요약이다.", "remedy": "`hint.py refacts --draft <draft>` 로 계보를 다시 파생한다.", "exit_code": 1}
+{"id": "r13", "kind": "exception", "type": "HintError", "code": "HINT_LINEAGE_UNREADABLE", "message": "전체 계보가 없다(draft inputs/LINEAGE.full.json) — 페이로드 LINEAGE.json 은 수신자 요약이다.", "remedy": "`hint.sh refacts --draft <draft>` 로 계보를 다시 파생한다.", "exit_code": 1}
 {"id": "r14", "kind": "value", "value": null}
 {"id": "r15", "kind": "value", "value": [1]}
 {"id": "r16", "kind": "exception", "type": "HintError", "code": "HINT_LINEAGE_UNREADABLE", "message": "JSON 을 읽을 수 없다(fx/none/payload/LINEAGE.json): [Errno 2] No such file or directory: 'fx/none/payload/LINEAGE.json'", "remedy": null, "exit_code": 1}
 {"id": "r17", "kind": "value", "value": null}
 {"id": "r18", "kind": "value", "value": {"schema_version": 1, "tag": "t", "topic": "p", "steps": {}}}
 {"id": "r19", "kind": "value", "value": null}
-{"id": "r20", "kind": "exception", "type": "HintError", "code": "HINT_DRAFT_STATE_UNREADABLE", "message": "state.json 모양이 아니다: fx/e/state.json", "remedy": "hint.py publish 가 만든 draft 에서 실행한다(state.json 은 도구가 쓴다 · 손으로 고치지 않는다).", "exit_code": 1}
+{"id": "r20", "kind": "exception", "type": "HintError", "code": "HINT_DRAFT_STATE_UNREADABLE", "message": "state.json 모양이 아니다: fx/e/state.json", "remedy": "hint.sh publish 가 만든 draft 에서 실행한다(state.json 은 도구가 쓴다 · 손으로 고치지 않는다).", "exit_code": 1}
 {"id": "r21", "kind": "exception", "type": "HintError", "code": "HINT_DRAFT_STATE_UNREADABLE", "message": "JSON 을 읽을 수 없다(fx/none/state.json): [Errno 2] No such file or directory: 'fx/none/state.json'", "remedy": null, "exit_code": 1}
 {"id": "r22", "kind": "value", "value": {"a": 1}}
 {"id": "r23", "kind": "value", "value": null}
 {"id": "r24", "kind": "value", "value": null}
-{"id": "r25", "kind": "exception", "type": "HintError", "code": "HINT_PUSH_CENTRAL_AUTHORITY_ABSENT", "message": "'push' 는 **자기 원격의 색인·배포 권위**를 가진 체크아웃에서만 실행된다 — `hints/.central_authority` 부재(D8 권한 비대칭 · plan_26082009 · 2026-08-20).", "remedy": "▸ single 서브(자체 발행 장착)는 push 역할만 선언한다: `hints/.push_authority`(terraforming_node 설치 절차). ▸ 이 체크아웃이 자기 원격(origin)의 hint 카탈로그를 소유한다면 권위를 선언하라: printf '%s\\n' '이 체크아웃이 자기 원격의 hint 색인·배포 권위다.' > hints/.central_authority (비추적 — 각 저장소가 스스로 선언한다 · 선언은 그 원격의 index.json·HINTS.md 정합을 떠안는 책임이다). ▸ 상류에 기여하는 입장이면 `hint.py continue … --no-push` 로 봉인·로컬 검증까지만 하고 그 태그를 상류에 전달하라(색인·배포는 상류가 한다). ▸ 어느 쪽도 아니면 **우회하지 말고** 어느 쪽인지부터 정하라 — 맨 `git tag -a` + `git push` 로 만든 태그는 증거 바인딩이 없다.", "exit_code": 1}
+{"id": "r25", "kind": "exception", "type": "HintError", "code": "HINT_PUSH_CENTRAL_AUTHORITY_ABSENT", "message": "'push' 는 **자기 원격의 색인·배포 권위**를 가진 체크아웃에서만 실행된다 — `hints/.central_authority` 부재(D8 권한 비대칭 · plan_26082009 · 2026-08-20).", "remedy": "▸ single 서브(자체 발행 장착)는 push 역할만 선언한다: `hints/.push_authority`(terraforming_node 설치 절차). ▸ 이 체크아웃이 자기 원격(origin)의 hint 카탈로그를 소유한다면 권위를 선언하라: printf '%s\\n' '이 체크아웃이 자기 원격의 hint 색인·배포 권위다.' > hints/.central_authority (비추적 — 각 저장소가 스스로 선언한다 · 선언은 그 원격의 index.json·HINTS.md 정합을 떠안는 책임이다). ▸ 상류에 기여하는 입장이면 `hint.sh continue … --no-push` 로 봉인·로컬 검증까지만 하고 그 태그를 상류에 전달하라(색인·배포는 상류가 한다). ▸ 어느 쪽도 아니면 **우회하지 말고** 어느 쪽인지부터 정하라 — 맨 `git tag -a` + `git push` 로 만든 태그는 증거 바인딩이 없다.", "exit_code": 1}
 {"id": "r26", "kind": "value", "value": null}
 {"id": "r27", "kind": "value", "value": null}

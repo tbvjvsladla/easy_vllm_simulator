@@ -20,7 +20,7 @@ fn opt(flags: &'static [&'static str], dest: &'static str, kind: Kind, help: Opt
 /// The parser of the original `_main`.
 pub fn spec() -> Spec {
     Spec {
-        prog: "run_trial.py",
+        prog: "run_trial.sh",
         description: "단일 트라이얼 실행기 (vllm-recipe-explorer Phase 2).",
         options: vec![
             opt(&["-h", "--help"], "help", Kind::Help, None),

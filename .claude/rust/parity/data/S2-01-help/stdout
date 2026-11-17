@@ -1,4 +1,4 @@
-usage: estimate_vram.py [-h] [--parsed PARSED] [--self-test] [--quant QUANT]
+usage: estimate_vram.sh [-h] [--parsed PARSED] [--self-test] [--quant QUANT]
                         [--max-model-len MAX_MODEL_LEN] [--gmu GMU] [--tp TP]
                         [--budget BUDGET] [--margin MARGIN]
                         [--kv-bytes KV_BYTES] [--id ID]

@@ -1,10 +1,10 @@
-usage: runtime_selftest.py [-h] [--tripwires-only]
+usage: runtime_selftest.sh [-h] [--tripwires-only]
 
 Owner-local deterministic regression probe for constitution runtime modules.
 This is production distribution evidence, not a development-only root test
 suite. It exercises security-critical negative paths under the active
 interpreter, including ``python -O`` and ``python -S`` when invoked by
-``harness_verify.py`` / ``verify_distribution.py``.
+``harness_verify.sh`` / ``verify_distribution.sh``.
 
 options:
   -h, --help        show this help message and exit

@@ -11,7 +11,7 @@ use recipe_runtime::cliparse::{
 use recipe_runtime::escalation::Raised;
 
 /// The program name of `sys.argv[0]` in the command line (every usage and error text says `resolve_build_track.py`).
-pub const PROGRAM: &str = "resolve_build_track.py";
+pub const PROGRAM: &str = "resolve_build_track.sh";
 
 const TOPOLOGIES: &[&str] = &["single", "multi"];
 
@@ -35,14 +35,14 @@ fn option(
 pub fn spec(prog: &str) -> Spec {
     Spec {
         prog: intern(prog),
-        description: "resolve_build_track.py — build_track 제안 + torch_cuda_arch (proposer; 스모크가 최종 중재)",
+        description: "resolve_build_track.sh — build_track 제안 + torch_cuda_arch (proposer; 스모크가 최종 중재)",
         options: vec![
             option(&["-h", "--help"], "help", Kind::Help, None),
             option(
                 &["--torch-pin"],
                 "torch_pin",
                 Kind::Text,
-                Some("resolve_torch_pin.py 의 torch_pin (예: 2.11.0)"),
+                Some("resolve_torch_pin.sh 의 torch_pin (예: 2.11.0)"),
             ),
             option(
                 &["--sm-arch"],
@@ -272,7 +272,7 @@ pub fn main(world: &mut World<'_>) -> Done<PyValue> {
     let torch_pin = text_value(&values, "torch_pin");
     if !torch_pin.is_truthy() {
         let line =
-            PyStr::new("{\"error\": \"--torch-pin 필요 (resolve_torch_pin.py 의 torch_pin)\"}");
+            PyStr::new("{\"error\": \"--torch-pin 필요 (resolve_torch_pin.sh 의 torch_pin)\"}");
         world.host.err(&line)?;
         world.host.err(&PyStr::new("\n"))?;
         return Err(exit_with(2));

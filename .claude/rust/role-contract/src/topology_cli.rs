@@ -18,7 +18,7 @@ use agent_runtime_support::pyvalue::{PyDict, PyValue};
 pub const EXIT_OK: i32 = 0;
 pub const EXIT_USAGE: i32 = 2;
 pub const EXIT_CONTRACT_VIOLATION: i32 = 5;
-const PROG: &str = "topology_parity.py";
+const PROG: &str = "topology_parity.sh";
 
 /// What the process leaves.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -41,8 +41,8 @@ pub struct Environment {
 
 // ── argparse model ──────────────────────────────────────────────────────────────
 
-const MAIN_USAGE: &str = "usage: topology_parity.py [-h] [--self-test] {evaluate} ...\n";
-const EVAL_USAGE: &str = "usage: topology_parity.py evaluate [-h] [--repo REPO]\n                                   [--expect {single,multi}]\n                                   [--format {json,value}]\n";
+const MAIN_USAGE: &str = "usage: topology_parity.sh [-h] [--self-test] {evaluate} ...\n";
+const EVAL_USAGE: &str = "usage: topology_parity.sh evaluate [-h] [--repo REPO]\n                                   [--expect {single,multi}]\n                                   [--format {json,value}]\n";
 const EVAL_HELP_TAIL: &str = "\noptions:\n  -h, --help            show this help message and exit\n  --repo REPO\n  --expect {single,multi}\n                        호출부가 기대하는 토폴로지(어긋나면 RED)\n  --format {json,value}\n";
 
 fn main_help() -> String {
@@ -202,7 +202,7 @@ fn parse(args: &[Vec<u8>]) -> Parsed {
                     _ => {
                         return Parsed::Error {
                             usage: EVAL_USAGE,
-                            prog: "topology_parity.py evaluate",
+                            prog: "topology_parity.sh evaluate",
                             message: format!("argument {option}: expected one argument"),
                         };
                     }
@@ -212,13 +212,13 @@ fn parse(args: &[Vec<u8>]) -> Parsed {
                 "--repo" => repo = value,
                 "--expect" => {
                     if value != b"single" && value != b"multi" {
-                        return Parsed::Error { usage: EVAL_USAGE, prog: "topology_parity.py evaluate", message: format!("argument --expect: invalid choice: {} (choose from 'single', 'multi')", repr(&value)) };
+                        return Parsed::Error { usage: EVAL_USAGE, prog: "topology_parity.sh evaluate", message: format!("argument --expect: invalid choice: {} (choose from 'single', 'multi')", repr(&value)) };
                     }
                     expect = Some(String::from_utf8_lossy(&value).to_string());
                 }
                 _ => {
                     if value != b"json" && value != b"value" {
-                        return Parsed::Error { usage: EVAL_USAGE, prog: "topology_parity.py evaluate", message: format!("argument --format: invalid choice: {} (choose from 'json', 'value')", repr(&value)) };
+                        return Parsed::Error { usage: EVAL_USAGE, prog: "topology_parity.sh evaluate", message: format!("argument --format: invalid choice: {} (choose from 'json', 'value')", repr(&value)) };
                     }
                     value_format = value == b"value";
                 }

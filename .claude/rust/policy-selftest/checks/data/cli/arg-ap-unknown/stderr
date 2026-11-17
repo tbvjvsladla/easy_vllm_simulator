@@ -1,3 +1,3 @@
-usage: antipattern_scan.py [-h] [--root ROOT] [--inventory OUT.jsonl]
+usage: antipattern_scan.sh [-h] [--root ROOT] [--inventory OUT.jsonl]
                            [--tripwire] [--files [FILES ...]] [--self-test]
-antipattern_scan.py: error: unrecognized arguments: --bogus x
+antipattern_scan.sh: error: unrecognized arguments: --bogus x

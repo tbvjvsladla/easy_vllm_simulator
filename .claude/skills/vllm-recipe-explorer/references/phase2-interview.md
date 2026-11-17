@@ -54,7 +54,7 @@
 `*_source` 를 **기계 각인**한다 — `batch_source`(declared-requirement|kv-fit-measured|hand-lever) · `gmu_source`(target_gmu|hand) ·
 `kv_source`(measured-clamp|hand) · `trial_provenance`(measured|mock|dry-run — mock 수렴이 실측인 척하지 않게) ·
 `batch_derivation`(산식 입력·KV-fit·재검증·엔진 max_concurrency 보수 하한) · `gmu_roles`(deploy_gmu·gate_margin 과 출처).
-어휘의 소유는 `campaign_template_validator.py`(`LOCKSET_PROVENANCE` · `LOCKSET_KNOB_SOURCES`)이고 explorer 는 각인하는 값을
+어휘의 소유는 `campaign_template_validator.sh`(`LOCKSET_PROVENANCE` · `LOCKSET_KNOB_SOURCES`)이고 explorer 는 각인하는 값을
 그 상수로 교차검증한다(입력 lockset 이 들고 온 어휘 밖 출처는 멈추지 않고 기재한다). 이 표시 필드는 serve-args 가 아니다
 (`run_trial`·3종 세트는 읽지 않는다 — yaml 에는 주석 줄로만 실린다). 인터뷰 산물 lockset 은 **batch 를 비워 둔다**(null) —
 사람이 batch 를 적으면 손레버로 보존·표시되고, 직전 explorer 산출 batch·클램프는 다음 실행이 승계하지 않고 다시 잰다.

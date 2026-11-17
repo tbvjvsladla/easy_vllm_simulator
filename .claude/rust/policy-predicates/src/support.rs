@@ -35,7 +35,7 @@ pub fn req(condition: bool, message: impl Into<String>) -> R {
 }
 
 /// The repository root: `REPO_ROOT = Path(__file__).resolve().parents[3]` of the original. The binary is started
-/// through the launcher next to the original (`exec -a <dir>/<name>.py`), so argv[0] locates the same directory;
+/// through the launcher next to the original (`exec -a <dir>/<name>.sh` — the launcher itself), so argv[0] locates the same directory;
 /// `POLICY_PREDICATES_REPO` overrides it (tests and fixtures). Falls back to the crate location.
 pub fn repo_root() -> PathBuf {
     if let Ok(explicit) = std::env::var("POLICY_PREDICATES_REPO") {
@@ -45,7 +45,7 @@ pub fn repo_root() -> PathBuf {
     }
     if let Some(arg0) = std::env::args_os().next() {
         let p = PathBuf::from(arg0);
-        if p.extension().map_or(false, |e| e == "py") {
+        if p.extension().map_or(false, |e| e == "sh") {
             if let Ok(abs) = fs::canonicalize(p.parent().unwrap_or(Path::new("."))) {
                 // <repo>/.claude/policies/predicates
                 if let Some(root) = abs.parent().and_then(Path::parent).and_then(Path::parent) {

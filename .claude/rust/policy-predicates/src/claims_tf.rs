@@ -382,7 +382,7 @@ pub fn predicate_TERRAFORM_FLAG_GATE_C1() -> R {
     req(b == "gamma" && s == "blocked" && e == 2, "below-floor measured bandwidth alone must block multi")?;
     let (b, s, e) = multi(true, true, None, None)?;
     req(b == "multi-ready-candidate" && s == "pending-perf" && s != "ok" && e == 2,
-        "an untaken bandwidth measurement must stay pending-perf AND exit non-zero -- exit 0 is read as success by `scan_node.py || abort` runners")?;
+        "an untaken bandwidth measurement must stay pending-perf AND exit non-zero -- exit 0 is read as success by `scan_node.sh || abort` runners")?;
 
     // --- Layer B: manifest_contract's read-gate
     use role_contract::manifest_gate::{EXIT_MISSING_FIELD, EXIT_NO_FLAG, EXIT_OK};
@@ -544,13 +544,13 @@ pub fn predicate_TERRAFORM_FLAG_GATE_C2() -> R {
         let mut argv = vec![cmd.to_string(), "--config".into(), ps(&t.join("config.yaml"))];
         argv.extend(extra);
         let code = recipe_dispatch(t, &argv)?;
-        req(code == 4, format!("recipe.py {cmd} must die() with exit 4, got {code}"))?;
+        req(code == 4, format!("recipe.sh {cmd} must die() with exit 4, got {code}"))?;
     }
     require_recipe_dispatch_source()?;
 
     // adversarial's second layer: the SAME production entrypoint run_bench.sh shells out to, executed here for real.
     let rc = manifest_contract_cli(&["--topology", "single", "--repo", &ps(t), "--require-flag"])?.code;
-    req(rc == EXIT_NO_MANIFEST, "manifest_contract.py --require-flag must be non-zero against a Flag-absent repo")?;
+    req(rc == EXIT_NO_MANIFEST, "manifest_contract.sh --require-flag must be non-zero against a Flag-absent repo")?;
     let run_bench_src = read(".claude/skills/adversarial-benchmark/scripts/run_bench.sh")?;
     require_flag_gate_caller(&run_bench_src, "the argv executed in-process above (reference), not a lookalike")?;
     req(run_bench_src.contains("테라포밍-완수 Flag 미발급 — info-only"), "run_bench.sh must fall back to an info-only refusal, never a fabricated deliverable")?;

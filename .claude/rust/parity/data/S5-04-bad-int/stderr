@@ -1,5 +1,5 @@
-usage: logs_lifecycle.py [-h] [--node-dir NODE_DIR] [--now NOW]
+usage: logs_lifecycle.sh [-h] [--node-dir NODE_DIR] [--now NOW]
                          [--raw-days RAW_DAYS]
                          [--compressed-days COMPRESSED_DAYS]
                          [--cap-mib CAP_MIB] [--apply] [--self-test]
-logs_lifecycle.py: error: argument --cap-mib: invalid int value: '1.5'
+logs_lifecycle.sh: error: argument --cap-mib: invalid int value: '1.5'

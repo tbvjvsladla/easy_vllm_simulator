@@ -47,7 +47,7 @@ pub const OPTIONS: [(&str, crate::campaign_args::K, &[&str]); 7] = [
 ];
 
 /// `manifest_contract.py -h` at 80 columns (captured from the original).
-pub const HELP: &str = "usage: manifest_contract.py [-h] [--topology {single,multi}] [--repo REPO]
+pub const HELP: &str = "usage: manifest_contract.sh [-h] [--topology {single,multi}] [--repo REPO]
                             [--require-flag] [--json] [--self-test]
 
 테라포밍-완수 Flag 게이트 결정론 리더
@@ -214,7 +214,7 @@ fn dispatch(args: &[Vec<u8>], env: &Environment, io: &mut Streams<'_>, probe: &m
         }
         Err(message) => {
             let usage = &HELP[..=HELP.find("\n\n").expect("usage paragraph")];
-            let _ = io.stderr.write_all(format!("{usage}manifest_contract.py: error: {message}\n").as_bytes());
+            let _ = io.stderr.write_all(format!("{usage}manifest_contract.sh: error: {message}\n").as_bytes());
             return 2;
         }
     };

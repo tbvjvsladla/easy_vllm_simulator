@@ -1,4 +1,4 @@
-usage: blackbox_events.py [-h] [--node-dir NODE_DIR] [--no-boot-scan]
+usage: blackbox_events.sh [-h] [--node-dir NODE_DIR] [--no-boot-scan]
                           [--self-test]
 
 4개 킬 경로 -> 단일 이벤트 평면

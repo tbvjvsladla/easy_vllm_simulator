@@ -2,7 +2,7 @@
 #   강한 일치 키(model/gpu/vllm/quant/topology/tp): 정확일치 실패 시 이 인증서 무효.
 #   model = 체크포인트에서 파생한 **모델 축**(소문자). 운영 조합명은 serving_config 축에 따로 산다.
 #   소프트 지문(driver/cuda/image/max-len/kv-bytes/gmu/moe): 불일치 시 stale — 재측정 권고.
-#   발행 = full 모드 verdict==PASS 시만(결정론 publish_benchmark_record.py · inform-record).
+#   발행 = full 모드 verdict==PASS 시만(결정론 publish_benchmark_record.sh · inform-record).
 schema_version: 1
 record_type: benchmark_certificate
 verdict: PASS

@@ -27,7 +27,7 @@ const SWEEP_META: &str = env!("CARGO_BIN_EXE_selftest_sweep_meta");
 
 const SCRIPTS: &str = ".claude/skills/adversarial-benchmark/scripts";
 const RELEASE: &str = ".claude/skills/adversarial-benchmark/rust/target/release";
-const READER: &str = ".claude/skills/hint-publisher/scripts/render_bench_section.py";
+const READER: &str = ".claude/skills/hint-publisher/scripts/render_bench_section.sh";
 
 /// The deployed tree the files are read from (the same default as the other checks).
 fn canonical_root() -> PathBuf {

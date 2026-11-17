@@ -968,7 +968,7 @@ pub fn load_ctx(repo: &Path, cell: &str, run_id: &str, source_cell: Option<&str>
     })?;
     let drift = crate::native_triplet::check(&repo, &rendered);
     if !drift.is_empty() {
-        return serve(format!("native 트리플렛이 렌더와 다르다(손편집·원본 변경) — render_native_triplet.py --apply: {}", drift.join("; ")));
+        return serve(format!("native 트리플렛이 렌더와 다르다(손편집·원본 변경) — render_native_triplet.sh --apply: {}", drift.join("; ")));
     }
     let out = repo.join("output").join(TOPOLOGY);
     let triplet: BTreeMap<&'static str, String> = crate::native_triplet::triplet_rel(TOPOLOGY, cell).into_iter().collect();
@@ -1186,7 +1186,7 @@ pub fn env_argv(env: &Env, argv: &[String]) -> Vec<String> {
 pub fn client_wrapper_text(env: &Env, spec: &NodeSpec) -> String {
     let body = env.iter().map(|(k, v)| shlex_quote(&format!("{k}={v}"))).collect::<Vec<_>>().join(" ");
     format!(
-        "#!/bin/sh\n# native 벤치 클라이언트 래퍼 — native_multinode_serve.py 가 설치 직후 생성(run root 와 함께 삭제)\nexec env -i {body} {} \"$@\"\n",
+        "#!/bin/sh\n# native 벤치 클라이언트 래퍼 — native_multinode_serve.sh 가 설치 직후 생성(run root 와 함께 삭제)\nexec env -i {body} {} \"$@\"\n",
         shlex_quote(&format!("{}/bin/vllm", venv_dir(&spec.root)))
     )
 }
@@ -1727,9 +1727,9 @@ fn opt(flags: &'static [&'static str], dest: &'static str, kind: Kind, required:
 }
 fn spec_for(op: &'static str) -> Spec {
     let prog: &'static str = match op {
-        "up" => "native_multinode_serve.py up",
-        "down" => "native_multinode_serve.py down",
-        _ => "native_multinode_serve.py client",
+        "up" => "native_multinode_serve.sh up",
+        "down" => "native_multinode_serve.sh down",
+        _ => "native_multinode_serve.sh client",
     };
     let mut options = vec![
         opt(&["-h", "--help"], "help", Kind::Help, false),
@@ -1765,7 +1765,7 @@ pub fn run(script: Option<&PyStr>, args: &[PyStr]) -> i32 {
         "down" => "down",
         "client" => "client",
         _ => {
-            say_err("usage: native_multinode_serve.py [-h] [--self-test] {up,down,client} ...");
+            say_err("usage: native_multinode_serve.sh [-h] [--self-test] {up,down,client} ...");
             return EXIT_USAGE;
         }
     };

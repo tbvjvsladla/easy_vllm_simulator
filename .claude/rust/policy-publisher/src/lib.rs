@@ -21,7 +21,7 @@ use publisher::{bare_error, emit, Ctx, Exit};
 pub use publisher::{bench_src_matches as bench_src_name_matches, measurement_config as report_measurement_config, LITE_BENCH_MODE};
 use std::path::{Path, PathBuf};
 
-pub const SCRIPT_NAME: &str = "evidence_publisher.py";
+pub const SCRIPT_NAME: &str = "evidence_publisher.sh";
 
 /// `Path(__file__).resolve()` of the original: argv[0] when the launcher named it, else derived from the binary location
 /// (`<repo>/.claude/rust/policy-publisher/target/<profile>/evidence_publisher`).

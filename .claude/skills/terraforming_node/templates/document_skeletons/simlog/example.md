@@ -5,7 +5,7 @@
 
 ## 역할
 - trial-loop **한 run의 원시 증거 적재함**("실측이 정확히 무엇이었나").
-- 적용 범위 = `recipe.py simulate` 산출 **+ 수동 serve 스윕/bump 난항의 trial 반복**(반복 serve 실험이면
+- 적용 범위 = `recipe.sh simulate` 산출 **+ 수동 serve 스윕/bump 난항의 trial 반복**(반복 serve 실험이면
   어느 평면이든 run 디렉토리로 적재 — **per-trial config 사본 필수**: 과거 trial 설정의 in-place 변이 유실 방지).
 - testlog가 사람용 종합 보고서라면, simlog는 그 보고서가 인용하는 **기계 생성 raw 증거**다.
 - 참조 체인: simlog(원시) → testlog(인용·판정) → devlog(서사).
@@ -19,7 +19,7 @@ docs/simlog/<YYMMDDHH>[_<MM>_<SS>]_<주제>/
 - `_MM_SS`: 같은 `YYMMDDHH`에 충돌 시에만 분·초 접미(구 `_seq_` 표기는 폐지됨).
 - `주제`: 한국어, 밑줄(`_`) 구분, 버전·대상 포함 권장.
 - 예: `docs/simlog/26062121_vLLM0.22.1_KV클램프_시뮬/`
-- 명명 SSOT(결정론 헬퍼): `.claude/skills/wiki-desk/src/doc_naming.ts`(파이썬 shim `.claude/policies/runtime/doc_naming.py`)(`simlog_dirname` — evidence_publisher.py가 소비).
+- 명명 SSOT(결정론 헬퍼): `.claude/skills/wiki-desk/src/doc_naming.ts`(Rust 런처 `.claude/policies/runtime/doc_naming.sh`)(`simlog_dirname` — evidence_publisher.sh가 소비).
 
 ## 수동 serve 스윕 run 내용 (에이전트가 동형 구조로 적재)
 - `serve_logs/` — trial 별 docker logs 원문(`trialNN_<svc>.log`).

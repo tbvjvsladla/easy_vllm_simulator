@@ -76,7 +76,7 @@ provider 어댑터 두 파일만 발행합니다. 그래서 하네스를 하나 
 > 멀티 4종 **공식 vLLM 0.32.0** TP2 E2E(Qwen3.8-Flash-Next · Solar-Open2-250B · DeepSeek-V4-Flash · V4.1-Flash-EXL3)를
 > 같은 아우터 하네스 위에서 빌드→서빙→Full 벤치→hint 발행까지 완주했습니다
 > ([싱글](docs/report/harness_26102918_싱글_2셀_E2E_완료.md) · [멀티](docs/report/harness_26103005_멀티4종_v032_E2E_완료.md)).
-> 하네스 전환·세션 결속·중복 실행 방지는 `selftest_harness_switch.py` 가 음성대조로 검사합니다.
+> 하네스 전환·세션 결속·중복 실행 방지는 `selftest_harness_switch.sh` 가 음성대조로 검사합니다.
 
 ---
 
@@ -229,16 +229,16 @@ torch·CUDA·드라이버 의존 요구사항을 준수하는 `vLLM 컨테이너
 
 | | 스크립트 | 무엇을 판정하나 | 무엇을 읽어서 판정하나 (권위) |
 |---|---|---|---|
-| **①** | `resolve_torch_pin.py` | 이 vLLM 이 요구하는 **torch 버전** | 업스트림 `pyproject.toml` 의 `[build-system].requires` |
-| **②** | `resolve_ngc_tag.py` | 그 torch 를 실은 **NGC 베이스 이미지** | NGC 컨테이너의 `PYTORCH_BUILD_VERSION` (`buildx imagetools` — 레이어 pull 없음) |
-| **③** | `resolve_wheel.py` | prebuilt **wheel 의 실재 여부와 URL** | GitHub Release **자산 목록 실조회** |
-| **④** | `resolve_build_track.py` | **wheel 이냐 소스빌드냐** + `TORCH_CUDA_ARCH_LIST` | ①의 torch 핀 + `manifest` 의 GPU compute-capability |
+| **①** | `resolve_torch_pin.sh` | 이 vLLM 이 요구하는 **torch 버전** | 업스트림 `pyproject.toml` 의 `[build-system].requires` |
+| **②** | `resolve_ngc_tag.sh` | 그 torch 를 실은 **NGC 베이스 이미지** | NGC 컨테이너의 `PYTORCH_BUILD_VERSION` (`buildx imagetools` — 레이어 pull 없음) |
+| **③** | `resolve_wheel.sh` | prebuilt **wheel 의 실재 여부와 URL** | GitHub Release **자산 목록 실조회** |
+| **④** | `resolve_build_track.sh` | **wheel 이냐 소스빌드냐** + `TORCH_CUDA_ARCH_LIST` | ①의 torch 핀 + `manifest` 의 GPU compute-capability |
 
 ---
 
 ### 2-1. 빌드 갈래길 판단
 
-④ `resolve_build_track.py` 제안정보를 바탕으로 `쉬운 길 — prebuilt wheel`, `어려운 길 — Source build`을 선택합니다.
+④ `resolve_build_track.sh` 제안정보를 바탕으로 `쉬운 길 — prebuilt wheel`, `어려운 길 — Source build`을 선택합니다.
 
 #### 1) 쉬운 길 — prebuilt wheel
 
@@ -539,8 +539,8 @@ campaigns/
 
 | 규칙 | 왜 |
 |---|---|
-| **쓰는 문은 하나** — `campaign_init.py` (포맷 소유 1 · 호출부 N) | 상태를 쓴 것이 세션과 함께 사라지는 임시 스크립트였던 적이 있다. 이제 각 phase 의 실제 실행 스크립트가 같은 문을 부른다 |
-| **읽는 눈도 하나** — `campaign_init.py --resume-brief` | 새 세션은 대화 기록을 찾지 않는다. 한 화면 요약(현재 선언 · 셀·phase 진행표 · 마지막 여정 · **다음 pending 셀** · **반증된 축**)만으로 다음 셀에 착수하고, 반증된 축은 재시도하지 않는다 |
+| **쓰는 문은 하나** — `campaign_init.sh` (포맷 소유 1 · 호출부 N) | 상태를 쓴 것이 세션과 함께 사라지는 임시 스크립트였던 적이 있다. 이제 각 phase 의 실제 실행 스크립트가 같은 문을 부른다 |
+| **읽는 눈도 하나** — `campaign_init.sh --resume-brief` | 새 세션은 대화 기록을 찾지 않는다. 한 화면 요약(현재 선언 · 셀·phase 진행표 · 마지막 여정 · **다음 pending 셀** · **반증된 축**)만으로 다음 셀에 착수하고, 반증된 축은 재시도하지 않는다 |
 | **`proof` 는 선언이 아니라 관측** — `ok` 옆에 `source` 를 함께 | 출처 없는 `ok` 는 단언이 검증을 대체한 것이다 |
 | **실패해도 status 파일을 쓴다** | 부재만 남기면 "돌지 않았다"와 "돌다 죽었다"가 구분되지 않는다 |
 | **진행을 막는 자리는 셋뿐** — 선언 확인 · purge 게이트 · 발행 게이트 | 나머지 결손은 기재하고 진행한다. 결정론이 과하면 캠페인이 그 자리에서 무한히 선다 |
@@ -969,7 +969,7 @@ docker compose -f output/single/docker-compose.yaml \
 #### 🔒 단일노드에서 반드시 아셔야 할 안전 경고
 
 `docker compose` 직접 기동은 **서빙 예산 선언을 하지 않습니다.** 예산 선언은 에이전트 경로
-(`run_trial.py`)에만 배선돼 있습니다. 무슨 뜻이냐면:
+(`run_trial.sh`)에만 배선돼 있습니다. 무슨 뜻이냐면:
 
 | 보호 장치 | 직접 compose 기동에서 |
 |---|---|

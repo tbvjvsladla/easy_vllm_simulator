@@ -956,7 +956,7 @@ impl<'a> NativeServe<'a> {
                     ("note", vs("각 노드가 자기 로컬 이미지에서 재포장(이미지 전송 ✗)")),
                 ]),
             ),
-            ("provenance", vs("measured(native_multinode_serve.py up · health GET + 추론 POST 관측)")),
+            ("provenance", vs("measured(native_multinode_serve.sh up · health GET + 추론 POST 관측)")),
         ]);
         if let PyValue::Dict(d) = &mut doc {
             if !obs.present {
@@ -1030,7 +1030,7 @@ impl<'a> NativeServe<'a> {
             self.arm_renew(&serve_id, ttl)?;
             state_set(&mut self.state, "up_completed_utc", vs(&utc(self.clock.now())));
             self.state_write()?;
-            (self.log)(&format!("[native] serve proof → {} (PASS) · 서빙 유지 — 회수: native_multinode_serve.py down --cell {} --run-id {} --apply", c.proof_rel, c.cell, c.run_id));
+            (self.log)(&format!("[native] serve proof → {} (PASS) · 서빙 유지 — 회수: native_multinode_serve.sh down --cell {} --run-id {} --apply", c.proof_rel, c.cell, c.run_id));
             Ok(())
         })();
         match res {
@@ -1091,7 +1091,7 @@ pub fn native_launch_markdown(c: &Ctx, launch: &Launch, obs: &Obs, status: &str,
         format!("- run-id: `{}` · 캠페인: `{}` · 원본 Docker 셀: `{}` · 원천 이미지: `{}`", c.run_id, c.campaign_id, c.source_cell, c.image),
         format!("- 상태: **{status}**{}", if status != "PASS" { format!(" (failed_stage={stage} · {})", tail_chars(reason, 300)) } else { String::new() }),
         format!("- generated_utc(up 시작): {} · recorded_utc(이 기록): {recorded_utc}", launch.generated_utc),
-        "- provenance: measured — `native_multinode_serve.py up` 이 각 프로세스를 띄우기 **직전에** 넘긴 argv·env 를 그대로 적었다(로그 재구성 ✗). 설치 절차는 serve proof `native_install_path`(native-install.sh)가 따로 든다.".into(),
+        "- provenance: measured — `native_multinode_serve.sh up` 이 각 프로세스를 띄우기 **직전에** 넘긴 argv·env 를 그대로 적었다(로그 재구성 ✗). 설치 절차는 serve proof `native_install_path`(native-install.sh)가 따로 든다.".into(),
         format!("- 치환: 운영자 절대경로·노드 IP·호스트·NIC·사람 식별자는 발행기 치환표(`hintlib.pii.substitution_table` · manifest 사실)로 `<manifest.<field>>`·`<node:main|sub>`·`<repo>`·`<nic:…>` 자리표시가 됐다. 캠페인 run root base 는 `{ph_base}`. 표가 놓친 4종 패턴 잔여는 `<abs-path>`·`<priv-ip>` 등으로 가려졌다."),
         "- 재현 규칙: 각 단계의 실제 argv = `[\"env\", \"-i\", *sorted(\"K=V\" for ENV[<블록>]), *cmd]` (env 블록이 `-` 인 단계는 up 프로세스 환경 상속). 단계의 `argv_sha256` 은 **치환 전** 실제 argv(JSON 직렬화)의 해시다.".into(),
         String::new(),
@@ -1205,7 +1205,7 @@ pub fn native_install_script(c: &Ctx, tool_sha: &str, generated_utc: &str, accep
     let join = |v: Vec<String>| v.iter().map(|t| q(t)).collect::<Vec<_>>().join(" ");
     let lines: Vec<String> = vec![
         "#!/bin/bash".into(),
-        format!("# native-install.sh — {} native 설치 재현 명령(native_multinode_serve.py up 이 run {} 에서 **각 노드마다** 실행한 순서).", c.cell, c.run_id),
+        format!("# native-install.sh — {} native 설치 재현 명령(native_multinode_serve.sh up 이 run {} 에서 **각 노드마다** 실행한 순서).", c.cell, c.run_id),
         "#   각 노드가 자기 로컬 이미지에서 wheelhouse 를 재포장하고(이미지 전송 ✗) 오프라인으로만 설치한다(--no-index · 다운로드 ✗).".into(),
         format!("#   provenance: 원천 이미지 태그 {} · wheelhouse 도구 sha256={tool_sha} · 승인 선언 sha256={accept_sha} · generated_utc={generated_utc}", c.image),
         "#   사용: bash native-install.sh <run-root> [image] — 저장소 루트에서 실행(도구는 저장소 상대경로).".into(),

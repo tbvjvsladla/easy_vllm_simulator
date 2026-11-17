@@ -1,11 +1,11 @@
-usage: push_branches.py [-h] [--self-test] [--repo REPO] [--remote REMOTE]
+usage: push_branches.sh [-h] [--self-test] [--repo REPO] [--remote REMOTE]
                         [--branch BRANCH] [--dry-run]
 
-push_branches.py -- 종료 시퀀스의 원격 반영. PAT 경로는 hint-publisher(`hintlib/tag.py`)가 소유한다.
+push_branches.sh -- 종료 시퀀스의 원격 반영. PAT 경로는 hint-publisher(`hintlib/tag.py`)가 소유한다.
 
 사용법:
-  push_branches.py --remote <원격> --branch <B> [--branch <B2> ...] [--dry-run] [--repo .]
-  push_branches.py --self-test
+  push_branches.sh --remote <원격> --branch <B> [--branch <B2> ...] [--dry-run] [--repo .]
+  push_branches.sh --self-test
 
 왜 여기서 자격증명을 다시 구현하지 않나
 ---------------------------------------

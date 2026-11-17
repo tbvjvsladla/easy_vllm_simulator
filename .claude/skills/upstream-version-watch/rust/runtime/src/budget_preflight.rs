@@ -11,7 +11,7 @@ use agent_runtime_support::pyvalue::{PyDict, PyValue};
 use recipe_runtime::cliparse::{Kind, Opt, Spec};
 use std::path::{Path, PathBuf};
 
-pub const PROGRAM: &str = "budget_preflight.py";
+pub const PROGRAM: &str = "budget_preflight.sh";
 
 const DECLARED_GMU_PREMISE: &str = "unified-memory — 예상 몫 = gmu × MemTotal 은 MemTotal 이 디바이스 풀인 통합메모리 노드(GB10 계열)에서만 \
 vLLM 몫이다. discrete GPU 에서는 MemTotal 이 호스트 RAM 이라 몫·잔차가 의미를 잃는다(메모리 모델은 \
@@ -778,7 +778,7 @@ fn self_test(script: Option<&PyStr>) -> i32 {
 
     // ── --declared-gmu record row: the real command line, as the original ran itself ──
     let exe = std::env::current_exe().unwrap_or_default();
-    let script_arg = scripts.join("budget_preflight.py");
+    let script_arg = scripts.join("budget_preflight.sh");
     let cli = |argv: &[String]| -> (i32, String) {
         use std::os::unix::process::CommandExt;
         let mut cmd = std::process::Command::new(&exe);

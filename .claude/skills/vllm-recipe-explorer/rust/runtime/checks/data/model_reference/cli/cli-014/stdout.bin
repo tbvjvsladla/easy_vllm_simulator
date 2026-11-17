@@ -1,4 +1,4 @@
-usage: crosscheck_model_card.py [-h] [--hf-repo-id HF_REPO_ID]
+usage: crosscheck_model_card.sh [-h] [--hf-repo-id HF_REPO_ID]
                                 [--ephemeral-estimate] [--json]
                                 [path]
 

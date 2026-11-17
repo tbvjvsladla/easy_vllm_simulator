@@ -1,5 +1,5 @@
 //! `scan_policy_citations` / `citation_violations` against the original's answers (checks/data/citations.json, captured by
-//! checks/capture_citations.sh). No Python runs here.
+//! checks/capture_citations.sh [retired with the originals · frozen · plan_26111717]). No Python runs here.
 
 use agent_runtime_support::pyjson;
 use agent_runtime_support::pyvalue::PyValue;

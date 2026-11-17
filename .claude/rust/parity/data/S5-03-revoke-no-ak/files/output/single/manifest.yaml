@@ -13,7 +13,7 @@ nodes:
 other: 1
 tail_key: 1
 
-library:   # 서고 접근자(wiki-desk) — 메인은 local · 서브 접근점은 library_access.py 가 발급한다(plan_26101912)
+library:   # 서고 접근자(wiki-desk) — 메인은 local · 서브 접근점은 library_access.sh 가 발급한다(plan_26101912)
   transport: local
   wiki_dir: __llm-wiki
   repo_root: "/w/repo"

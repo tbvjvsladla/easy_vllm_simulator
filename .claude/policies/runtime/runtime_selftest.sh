@@ -19,4 +19,4 @@ if [ "$magic" != $'\177ELF' ]; then
 fi
 # argv[0] = the original's path: the program derives the repository root from it (three parents up) and prints the
 # original's program name in its usage text.
-exec -a "$SDIR/runtime_selftest.py" "$BIN" "$@"
+exec -a "$SDIR/runtime_selftest.sh" "$BIN" "$@"

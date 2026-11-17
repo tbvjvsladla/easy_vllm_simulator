@@ -77,7 +77,7 @@ for f in "$COMPOSE" "$EF" "$CFGYAML"; do
 done
 # 루트 .env 는 compose 의 마운트 변수(${NAS_MODEL_PATH} 등)를 채운다. 없으면 compose 기본값으로
 # 조용히 폴백해 **다른 경로를 마운트한 채 뜬다** — 기동에서는 그것이 down 보다 위험하므로 거부한다.
-[ -f "$EF_ROOT" ] || { echo "$TAG 1/7 통로·전제      : FAIL — $EF_ROOT 부재. 마운트 변수가 compose 기본값으로 조용히 폴백한다(render_dockerfile.py --materialize-env 선행)." >&2; exit 3; }
+[ -f "$EF_ROOT" ] || { echo "$TAG 1/7 통로·전제      : FAIL — $EF_ROOT 부재. 마운트 변수가 compose 기본값으로 조용히 폴백한다(render_dockerfile.sh --materialize-env 선행)." >&2; exit 3; }
 
 val(){ grep -E "^$1=" "$EF" | head -1 | cut -d= -f2-; }
 CNAME="$(val CONTAINER_NAME)"; [ -n "$CNAME" ] || CNAME="vllm-serve-container"

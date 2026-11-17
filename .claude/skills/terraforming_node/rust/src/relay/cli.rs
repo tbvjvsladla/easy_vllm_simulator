@@ -115,7 +115,7 @@ fn spec(backends: &'static [&'static str]) -> &'static Spec {
         flag(&["--self-test"]),
     ];
     Box::leak(Box::new(Spec {
-        prog: "relay.py",
+        prog: "relay.sh",
         usage: include_str!("../../help/relay.usage"),
         help: include_str!("../../help/relay.help"),
         args: Box::leak(args.into_boxed_slice()),

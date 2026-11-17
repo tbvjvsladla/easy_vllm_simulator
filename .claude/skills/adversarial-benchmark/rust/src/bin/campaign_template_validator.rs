@@ -24,11 +24,11 @@ const OPTIONS: [(&str, K, &[&str]); 7] = [
 ];
 
 /// `campaign_template_validator.py -h` at 80 columns (captured from the original).
-const HELP: &str = "usage: campaign_template_validator.py [-h] [--campaign CAMPAIGN]
+const HELP: &str = "usage: campaign_template_validator.sh [-h] [--campaign CAMPAIGN]
                                       [--instance INSTANCE] [--template]
                                       [--acceptance INSTANCE] [--selftest]
 
-campaign_template_validator.py — 캠페인 선언·인스턴스의 결정론 검증기 (fail-closed).
+campaign_template_validator.sh — 캠페인 선언·인스턴스의 결정론 검증기 (fail-closed).
 
 왜 있는가(plan_26090616): 캠페인의 단계 사이에서 정보를 나르던 것이 **대화 기억**이었다. 세션이
 끊기거나 문맥이 압축되면 앞 단계의 결정이 사라졌고, 각 스킬은 자기 기본값(루트 `config.yaml`·루트
@@ -39,9 +39,9 @@ campaign_template_validator.py — 캠페인 선언·인스턴스의 결정론 �
 대조할 두 번째 자리가 없다(`policy:GIT_SINGLE_AUTHORITY` 2문항). 사용자 결정 2026-09-06:
 \"SHA256 같은 무결성 검증은 필요 없다\".
 
-  검증:  campaign_template_validator.py --campaign campaigns/<id>/campaign.yaml
-  뼈대:  campaign_template_validator.py --template
-  단위:  campaign_template_validator.py --selftest
+  검증:  campaign_template_validator.sh --campaign campaigns/<id>/campaign.yaml
+  뼈대:  campaign_template_validator.sh --template
+  단위:  campaign_template_validator.sh --selftest
 
 options:
   -h, --help            show this help message and exit
@@ -67,7 +67,7 @@ fn main() -> ExitCode {
         }
         Err(message) => {
             let usage = &HELP[..=HELP.find("\n\n").expect("usage paragraph")];
-            let _ = write!(stderr().lock(), "{usage}campaign_template_validator.py: error: {message}\n");
+            let _ = write!(stderr().lock(), "{usage}campaign_template_validator.sh: error: {message}\n");
             return ExitCode::from(2);
         }
     };

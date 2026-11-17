@@ -273,7 +273,7 @@ fn _docker_slots(c: &_Ctx, payload: &Path, measured: Option<&str>, missing: &mut
                         "HINT_RUNNER_RENDER_DRIFT",
                         format!("{}과 실을 러너 바이트가 갈렸다: {name}(실을 바이트 = {})",
                                 if served { "서빙한 마운트본(mtime ≤ 측정)" } else { "asset 정본" }, s(&g(&rsel, "shipped"))),
-                        Some(&format!("`render_dockerfile.py --materialize-configs --topology {}` 로 다시 materialize 한다(측정 당시 마운트본과 다르면 이 셀의 러너가 아니다 — 발행 대상을 확인한다).", c.topo)),
+                        Some(&format!("`render_dockerfile.sh --materialize-configs --topology {}` 로 다시 materialize 한다(측정 당시 마운트본과 다르면 이 셀의 러너가 아니다 — 발행 대상을 확인한다).", c.topo)),
                     );
                 }
                 cc.push(J::str(format!(

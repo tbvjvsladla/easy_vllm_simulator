@@ -210,7 +210,7 @@ pub fn run() -> i32 {
                     c.ck(&format!("{name}: probe launcher delivered byte-identical · no bootstrap-permissions selftest"),
                          r.produced.iter().any(|p| p == helper)
                              && std::fs::read(Path::new(&r.out_dir).join(helper)).ok().as_deref() == Some(&real[..])
-                             && !joined.contains("selftest_bootstrap_permissions.py")
+                             && !joined.contains("selftest_bootstrap_permissions.sh")
                              && !joined.contains("scripts/selftest_bootstrap_permissions.sh"),
                          || joined.lines().filter(|l| l.contains("probe") || l.contains("selftest_bootstrap")).collect::<Vec<_>>().join(", "));
                 }

@@ -1,6 +1,6 @@
-usage: publish_install_request.py [-h] --generated-utc GENERATED_UTC
+usage: publish_install_request.sh [-h] --generated-utc GENERATED_UTC
                                   [--level {L1,L2,L3}]
                                   [--topology {single,multi}] [--force]
                                   [--repo REPO] [--out-dir OUT_DIR]
                                   [--print-path-only]
-publish_install_request.py: error: the following arguments are required: --generated-utc
+publish_install_request.sh: error: the following arguments are required: --generated-utc

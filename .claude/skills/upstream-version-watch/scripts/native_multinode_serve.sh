@@ -24,4 +24,4 @@ if [ "$magic" != $'\177ELF' ]; then
   printf '[native_multinode_serve] ERROR normal Rust ELF invalid: %s\n' "$binary" >&2
   exit 2
 fi
-exec -a "$SDIR/native_multinode_serve.py" "$binary" "$@"
+exec -a "$SDIR/native_multinode_serve.sh" "$binary" "$@"

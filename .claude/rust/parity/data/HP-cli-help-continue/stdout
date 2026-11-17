@@ -1,4 +1,4 @@
-usage: hint.py continue [-h] [--campaign CAMPAIGN] [--cell CELL]
+usage: hint.sh continue [-h] [--campaign CAMPAIGN] [--cell CELL]
                         [--draft DRAFT] [--node {main,sub,cluster}]
                         --generated-utc GENERATED_UTC
                         [--approved-by APPROVED_BY]

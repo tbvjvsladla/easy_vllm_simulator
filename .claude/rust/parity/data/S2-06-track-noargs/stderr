@@ -1,1 +1,1 @@
-{"error": "--torch-pin 필요 (resolve_torch_pin.py 의 torch_pin)"}
+{"error": "--torch-pin 필요 (resolve_torch_pin.sh 의 torch_pin)"}

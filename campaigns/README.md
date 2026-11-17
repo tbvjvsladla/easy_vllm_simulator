@@ -49,7 +49,7 @@ campaigns writer(`--phase-set`·`--cell-set`·`--evidence-add`)는 **no-op** 이
    반복 ≥3 · 생략 = 3 · 3 미만 선언 ✗). `sweep_bench.sh` 가 `--repeats` 미지정 시 이 값으로 레벨마다 반복하고,
    `broad_search.sh init` 이 스윕 예산 `declared_budget.repeats` 로 옮겨 셀마다 쓴다 — 벽시계 예산은 셀 × 레벨
    × 반복으로 잡는다. 반복이 성립하지 않은 셀은 기계 이벤트(판정점 run 실패·스윕이 멈춘 자리의 블랙박스 kill)로만
-   lite 로 강등되며(확정 `classify_cell.py` · 포화 경계 클램프는 강등이 아니다), 그 판정은 스윕 디렉터리
+   lite 로 강등되며(확정 `classify_cell.sh` · 포화 경계 클램프는 강등이 아니다), 그 판정은 스윕 디렉터리
    `bench_mode.json`(정본 · `sweep_bench.sh` 종료부가 쓴다)과 그 사본인 스윕 셀 기록에 남는다.
 2. **`<camp-id>/phases/<node>/*.status.json`** — 어디까지 왔는가. `state` 와 `proof.ok` 를 보고
    **다음에 진입 가능한 phase** 를 정한다. `proof.ok` 가 거짓이면 그 phase 를 다시 돈다.
@@ -109,7 +109,7 @@ campaigns writer(`--phase-set`·`--cell-set`·`--evidence-add`)는 **no-op** 이
 | **선언** | 사람(계획 인터뷰) — 적는 것이 정당하다 | context 길이 · 변종 · PLE 모드 · KV dtype · TP · 통제변인 · **동시성 요구**(`concurrency_requirement`) · **KV-fit 대표 요청 길이**(`typical_request_tokens`) · 타겟 gmu(`target_gpu.target_gmu`) | `cells/<cell>/config.yaml` 의 `declared_axes:` 블록 + `target_gpu` |
 | **explorer 파생** | `vllm-recipe-explorer` — 측정·재조정한다 | max-num-seqs · KV 클램프(`kv-cache-memory-bytes`) · 서빙 yaml `gpu-memory-utilization` | `cells/<cell>/lockset.json` (+ 생성된 3종 세트) |
 
-- **`declared_axes` 는 explorer 의 입력 슬롯이지 서빙 인자가 아니다.** 읽는 코드는 `recipe.py simulate` 다
+- **`declared_axes` 는 explorer 의 입력 슬롯이지 서빙 인자가 아니다.** 읽는 코드는 `recipe.sh simulate` 다
   (2026-09-14 · plan_26091407 단계 ②): `concurrency_requirement`·`typical_request_tokens` 는
   `max-num-seqs = min(concurrency_requirement, KV_fit@typical_request_tokens)` 산식의 입력이고(요구 null·부재면 batch 를
   산출하지 않는다 — max-num-seqs 미emit · KV-fit 은 참고값 · 대표 길이 null 은 `max_model_len` 으로 보수 산정 — 대체 사실은 lockset

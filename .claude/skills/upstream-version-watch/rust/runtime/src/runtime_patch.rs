@@ -38,7 +38,7 @@ use std::io::Write;
 use std::os::unix::ffi::OsStrExt;
 use std::os::unix::fs::OpenOptionsExt;
 
-pub const PROGRAM: &str = "validate_runtime_patch.py";
+pub const PROGRAM: &str = "validate_runtime_patch.sh";
 pub const SCHEMA_VERSION: i64 = 1;
 const PATCH_SUFFIX: &[u8] = b"_patch.py";
 const STEM_ALLOWED: &[u8] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-";

@@ -19,7 +19,7 @@ fn scratch(name: &str) -> PathBuf {
     )
     .unwrap();
     std::fs::create_dir_all(dir.join(".claude/skills/terraforming_node/scripts")).unwrap();
-    std::fs::write(dir.join(".claude/skills/terraforming_node/scripts/campaign_template_validator.py"), "#").unwrap();
+    std::fs::write(dir.join(".claude/skills/terraforming_node/scripts/campaign_template_validator.sh"), "#").unwrap();
     dir
 }
 
@@ -127,7 +127,7 @@ fn abbreviations_and_usage_errors_are_answered_natively() {
     assert_eq!((status, out.as_str()), (Some(0), "c1\n"));
     let (status, out, err) = call(&root, &["--ce", "x"]);
     assert_eq!((status, out.as_str()), (Some(2), ""));
-    assert!(err.ends_with("campaign_init.py: error: ambiguous option: --ce could match --cell, --cell-set, --cell-materialize, --cells\n"), "{err}");
+    assert!(err.ends_with("campaign_init.sh: error: ambiguous option: --ce could match --cell, --cell-set, --cell-materialize, --cells\n"), "{err}");
     assert!(!root.join("campaigns/camp-a/cells").exists());
 }
 
@@ -404,7 +404,7 @@ fn lifecycle_prints_the_fold_and_residue_scan_classifies_root_entries() {
 fn a_missing_validator_file_does_not_matter() {
     let root = scratch("novalidator");
     active(&root);
-    std::fs::remove_file(root.join(".claude/skills/terraforming_node/scripts/campaign_template_validator.py")).unwrap();
+    std::fs::remove_file(root.join(".claude/skills/terraforming_node/scripts/campaign_template_validator.sh")).unwrap();
     let (status, out, _) = call(&root, &["--assigned-cells", "main"]);
     assert_eq!((status, out.as_str()), (Some(0), "c1\n"));
 }

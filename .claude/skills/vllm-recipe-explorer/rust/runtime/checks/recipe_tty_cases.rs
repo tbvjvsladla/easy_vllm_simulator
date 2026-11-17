@@ -153,7 +153,7 @@ const ORIGINAL_40: &[u8] = include_bytes!("data/tty_help_40.stdout");
 fn the_frozen_original_layout_is_the_40_column_one() {
     assert_eq!(ORIGINAL_40.len(), 778);
     assert!(ORIGINAL_40
-        .starts_with(b"usage: quant_table.py [-h]\n                      [--quant QUANT]\n"));
+        .starts_with(b"usage: quant_table.sh [-h]\n                      [--quant QUANT]\n"));
 }
 
 #[test]

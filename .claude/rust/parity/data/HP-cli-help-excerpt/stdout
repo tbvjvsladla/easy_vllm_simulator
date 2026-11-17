@@ -1,4 +1,4 @@
-usage: hint.py excerpt [-h] --draft DRAFT --source SOURCE [--lines LINES]
+usage: hint.sh excerpt [-h] --draft DRAFT --source SOURCE [--lines LINES]
                        [--numbered]
 
 options:

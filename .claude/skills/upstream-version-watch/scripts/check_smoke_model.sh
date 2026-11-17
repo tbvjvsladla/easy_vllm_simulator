@@ -24,4 +24,4 @@ if [ "$magic" != $'\177ELF' ]; then
   printf '[check_smoke_model] ERROR normal Rust ELF invalid: %s\n' "$binary" >&2
   exit 2
 fi
-exec -a "$SDIR/check_smoke_model.py" "$binary" "$@"
+exec -a "$SDIR/check_smoke_model.sh" "$binary" "$@"

@@ -34,10 +34,10 @@ MASTER_PORT="${MASTER_PORT:-29500}"     # torch.distributed rendezvous 포트
 EXEC_TMO="${EXEC_TMO:-240}"             # exec 워치독 초 — 한쪽-join/rendezvous 멈춤 시 유한시간 FAIL(NCCL 120s + 외곽)
 [ -f "$MANIFEST" ] || { echo "[cs] FAIL: $MANIFEST 없음 — terraforming_node 으로 채우세요"; exit 3; }
 [ -f "$COMPOSE" ]  || { echo "[cs] FAIL: $COMPOSE 없음 — render 산출물 통로 확인"; exit 3; }
-[ -f "$ENVI" ]     || { echo "[cs] FAIL: $ENVI 없음 — render_dockerfile.py --nccl-envfile 로 먼저 생성(Plan 2)"; exit 3; }
+[ -f "$ENVI" ]     || { echo "[cs] FAIL: $ENVI 없음 — render_dockerfile.sh --nccl-envfile 로 먼저 생성(Plan 2)"; exit 3; }
 # 통로 self-containment 전제(plan_26062321 I1/I2): 러너 스크립트가 통로에 materialize 됐는지 fail-loud.
 for s in serve_runner.sh debug-init.sh; do
-  [ -f "output/multi/configs/$s" ] || { echo "[cs] FAIL: 통로 미완결 — output/multi/configs/$s 부재. 먼저 'render_dockerfile.py --materialize-configs --topology multi' 실행(후 sync_to_sub.sh --apply)"; exit 3; }
+  [ -f "output/multi/configs/$s" ] || { echo "[cs] FAIL: 통로 미완결 — output/multi/configs/$s 부재. 먼저 'render_dockerfile.sh --materialize-configs --topology multi' 실행(후 sync_to_sub.sh --apply)"; exit 3; }
 done
 
 # ── manifest 해소(하드코딩 금지 — 포인터 원칙) ──

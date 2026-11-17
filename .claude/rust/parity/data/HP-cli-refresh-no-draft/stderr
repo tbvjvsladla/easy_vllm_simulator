@@ -1,2 +1,2 @@
 [hint] FAIL HINT_DRAFT_ABSENT: state.json 이 없다 — publish 된 draft 가 아니다: /tmp/parity-o-HP-cli-refresh-no-draft-3568054-1794817440882066593/fx/dnone
-  → hint.py publish 를 먼저 실행한다(출력의 draft 경로를 --draft 로 넘긴다).
+  → hint.sh publish 를 먼저 실행한다(출력의 draft 경로를 --draft 로 넘긴다).

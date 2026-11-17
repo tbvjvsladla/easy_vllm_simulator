@@ -1,2 +1,2 @@
 [hint] FAIL HINT_DRAFT_EXISTS: 이미 publish 된 draft 다: /tmp/parity-o-HP-cli-publish-out-published-3568054-1794817454784573388/fx/out1
-  → 이어서 저작하려면 `hint.py continue --draft <draft>` · 새로 시작하려면 draft 를 지우고 publish 를 다시 한다.
+  → 이어서 저작하려면 `hint.sh continue --draft <draft>` · 새로 시작하려면 draft 를 지우고 publish 를 다시 한다.

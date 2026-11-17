@@ -1291,7 +1291,7 @@ pub fn compute_contract_tree_sha256(doc: &PyValue, schema: &PyValue, claim_bindi
         format!("schema:{}", sha256_hex(&dumps_sorted_unicode(schema))),
         format!("claim_bindings:{}", sha256_hex(&dumps_sorted_unicode(claim_bindings))),
         format!("git_tree:{}", git_contract_tree_digest(repo_root, &exclude)),
-        format!("policy_registry.py:{}", sha256_hex(&script)),
+        format!("policy_registry.sh:{}", sha256_hex(&script)),
     ];
     parts.sort();
     sha256_hex(parts.join("\n").as_bytes())

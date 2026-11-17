@@ -24,5 +24,5 @@ if [ "$magic" != $'\177ELF' ]; then
   exit 2
 fi
 # `__file__` of the program this one stands for (its location, never user intent): the sibling `adversarial_stress.py` path.
-export TERRAFORMING_OWNER_PATH="$SDIR/adversarial_stress.py"
+export TERRAFORMING_OWNER_PATH="$SDIR/adversarial_stress.sh"
 exec "$BIN" "$@"

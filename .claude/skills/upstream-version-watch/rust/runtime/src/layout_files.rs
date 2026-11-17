@@ -673,7 +673,7 @@ mod tests {
         };
         let built = Cell::new(0usize);
         {
-            let argv = [PyStr::new("check_spec_layout.py")];
+            let argv = [PyStr::new("check_spec_layout.sh")];
             let mut world = LayoutWorld::new(&mut host, &argv, None);
             let path = PyStr::new("p");
             world.event_with("lazy", &path, || {

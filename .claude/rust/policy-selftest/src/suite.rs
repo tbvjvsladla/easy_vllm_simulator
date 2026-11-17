@@ -381,7 +381,7 @@ fn with(mut v: PyValue, items: Vec<(&str, PyValue)>) -> PyValue {
 
 fn bench_report_with_verdict_table(verdict: &str, authority: &str) -> String {
     format!(
-        "{LITE_BENCH_REPORT}\n## 판정 (표시만 — verdict_rule.py 결과)\n\n| 항목 | 값 |\n|---|---|\n| verdict | **{verdict}** |\n| 측정 decode t/s (동시성1) | 20.0 t/s |\n| 루브릭 권한 | {authority} |\n| floor (primary×(1−tol)) | 22.1 t/s |\n\n## 다음 절\n"
+        "{LITE_BENCH_REPORT}\n## 판정 (표시만 — verdict_rule.sh 결과)\n\n| 항목 | 값 |\n|---|---|\n| verdict | **{verdict}** |\n| 측정 decode t/s (동시성1) | 20.0 t/s |\n| 루브릭 권한 | {authority} |\n| floor (primary×(1−tol)) | 22.1 t/s |\n\n## 다음 절\n"
     )
 }
 

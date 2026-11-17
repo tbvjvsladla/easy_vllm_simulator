@@ -54,7 +54,7 @@ pub const CALLER_PLANE_RULES: &[(&str, &str, &[&str])] = &[(
 )];
 
 fn scripts_dir() -> PathBuf {
-    crate::owner::owner_path("bootstrap_canary.py").parent().map(Path::to_path_buf).unwrap_or_default()
+    crate::owner::owner_path("bootstrap_canary.sh").parent().map(Path::to_path_buf).unwrap_or_default()
 }
 
 /// `os.path.abspath(p)`: absolute and lexically normalised (symlinks are not resolved).
@@ -975,7 +975,7 @@ fn spec(backends: Vec<String>) -> &'static Spec {
         flag(&["--self-test"]),
     ];
     Box::leak(Box::new(Spec {
-        prog: "bootstrap_canary.py",
+        prog: "bootstrap_canary.sh",
         usage: include_str!("../help/bootstrap_canary.usage"),
         help: include_str!("../help/bootstrap_canary.help"),
         args: Box::leak(args.into_boxed_slice()),

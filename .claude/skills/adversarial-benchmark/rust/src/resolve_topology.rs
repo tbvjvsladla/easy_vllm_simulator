@@ -558,7 +558,7 @@ pub fn resolve(
         return Err(Failure::new(
             CONFIGURATION_ERROR,
             &format!(
-                "the native topology helper `{HELPER_NAME}` is not installed next to this program; build the package's normal binaries (it is the Rust owner of `topology_parity.py`; nothing else is tried)"
+                "the native topology helper `{HELPER_NAME}` is not installed next to this program; build the package's normal binaries (it is the Rust owner of `topology_parity.sh`; nothing else is tried)"
             ),
         ));
     };

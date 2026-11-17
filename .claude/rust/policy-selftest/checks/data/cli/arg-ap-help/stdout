@@ -1,4 +1,4 @@
-usage: antipattern_scan.py [-h] [--root ROOT] [--inventory OUT.jsonl]
+usage: antipattern_scan.sh [-h] [--root ROOT] [--inventory OUT.jsonl]
                            [--tripwire] [--files [FILES ...]] [--self-test]
 
 하네스 안티패턴 인벤토리 + 제거 tripwire

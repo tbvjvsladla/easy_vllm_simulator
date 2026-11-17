@@ -743,7 +743,7 @@ fn build_caller_checkout(
     // (3), so both scripts stop at exit 4 and the resolved topology is seen at the gate.
     // The owner file is only the presence marker the callers test; the launcher stub (shell, no Python) answers.
     write_file(
-        &root.join(".claude/skills/terraforming_node/scripts/manifest_contract.py"),
+        &root.join(".claude/skills/terraforming_node/scripts/manifest_contract.sh"),
         "# test-plane presence marker of the Flag gate owner (never executed)\n",
         None,
     )?;

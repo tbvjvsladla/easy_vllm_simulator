@@ -197,7 +197,7 @@ fn options_may_be_abbreviated_and_an_ambiguous_prefix_is_a_usage_error() {
     assert_eq!(output.status.code(), Some(2));
     assert!(
         String::from_utf8_lossy(&output.stderr)
-            .contains("resolve_guidellm.py: error: ambiguous option: --rec could match --record, --record-path"),
+            .contains("resolve_guidellm.sh: error: ambiguous option: --rec could match --record, --record-path"),
         "{}",
         String::from_utf8_lossy(&output.stderr)
     );

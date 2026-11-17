@@ -1,4 +1,4 @@
-usage: library_access.py [-h] [--topology {single,multi}] [--node NODE]
+usage: library_access.sh [-h] [--topology {single,multi}] [--node NODE]
                          [--plan | --apply | --revoke | --self-test]
                          [--approved-by APPROVED_BY] [--host-of HOST_OF]
-library_access.py: error: argument --apply: not allowed with argument --plan
+library_access.sh: error: argument --apply: not allowed with argument --plan

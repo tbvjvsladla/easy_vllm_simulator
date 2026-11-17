@@ -1,3 +1,3 @@
-usage: library_access.py [-h] [--topology {single,multi}] [--node NODE]
+usage: library_access.sh [-h] [--topology {single,multi}] [--node NODE]
                          [--plan | --apply | --revoke | --self-test]
                          [--approved-by APPROVED_BY] [--host-of HOST_OF]

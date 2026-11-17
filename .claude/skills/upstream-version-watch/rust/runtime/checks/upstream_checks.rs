@@ -319,7 +319,7 @@ fn call1(area: &Area, flat: bool, operation: &str, args: &str) -> PyValue {
             operation,
             args,
             "{}",
-            "{\"argv\": [\"resolve_build_track.py\"]}",
+            "{\"argv\": [\"resolve_build_track.sh\"]}",
         )],
         flat,
     );
@@ -487,7 +487,7 @@ fn argv_of(request: &PyValue, root: &str) -> Vec<String> {
             .map(|each| text_of(&rebase_all(each, root)))
             .collect()
     } else {
-        vec!["resolve_build_track.py".to_string()]
+        vec!["resolve_build_track.sh".to_string()]
     }
 }
 
@@ -1042,7 +1042,7 @@ mod contract_cases {
     #[test]
     fn the_globals_member_the_binding_and_the_refusals_are_as_documented() {
         let work = area("contract");
-        let globals = r#"{"argv": ["resolve_build_track.py"]}"#;
+        let globals = r#"{"argv": ["resolve_build_track.sh"]}"#;
         let lines = vec![
             r#"{"id": 1, "operation": "resolve_build_track.norm_release", "args": [1], "context": {}}"#.to_string(),
             request(2, "norm_release", "[1]", "{}", r#"{"other": 1}"#),
@@ -1057,7 +1057,7 @@ mod contract_cases {
             request(11, "norm_release", "[]", "{}", r#"{"argv": ["a", 1]}"#),
             request(12, "norm_release", "[]", "{}", "[]"),
             request(13, "norm_release", "[]", "{}", r#"{"SOURCE_BUILD_MIN": ["tuple", [["int", "2"], ["int", "12"]]]}"#),
-            request(14, "norm_release", "[\"2.11\"]", "{}", r#"{"SOURCE_BUILD_MIN": ["tuple", [["int", "2"], ["int", "11"]]], "_MANIFEST_SM_KEYS": ["tuple", [["str", "compute_capability"], ["str", "sm_arch"], ["str", "gpu_compute_capability"], ["str", "cuda_arch"]]], "argv": ["resolve_build_track.py"]}"#),
+            request(14, "norm_release", "[\"2.11\"]", "{}", r#"{"SOURCE_BUILD_MIN": ["tuple", [["int", "2"], ["int", "11"]]], "_MANIFEST_SM_KEYS": ["tuple", [["str", "compute_capability"], ["str", "sm_arch"], ["str", "gpu_compute_capability"], ["str", "cuda_arch"]]], "argv": ["resolve_build_track.sh"]}"#),
             r#"{"id": 15, "operation": "resolve_build_track", "args": []}"#.to_string(),
             request(16, "norm_release", "[\"2.11\"]", r#"{"v": "2.12"}"#, globals),
         ];
@@ -1309,7 +1309,7 @@ mod new_cases {
                 "main",
                 "[]",
                 "{}",
-                r#"{"argv": ["resolve_build_track.py", "--torch-pin", "2.11"]}"#,
+                r#"{"argv": ["resolve_build_track.sh", "--torch-pin", "2.11"]}"#,
             );
             let (output, records) = serve_lines(&work, &[line], false);
             assert_eq!(output.status.code(), Some(0));
@@ -1514,7 +1514,7 @@ mod new_cases {
     // ── the import timing and its exceptions (the event service with a parent) ───────────────
 
     fn main_line(argv: &[&str]) -> String {
-        let mut all = vec![jstr("resolve_build_track.py")];
+        let mut all = vec![jstr("resolve_build_track.sh")];
         all.extend(argv.iter().map(|each| jstr(each)));
         request(
             1,
@@ -1585,7 +1585,7 @@ mod new_cases {
                 "load_manifest",
                 &format!("[{}]", jstr(&format!("{}/{path}", root_text(&work)))),
                 "{}",
-                "{\"argv\": [\"resolve_build_track.py\"]}",
+                "{\"argv\": [\"resolve_build_track.sh\"]}",
             )
         };
         // an ImportError of another module, by its real ancestry: the original's `except ImportError`
@@ -1820,7 +1820,7 @@ mod new_cases {
         );
         assert_eq!(seen.writes.len(), 2);
         assert!(text_of(&PyValue::Str(seen.writes[1].2.clone()))
-            .starts_with("resolve_build_track.py: error: unrecognized arguments"));
+            .starts_with("resolve_build_track.sh: error: unrecognized arguments"));
         assert_eq!(
             exception_of(&seen.result.expect("a result")),
             ("SystemExit".to_string(), "2".to_string())
@@ -1963,7 +1963,7 @@ mod new_cases {
         let output = wrapped("2>&-", &["--bogus"]);
         assert_eq!(output.status.code(), Some(2));
         assert!(String::from_utf8_lossy(&output.stdout)
-            .starts_with("usage: resolve_build_track.py [-h]"));
+            .starts_with("usage: resolve_build_track.sh [-h]"));
         assert!(!String::from_utf8_lossy(&output.stdout).contains("error:"));
     }
 
@@ -1979,7 +1979,7 @@ mod new_cases {
             assert_eq!(output.status.code(), Some(0), "{name}");
             let text = String::from_utf8_lossy(&output.stdout).into_owned();
             assert!(
-                text.starts_with("usage: resolve_build_track.py [-h]"),
+                text.starts_with("usage: resolve_build_track.sh [-h]"),
                 "{name}: {text}"
             );
             let mut bad = command(env!("CARGO_BIN_EXE_resolve_build_track"), &work, false);
@@ -1987,7 +1987,7 @@ mod new_cases {
             let output = finish(bad, None);
             assert_eq!(output.status.code(), Some(2));
             assert!(String::from_utf8_lossy(&output.stderr)
-                .contains("\nresolve_build_track.py: error: unrecognized arguments: --bogus\n"));
+                .contains("\nresolve_build_track.sh: error: unrecognized arguments: --bogus\n"));
         }
     }
 

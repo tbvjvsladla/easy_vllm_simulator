@@ -1718,7 +1718,7 @@
   },
   "exit_code": 2,
   "stdout": "",
-  "stderr": "usage: repeat_axis.py aggregate-level [-h] --level-dir LEVEL_DIR --requested\n                                      REQUESTED --requested-source\n                                      REQUESTED_SOURCE [--kind KIND]\nrepeat_axis.py aggregate-level: error: argument --requested: invalid int value: 'bad'\n",
+  "stderr": "usage: repeat_axis.sh aggregate-level [-h] --level-dir LEVEL_DIR --requested\n                                      REQUESTED --requested-source\n                                      REQUESTED_SOURCE [--kind KIND]\nrepeat_axis.sh aggregate-level: error: argument --requested: invalid int value: 'bad'\n",
   "after": {
    "level_01": {
     "kind": "directory"
@@ -1742,7 +1742,7 @@
   "argv": [],
   "before": {},
   "exit_code": 2,
-  "stdout": "usage: repeat_axis.py [-h] [--self-test]\n                      {resolve,record-run,aggregate-level} ...\n\nfull bench \ubc18\ubcf5 \ucd95(\ud574\uc18c\u00b7\uc9d1\uacc4\u00b7\uc694\uc57d)\n\npositional arguments:\n  {resolve,record-run,aggregate-level}\n    resolve             \ubc18\ubcf5 \uc218 \ud574\uc18c \u2192 'N<US>\ucd9c\ucc98<US>\uc885\ub958' \ud55c \uc904\n    record-run          run \uacbd\uacc4 \uc0ac\uc2e4 \uae30\ub85d\n    aggregate-level     \ub300\ud45c run measured.json \uc5d0 runs[]\u00b7\ubc34\ub4dc\ub97c \ub367\ubd99\uc778\ub2e4\n\noptions:\n  -h, --help            show this help message and exit\n  --self-test\n",
+  "stdout": "usage: repeat_axis.sh [-h] [--self-test]\n                      {resolve,record-run,aggregate-level} ...\n\nfull bench \ubc18\ubcf5 \ucd95(\ud574\uc18c\u00b7\uc9d1\uacc4\u00b7\uc694\uc57d)\n\npositional arguments:\n  {resolve,record-run,aggregate-level}\n    resolve             \ubc18\ubcf5 \uc218 \ud574\uc18c \u2192 'N<US>\ucd9c\ucc98<US>\uc885\ub958' \ud55c \uc904\n    record-run          run \uacbd\uacc4 \uc0ac\uc2e4 \uae30\ub85d\n    aggregate-level     \ub300\ud45c run measured.json \uc5d0 runs[]\u00b7\ubc34\ub4dc\ub97c \ub367\ubd99\uc778\ub2e4\n\noptions:\n  -h, --help            show this help message and exit\n  --self-test\n",
   "stderr": "",
   "after": {}
  },
@@ -1753,7 +1753,7 @@
   ],
   "before": {},
   "exit_code": 0,
-  "stdout": "usage: repeat_axis.py [-h] [--self-test]\n                      {resolve,record-run,aggregate-level} ...\n\nfull bench \ubc18\ubcf5 \ucd95(\ud574\uc18c\u00b7\uc9d1\uacc4\u00b7\uc694\uc57d)\n\npositional arguments:\n  {resolve,record-run,aggregate-level}\n    resolve             \ubc18\ubcf5 \uc218 \ud574\uc18c \u2192 'N<US>\ucd9c\ucc98<US>\uc885\ub958' \ud55c \uc904\n    record-run          run \uacbd\uacc4 \uc0ac\uc2e4 \uae30\ub85d\n    aggregate-level     \ub300\ud45c run measured.json \uc5d0 runs[]\u00b7\ubc34\ub4dc\ub97c \ub367\ubd99\uc778\ub2e4\n\noptions:\n  -h, --help            show this help message and exit\n  --self-test\n",
+  "stdout": "usage: repeat_axis.sh [-h] [--self-test]\n                      {resolve,record-run,aggregate-level} ...\n\nfull bench \ubc18\ubcf5 \ucd95(\ud574\uc18c\u00b7\uc9d1\uacc4\u00b7\uc694\uc57d)\n\npositional arguments:\n  {resolve,record-run,aggregate-level}\n    resolve             \ubc18\ubcf5 \uc218 \ud574\uc18c \u2192 'N<US>\ucd9c\ucc98<US>\uc885\ub958' \ud55c \uc904\n    record-run          run \uacbd\uacc4 \uc0ac\uc2e4 \uae30\ub85d\n    aggregate-level     \ub300\ud45c run measured.json \uc5d0 runs[]\u00b7\ubc34\ub4dc\ub97c \ub367\ubd99\uc778\ub2e4\n\noptions:\n  -h, --help            show this help message and exit\n  --self-test\n",
   "stderr": "",
   "after": {}
  },
@@ -1765,7 +1765,7 @@
   ],
   "before": {},
   "exit_code": 0,
-  "stdout": "usage: repeat_axis.py record-run [-h] --run-dir RUN_DIR --level LEVEL --run\n                                 RUN --started-utc STARTED_UTC --ended-utc\n                                 ENDED_UTC --run-bench-rc RUN_BENCH_RC\n                                 --parse-rc PARSE_RC\n\noptions:\n  -h, --help            show this help message and exit\n  --run-dir RUN_DIR\n  --level LEVEL\n  --run RUN\n  --started-utc STARTED_UTC\n  --ended-utc ENDED_UTC\n  --run-bench-rc RUN_BENCH_RC\n  --parse-rc PARSE_RC\n",
+  "stdout": "usage: repeat_axis.sh record-run [-h] --run-dir RUN_DIR --level LEVEL --run\n                                 RUN --started-utc STARTED_UTC --ended-utc\n                                 ENDED_UTC --run-bench-rc RUN_BENCH_RC\n                                 --parse-rc PARSE_RC\n\noptions:\n  -h, --help            show this help message and exit\n  --run-dir RUN_DIR\n  --level LEVEL\n  --run RUN\n  --started-utc STARTED_UTC\n  --ended-utc ENDED_UTC\n  --run-bench-rc RUN_BENCH_RC\n  --parse-rc PARSE_RC\n",
   "stderr": "",
   "after": {}
  },
@@ -1777,7 +1777,7 @@
   ],
   "before": {},
   "exit_code": 0,
-  "stdout": "usage: repeat_axis.py aggregate-level [-h] --level-dir LEVEL_DIR --requested\n                                      REQUESTED --requested-source\n                                      REQUESTED_SOURCE [--kind KIND]\n\noptions:\n  -h, --help            show this help message and exit\n  --level-dir LEVEL_DIR\n  --requested REQUESTED\n  --requested-source REQUESTED_SOURCE\n  --kind KIND\n",
+  "stdout": "usage: repeat_axis.sh aggregate-level [-h] --level-dir LEVEL_DIR --requested\n                                      REQUESTED --requested-source\n                                      REQUESTED_SOURCE [--kind KIND]\n\noptions:\n  -h, --help            show this help message and exit\n  --level-dir LEVEL_DIR\n  --requested REQUESTED\n  --requested-source REQUESTED_SOURCE\n  --kind KIND\n",
   "stderr": "",
   "after": {}
  },

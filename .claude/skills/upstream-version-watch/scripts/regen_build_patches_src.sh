@@ -26,4 +26,4 @@ if [ "$magic" != $'\177ELF' ]; then
   printf '[regen_build_patches_src] ERROR normal Rust ELF invalid: %s\n' "$binary" >&2
   exit 2
 fi
-exec -a "$SDIR/regen_build_patches_src.py" "$binary" "$@"
+exec -a "$SDIR/regen_build_patches_src.sh" "$binary" "$@"

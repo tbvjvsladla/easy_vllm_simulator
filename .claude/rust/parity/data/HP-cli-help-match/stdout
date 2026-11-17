@@ -1,4 +1,4 @@
-usage: hint.py match [-h] --vllm VLLM --model MODEL [--arch ARCH]
+usage: hint.sh match [-h] --vllm VLLM --model MODEL [--arch ARCH]
                      [--include-other] [--json]
 
 options:

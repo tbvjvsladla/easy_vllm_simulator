@@ -25,7 +25,7 @@ use agent_runtime_support::pyvalue::PyValue;
 use std::io::IsTerminal;
 
 /// The program name of `sys.argv[0]` in the normal command line (the usage says `cleanup_docker.py`).
-pub const PROGRAM: &str = "cleanup_docker.py";
+pub const PROGRAM: &str = "cleanup_docker.sh";
 
 /// The default `REPO` of the installed binary: `os.path.abspath(<skill root>/../../..)`.
 pub fn default_repo() -> Res<PyStr> {

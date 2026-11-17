@@ -383,7 +383,7 @@ pub fn predicate_HOST_SAFETY_LAYERED_DEFENSE_C8() -> R {
     req(keep.contains(&ps(&dockerfile_from)), "preserve_set() must really collect the tracked Dockerfile's FROM base as a preserved ref")?;
 
     let mut console = Capture::default();
-    cd::main(&mut World { console: &mut console, tracing: false }, &repo, &[ps("cleanup_docker.py")], &PyValue::Bool(true), Some("80")).map_err(thrown)?;
+    cd::main(&mut World { console: &mut console, tracing: false }, &repo, &[ps("cleanup_docker.sh")], &PyValue::Bool(true), Some("80")).map_err(thrown)?;
     let report = console.out.clone();
     let rm_lines: Vec<&str> = report.lines().filter(|l| l.trim().starts_with("RM")).collect();
     let keep_lines: Vec<&str> = report.lines().filter(|l| l.trim().starts_with("KEEP")).collect();

@@ -1,4 +1,4 @@
-usage: blackbox_session.py list [-h]
+usage: blackbox_session.sh list [-h]
 
 options:
   -h, --help  show this help message and exit

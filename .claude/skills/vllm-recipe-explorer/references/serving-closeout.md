@@ -16,7 +16,7 @@ bash scripts/recipe.sh simulate --config config.yaml --candidate lockset.json \
 bash scripts/recipe.sh simulate --config config.yaml --candidate lockset.json --lockset-out lockset.json \
   --image <IMAGE_TAG> --topic qwen36-27b --cap 3
 
-# 캠페인 셀: 자리를 파생하고(campaign_init.py --derive config|lockset --cell <id>) 셀 lockset 을 --candidate 로 주면
+# 캠페인 셀: 자리를 파생하고(campaign_init.sh --derive config|lockset --cell <id>) 셀 lockset 을 --candidate 로 주면
 #   --lockset-out 을 생략해도 수렴 각인(provenance=explorer-phase2 · *_source · trial_provenance)이 그 파일에 쓰인다.
 bash scripts/recipe.sh simulate --config "$(bash .claude/skills/terraforming_node/scripts/campaign_init.sh --derive config --cell <id>)" \
   --candidate "$(bash .claude/skills/terraforming_node/scripts/campaign_init.sh --derive lockset --cell <id>)" --image <IMAGE_TAG> --topic <id> --cap 3
@@ -93,14 +93,14 @@ Phase 2 수렴(`none`) + 최종 serve-up 성공 후, **최종 서빙유지 판�
   서빙·측정(lite 이상)·문서(testlog·devlog 발행) 가 끝난 뒤, 이 셀의 파생 이름이 **새 태그**이면 hint 태그 발행을 **제안(Y/N)**
   한다. 캠페인 완주를 기다리지 않는다(셀 1개 = 태그 1개 · 2026-09-08 "발행을 캠페인 완주와 분리" · plan_26092119 D9).
   이름은 사람도 recipe 도 짓지 않는다 — 발행기가 전량 파생하고, 미리보기는 읽기 전용
-  `hint.py name --campaign <id> --cell <cell>` 이다(이미 원격에 있는 이름은 publish 가 `HINT_NAME_COLLISION` 으로 막는다).
-  **recipe 는 트리거·신호만** — 발행은 hint-publisher 단일 진입 `.claude/skills/hint-publisher/scripts/hint.py` 가 소유한다:
-  `hint.py publish --campaign <id> --cell <cell> --generated-utc <UTC>`(증거·발행 자격 관측·이름·계보·산출물 → 스캐폴드 후 **정지**) → Agent 가 PROMPT
-  절의 서사·hint-event·발췌를 저작 → `hint.py continue --campaign <id> --cell <cell> --generated-utc <UTC>`(**승인 확인이 먼저**
+  `hint.sh name --campaign <id> --cell <cell>` 이다(이미 원격에 있는 이름은 publish 가 `HINT_NAME_COLLISION` 으로 막는다).
+  **recipe 는 트리거·신호만** — 발행은 hint-publisher 단일 진입 `.claude/skills/hint-publisher/scripts/hint.sh` 가 소유한다:
+  `hint.sh publish --campaign <id> --cell <cell> --generated-utc <UTC>`(증거·발행 자격 관측·이름·계보·산출물 → 스캐폴드 후 **정지**) → Agent 가 PROMPT
+  절의 서사·hint-event·발췌를 저작 → `hint.sh continue --campaign <id> --cell <cell> --generated-utc <UTC>`(**승인 확인이 먼저**
   — 없으면 브랜치·태그 부수효과 0 인 채 `HINT_APPROVAL_ABSENT` 로 정지 → 린트 → hint 브랜치 배관 커밋 → 봉인·로컬 검증 →
   그 태그 1개 push → 원격 SHA 대조 → 카탈로그 재파생). 승인은 캠페인 셀이면 선언 확인 팝업에서 받은 `hint_targets[].approval`
-  (`campaign_init.py --hint-approve`)이고, 그 밖은 `continue --approved-by "<사람 발화 전사>" --approved-utc <UTC>` 다.
-  셀 문서(testlog·devlog)는 `campaign_init.py --evidence-add` 로 그 셀의 포인터에 등록돼 있어야 publish 가 발행 기록을 만든다
+  (`campaign_init.sh --hint-approve`)이고, 그 밖은 `continue --approved-by "<사람 발화 전사>" --approved-utc <UTC>` 다.
+  셀 문서(testlog·devlog)는 `campaign_init.sh --evidence-add` 로 그 셀의 포인터에 등록돼 있어야 publish 가 발행 기록을 만든다
   (없으면 `HINT_NARRATIVE_EVIDENCE_ABSENT`).
   push 는 `refs/tags/hint/<그 태그>` 하나뿐이며 hint 브랜치는 밀지 않는다(무인 자동 태깅 ✗). 캠페인 밖 입력 형태
   (`--publication <topic> --replay`)와 절차 정본은 hint-publisher SKILL.md 다.

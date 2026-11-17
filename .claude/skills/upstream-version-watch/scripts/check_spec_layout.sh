@@ -24,4 +24,4 @@ if [ "$magic" != $'\177ELF' ]; then
   printf '[check_spec_layout] ERROR normal Rust ELF invalid: %s\n' "$binary" >&2
   exit 2
 fi
-exec -a "$SDIR/check_spec_layout.py" "$binary" "$@"
+exec -a "$SDIR/check_spec_layout.sh" "$binary" "$@"

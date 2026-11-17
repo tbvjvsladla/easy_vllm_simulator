@@ -1,4 +1,4 @@
-usage: regen_envelope.py [-h] [--node-dir NODE_DIR] [--self-test]
+usage: regen_envelope.sh [-h] [--node-dir NODE_DIR] [--self-test]
                          {regen,check-keys,staleness} ...
 
 노드블랙박스 포락선 재생성 + 키 정합 검증

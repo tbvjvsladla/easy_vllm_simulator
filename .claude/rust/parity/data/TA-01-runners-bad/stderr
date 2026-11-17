@@ -1,2 +1,2 @@
-usage: agent_control.py runners [-h] [--provider {claude_code,codex_cli,all}]
-agent_control.py runners: error: argument --provider: invalid choice: 'nope' (choose from 'claude_code', 'codex_cli', 'all')
+usage: agent_control.sh runners [-h] [--provider {claude_code,codex_cli,all}]
+agent_control.sh runners: error: argument --provider: invalid choice: 'nope' (choose from 'claude_code', 'codex_cli', 'all')

@@ -1,4 +1,4 @@
-usage: feedback_log.py [-h] [--path PATH] --model-id MODEL_ID --quantization
+usage: feedback_log.sh [-h] [--path PATH] --model-id MODEL_ID --quantization
                        QUANTIZATION --max-model-len MAX_MODEL_LEN
                        --gpu-memory-utilization GPU_MEMORY_UTILIZATION
                        --vram-budget-gb VRAM_BUDGET_GB --estimated-vram-gb

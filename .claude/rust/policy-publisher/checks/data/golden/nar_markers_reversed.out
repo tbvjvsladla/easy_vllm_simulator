@@ -1,6 +1,6 @@
 {
   "messages": {
-    "NARRATIVE_MARKERS_MISSING": "scaffold file 'docs/devlog/devlog_26010116_nar.md' is missing its narrative markers -- it was not created by evidence_publisher.py init and cannot be safely narrated"
+    "NARRATIVE_MARKERS_MISSING": "scaffold file 'docs/devlog/devlog_26010116_nar.md' is missing its narrative markers -- it was not created by evidence_publisher.sh init and cannot be safely narrated"
   },
   "ok": false,
   "reason_codes": [

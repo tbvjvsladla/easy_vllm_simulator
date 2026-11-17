@@ -92,7 +92,7 @@
 않는다**(workflow S3 · HITL 게이트 ③). 상속 스탠자가 이 두 사실을 매 빌드 로그에 찍는 이유다.
 
 **등재는 사람의 손이다**(게이트 ①.6). Judge 는 attestation 을 낼 뿐 원장을 넓히지 않는다 —
-`judge_version_delta.py` 의 산출물은 **evidence 이지 approval 이 아니다**.
+`judge_version_delta.sh` 의 산출물은 **evidence 이지 approval 이 아니다**.
 
 ## 4. 빌드-바깥 의존 패치 (`build_patches/`)
 
@@ -121,7 +121,7 @@
 태그2(camp-26091216) hint 는 그래서 **skip 된 50·55 를 "적용된 빌드 패치"로 실었고**, 옛 "적용 증거"는 skip 된 50번 자신의
 `PROVENANCE.json` 이었다. 폴더에 **있음** 은 **적용됨** 이 아니다. 이미지가 자기 빌드를 서술하지 않으면 그 사실은 빌드 로그와 함께 사라진다.
 
-- **스탠자 계약**(두 템플릿 공통 · `render_dockerfile.py` 가 `{{ BUILD_LEDGER_STANZA }}` 한 자리로 **단일 소유** 주입):
+- **스탠자 계약**(두 템플릿 공통 · `render_dockerfile.sh` 가 `{{ BUILD_LEDGER_STANZA }}` 한 자리로 **단일 소유** 주입):
   - pre/post 루프는 **원시 사실만** 남긴다: `ledger.d/<pre|post>.<파일>.{rc,sha256,log,status}` + `<pre|post>.inventory`(`ls -A`).
     로그는 `tee` 로 빌드 출력에 그대로 흐르고 원장엔 꼬리 64KiB 만 남는다. POSIX sh 만 쓴다(wheel 베이스 `/bin/sh -c` ↔ 26.07 `/bin/bash -c`).
   - 인라인 패치(source `strip-hoist` · wheel `HAS_OPAQUE_TYPE`)는 `ledger.d/inline.<이름>.status` 한 줄을 쓴다.

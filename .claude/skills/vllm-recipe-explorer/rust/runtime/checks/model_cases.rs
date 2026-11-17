@@ -652,12 +652,12 @@ fn help_and_usage_follow_the_terminal_width_as_argparse_lays_them_out() {
     let oracle = super::support::load("../model_argparse_oracle.json");
     for (program, key, binary) in [
         (
-            "parse_model_config.py",
+            "parse_model_config.sh",
             "parse",
             env!("CARGO_BIN_EXE_parse_model_config"),
         ),
         (
-            "crosscheck_model_card.py",
+            "crosscheck_model_card.sh",
             "cross",
             env!("CARGO_BIN_EXE_crosscheck_model_card"),
         ),

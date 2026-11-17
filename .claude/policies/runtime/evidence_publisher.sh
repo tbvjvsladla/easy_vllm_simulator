@@ -19,4 +19,4 @@ if [ "$magic" != $'\177ELF' ]; then
   printf '[evidence_publisher] ERROR normal Rust ELF invalid: %s\n' "$BIN" >&2
   exit 2
 fi
-exec -a "$SDIR/evidence_publisher.py" "$BIN" "$@"
+exec -a "$SDIR/evidence_publisher.sh" "$BIN" "$@"

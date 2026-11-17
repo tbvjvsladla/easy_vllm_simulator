@@ -1,6 +1,6 @@
-usage: doc_naming.py [-h] [--self-test]
+usage: doc_naming.sh [-h] [--self-test]
 
-doc_naming.py -- Python shim over the naming SSOTs
+doc_naming.sh -- Python shim over the naming SSOTs
 
 options:
   -h, --help   show this help message and exit

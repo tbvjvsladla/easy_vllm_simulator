@@ -1,4 +1,4 @@
-usage: blackbox_collect.py [-h] [--node-dir NODE_DIR] [--interval INTERVAL]
+usage: blackbox_collect.sh [-h] [--node-dir NODE_DIR] [--interval INTERVAL]
                            [--no-kmsg] [--no-fsync]
                            [--max-samples MAX_SAMPLES] [--self-test]
-blackbox_collect.py: error: --node-dir 가 필요합니다
+blackbox_collect.sh: error: --node-dir 가 필요합니다

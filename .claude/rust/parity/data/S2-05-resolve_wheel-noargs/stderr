@@ -1,2 +1,2 @@
-usage: resolve_wheel.py [-h] [--arch ARCH] [--cuda CUDA] vllm_version
-resolve_wheel.py: error: the following arguments are required: vllm_version
+usage: resolve_wheel.sh [-h] [--arch ARCH] [--cuda CUDA] vllm_version
+resolve_wheel.sh: error: the following arguments are required: vllm_version

@@ -744,7 +744,7 @@ pub fn self_test(repo: &str) -> i32 {
     }
 }
 
-pub const USAGE: &str = "usage: antipattern_scan.py [-h] [--root ROOT] [--inventory OUT.jsonl]
+pub const USAGE: &str = "usage: antipattern_scan.sh [-h] [--root ROOT] [--inventory OUT.jsonl]
                            [--tripwire] [--files [FILES ...]] [--self-test]
 ";
 pub const HELP_TAIL: &str = "
@@ -797,7 +797,7 @@ pub fn main(argv: &[String], repo: &str) -> i32 {
         Opt { long: "--self-test", kind: K::Flag },
     ];
     let help = format!("{USAGE}{HELP_TAIL}");
-    let a = match argp::parse(argv, &opts, "antipattern_scan.py", USAGE, &help) {
+    let a = match argp::parse(argv, &opts, "antipattern_scan.sh", USAGE, &help) {
         Ok(a) => a,
         Err(e) => return argp::finish(e),
     };

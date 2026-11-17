@@ -1,2 +1,2 @@
-usage: doc_naming.py [-h] [--self-test]
-doc_naming.py: error: argument --self-test: ignored explicit argument '1'
+usage: doc_naming.sh [-h] [--self-test]
+doc_naming.sh: error: argument --self-test: ignored explicit argument '1'

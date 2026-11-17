@@ -1,4 +1,4 @@
-usage: repeat_axis.py [-h] [--self-test]
+usage: repeat_axis.sh [-h] [--self-test]
                       {resolve,record-run,aggregate-level} ...
 
 full bench 반복 축(해소·집계·요약)

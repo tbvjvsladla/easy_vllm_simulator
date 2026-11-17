@@ -1,4 +1,4 @@
-usage: verify_distribution.py [-h] [--json-out JSON_OUT]
+usage: verify_distribution.sh [-h] [--json-out JSON_OUT]
                               [--policy-as-of YYYY-MM-DD]
 
 options:

@@ -24,4 +24,4 @@ if [ "$magic" != $'\177ELF' ]; then
   printf '[budget_preflight] ERROR normal Rust ELF invalid: %s\n' "$binary" >&2
   exit 2
 fi
-exec -a "$SDIR/budget_preflight.py" "$binary" "$@"
+exec -a "$SDIR/budget_preflight.sh" "$binary" "$@"

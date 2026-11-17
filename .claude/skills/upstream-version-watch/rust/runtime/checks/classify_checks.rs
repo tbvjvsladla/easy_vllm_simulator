@@ -107,7 +107,7 @@ fn build_business(root: &Path, case: &PyValue, executable: &str) -> (PathBuf, Pa
     let business = root.join("business");
     let scripts = business.join("node/.claude/skills/upstream-version-watch/scripts");
     std::fs::create_dir_all(&scripts).unwrap();
-    let carrier = scripts.join("classify_failure.py");
+    let carrier = scripts.join("classify_failure.sh");
     std::fs::copy(executable, &carrier).unwrap();
     std::fs::copy(registry(), scripts.join("../failure_patterns.yaml")).unwrap();
     if let Some(PyValue::List(files)) = member(case, "files") {

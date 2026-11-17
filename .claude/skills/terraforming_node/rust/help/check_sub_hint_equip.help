@@ -1,4 +1,4 @@
-usage: check_sub_hint_equip.py [-h] [--workspace WORKSPACE] [--clone]
+usage: check_sub_hint_equip.sh [-h] [--workspace WORKSPACE] [--clone]
                                [--remote-url REMOTE_URL]
                                [--write-push-authority] [--utc UTC]
                                [--self-test]

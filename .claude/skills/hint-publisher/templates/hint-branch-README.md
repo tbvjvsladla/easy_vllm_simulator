@@ -92,7 +92,7 @@ GitHub 의 태그 목록에서 `Source code (zip)` 을 받아도 같은 트리�
 풀고 나면 **`00-hint.md` 부터** 읽고, 벽의 순서가 필요하면 `02-narrative.md` 의 `kind: wall` 블록을 위에서부터 읽으십시오.
 태그 본문(annotation)에는 요약 한 문단과 증거 주소만 있습니다 — 내용은 전부 zip 안에 있습니다. annotation 끝의 증거 주소
 (`bench_ref` 등)는 **발행 저장소의 로컬 경로**라 받는 쪽에서 해소하는 대상이 아닙니다. 비슷한 hint 를 찾을 때는 코드 브랜치에서
-`python3 .claude/skills/hint-publisher/scripts/hint.py match --vllm <버전> --model <모델>`(읽기 전용 · git 없이 동작)을 쓰십시오.
+`bash .claude/skills/hint-publisher/scripts/hint.sh match --vllm <버전> --model <모델>`(읽기 전용 · git 없이 동작)을 쓰십시오.
 
 ## 읽는 법 — 경고
 

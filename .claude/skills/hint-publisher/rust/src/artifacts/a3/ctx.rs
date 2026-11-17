@@ -1313,7 +1313,7 @@ pub fn _native_serve_command(c: &_Ctx) -> HR<(String, String)> {
     if !run_id.truthy() {
         return Ok((
             format!("bash {REL_NATIVE_SERVE} up --cell {cell} --run-id <run-id> --apply  # run_id 미관측"),
-            "derived(native_multinode_serve.py CLI · serve proof run_id 없음)".into(),
+            "derived(native_multinode_serve.sh CLI · serve proof run_id 없음)".into(),
         ));
     }
     let rid = s(&run_id);
@@ -1326,7 +1326,7 @@ pub fn _native_serve_command(c: &_Ctx) -> HR<(String, String)> {
         up,
         format!("# 측정 뒤 정리(cleanup attestation): bash {REL_NATIVE_SERVE} down --cell {cell} --run-id {rid} --apply"),
     ];
-    Ok((lines.join("\n"), "reconstructed(serve proof cell · run_id · source_cell + native_multinode_serve.py up/down CLI)".into()))
+    Ok((lines.join("\n"), "reconstructed(serve proof cell · run_id · source_cell + native_multinode_serve.sh up/down CLI)".into()))
 }
 
 /// `reproduce_steps` — command order + observed durations per step (SPEC §5.6).

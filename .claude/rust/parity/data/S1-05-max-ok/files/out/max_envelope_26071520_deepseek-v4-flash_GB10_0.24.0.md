@@ -38,4 +38,4 @@
 | image_tag | easy-vllm:0.24.0-cu132-aarch64-source-sm12x |
 
 ---
-_Max = 별도 오퍼레이션(벤치마커 측정 인프라만 공유 · native 모드 아님) · 결정론 렌더 `render_max_report.py`(LLM 표저작 ✗) · 안전 = 헌법 §호스트 안전체계 따름정리 · plan_26071510._
+_Max = 별도 오퍼레이션(벤치마커 측정 인프라만 공유 · native 모드 아님) · 결정론 렌더 `render_max_report.sh`(LLM 표저작 ✗) · 안전 = 헌법 §호스트 안전체계 따름정리 · plan_26071510._

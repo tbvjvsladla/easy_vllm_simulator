@@ -1,4 +1,4 @@
-usage: classify_failure.py [-h] [--log LOG] [--patterns PATTERNS]
+usage: classify_failure.sh [-h] [--log LOG] [--patterns PATTERNS]
 
 options:
   -h, --help           show this help message and exit

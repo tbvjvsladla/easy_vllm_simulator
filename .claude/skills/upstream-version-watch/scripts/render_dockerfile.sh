@@ -24,4 +24,4 @@ if [ "$magic" != $'\177ELF' ]; then
   printf '[render_dockerfile] ERROR normal Rust ELF invalid: %s\n' "$binary" >&2
   exit 2
 fi
-exec -a "$SDIR/render_dockerfile.py" "$binary" "$@"
+exec -a "$SDIR/render_dockerfile.sh" "$binary" "$@"

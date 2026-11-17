@@ -1,6 +1,6 @@
-usage: blackbox_session.py start [-h] --session-id SESSION_ID --model MODEL
+usage: blackbox_session.sh start [-h] --session-id SESSION_ID --model MODEL
                                  [--model-path MODEL_PATH] [--recipe RECIPE]
                                  --topology {single,multi} [--tp TP]
                                  [--config-file CONFIG_FILE] [--image IMAGE]
                                  --now NOW [--note NOTE] [--force]
-blackbox_session.py start: error: the following arguments are required: --session-id, --topology, --now
+blackbox_session.sh start: error: the following arguments are required: --session-id, --topology, --now

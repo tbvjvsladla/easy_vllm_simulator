@@ -767,7 +767,7 @@ fn self_test() -> i32 {
 // ── CLI ──────────────────────────────────────────────────────────────────────────────────────
 
 pub static SPEC: Spec = Spec {
-    prog: "staleness_gate.py",
+    prog: "staleness_gate.sh",
     usage: include_str!("../help/staleness_gate.usage"),
     help: include_str!("../help/staleness_gate.help"),
     args: &[

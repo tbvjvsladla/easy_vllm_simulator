@@ -1,3 +1,3 @@
-usage: blackbox_events.py [-h] [--node-dir NODE_DIR] [--no-boot-scan]
+usage: blackbox_events.sh [-h] [--node-dir NODE_DIR] [--no-boot-scan]
                           [--self-test]
-blackbox_events.py: error: unrecognized arguments: --bogus
+blackbox_events.sh: error: unrecognized arguments: --bogus

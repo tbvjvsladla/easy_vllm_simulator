@@ -5,7 +5,7 @@ use crate::pyassert::assert_lines;
 use crate::pytext::{
     find, os_error, py_strip, read_text, read_text_replace, rel, sort_paths, splitlines, strip_chars, PyError,
 };
-use crate::runner::{execute, python_executable, run, Outcome};
+use crate::runner::{execute, run, Outcome};
 use crate::{dict, get, list_ints, list_strs, opt_str, update, PyValue};
 use fancy_regex::Regex;
 use std::collections::BTreeSet;
@@ -779,15 +779,13 @@ pub struct Hooks<'a> {
     pub run: &'a dyn Fn(&str, &[String], &[i64], &Path, &[(&str, &str)]) -> PyValue,
     pub gitless: &'a dyn Fn(&Path) -> Vec<PyValue>,
     pub flag_issued: &'a dyn Fn(&Path) -> bool,
-    /// The interpreter path recorded for the other bundles' Python programs (`sys.executable`).
-    pub python: String,
 }
 
 /// `verify(policy_as_of, now_utc)`. Err(ValueError message) for a malformed reference date (exit 2), Uncaught for an
 /// exception the original does not catch (its traceback ends the run with exit 1).
 pub fn verify(repo: &Path, policy_as_of: Option<&str>, now_utc: Option<UtcInstant>) -> Result<Result<PyValue, Uncaught>, String> {
     let record = observe_as_of(policy_as_of, now_utc)?;
-    let hooks = Hooks { run: &run, gitless: &gitless_hint_match_checks, flag_issued: &terraform_flag_issued, python: python_executable() };
+    let hooks = Hooks { run: &run, gitless: &gitless_hint_match_checks, flag_issued: &terraform_flag_issued };
     Ok(verify_with(repo, record, &hooks))
 }
 
@@ -795,14 +793,6 @@ pub fn verify(repo: &Path, policy_as_of: Option<&str>, now_utc: Option<UtcInstan
 pub fn verify_with(repo: &Path, record: AsOfRecord, hooks: &Hooks) -> Result<PyValue, Uncaught> {
     let run = |name: &str, argv: &[String], expected: &[i64], cwd: &Path, env: &[(&str, &str)]| (hooks.run)(name, argv, expected, cwd, env);
     let rr = |name: &str, argv: &[&str], expected: &[i64]| run(name, &args(argv), expected, repo, &[]);
-    let py = hooks.python.clone();
-    let p = |name: &str, script: &str, extra: &[&str], expected: &[i64]| -> PyValue {
-        let mut argv = vec![py.clone()];
-        argv.extend(extra.iter().filter(|e| e.starts_with('-') && **e == "-B").map(|e| e.to_string()));
-        argv.push(script.to_string());
-        argv.extend(extra.iter().filter(|e| **e != "-B").map(|e| e.to_string()));
-        run(name, &argv, expected, repo, &[])
-    };
     let mut checks: Vec<PyValue> = Vec::new();
     checks.push(codex_discovery_checks(repo));
     checks.push(codex_discovery_selftest(repo));
@@ -1023,7 +1013,7 @@ pub fn verify_with(repo: &Path, record: AsOfRecord, hooks: &Hooks) -> Result<PyV
         ("ok", b(terraforming_text.contains(".claude/skills/terraforming_node/scripts/host_safety/")
                && !terraforming_text.contains("호스트 안전체계(레포 루트 `scripts/`)")))]));
     checks.push(dict(vec![("name", s("owner_doc_naming_documentation")),
-        ("ok", b(!skeleton_text.contains("`scripts/doc_naming.py`") && skeleton_text.contains(".claude/policies/runtime/doc_naming.py")))]));
+        ("ok", b(!skeleton_text.contains("`scripts/doc_naming.py`") && skeleton_text.contains(".claude/policies/runtime/doc_naming.sh")))]));
 
     let tn = ".claude/skills/terraforming_node/scripts";
     // hint-publisher: its Rust launchers (was `python3 hint.py --self-test` / `render_bench_section.py --selftest`); the

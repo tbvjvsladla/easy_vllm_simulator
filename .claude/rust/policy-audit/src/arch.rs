@@ -318,7 +318,7 @@ pub fn arch_variant_contract_violations(repo_root: &Path) -> Vec<Violation> {
                     out,
                     "ARCH_VARIANT_PORT_SELECTOR_NOT_CLUSTER_WIDE",
                     format!(
-                        "{} selector {} is not propagated to the slave as image identity: SLAVE_IMGVARS is not assigned from slave_forward.py (image_identity) fed the model env file ($EF)",
+                        "{} selector {} is not propagated to the slave as image identity: SLAVE_IMGVARS is not assigned from slave_forward.sh (image_identity) fed the model env file ($EF)",
                         r(name),
                         r(&arg)
                     ),
@@ -345,7 +345,7 @@ pub fn arch_variant_contract_violations(repo_root: &Path) -> Vec<Violation> {
                             out,
                             "ARCH_VARIANT_PORT_SELECTOR_NOT_CLUSTER_WIDE",
                             format!(
-                                "{} selector {} is not derived by slave_forward.py as cluster-wide image identity from the multi compose template (the compose must pass it as a build-arg)",
+                                "{} selector {} is not derived by slave_forward.sh as cluster-wide image identity from the multi compose template (the compose must pass it as a build-arg)",
                                 r(name),
                                 r(&arg)
                             ),

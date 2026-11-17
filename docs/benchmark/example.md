@@ -11,16 +11,16 @@ adversarial-benchmark **full 모드** 종결 시 자동 발행되는 **계측 va
 
 1. **사람용 report** (`bench_report_<YYMMDDHH>[_MM_SS]_<model>_<gpu>_<vllm>.md`) — **모든 full 런에 발행**(PASS/FAIL 무관).
    부하별 곡선(동시성 스윕)·루프라인 컨텍스트·환경 스냅샷을 사람이 읽는 표로 렌더. **inform-only** —
-   verdict 를 *표시만* 한다(판정 권한 없음). 렌더 = 결정론 `render_report.py`(LLM 표저작 ✗).
+   verdict 를 *표시만* 한다(판정 권한 없음). 렌더 = 결정론 `render_report.sh`(LLM 표저작 ✗).
 
 2. **기계용 인증서** (`benchmark_<YYMMDDHH>[_MM_SS]_<model>_<gpu>_<vllm>.yaml`) — **PASS 일 때만 발행**.
    "이 모델을 이 HW/config 에서 테스트했고 통과했다"는 flat 계약 기록. **carry-forward 재검증 헤더** 필수
-   (지도≠정답 — 소비 전 재확인). 발행 = 결정론 `publish_benchmark_record.py`.
+   (지도≠정답 — 소비 전 재확인). 발행 = 결정론 `publish_benchmark_record.sh`.
 
 3. **Max envelope 보고서** (`max_envelope_<YYMMDDHH>[_MM_SS]_<model>_<gpu>_<vllm>.md`) — **Max 오퍼레이션 실행 시** 발행.
    "이 HW 에서 안전하게 최대 어느 컨텍스트(max-model-len)까지 밀 수 있나"의 안전상한 특성화. **inform-only**
    (특성화 표시 · 판정 게이트 아님). Max = **별도 오퍼레이션**(벤치마커 인프라 공유·native 모드 ✗ · 이중 게이트
-   `--confirm-risk`+챗 Y/N). 발행 = 결정론 `render_max_report.py`. 상세 = SKILL.md §8.5.
+   `--confirm-risk`+챗 Y/N). 발행 = 결정론 `render_max_report.sh`. 상세 = SKILL.md §8.5.
 
 ## 문서형 경계 (testlog 와 다름)
 
@@ -43,11 +43,11 @@ docs/benchmark/max_envelope_<YYMMDDHH>[_MM_SS]_<model>_<gpu>_<vllm>.md  ← Max 
   `<vllm>` = 대상 vLLM 버전(예 `0.24.0`, 미상 시 `NA`).
 - **파일 접두사 = 산출물 종류**(`bench_report_` / `benchmark_` / `max_envelope_`). 여러 모델·HW·버전 조합이 한 폴더에 공존.
 - 명명 SSOT(결정론 헬퍼): 벤치 산출물 이름(`bench_filename`·`gpu_key`·`kst_tokens`)의 **정본은**
-  `.claude/skills/adversarial-benchmark/scripts/doc_naming.py` 다 — 런타임블럭이라 **서브 노드에도 배달**된다.
-  `.claude/policies/runtime/doc_naming.py`(산문 문서 명명 shim · 정본 `.claude/skills/wiki-desk/src/doc_naming.ts`)는 그 모듈을 **재수출**한다
+  `.claude/skills/adversarial-benchmark/scripts/bench_doc_naming.sh`(Rust `rust/src/bench_naming.rs`) 다 — 런타임블럭이라 **서브 노드에도 배달**된다.
+  `.claude/policies/runtime/doc_naming.sh`(산문 문서 명명 Rust 런처 · 정본 `.claude/skills/wiki-desk/src/doc_naming.ts`)는 그 모듈을 **재수출**한다
   (2026-09-04 plan_26090410 P0.5 — 종전 두 사본이 서로 다른 충돌 규칙을 가져 같은 측정이 두 이름을 가졌다).
   "같은 측정" 판정은 이름이 아니라 기존 파일 **본문의 `measured_utc`** 로 하며(같으면 덮어쓰기·다르면 `_MM_SS`),
-  헌법 runtime 의 `evidence_publisher.py publish-benchmark` 는 이름을 **만들지 않고** 원본 경로에 바인딩한다.
+  헌법 runtime 의 `evidence_publisher.sh publish-benchmark` 는 이름을 **만들지 않고** 원본 경로에 바인딩한다.
   `publish-benchmark`는 항상 `bench_report`를 발행하고, `certificate`는 **실제로 공급된, 파싱 가능하고,
   verdict=PASS·benchmark_mode=full·강한 식별자(model/gpu/vllm/quant/topology/tp)가 이 발행물의 identity
   와 정확히 일치하는 아티팩트가 있을 때만** 발행한다(모순되는 인증서는 게시 전에 거부 — verdict=PASS

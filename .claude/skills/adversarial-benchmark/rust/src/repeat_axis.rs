@@ -26,7 +26,7 @@ use num_bigint::BigInt;
 // ── constants of the original module ────────────────────────────────────────────
 
 /// Campaign-declaration owner, relative to the repository root.
-pub const CAMPAIGN_INIT_REL: &str = ".claude/skills/terraforming_node/scripts/campaign_init.py";
+pub const CAMPAIGN_INIT_REL: &str = ".claude/skills/terraforming_node/scripts/campaign_init.sh";
 /// The campaign schema whose `budgets.repeats.minimum` is cross-checked against [`FULL_REPEATS_MIN`].
 pub const SCHEMA_REL: &str = "campaigns/_template/campaign.schema.json";
 pub const REPEAT_KIND_WARM: &str = "warm-rerun";
@@ -69,7 +69,7 @@ pub const AGGREGATE_KEYS: [&str; 11] = [
     "repro_band_formula",
 ];
 const SUMMARY_NOTE: &str =
-    "raw 요약과 즉시 신호다 — bench_mode(full|lite)·downgrade_reason 확정은 classify_cell.py(post-hoc)";
+    "raw 요약과 즉시 신호다 — bench_mode(full|lite)·downgrade_reason 확정은 classify_cell.sh(post-hoc)";
 const REPEAT_BREAK_WINDOW_RULE: &str = "직전 run 시작 ~ 끊긴 run 끝(사인 확정은 classify_cell)";
 const CLAMP_WINDOW_RULE: &str =
     "직전 run(아래 측정 레벨의 마지막 run) 시작 ~ 클램프 run 끝(사인 확정은 classify_cell)";

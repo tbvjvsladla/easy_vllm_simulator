@@ -1,2 +1,2 @@
-usage: agent_card_contract.py validate [-h] --card CARD [--require-skills]
-agent_card_contract.py validate: error: the following arguments are required: --card
+usage: agent_card_contract.sh validate [-h] --card CARD [--require-skills]
+agent_card_contract.sh validate: error: the following arguments are required: --card

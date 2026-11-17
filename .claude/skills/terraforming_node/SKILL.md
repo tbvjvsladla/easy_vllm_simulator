@@ -35,11 +35,11 @@ when_to_use: >-
 - **When to invoke** — fresh-clone(미테라포밍) 감지 · HW/네트워크/manifest 변경 · `scripts/staleness_gate.sh` 가 preflight 필요를 반환할 때. 하네스/provider·권한·프로젝트 신뢰·실행환경이 바뀌면 HW 재스캔 없이 §2.5.2로 들어간다. **조건부 preflight** 이지 매 작업 상시단계가 아니다. 기존 유효 승인·캠페인·로그인을 다시 요구하지 않는다. 블랙박스·오케스트레이션·캠페인 절차가 필요할 때는 아래 §라우팅 표의 reference 로 간다.
 - **Inputs** — 사용자 인터뷰 답(토폴로지·모델 획득 모드·multi 5-전제조건) · 노드 실측 스캔 · 현재 git 브랜치 · (선택) 이전 attestation.
 - **Outputs** — `output/<topology>/manifest.yaml`(HITL 반영) · Flag attestation · (multi) `output/<topology>/sub_provision/` 스테이징 + 카나리 리포트.
-- **State transitions** — 산출물은 `execution-approved` 의 **전제**(HW 사실·Flag)를 만든다. runtime-ready/evidence-complete/promotion-ready 판정은 `.claude/policies/runtime/completion_gate.py` 소유.
+- **State transitions** — 산출물은 `execution-approved` 의 **전제**(HW 사실·Flag)를 만든다. runtime-ready/evidence-complete/promotion-ready 판정은 `.claude/policies/runtime/completion_gate.sh` 소유.
 - **Deterministic commands** — 아래 §공개 표면 표가 전수다. 플래그의 단일 권위는 각 스크립트의 `--help` 다(여기 손으로 적지 않는다).
 - **Handoff contract** — Flag 발급 → `upstream-version-watch`(컨테이너 빌드) → `vllm-recipe-explorer`(서빙전략). 서브 전달차는 `upstream-version-watch/scripts/sync_to_sub.sh` 단일 경로.
 - **Worker/checkpoint contract** — 남은 작업·동일 단계 실측·소진 원인·서브 제안으로 native 실행 예산을 매번 편성하되 A2A 누적 호출 횟수로 캠페인을 끊지 않는다. 정상 예산 소진 뒤 상태 회수·재호출은 세션 리볼버의 역할이며 메인 자체가 워커가 되어도 같다. 호출 횟수는 이력으로 보존한다. 실제 권한·정체성·중복 실행·미해결 실패 가드는 유지한다.
-- **Owns (state)** — `manifest.yaml`(메인 + **서브 manifest** §2.7.10) · `terraforming-flag` · `agent-card`(unsigned capability/discovery metadata) · `sub-agent-env` · `node-identity`(§2.7.6) · `topology-axis-contract`(§2.7.0) · `sub-control-plane`(§2.7) · `grounding-exchange`(§2.7.8) · 캠페인 체인 writer(`campaign_init.py`) · 블랙박스 데이터 평면(`docs/logs/<node_id>/`).
+- **Owns (state)** — `manifest.yaml`(메인 + **서브 manifest** §2.7.10) · `terraforming-flag` · `agent-card`(unsigned capability/discovery metadata) · `sub-agent-env` · `node-identity`(§2.7.6) · `topology-axis-contract`(§2.7.0) · `sub-control-plane`(§2.7) · `grounding-exchange`(§2.7.8) · 캠페인 체인 writer(`campaign_init.sh`) · 블랙박스 데이터 평면(`docs/logs/<node_id>/`).
 
 ## Mandatory procedural spine
 
@@ -50,7 +50,7 @@ when_to_use: >-
 3. **모델 획득 모드 인터뷰**(§0.5.7) → **0차 init-plan 발행 + 자기-HITL 승인**(§0.5.8).
 4. **스캔**(single=§1S · multi=§1.1 5-전제조건 인터뷰 → §1.2 사용자 승인 → §1.3 스캔 → §1.4 성능 게이트).
 5. **게이트 + 3자-일치 단언**(§1.5) → 통과 시에만 **manifest + Flag 기입**(§1.6 / §1S, HITL).
-6. **하네스 실행환경(main 및 등록된 sub)** — 역할별 업무 권한 → 렌더 → 공식 전달 → 노드별 Rust 설치·offline 빌드/기동 검사 → discovery·실제 권한 카나리(§2.3–§2.5.2). Rust는 `references/install/rust_runtime.md`의 배포 helper로 준비한다. **순서 의존**: 메인 자신의 Rust install → check → 정상 빌드(`build_rust.sh`·`build_rust_packages.sh`)는 `scan_node.py --emit-sub-manifest`·`render_sub_env.sh --sub-manifest|--self-test`·카나리 `discovery|permissions`·`relay.sh` 보다 **선행**한다(이들이 `manifest_contract`·`turn_budget` Rust 리더/브리지를 부른다). 새 클론의 진입(위 1–5: staleness·인터뷰·스캔·게이트·manifest+Flag)과 `rust_bootstrap.sh install|check` 는 어떤 ELF 도 요구하지 않는다 — Flag 가 없어도 온보딩에 들어갈 수 있고 검증기에 막히지 않는다. 표: `references/install/rust_runtime.md` §명령 순서와 ELF 의존. sudo 작업은 개정마다 생기는 것이 아니라 실제 호스트 전제조건 결손 때만 수행지시서로 발행한다. single의 등록된 A2A 서브도 이 단계에 포함하고 빌드킷 배달은 계속 dormant다. Rust 기동 검사·카나리 미통과 시 해당 하네스 배포 done 선언 ✗.
+6. **하네스 실행환경(main 및 등록된 sub)** — 역할별 업무 권한 → 렌더 → 공식 전달 → 노드별 Rust 설치·offline 빌드/기동 검사 → discovery·실제 권한 카나리(§2.3–§2.5.2). Rust는 `references/install/rust_runtime.md`의 배포 helper로 준비한다. **순서 의존**: 메인 자신의 Rust install → check → 정상 빌드(`build_rust.sh`·`build_rust_packages.sh`)는 `scan_node.sh --emit-sub-manifest`·`render_sub_env.sh --sub-manifest|--self-test`·카나리 `discovery|permissions`·`relay.sh` 보다 **선행**한다(이들이 `manifest_contract`·`turn_budget` Rust 리더/브리지를 부른다). 새 클론의 진입(위 1–5: staleness·인터뷰·스캔·게이트·manifest+Flag)과 `rust_bootstrap.sh install|check` 는 어떤 ELF 도 요구하지 않는다 — Flag 가 없어도 온보딩에 들어갈 수 있고 검증기에 막히지 않는다. 표: `references/install/rust_runtime.md` §명령 순서와 ELF 의존. sudo 작업은 개정마다 생기는 것이 아니라 실제 호스트 전제조건 결손 때만 수행지시서로 발행한다. single의 등록된 A2A 서브도 이 단계에 포함하고 빌드킷 배달은 계속 dormant다. Rust 기동 검사·카나리 미통과 시 해당 하네스 배포 done 선언 ✗.
 7. **호스트 안전체계 세션 최종 Y/N**(§2.6) — Flag 발급 **이후**의 독립 선택조항.
 
 
@@ -59,16 +59,16 @@ when_to_use: >-
 | 실패 신호 | 라우팅 대상 (정확 경로) |
 |---|---|
 | 재진입이 필요한지 불명(HW·manifest·attestation 변화 판정) | `.claude/skills/terraforming_node/scripts/staleness_gate.sh` |
-| 스캔/게이트/3자-일치 blocked(비0 종료) · emit fail-closed | `.claude/skills/terraforming_node/scripts/scan_node.py` · `references/install/onboarding.md` |
+| 스캔/게이트/3자-일치 blocked(비0 종료) · emit fail-closed | `.claude/skills/terraforming_node/scripts/scan_node.sh` · `references/install/onboarding.md` |
 | 서브 환경 렌더 실패(미치환 placeholder·필수 필드 누락) | `.claude/skills/terraforming_node/scripts/render_sub_env.sh` · `references/install/sub_agent_env.md` |
 | 서브 위임/카나리의 provider 실행문법이 필요 | `.claude/skills/terraforming_node/references/orchestration/agent-control-adapter.md` |
 | 하네스 전환·공통 Codex 권한·설정 로딩·실행 실패 | `references/install/harness_environment.md` · `templates/requests/codex_linux_sandbox.md` |
 | Rust가 없는 신규 PC·Rust pin 변경·main/sub 컴파일/기동 준비 | `references/install/rust_runtime.md` |
-| Flag 미발급이라 런타임 스킬이 info-only 로 떨어짐 | `.claude/skills/terraforming_node/scripts/manifest_contract.py` |
+| Flag 미발급이라 런타임 스킬이 info-only 로 떨어짐 | `.claude/skills/terraforming_node/scripts/manifest_contract.sh` |
 | 서브에 무엇을 해도 되는지 모호(저작/스캔/정비) · 평면 A/B 혼동 · 서브 git 교착 | §2.7 → `references/orchestration/control_planes.md` |
 | "고쳤는데 안 갔다" / "안 고쳤는데 갔다"(커밋 vs 인덱스 vs 파일시스템) | §2.7.4 → `references/orchestration/control_planes.md` |
 | `docs/logs/<node_id>` 경로가 노드마다 갈림 · hostname 이 경로에 샘 | §2.7.6 → `references/orchestration/topology_identity.md` |
-| 싱글인데 멀티의 배달·버전동기 개념이 끼어듦 · `role: sub` 의 의미가 모호 | §2.7.0 → `references/orchestration/topology_identity.md` + `scripts/node_role_contract.py` |
+| 싱글인데 멀티의 배달·버전동기 개념이 끼어듦 · `role: sub` 의 의미가 모호 | §2.7.0 → `references/orchestration/topology_identity.md` + `scripts/node_role_contract.sh` |
 | 서브 결정의 근거가 불명 · 인용 없는 빌드/서빙 결정 · 서브가 서고에 닿지 못함 | §2.7.8 → `references/orchestration/grounding_exchange.md` + `scripts/library_access.sh` |
 | 위임이 소진·중단됨 · 재개 여부 · 러너(백엔드×모델) 실패 | §2.7.7a · §2.7.11 → `references/orchestration/a2a_relay.md` |
 | 워치독 트립·사살 · 블랙박스 미설치/검증 실패 | §2.6 → `references/blackbox/host_safety.md` · `docs/logs` 평면은 `references/blackbox/logs_plane.md` |
@@ -161,13 +161,13 @@ ib_write_bw 오케스트레이션 · 호스트 안전체계 Y/N 설명·승인(�
 
 ## 4. 공개 표면 — 외부(다른 스킬·기초층·훅·서브 렌더 트리)가 부르는 진입점 전수
 
-호출자 목록은 적지 않는다(파생값 — `antipattern_scan.py --tripwire` 의 `public_surface` 검사가 이 표 밖의 외부 호출을 막는다).
+호출자 목록은 적지 않는다(파생값 — `antipattern_scan.sh --tripwire` 의 `public_surface` 검사가 이 표 밖의 외부 호출을 막는다).
 배달 = `render_sub_env.sh` 가 서브 렌더 트리에 싣는지.
 
 | 진입점 | 소유 § | 배달 | 비고 |
 |---|---|---|---|
 | `scripts/campaign_init.py` | 캠페인 체인 | ✓ | 캠페인 상태의 **유일한 writer**. 사람 승인 인자 필수 동사만 적는다: `--revise` · `--reentry-decide` · `--hint-approve` · 수명 전이(`--init --suspend-current` · `--suspend` · `--resume-campaign` · `--abandon` · `--answer-query` · `--dispose` · `--sub-unconverged-accept`) · 배정 변경(`--assign-set`). 나머지는 `--help` |
-| `scripts/selftest_campaign_lifecycle.sh` (Rust `rust/src/selftests/campaign_lifecycle.rs` · 원본 `scripts/selftest_campaign_lifecycle.py` 보존) | 캠페인 체인 | — | 수명 상태(보류·재개·포기·선점 · 서브 종결 전파 · 재배정) 자체검사 · 회귀 실행자 `verify_distribution.py` |
+| `scripts/selftest_campaign_lifecycle.sh` (Rust `rust/src/selftests/campaign_lifecycle.rs` · 원본 `scripts/selftest_campaign_lifecycle.py` 보존) | 캠페인 체인 | — | 수명 상태(보류·재개·포기·선점 · 서브 종결 전파 · 재배정) 자체검사 · 회귀 실행자 `verify_distribution.sh` |
 | `scripts/campaign_init.sh` | 캠페인 체인 | ✓ | 읽기 두 형태(`--active`·`--derive KIND …`)와 모델링한 쓰기 형태(`--init`·`--close`·`--phase-set`·`--cell-set`·`--write-brief`·`--assigned-cells`)를 공유 B 의 `campaign_init` 실행파일(노드에서 빌드)로 처리하는 런처 · 실행파일 부재/실행 불가는 어떤 경로 선택보다 먼저 exit 2 + 빌드 안내(명시 Python 지정이 있어도 Python 을 시작하지 않는다) · `CAMPAIGN_READ_VALIDATE_ONLY=1` 은 가용성 확인(값 1만 · 건강 증명 아님) · 다른 형태·명시 인터프리터·다른/읽을 수 없는 소스·미모델링 텍스트 프로필은 실제 `campaign_init.py` 로 가는 명시 호환 경로이며 업무 처리 전에만 정해진다 · 배달되는 것은 이 런처뿐이고 B 산출물은 B 를 받아 자체 빌드한 노드에만 있다(ray-worker 는 런타임 업무 0·호출자 없음) · 모델링하지 않은 쓰기 동사는 이 런처를 거쳐 `campaign_init.py` 로 간다(호출부는 `.sh` 하나만 부른다) |
 | `scripts/campaign_template_validator.sh` | 캠페인 체인 | ✓ | `--acceptance INSTANCE`(합격 술어 P4·P5·P6)를 공유 B 의 `campaign_template_validator` 실행파일(노드에서 빌드)로 처리하는 런처 · 실행파일 부재/실행 불가는 exit 2 + 빌드 안내(명시 Python 지정이 있어도 Python 을 시작하지 않는다) · `CAMPAIGN_VALIDATOR_VALIDATE_ONLY=1` 은 가용성 확인 · `--campaign`·`--instance`·`--template`·`--selftest` 와 명시 인터프리터(`CAMPAIGN_VALIDATOR_PYTHON`)는 실제 `campaign_template_validator.py` 로 가는 명시 호환 경로 |
 | `scripts/campaign_template_validator.py` | 캠페인 체인 | ✓ | 선언·인스턴스 술어(P1~P3) |

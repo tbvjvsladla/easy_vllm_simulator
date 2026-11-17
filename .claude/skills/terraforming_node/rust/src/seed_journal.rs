@@ -741,7 +741,7 @@ fn self_test() -> i32 {
 }
 
 pub static SPEC: Spec = Spec {
-    prog: "seed_from_journal.py",
+    prog: "seed_from_journal.sh",
     usage: include_str!("../help/seed_from_journal.usage"),
     help: include_str!("../help/seed_from_journal.help"),
     args: &[

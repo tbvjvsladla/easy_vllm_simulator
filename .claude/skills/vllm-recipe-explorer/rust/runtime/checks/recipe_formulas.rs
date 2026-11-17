@@ -313,39 +313,39 @@ fn argparse_rules_match_cpythons_for_the_same_option_set() {
     for (args, last) in [
         (
             vec!["--m", "1"],
-            "estimate_vram.py: error: ambiguous option: --m could match --max-model-len, --margin",
+            "estimate_vram.sh: error: ambiguous option: --m could match --max-model-len, --margin",
         ),
         (
             vec!["--ma", "1"],
-            "estimate_vram.py: error: ambiguous option: --ma could match --max-model-len, --margin",
+            "estimate_vram.sh: error: ambiguous option: --ma could match --max-model-len, --margin",
         ),
         (
             vec!["--tp"],
-            "estimate_vram.py: error: argument --tp: expected one argument",
+            "estimate_vram.sh: error: argument --tp: expected one argument",
         ),
         (
             vec!["--tp", "x", "--zzz"],
-            "estimate_vram.py: error: argument --tp: invalid int value: 'x'",
+            "estimate_vram.sh: error: argument --tp: invalid int value: 'x'",
         ),
         (
             vec!["stray"],
-            "estimate_vram.py: error: unrecognized arguments: stray",
+            "estimate_vram.sh: error: unrecognized arguments: stray",
         ),
         (
             vec!["--self-test=1"],
-            "estimate_vram.py: error: argument --self-test: ignored explicit argument '1'",
+            "estimate_vram.sh: error: argument --self-test: ignored explicit argument '1'",
         ),
     ] {
         let (code, out, err) = run(estimate, &args);
         assert_eq!(code, Some(2), "{args:?}");
         assert!(out.is_empty());
-        assert!(err.starts_with("usage: estimate_vram.py [-h]"), "{err}");
+        assert!(err.starts_with("usage: estimate_vram.sh [-h]"), "{err}");
         assert_eq!(err.lines().last(), Some(last), "{args:?}");
     }
     // An abbreviation, `--opt=value`, a negative number as a value and `-hx` (help runs first) are all accepted.
     let (code, out, _) = run(estimate, &["-hx"]);
     assert_eq!(code, Some(0));
-    assert!(out.starts_with("usage: estimate_vram.py"));
+    assert!(out.starts_with("usage: estimate_vram.sh"));
     let quant = env!("CARGO_BIN_EXE_quant_table");
     let (code, out, _) = run(quant, &["--serve-b=3.5", "--quant=NONE"]);
     assert_eq!(
@@ -373,7 +373,7 @@ fn help_follows_the_terminal_width_the_environment_names() {
         .output()
         .unwrap();
     let text = String::from_utf8_lossy(&output.stdout).into_owned();
-    let head = "usage: quant_table.py [-h]\n                      [--quant QUANT]\n                      [--serve-bpw SERVE_BPW]\n                      [--dtype DTYPE]\n                      [--json]\n\nquant 바이트 테이블 해소(벤더링) — quant/dtype →\nbpw.\n\noptions:\n  -h, --help      show this help\n                  message and exit\n";
+    let head = "usage: quant_table.sh [-h]\n                      [--quant QUANT]\n                      [--serve-bpw SERVE_BPW]\n                      [--dtype DTYPE]\n                      [--json]\n\nquant 바이트 테이블 해소(벤더링) — quant/dtype →\nbpw.\n\noptions:\n  -h, --help      show this help\n                  message and exit\n";
     assert!(text.starts_with(head), "{text}");
 }
 

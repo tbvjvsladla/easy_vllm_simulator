@@ -34,7 +34,7 @@ pub fn close_reason_of(c: &str) -> Option<&'static str> {
 
 /// `HERE` — the scripts directory (`os.path.dirname(os.path.abspath(__file__))`).
 pub fn here() -> PathBuf {
-    crate::owner::owner_path("relay.py").parent().map(Path::to_path_buf).unwrap_or_default()
+    crate::owner::owner_path("relay.sh").parent().map(Path::to_path_buf).unwrap_or_default()
 }
 /// `REPO` — four levels above `HERE`.
 pub fn repo() -> String {

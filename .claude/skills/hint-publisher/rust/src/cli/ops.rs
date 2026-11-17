@@ -60,7 +60,7 @@ pub fn _require_central(repo: &Path, action: &str) -> HR<()> {
              ▸ 이 체크아웃이 자기 원격(origin)의 hint 카탈로그를 소유한다면 권위를 선언하라: \
              printf '%s\\n' '이 체크아웃이 자기 원격의 hint 색인·배포 권위다.' > {c} \
              (비추적 — 각 저장소가 스스로 선언한다 · 선언은 그 원격의 index.json·HINTS.md 정합을 떠안는 책임이다). \
-             ▸ 상류에 기여하는 입장이면 `hint.py continue … --no-push` 로 봉인·로컬 검증까지만 하고 그 태그를 상류에 전달하라\
+             ▸ 상류에 기여하는 입장이면 `hint.sh continue … --no-push` 로 봉인·로컬 검증까지만 하고 그 태그를 상류에 전달하라\
              (색인·배포는 상류가 한다). ▸ 어느 쪽도 아니면 **우회하지 말고** 어느 쪽인지부터 정하라 — 맨 `git tag -a` + \
              `git push` 로 만든 태그는 증거 바인딩이 없다."
         )),
@@ -136,7 +136,7 @@ pub fn _require_fresh_draft(draft: &Path) -> HR<()> {
         return fail(
             "HINT_DRAFT_EXISTS",
             format!("이미 publish 된 draft 다: {d}"),
-            Some("이어서 저작하려면 `hint.py continue --draft <draft>` · 새로 시작하려면 draft 를 지우고 publish 를 다시 한다."),
+            Some("이어서 저작하려면 `hint.sh continue --draft <draft>` · 새로 시작하려면 draft 를 지우고 publish 를 다시 한다."),
         );
     }
     let mut extra: Vec<String> = std::fs::read_dir(draft)
@@ -169,7 +169,7 @@ pub fn _load_state(draft: &Path) -> HR<J> {
         return fail(
             "HINT_DRAFT_STATE_UNREADABLE",
             format!("state.json 모양이 아니다: {}", core::posix(&p)),
-            Some("hint.py publish 가 만든 draft 에서 실행한다(state.json 은 도구가 쓴다 · 손으로 고치지 않는다)."),
+            Some("hint.sh publish 가 만든 draft 에서 실행한다(state.json 은 도구가 쓴다 · 손으로 고치지 않는다)."),
         );
     }
     if let J::Dict(m) = &mut st {
@@ -224,7 +224,7 @@ pub fn _find_draft(repo: &Path, draft: Option<&str>, campaign: Option<&str>, cel
             return fail(
                 "HINT_DRAFT_ABSENT",
                 format!("state.json 이 없다 — publish 된 draft 가 아니다: {}", core::posix(&d)),
-                Some("hint.py publish 를 먼저 실행한다(출력의 draft 경로를 --draft 로 넘긴다)."),
+                Some("hint.sh publish 를 먼저 실행한다(출력의 draft 경로를 --draft 로 넘긴다)."),
             );
         }
         return Ok(d);
@@ -244,7 +244,7 @@ pub fn _find_draft(repo: &Path, draft: Option<&str>, campaign: Option<&str>, cel
         return fail(
             "HINT_DRAFT_ABSENT",
             format!("{}/ 에 캠페인 {campaign} 셀 {cell} 의 draft 가 없다.", core::REL_DRAFTS),
-            Some(&format!("`hint.py publish --campaign {campaign} --cell {cell} --generated-utc <UTC>` 를 먼저 실행한다.")),
+            Some(&format!("`hint.sh publish --campaign {campaign} --cell {cell} --generated-utc <UTC>` 를 먼저 실행한다.")),
         );
     }
     if hits.len() > 1 {
@@ -363,7 +363,7 @@ pub fn _require_unbound_publication_time(repo: &Path, topic: &str, utc: &str) ->
                 list_repr(&shown)
             ),
             Some(
-                "그 draft 를 이어서 저작한다(`hint.py continue --draft …` · 사실 재파생은 `hint.py refacts`). 같은 셀의 새 판은 그 발행을 \
+                "그 draft 를 이어서 저작한다(`hint.sh continue --draft …` · 사실 재파생은 `hint.sh refacts`). 같은 셀의 새 판은 그 발행을 \
                  끝낸 뒤 새 발행 기록으로 낸다.",
             ),
         );
@@ -971,7 +971,7 @@ pub fn _fail_lint(issues: &[J], sealed: bool) -> HR<()> {
             lines.join("\n  "),
             if issues.len() > 40 { "\n  …" } else { "" }
         ),
-        Some("PROMPT 지시대로 저작을 고친 뒤 `hint.py lint --draft <draft>` 로 확인하고 continue 를 다시 실행한다."),
+        Some("PROMPT 지시대로 저작을 고친 뒤 `hint.sh lint --draft <draft>` 로 확인하고 continue 를 다시 실행한다."),
     )
 }
 
@@ -1465,7 +1465,7 @@ pub fn _confirm_name(repo: &Path, draft: &Path, st: &mut J, payload: &Path, remo
         return fail(
             c0,
             format!("이름 꼬리 결함 {}건(inputs/{TAIL_NAME}) — 커밋하지 않았다:\n  {}", probs.len(), lines.join("\n  ")),
-            Some("근거는 이 셀의 서빙 설정(inputs/tail_sources.json 에 있는 파일 · 키)에서 값 그대로 옮긴다 · `hint.py lint` 로 미리 본다."),
+            Some("근거는 이 셀의 서빙 설정(inputs/tail_sources.json 에 있는 파일 · 키)에서 값 그대로 옮긴다 · `hint.sh lint` 로 미리 본다."),
         );
     }
     let base = if st["base_tag"].truthy() { st["base_tag"].display() } else { st["tag"].display() };
@@ -1592,7 +1592,7 @@ pub fn _lineage_full(draft: &Path, payload: &Path) -> HR<J> {
     fail(
         "HINT_LINEAGE_UNREADABLE",
         format!("전체 계보가 없다(draft inputs/{}) — 페이로드 LINEAGE.json 은 수신자 요약이다.", lineage::LINEAGE_FULL_NAME),
-        Some("`hint.py refacts --draft <draft>` 로 계보를 다시 파생한다."),
+        Some("`hint.sh refacts --draft <draft>` 로 계보를 다시 파생한다."),
     )
 }
 
@@ -1795,7 +1795,7 @@ fn _continue(repo: &Path, draft: &Path, a: &ContinueArgs, git_repo: Option<&Path
         return fail(
             "HINT_PROMOTION_BINDING_MISMATCH",
             format!("work-manifest 의 promotion_target 이 봉인 대상과 다르다: {}", parts.join("; ")),
-            Some("evidence_publisher set-promotion-target 이 쓴 목표를 확인한다(hint.py 는 manifest 를 직접 고치지 않는다)."),
+            Some("evidence_publisher set-promotion-target 이 쓴 목표를 확인한다(hint.sh 는 manifest 를 직접 고치지 않는다)."),
         );
     }
     _gate(repo, &manifest, "continue")?;
@@ -1838,7 +1838,7 @@ fn _continue(repo: &Path, draft: &Path, a: &ContinueArgs, git_repo: Option<&Path
         "draft" => p_j(draft), "guide" => st["guide"]["sha"].clone(), "infos" => J::List(infos.clone()),
     };
     if a.no_push {
-        let mut again = format!("hint.py continue --draft {} --generated-utc <UTC>", _show(repo, draft));
+        let mut again = format!("hint.sh continue --draft {} --generated-utc <UTC>", _show(repo, draft));
         if st.get_str("mode") != Some("campaign") {
             again.push_str(" --approved-by \"<같은 사람 발화 전사>\" --approved-utc <UTC>");
         }
@@ -2207,7 +2207,7 @@ pub fn lint_draft(repo: &Path, draft: &Path) -> HR<Vec<J>> {
         return fail(
             "HINT_DRAFT_PAYLOAD_ABSENT",
             format!("draft 에 payload/ 가 없다: {}", core::posix(draft)),
-            Some("hint.py publish 가 만든 draft 에서 실행한다(끊긴 publish 면 draft 를 지우고 같은 --generated-utc 로 다시)."),
+            Some("hint.sh publish 가 만든 draft 에서 실행한다(끊긴 publish 면 draft 를 지우고 같은 --generated-utc 로 다시)."),
         );
     }
     let mut issues = {
@@ -2486,12 +2486,12 @@ pub fn cmd_push(a: &Args) -> HR<i32> {
     out.set("infos", J::List(infos));
     io::outln(&dumps_pretty_sorted(&out));
     if a.b("apply") {
-        _log(&format!("단독 push — 카탈로그는 `hint.py catalog derive --remote {remote} --generated-kst <KST> --record-missing` 로 파생한다(continue 는 스스로 한다)."));
+        _log(&format!("단독 push — 카탈로그는 `hint.sh catalog derive --remote {remote} --generated-kst <KST> --record-missing` 로 파생한다(continue 는 스스로 한다)."));
         if let (Some(st), Some(d)) = (&st, &d) {
             if st.get_str("mode") == Some("campaign") {
                 let sd = _show(&repo, d);
                 _log(&format!(
-                    "⚠ 캠페인 셀 draft({sd}) — publish 위상은 기록되지 않았다. `hint.py continue --draft {sd} --generated-utc <UTC>` 를 실행하면 원격 확인(이미 반영 · 멱등) → 카탈로그 → 위상까지 잇는다."
+                    "⚠ 캠페인 셀 draft({sd}) — publish 위상은 기록되지 않았다. `hint.sh continue --draft {sd} --generated-utc <UTC>` 를 실행하면 원격 확인(이미 반영 · 멱등) → 카탈로그 → 위상까지 잇는다."
                 ));
             }
         }

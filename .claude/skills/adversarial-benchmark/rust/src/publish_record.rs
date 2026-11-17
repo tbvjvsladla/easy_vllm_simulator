@@ -151,7 +151,7 @@ pub fn build_yaml(index: &PyValue, verdict: &PyValue) -> Res<PyStr> {
     ));
     out.add(lit!("#   model = 체크포인트에서 파생한 **모델 축**(소문자). 운영 조합명은 serving_config 축에 따로 산다."));
     out.add(lit!("#   소프트 지문(driver/cuda/image/max-len/kv-bytes/gmu/moe): 불일치 시 stale — 재측정 권고."));
-    out.add(lit!("#   발행 = full 모드 verdict==PASS 시만(결정론 publish_benchmark_record.py · inform-record)."));
+    out.add(lit!("#   발행 = full 모드 verdict==PASS 시만(결정론 publish_benchmark_record.sh · inform-record)."));
     out.add(lit!("schema_version: 1"));
     out.add(lit!("record_type: benchmark_certificate"));
     out.add(lit!("verdict: PASS"));
@@ -258,7 +258,7 @@ pub fn build_lite_yaml(
     out.add(lit!("#   ★ lite 등급 인증서 — 서빙이 실사용 최소 시나리오(cold 1 + warm burst · 동시성 1)에서 **성립**했다는 기록이다."));
     out.add(lit!("#     성능 판정(verdict)이 아니다 · 성능 완료 선언의 근거가 될 수 없다(benchmark_mode=full 만). hint 발행 자격의 근거다."));
     out.add(lit!(
-        "#   발행 = lite_verdict==pass 시만(결정론 publish_benchmark_record.py · inform-record)."
+        "#   발행 = lite_verdict==pass 시만(결정론 publish_benchmark_record.sh · inform-record)."
     ));
     out.add(lit!("schema_version: 1"));
     out.add(lit!("record_type: benchmark_certificate"));

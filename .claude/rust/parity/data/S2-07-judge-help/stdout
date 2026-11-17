@@ -1,4 +1,4 @@
-usage: judge_version_delta.py [-h] [--repo REPO] [--from-ref FROM_REF]
+usage: judge_version_delta.sh [-h] [--repo REPO] [--from-ref FROM_REF]
                               [--to-ref TO_REF]
                               [--generated-kst GENERATED_KST]
                               [--repo-cache REPO_CACHE]
@@ -10,7 +10,7 @@ usage: judge_version_delta.py [-h] [--repo REPO] [--from-ref FROM_REF]
                               [--fixture FIXTURE]
                               [--check-fixture CHECK_FIXTURE] [--self-test]
 
-judge_version_delta.py — 버전 델타 영향판정 Judge (P1:D0+D1 · P2:D2)
+judge_version_delta.sh — 버전 델타 영향판정 Judge (P1:D0+D1 · P2:D2)
 
 options:
   -h, --help            show this help message and exit

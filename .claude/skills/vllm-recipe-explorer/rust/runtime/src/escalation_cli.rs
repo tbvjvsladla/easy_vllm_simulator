@@ -69,7 +69,7 @@ fn opt(
 /// The parser of the original `main`.
 pub fn spec() -> Spec {
     Spec {
-        prog: "escalation_predicate.py",
+        prog: "escalation_predicate.sh",
         description: "escalation 술어 ① 판정 (§5.5 · plan_26091108 R7)",
         options: vec![
             opt(&["-h", "--help"], "help", Kind::Help, None),

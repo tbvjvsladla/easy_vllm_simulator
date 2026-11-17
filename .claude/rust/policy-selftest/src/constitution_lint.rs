@@ -392,7 +392,7 @@ pub fn self_test() -> i32 {
     EXIT_OK
 }
 
-pub const USAGE: &str = "usage: constitution_lint.py [-h] [--repo REPO] [--format {json,text}]
+pub const USAGE: &str = "usage: constitution_lint.sh [-h] [--repo REPO] [--format {json,text}]
                             [--self-test]
 ";
 
@@ -404,7 +404,7 @@ pub fn main(argv: &[String]) -> i32 {
         Opt { long: "--self-test", kind: K::Flag },
     ];
     let help = format!("{USAGE}{}", include_str!("constitution_lint_help.txt"));
-    let a = match argp::parse(argv, &opts, "constitution_lint.py", USAGE, &help) {
+    let a = match argp::parse(argv, &opts, "constitution_lint.sh", USAGE, &help) {
         Ok(a) => a,
         Err(e) => return argp::finish(e),
     };

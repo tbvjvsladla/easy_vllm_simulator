@@ -2,10 +2,10 @@
 //! argparse description). Generator: tools/gen_topology_doc.py reading the canonical file as DATA (nothing executed).
 //! Original SHA-256 of the file it was read from: b8b20e90c03219f05d47479b0c48ff2db7546f6128a056423285fa9b1e06741a
 
-pub const DESCRIPTION: &str = r##"topology_parity.py -- 브랜치 ↔ 특화헌법 ↔ manifest ↔ 활성캠페인 **4자일치** 술어 (단일 소유)
+pub const DESCRIPTION: &str = r##"topology_parity.sh -- 브랜치 ↔ 특화헌법 ↔ manifest ↔ 활성캠페인 **4자일치** 술어 (단일 소유)
 
 사용법:
-  python3 .claude/policies/runtime/topology_parity.py evaluate       --repo . [--expect single|multi] [--format json|value]
+  bash   .claude/policies/runtime/topology_parity.sh evaluate       --repo . [--expect single|multi] [--format json|value]
 
 왜 이 파일이 있나
 -----------------
@@ -40,6 +40,6 @@ pub const DESCRIPTION: &str = r##"topology_parity.py -- 브랜치 ↔ 특화헌�
 표시는 침묵이 아니다 -- 출력이 몇 개의 다리로 판정했는지(`legs_checked`)를 항상 밝히므로,
 3자로 판정한 것이 4자로 판정한 것처럼 읽히지 않는다.
 
-종료코드: 0 = PASS · 2 = usage · 5 = 계약 위반(RED). `node_role_contract.py` 규약과 같다.
+종료코드: 0 = PASS · 2 = usage · 5 = 계약 위반(RED). `node_role_contract.sh` 규약과 같다.
 stdout 은 JSON(또는 `--format value` 의 한 줄) 전용이고 진단은 stderr 다 -- 셸 소비자가 stdout 을 파싱한다.
 "##;

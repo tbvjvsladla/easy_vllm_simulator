@@ -19,9 +19,9 @@ use role_contract::load::{load_yaml, LoadFailure};
 use role_contract::{evaluate_manifest, manifest_path_for, FIELDS};
 use std::os::unix::ffi::OsStringExt;
 
-pub const PROGRAM: &str = "node_role_contract.py";
+pub const PROGRAM: &str = "node_role_contract.sh";
 
-const HELP: &str = "usage: node_role_contract.py [-h] [--self-test] {evaluate} ...\n\n토폴로지 축 노드 계약(불변식 A)의 결정론 판정기\n\npositional arguments:\n  {evaluate}\n    evaluate   manifest 의 노드 계약을 평가\n\noptions:\n  -h, --help   show this help message and exit\n  --self-test\n";
+const HELP: &str = "usage: node_role_contract.sh [-h] [--self-test] {evaluate} ...\n\n토폴로지 축 노드 계약(불변식 A)의 결정론 판정기\n\npositional arguments:\n  {evaluate}\n    evaluate   manifest 의 노드 계약을 평가\n\noptions:\n  -h, --help   show this help message and exit\n  --self-test\n";
 
 /// What a run is on.
 pub struct RoleWorld<'a> {
@@ -47,7 +47,7 @@ fn spec() -> Spec {
         group: None,
     };
     Spec {
-        prog: "node_role_contract.py evaluate",
+        prog: "node_role_contract.sh evaluate",
         description: "",
         options: vec![
             option(&["-h", "--help"], "help", Kind::Help, None),

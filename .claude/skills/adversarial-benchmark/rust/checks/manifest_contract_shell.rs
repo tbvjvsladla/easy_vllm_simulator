@@ -223,7 +223,8 @@ fn the_launcher_exports_the_owner_and_never_passes_an_interpreter() {
         .env("MANIFEST_CONTRACT_PYTHON", "/opt/py")
         .args(EXACT));
     let text = f.marker_text();
-    let owner = f.root.join(OWNER_REL);
+    // the program path the launcher exports is the launcher itself (its own `__file__` · plan_26111717)
+    let owner = f.root.join(LAUNCHER_REL);
     assert_eq!(
         text.matches(&format!("owner:{}", owner.display())).count(),
         2,

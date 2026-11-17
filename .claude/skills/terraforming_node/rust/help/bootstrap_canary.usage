@@ -1,4 +1,4 @@
-usage: bootstrap_canary.py [-h] [--topology {single,multi}]
+usage: bootstrap_canary.sh [-h] [--topology {single,multi}]
                            [--manifest MANIFEST]
                            [--phase {discovery,permissions,caller}]
                            [--caller-harness {claude_code,codex_cli}]

@@ -2056,7 +2056,7 @@ pub fn _applied(c: &_Ctx, probe: bool) -> HR<(J, J, Option<J>, J)> {
         return core::fail(
             "HINT_DOCKERFILE_ABSENT",
             format!("쓰인 Dockerfile 이 없다: output/{topo}/{dockerfile}"),
-            Some(&format!("`render_dockerfile.py` 로 output/{topo}/ 를 다시 렌더하거나 셀 env BUILD_DOCKERFILE 을 확인한다.")),
+            Some(&format!("`render_dockerfile.sh` 로 output/{topo}/ 를 다시 렌더하거나 셀 env BUILD_DOCKERFILE 을 확인한다.")),
         );
     }
     let dsel = _select_dockerfile(c, &dockerfile)?;
@@ -2462,7 +2462,7 @@ fn tier_fn<'a>(rd: &'a J, repo: &Path) -> HR<(TierFn<'a>, String)> {
         return core::fail(
             "HINT_ENV_TIER_OWNER_MISSING",
             "render_dockerfile.env_tier(key) 도 3층 상수(NCCL_/CLUSTER_ PRESETS·INVARIANTS)도 없다.",
-            Some("upstream-version-watch render_dockerfile.py 에 공개 env_tier(key) 를 둔다(SPEC §6.2)."),
+            Some("upstream-version-watch render_dockerfile.sh 에 공개 env_tier(key) 를 둔다(SPEC §6.2)."),
         );
     }
     Ok((f, "derived(render_dockerfile 3층 상수 · env_tier 부재)".to_string()))

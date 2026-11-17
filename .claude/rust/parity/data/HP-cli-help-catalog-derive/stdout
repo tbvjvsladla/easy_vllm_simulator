@@ -1,4 +1,4 @@
-usage: hint.py catalog derive [-h] --remote REMOTE --generated-kst
+usage: hint.sh catalog derive [-h] --remote REMOTE --generated-kst
                               GENERATED_KST [--dry-run] [--record-missing]
                               [--allow-empty]
 

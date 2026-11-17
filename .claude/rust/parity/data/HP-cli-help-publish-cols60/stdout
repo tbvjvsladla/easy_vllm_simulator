@@ -1,4 +1,4 @@
-usage: hint.py publish [-h] [--campaign CAMPAIGN]
+usage: hint.sh publish [-h] [--campaign CAMPAIGN]
                        [--cell CELL]
                        [--publication PUBLICATION]
                        [--replay]

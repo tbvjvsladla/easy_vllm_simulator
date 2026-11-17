@@ -56,12 +56,12 @@ pub fn parser(prog: &str) -> Parser {
                 "--as-of",
                 "as_of",
                 false,
-                Some("YYYY-MM-DD explicit caller input for a deterministic reproduction; default = the live UTC date observed once per run and recorded -- passed straight through to policy_registry.py verify (the validator itself reads no clock)"),
+                Some("YYYY-MM-DD explicit caller input for a deterministic reproduction; default = the live UTC date observed once per run and recorded -- passed straight through to policy_registry.sh verify (the validator itself reads no clock)"),
             ),
-            Opt::value("--registry", "registry", false, Some("passthrough to policy_registry.py verify --registry")),
-            Opt::value("--schema", "schema", false, Some("passthrough to policy_registry.py verify --schema")),
-            Opt::value("--claim-bindings", "claim_bindings", false, Some("passthrough to policy_registry.py verify --claim-bindings")),
-            Opt::value("--repo-root", "repo_root", false, Some("passthrough to policy_registry.py verify --repo-root")),
+            Opt::value("--registry", "registry", false, Some("passthrough to policy_registry.sh verify --registry")),
+            Opt::value("--schema", "schema", false, Some("passthrough to policy_registry.sh verify --schema")),
+            Opt::value("--claim-bindings", "claim_bindings", false, Some("passthrough to policy_registry.sh verify --claim-bindings")),
+            Opt::value("--repo-root", "repo_root", false, Some("passthrough to policy_registry.sh verify --repo-root")),
         ],
         subcommands: vec![],
     }
@@ -156,7 +156,7 @@ pub fn main_with(args: &[String], repo: &Path, prog: &str) -> i32 {
         reference.observed_utc.as_deref().unwrap_or("None"),
         reference.as_of
     ));
-    out.line(&format!("[harness_verify] stage 1/3: policy_registry.py verify --as-of {}", reference.as_of));
+    out.line(&format!("[harness_verify] stage 1/3: policy_registry.sh verify --as-of {}", reference.as_of));
     let mut audit_args: Vec<String> = vec!["verify".into(), "--as-of".into(), reference.as_of.clone()];
     for (flag, dest) in [("--registry", "registry"), ("--schema", "schema"), ("--claim-bindings", "claim_bindings"), ("--repo-root", "repo_root")] {
         if let Some(v) = parsed.value(dest).filter(|v| !v.is_empty()) {
@@ -200,5 +200,5 @@ pub fn main_with(args: &[String], repo: &Path, prog: &str) -> i32 {
 }
 
 pub fn repo_from(argv0: &str) -> PathBuf {
-    crate::cli::repo_root_from(argv0, "harness_verify.py")
+    crate::cli::repo_root_from(argv0, "harness_verify.sh")
 }

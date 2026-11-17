@@ -203,7 +203,7 @@ usage() {
                                     양방향 허용 — 출발 브랜치가 *그 순간의* 정본이라는 뜻이지
                                     영구 정본이 따로 있다는 뜻이 아니다.
 
-  --mode <experimental|promotion>  completion_gate.py authorize 인가 모드(필수).
+  --mode <experimental|promotion>  completion_gate.sh authorize 인가 모드(필수).
                                     실행 전 반드시 이 side-effect 인가를 통과해야 한다(HITL 게이트).
   --manifest <path>                work-manifest JSON 경로(필수). 절대경로 또는 호출 시점
                                     현재 디렉토리 기준 상대경로.
@@ -296,7 +296,7 @@ for _b in "$SRC_BRANCH" "$DST_BRANCH"; do
     case "$_b" in
         hint|refs/heads/hint)
             echo "[sync_branches] 거부: hint 브랜치는 sync 대상이 아니다(산출물 · plan R7)." >&2
-            echo "  hint 페이로드는 hint.py continue(hintlib/branch.py) 가 allowlist 로 새로 짓는다." >&2
+            echo "  hint 페이로드는 hint.sh continue(hintlib/branch.py) 가 allowlist 로 새로 짓는다." >&2
             exit 2 ;;
     esac
 done

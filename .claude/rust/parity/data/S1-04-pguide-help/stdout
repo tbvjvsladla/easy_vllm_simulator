@@ -1,4 +1,4 @@
-usage: parse_guidellm.py [-h] [--benchmarks-json BENCHMARKS_JSON]
+usage: parse_guidellm.sh [-h] [--benchmarks-json BENCHMARKS_JSON]
                          [--engine-log ENGINE_LOG]
                          [--benchmark-index BENCHMARK_INDEX]
                          [--accept-len-src ACCEPT_LEN_SRC]

@@ -40,7 +40,7 @@ mode: lite
 
 ## lite 지표 (서빙 성공 직후 스냅샷 · inform-only)
 
-> cold(warmup 0 단일요청 → cold TTFT) 1회 + warm burst(N=3 · conc=1 · warmup 1) 1회. 산정·표 렌더는 `lite_metrics.py`(결정론)이며 이 문서는 그 표를 옮기지 않고 그대로 싣는다. 결측은 `N/A`(대체값 ✗).
+> cold(warmup 0 단일요청 → cold TTFT) 1회 + warm burst(N=3 · conc=1 · warmup 1) 1회. 산정·표 렌더는 `lite_metrics.sh`(결정론)이며 이 문서는 그 표를 옮기지 않고 그대로 싣는다. 결측은 `N/A`(대체값 ✗).
 
 | 메트릭 | 값 |
 |---|---|
@@ -73,4 +73,4 @@ mode: lite
 | lite_accept_len_src | N/A |
 
 ---
-_결정론 렌더 = `render_report.py --lite-only`(LLM 표저작 ✗) · 참조 체인: lite raw → 이 report → testlog(판정) → devlog(서사)._
+_결정론 렌더 = `render_report.sh --lite-only`(LLM 표저작 ✗) · 참조 체인: lite raw → 이 report → testlog(판정) → devlog(서사)._

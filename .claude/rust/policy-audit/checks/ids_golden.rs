@@ -1,5 +1,5 @@
 //! The assertion-id extractor against the original's answers (checks/data/assertion_ids.json, captured with
-//! checks/capture_ids.sh): every `.py` file and every evidence / claim-binding path of the pinned commit, read from that
+//! checks/capture_ids.sh [retired with the originals · frozen · plan_26111717]): every `.py` file and every evidence / claim-binding path of the pinned commit, read from that
 //! commit's blobs so the check does not depend on the working tree. No Python runs here.
 
 use agent_runtime_support::pyjson;

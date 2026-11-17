@@ -32,10 +32,10 @@
 
 ## 2. 스크립트-소유 템플릿 (정본=코드 — 포인터만)
 
-- ① vLLM release 자산 API: `resolve_wheel.py` (api.github.com/…/releases/tags/v{v} — 실자산 독해·404 함정 방지).
-- ② wheel 다운로드 URL 구성: `resolve_wheel.py` (manylinux/cu 변종은 추측 않고 자산명에서 읽음 — **시도-차단 회피의 모범 패턴**).
-- ③ raw pyproject 직독: `resolve_torch_pin.py` (torch 핀 추출 — requirements/*.txt·oracle 직독에도 재사용 가능).
-- ④ NGC 베이스 해소: `resolve_ngc_tag.py` = **nvcr.io/nvidia/pytorch:{YY.MM}-py3 레지스트리 probe**(`docker buildx imagetools inspect` env 직독).
+- ① vLLM release 자산 API: `resolve_wheel.sh` (api.github.com/…/releases/tags/v{v} — 실자산 독해·404 함정 방지).
+- ② wheel 다운로드 URL 구성: `resolve_wheel.sh` (manylinux/cu 변종은 추측 않고 자산명에서 읽음 — **시도-차단 회피의 모범 패턴**).
+- ③ raw pyproject 직독: `resolve_torch_pin.sh` (torch 핀 추출 — requirements/*.txt·oracle 직독에도 재사용 가능).
+- ④ NGC 베이스 해소: `resolve_ngc_tag.sh` = **nvcr.io/nvidia/pytorch:{YY.MM}-py3 레지스트리 probe**(`docker buildx imagetools inspect` env 직독).
   docs.nvidia.com release-notes 페이지는 실증 사용 0회 — 사람용 보조 후보로만(투기적 codify ✗).
 
 ## 3. Curated stable 진입점

@@ -428,7 +428,7 @@ pub fn _cgate_path(repo: &Path) -> HR<PathBuf> {
     }
     core::fail(
         "HINT_OWNER_MODULE_MISSING",
-        format!("completion_gate 부재: {} · 동거 사본 completion_gate.py", core::REL_COMPLETION_GATE),
+        format!("completion_gate 부재: {} · 동거 사본 completion_gate.sh", core::REL_COMPLETION_GATE),
         Some("대체 구현으로 계속하지 않는다(2026-07-31 ModuleNotFoundError 선례) — 정책 런타임이 있는 체크아웃에서 실행한다."),
     )
 }
@@ -825,7 +825,7 @@ pub fn parse_certificate(repo: &Path, path: &J) -> HR<J> {
         return core::fail(
             "HINT_CERTIFICATE_UNPARSEABLE",
             format!("flat 인증서 형식이 아니다(들여쓰기·중복 키·잘못된 행): {rel}"),
-            Some("결정론 발행기(publish_benchmark_record.py)가 쓴 원본을 바인딩한다 — 손으로 고친 인증서를 읽지 않는다."),
+            Some("결정론 발행기(publish_benchmark_record.sh)가 쓴 원본을 바인딩한다 — 손으로 고친 인증서를 읽지 않는다."),
         );
     }
     if !fields.truthy() {
@@ -874,7 +874,7 @@ pub fn authorize(repo: &Path, manifest_path: &J, action: &str) -> HR<J> {
         Err(e) => {
             return core::fail_exit(
                 "HINT_GATE_SUBPROCESS_UNAVAILABLE",
-                format!("completion_gate.py authorize 를 실행할 수 없다: {}", e.message),
+                format!("completion_gate.sh authorize 를 실행할 수 없다: {}", e.message),
                 None,
                 2,
             )
@@ -886,7 +886,7 @@ pub fn authorize(repo: &Path, manifest_path: &J, action: &str) -> HR<J> {
             return core::fail_exit(
                 "HINT_GATE_OUTPUT_UNREADABLE",
                 format!(
-                    "completion_gate.py authorize (exit={}) 의 stdout 이 JSON 이 아니다; stderr={}",
+                    "completion_gate.sh authorize (exit={}) 의 stdout 이 JSON 이 아니다; stderr={}",
                     proc.returncode,
                     crate::value::py_repr(&core::head_chars(pstrip(&proc.stderr), 500))
                 ),

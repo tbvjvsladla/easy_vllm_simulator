@@ -777,7 +777,7 @@ mod tests {
             document.set("assets", PyValue::List(vec![PyValue::Dict(asset)]));
             Ok(PyValue::Dict(document))
         };
-        let line = r#"{"id":1,"operation":"resolve_wheel.main","globals":{"argv":["resolve_wheel.py","0.32.0","--arch","aarch64"]}}"#;
+        let line = r#"{"id":1,"operation":"resolve_wheel.main","globals":{"argv":["resolve_wheel.sh","0.32.0","--arch","aarch64"]}}"#;
         let record = answer_record(line, &release);
         assert_eq!(kind(&record), "value");
         assert_eq!(
@@ -797,7 +797,7 @@ mod tests {
     fn sys_exit_is_a_system_exit_with_its_constructor_and_a_changed_api_constant_is_refused() {
         let empty =
             |_: &PyValue| -> Result<PyValue, FetchError> { Ok(PyValue::Dict(PyDict::new())) };
-        let line = r#"{"id":1,"operation":"resolve_wheel.main","globals":{"argv":["resolve_wheel.py","0.32.0","--arch","aarch64"]}}"#;
+        let line = r#"{"id":1,"operation":"resolve_wheel.main","globals":{"argv":["resolve_wheel.sh","0.32.0","--arch","aarch64"]}}"#;
         let record = answer_record(line, &empty);
         let row = exception_of(&record);
         assert_eq!(row.get("type"), Some(&PyValue::str("SystemExit")));
@@ -849,7 +849,7 @@ mod tests {
         move |_| crate::wheel_json::loads_bytes(body).map_err(FetchError::from)
     }
 
-    const MAIN_REQUEST: &str = r#"{"id":1,"operation":"resolve_wheel.main","globals":{"argv":["resolve_wheel.py","0.32.0","--arch","aarch64"]}}"#;
+    const MAIN_REQUEST: &str = r#"{"id":1,"operation":"resolve_wheel.main","globals":{"argv":["resolve_wheel.sh","0.32.0","--arch","aarch64"]}}"#;
     const FETCH_REQUEST: &str =
         r#"{"id":1,"operation":"resolve_wheel.fetch_json","args_dto":["list",[["str","u"]]]}"#;
 

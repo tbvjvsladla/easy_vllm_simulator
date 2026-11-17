@@ -12,7 +12,7 @@ use std::path::Path;
 
 /// Sanctioned channels — a closed list (tripwire): a new orchestration script must be classified here.
 /// `relay.sh`/`agent_control.sh` are the Rust launchers of the two A2A programs (the `.py` names stay for older transcripts).
-pub const SANCTIONED: [&str; 10] = [
+pub const SANCTIONED: [&str; 12] = [
     "relay.py",
     "agent_control.py",
     "relay.sh",
@@ -20,9 +20,11 @@ pub const SANCTIONED: [&str; 10] = [
     "sync_to_sub.sh",
     "fetch_sub_docs.sh",
     "library_access.py",
+    "library_access.sh",
     "multinode_comms_smoke.sh",
     "multinode_serve_smoke.sh",
     "scan_node.py",
+    "scan_node.sh",
 ];
 const SHELL_SINKS: [&str; 6] = ["bash", "sh ", "zsh", "ssh", "dash", "/bin/sh"];
 
@@ -308,7 +310,7 @@ fn self_test() -> i32 {
         "★음성대조: 산문·문자열 안의 ssh 는 실행이 아니다",
         !hit("print(\"=== ssh to sub ===\")")
             && !hit("grep -c 'ssh' file")
-            && !hit("audit_session_ssh.py --transcript x"),
+            && !hit("audit_session_ssh.sh --transcript x"),
     );
     ck(
         "★음성대조: 경로 조각의 ssh 는 실행이 아니다",
@@ -338,7 +340,7 @@ fn self_test() -> i32 {
 }
 
 pub static SPEC: Spec = Spec {
-    prog: "audit_session_ssh.py",
+    prog: "audit_session_ssh.sh",
     usage: include_str!("../help/audit_session_ssh.usage"),
     help: include_str!("../help/audit_session_ssh.help"),
     args: &[
@@ -419,7 +421,7 @@ pub fn main(args: &[String]) -> i32 {
     let _ = writeln!(err, "     · 진행 관측 → `sub.campaign.brief` = 회수 미러의 `sync_staging/sub_docs/logs/<node>/campaign_brief.json`.");
     let _ = writeln!(
         err,
-        "     · 제어·교착 해제 → `relay.py` / `agent_control.py` (§2.7.7 A2A 제어명령)."
+        "     · 제어·교착 해제 → `relay.sh` / `agent_control.sh` (§2.7.7 A2A 제어명령)."
     );
     let _ = writeln!(err, "  채널이 있는데도 ssh 를 여는 것은 우회다(D3) — 경로가 없으면 경로를 만들고, 있으면 그것을 쓴다.");
     1

@@ -1,4 +1,4 @@
-usage: hint.py publish [-h] [--campaign CAMPAIGN] [--cell CELL]
+usage: hint.sh publish [-h] [--campaign CAMPAIGN] [--cell CELL]
                        [--publication PUBLICATION] [--replay]
                        [--node {main,sub,cluster}] --generated-utc
                        GENERATED_UTC [--lineage-add PATH=REASON] [--out OUT]

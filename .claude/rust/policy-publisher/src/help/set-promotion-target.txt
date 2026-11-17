@@ -1,4 +1,4 @@
-usage: evidence_publisher.py set-promotion-target [-h] [--repo-root REPO_ROOT]
+usage: evidence_publisher.sh set-promotion-target [-h] [--repo-root REPO_ROOT]
                                                   --topic TOPIC --tag TAG
                                                   --topology TOPOLOGY --anchor
                                                   ANCHOR --generated-utc

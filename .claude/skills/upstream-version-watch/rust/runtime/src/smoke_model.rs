@@ -17,7 +17,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-pub const PROGRAM: &str = "check_smoke_model.py";
+pub const PROGRAM: &str = "check_smoke_model.sh";
 const MIB: i128 = 1024 * 1024;
 
 fn opt(
@@ -673,7 +673,7 @@ fn run_inner(console: &mut Console, script: Option<&PyStr>, args: &[PyStr]) -> i
                     err(&format!("[NAS-check] ⚠ spec 레이아웃 선검사 비정상 종료(rc={rc}) — 차단하지 않음\n"));
                 }
             } else {
-                err("[NAS-check] ⚠ check_spec_layout.py 부재 — spec 레이아웃 선검사 생략\n");
+                err("[NAS-check] ⚠ check_spec_layout.sh 부재 — spec 레이아웃 선검사 생략\n");
             }
         }
         if !gate_cli::flag(&values, "no_ram_gate") {

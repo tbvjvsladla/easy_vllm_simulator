@@ -864,7 +864,7 @@ fn validate_required_utc(value: &str, arg_name: &str) -> R<()> {
 
 fn scaffold_markdown(doc_kind: &str, topic: &str, task_class: &str, generated_utc: &str) -> String {
     format!(
-        "# {doc_kind} -- {topic}\n\n<!-- evidence_publisher scaffold -- provenance -->\n- publication_id: {topic}\n- task_class: {task_class}\n- generated_utc: {generated_utc}\n- scaffold_created_by: evidence_publisher.py init\n\n## Narrative\n\n{NARRATIVE_BEGIN}\n{PLACEHOLDER}\n{NARRATIVE_END}\n"
+        "# {doc_kind} -- {topic}\n\n<!-- evidence_publisher scaffold -- provenance -->\n- publication_id: {topic}\n- task_class: {task_class}\n- generated_utc: {generated_utc}\n- scaffold_created_by: evidence_publisher.sh init\n\n## Narrative\n\n{NARRATIVE_BEGIN}\n{PLACEHOLDER}\n{NARRATIVE_END}\n"
     )
 }
 
@@ -1365,7 +1365,7 @@ pub fn cmd_set_narrative(ctx: &Ctx, a: &Args) -> R<Exit> {
         return fail(
             "NARRATIVE_MARKERS_MISSING",
             format!(
-                "scaffold file {} is missing its narrative markers -- it was not created by evidence_publisher.py init and cannot be safely narrated",
+                "scaffold file {} is missing its narrative markers -- it was not created by evidence_publisher.sh init and cannot be safely narrated",
                 repr(&target)
             ),
         );
@@ -1615,7 +1615,7 @@ pub fn cmd_publish_benchmark(ctx: &Ctx, a: &Args) -> R<Exit> {
     if verdict == gate::OBSERVATION_ONLY_VERDICT && vjs.is_none() {
         return fail(
             "PUBLISH_BENCHMARK_OBSERVATION_ONLY_REQUIRES_VERDICT_JSON",
-            "--verdict OBSERVATION-ONLY requires --verdict-json-src (verdict_rule.py 산출물의 NEEDS_RUBRIC · 사다리 공백이 근거다 — 선언만으로 판정을 회피할 수 없다)".into(),
+            "--verdict OBSERVATION-ONLY requires --verdict-json-src (verdict_rule.sh 산출물의 NEEDS_RUBRIC · 사다리 공백이 근거다 — 선언만으로 판정을 회피할 수 없다)".into(),
         );
     }
     if let Some(v) = vjs {

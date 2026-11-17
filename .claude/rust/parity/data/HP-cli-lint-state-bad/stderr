@@ -1,2 +1,2 @@
 [hint] FAIL HINT_DRAFT_STATE_UNREADABLE: state.json 모양이 아니다: /tmp/parity-o-HP-cli-lint-state-bad-3568054-1794817437755990277/fx/dbad/state.json
-  → hint.py publish 가 만든 draft 에서 실행한다(state.json 은 도구가 쓴다 · 손으로 고치지 않는다).
+  → hint.sh publish 가 만든 draft 에서 실행한다(state.json 은 도구가 쓴다 · 손으로 고치지 않는다).

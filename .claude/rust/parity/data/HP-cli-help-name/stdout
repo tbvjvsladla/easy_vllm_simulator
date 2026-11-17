@@ -1,4 +1,4 @@
-usage: hint.py name [-h] [--campaign CAMPAIGN] [--cell CELL]
+usage: hint.sh name [-h] [--campaign CAMPAIGN] [--cell CELL]
                     [--publication PUBLICATION] [--node {main,sub,cluster}]
                     [--json]
 

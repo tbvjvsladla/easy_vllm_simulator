@@ -1326,8 +1326,8 @@ mod selftest;
 // ---------------------------------------------------------------- command line
 
 fn usage_err(msg: &str) -> i32 {
-    eprintln!("usage: layer_ledger.py [-h] [--self-test] {{common-layer,sync-point,divergence,validate,append,merge,emit-skeleton,entry-id,evidence-rels,utc-to-kst}} ...");
-    eprintln!("layer_ledger.py: error: {msg}");
+    eprintln!("usage: layer_ledger.sh [-h] [--self-test] {{common-layer,sync-point,divergence,validate,append,merge,emit-skeleton,entry-id,evidence-rels,utc-to-kst}} ...");
+    eprintln!("layer_ledger.sh: error: {msg}");
     2
 }
 
@@ -1348,7 +1348,7 @@ pub fn run(args: &[String]) -> i32 {
                 return selftest::self_test();
             }
             "-h" | "--help" => {
-                eprintln!("layer_ledger.py: see the Python docstring (common-layer · sync-point · divergence · validate · append · merge · emit-skeleton · entry-id · evidence-rels · utc-to-kst)");
+                eprintln!("layer_ledger.sh: see the Python docstring (common-layer · sync-point · divergence · validate · append · merge · emit-skeleton · entry-id · evidence-rels · utc-to-kst)");
                 return 0;
             }
             other if other.starts_with('-') => return usage_err(&format!("unrecognized arguments: {other}")),
@@ -1360,7 +1360,7 @@ pub fn run(args: &[String]) -> i32 {
         }
     }
     let Some(cmd) = cmd else {
-        eprintln!("usage: layer_ledger.py [-h] [--self-test] {{common-layer,sync-point,divergence,validate,append,merge}} ...");
+        eprintln!("usage: layer_ledger.sh [-h] [--self-test] {{common-layer,sync-point,divergence,validate,append,merge}} ...");
         return 2;
     };
     let known = [

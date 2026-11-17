@@ -1,4 +1,4 @@
-usage: blackbox_session.py budget-block [-h] --stage
+usage: blackbox_session.sh budget-block [-h] --stage
                                         {derive,preflight_ceiling,declare}
                                         --reason REASON [--label LABEL]
                                         [--detail KEY=VALUE] --now NOW

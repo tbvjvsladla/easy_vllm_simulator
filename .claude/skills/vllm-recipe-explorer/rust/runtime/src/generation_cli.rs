@@ -86,7 +86,7 @@ fn or_none(text: Option<PyStr>) -> PyValue {
 
 pub fn generator_spec() -> Spec {
     Spec {
-        prog: "gen_recipe_set.py",
+        prog: "gen_recipe_set.sh",
         description: "DGX Spark 서빙용 3종 세트(.yaml+.sh+.env) 생성",
         options: vec![
             opt(&["-h", "--help"], "help", Kind::Help, None, false),
@@ -288,7 +288,7 @@ pub fn generator_main(args: &[PyStr], columns: Option<&str>, skill_root: &PyStr)
 
 pub fn feedback_spec() -> Spec {
     Spec {
-        prog: "feedback_log.py",
+        prog: "feedback_log.sh",
         description: "vllm-recipe-explorer 되먹임 로그(JSONL) append.",
         options: vec![
             opt(&["-h", "--help"], "help", Kind::Help, None, false),

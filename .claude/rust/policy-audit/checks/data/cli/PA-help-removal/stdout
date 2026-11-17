@@ -1,4 +1,4 @@
-usage: policy_registry.py check-removal [-h] --policy-id POLICY_ID --as-of
+usage: policy_registry.sh check-removal [-h] --policy-id POLICY_ID --as-of
                                         AS_OF [--registry REGISTRY]
                                         [--schema SCHEMA]
                                         [--claim-bindings CLAIM_BINDINGS]

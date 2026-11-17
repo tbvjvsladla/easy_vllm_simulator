@@ -99,7 +99,7 @@ const MUTATIONS: &[(&str, &str, &str, &str, &str, &str, bool)] = &[
     ("H10-approval-deleted", ".claude/skills/hint-publisher/rust/src/cli/ops.rs",
      "let ap = evidence::approval_for(repo, &sel[\"campaign\"], &sel[\"cell\"], &sel[\"node\"])?;",
      "let ap = evidence::approval_lookup(repo, &sel[\"campaign\"], &sel[\"cell\"], &sel[\"node\"])?;", "HINT_TAG_ACTIVATION_GATE.C6",
-     "PredicateFailure: hint.py must consult the recorded Y/N (evidence.approval_for) before any branch/tag/push side effect:", false),
+     "PredicateFailure: hint.sh must consult the recorded Y/N (evidence.approval_for) before any branch/tag/push side effect:", false),
     ("H11-skill-rule-dropped", ".claude/skills/hint-publisher/SKILL.md", "무인 자동 태깅 ✗", "무인 자동 태깅 가능", "HINT_TAG_ACTIVATION_GATE.C6",
      "PredicateFailure: .claude/skills/hint-publisher/SKILL.md must state the activation rule: '무인 자동 태깅 ✗'", true),
     ("H12-remote-defaulted", ".claude/skills/hint-publisher/rust/src/tag.rs", "pub fn remote_tag_object(repo: &Path, remote: &str, tag: &str)",

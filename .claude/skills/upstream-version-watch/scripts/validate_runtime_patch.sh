@@ -24,4 +24,4 @@ if [ "$magic" != $'\177ELF' ]; then
   printf '[validate_runtime_patch] ERROR normal Rust ELF invalid: %s\n' "$binary" >&2
   exit 2
 fi
-exec -a "$SDIR/validate_runtime_patch.py" "$binary" "$@"
+exec -a "$SDIR/validate_runtime_patch.sh" "$binary" "$@"

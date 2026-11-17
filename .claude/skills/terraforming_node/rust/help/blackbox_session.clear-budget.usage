@@ -1,1 +1,1 @@
-usage: blackbox_session.py clear-budget [-h] --now NOW
+usage: blackbox_session.sh clear-budget [-h] --now NOW

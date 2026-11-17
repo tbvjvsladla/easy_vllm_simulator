@@ -49,9 +49,9 @@ pub const LITE_SECTION_TITLE: &str = "## lite 지표 — 서빙 성공 직후 �
 crate::re_static!(_LITE_GEN_TPS_ROW, r"gen tokens/sec[^|]*\|\s*[0-9]");
 crate::re_static!(_INT_VALUE, r"-?[0-9]+");
 
-const PROG: &str = "render_bench_section.py";
+const PROG: &str = "render_bench_section.sh";
 /// The module docstring (`argparse` description, RawDescriptionHelpFormatter).
-const DOC: &str = r#"render_bench_section.py — hint 태그 03-benchmark 절의 **동시성별 표**를 결정론으로 렌더한다.
+const DOC: &str = r#"render_bench_section.sh — hint 태그 03-benchmark 절의 **동시성별 표**를 결정론으로 렌더한다.
 
 왜 있는가(plan_26090616 H · 사용자 지시 2026-09-06):
     full 벤치는 동시성 레벨마다 측정한다. 그런데 인증서는 판정점 하나(`decode_tps_conc1`)만 싣고,
@@ -65,20 +65,20 @@ const DOC: &str = r#"render_bench_section.py — hint 태그 03-benchmark 절의
     ① `--sweep-index <sweep_index.json>` — 가장 풍부(꼬리 p99·산포 std 포함). `output/` 평면이라
        캠페인이 끝나면 사라질 수 있다.
     ② `--report <bench_report_*.md>` — `docs/benchmark/` 에서 태어난 **바인딩된 증거**라 살아남는다.
-       `render_report.py` 가 결정론으로 낸 표를 되읽는다(두 스크립트 사이의 형식이 계약이다).
+       `render_report.sh` 가 결정론으로 낸 표를 되읽는다(두 스크립트 사이의 형식이 계약이다).
 
     ③ 경량 리포트(`mode: lite` · 2026-09-14 · plan_26091407 §4.5) — 스윕 표가 **없다**(동시성 곡선을 재지 않았다).
        이때는 `## lite 지표` 표를 그대로 옮긴 절을 렌더한다(lite_metrics 가 이미 결정론으로 쓴 표 · 재산정 ✗).
 
-  측정 구성 표(두 리포트 공통 · `render_report.py MEASUREMENT_CONFIG_TITLE`)는 `parse_measurement_config` 가 되읽는다 —
+  측정 구성 표(두 리포트 공통 · `render_report.sh MEASUREMENT_CONFIG_TITLE`)는 `parse_measurement_config` 가 되읽는다 —
   bench_mode · 도구 · 반복 N · downgrade_reason 을 hint 동봉 문서·PAYLOAD·카탈로그로 나르는 **유일한 파서**다.
   lite 지표 존재 판정(`lite_metrics_present`)도 여기 하나다 — hint_tag(`HINT_MISSING_LITE` 요구)와 hint_collect(그 코드를
   적는 손)가 같은 술어를 쓴다(두 판정기가 갈리면 "적으라고 요구하는데 적는 손이 다른 기준을 쓴다" 가 된다).
 
-  렌더: render_bench_section.py --report docs/benchmark/bench_report_....md
-  대조: render_bench_section.py --verify --section <03-benchmark.md> --report <...>
-  전수: render_bench_section.py --verify --all --hints-dir <dir>
-  단위: render_bench_section.py --selftest
+  렌더: render_bench_section.sh --report docs/benchmark/bench_report_....md
+  대조: render_bench_section.sh --verify --section <03-benchmark.md> --report <...>
+  전수: render_bench_section.sh --verify --all --hints-dir <dir>
+  단위: render_bench_section.sh --selftest
 "#;
 
 fn failure<T>(msg: impl Into<String>) -> HR<T> {
@@ -342,7 +342,7 @@ pub fn parse_report(text: &str) -> HR<J> {
         Some(i) => i,
         None => {
             return failure(
-                "리포트에서 스윕 표 머리행을 찾지 못했다 — render_report.py 의 형식이 바뀌었거나 \
+                "리포트에서 스윕 표 머리행을 찾지 못했다 — render_report.sh 의 형식이 바뀌었거나 \
                  이 문서가 full 리포트가 아니다. 빈 표를 내지 않는다(형식 계약 위반은 fail-loud).",
             )
         }

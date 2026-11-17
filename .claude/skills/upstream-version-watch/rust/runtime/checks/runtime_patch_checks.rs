@@ -29,7 +29,7 @@ static LAUNCH: Mutex<()> = Mutex::new(());
 
 const ELF: &str = env!("CARGO_BIN_EXE_validate_runtime_patch");
 const SCRIPT_RELATIVE: &str =
-    "node/.claude/skills/upstream-version-watch/scripts/validate_runtime_patch.py";
+    "node/.claude/skills/upstream-version-watch/scripts/validate_runtime_patch.sh";
 const RANDOM_ALPHABET: &str = "abcdefghijklmnopqrstuvwxyz0123456789_";
 
 struct Observation {
@@ -271,7 +271,7 @@ fn fresh_a_strict_ascii_stream_names_the_unencodable_run_and_other_profiles_are_
     let refused = run_in(&root, &arguments, &[("PYTHONIOENCODING", "latin-1")], false);
     assert_eq!(refused.exit, 70);
     assert!(text(&refused.stderr)
-        .starts_with("validate_runtime_patch.py: not decided by this port (PYTHONIOENCODING)"));
+        .starts_with("validate_runtime_patch.sh: not decided by this port (PYTHONIOENCODING)"));
 }
 
 #[test]

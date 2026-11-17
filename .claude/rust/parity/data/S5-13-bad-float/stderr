@@ -1,8 +1,8 @@
-usage: agent_guard.py [-h] [--node-dir NODE_DIR] [--now NOW]
+usage: agent_guard.sh [-h] [--node-dir NODE_DIR] [--now NOW]
                       [--stop-file STOP_FILE] [--container CONTAINER]
                       [--drop-caches-helper DROP_CACHES_HELPER]
                       [--grace-s GRACE_S] [--poll-s POLL_S]
                       [--poll-hot-s POLL_HOT_S] [--rate-window RATE_WINDOW]
                       [--debounce-n DEBOUNCE_N] [--max-s MAX_S] [--once]
                       [--dry-run] [--self-test]
-agent_guard.py: error: argument --poll-s: invalid float value: 'fast'
+agent_guard.sh: error: argument --poll-s: invalid float value: 'fast'

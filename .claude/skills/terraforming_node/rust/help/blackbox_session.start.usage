@@ -1,4 +1,4 @@
-usage: blackbox_session.py start [-h] --session-id SESSION_ID --model MODEL
+usage: blackbox_session.sh start [-h] --session-id SESSION_ID --model MODEL
                                  [--model-path MODEL_PATH] [--recipe RECIPE]
                                  --topology {single,multi} [--tp TP]
                                  [--config-file CONFIG_FILE] [--image IMAGE]

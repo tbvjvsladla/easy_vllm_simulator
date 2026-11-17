@@ -24,4 +24,4 @@ if [ "$magic" != $'\177ELF' ]; then
   printf '[node_role_contract] ERROR normal Rust ELF invalid: %s\n' "$binary" >&2
   exit 2
 fi
-exec -a "$SDIR/node_role_contract.py" "$binary" "$@"
+exec -a "$SDIR/node_role_contract.sh" "$binary" "$@"

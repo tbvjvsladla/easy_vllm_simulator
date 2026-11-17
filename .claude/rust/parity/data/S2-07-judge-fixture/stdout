@@ -9,7 +9,7 @@
   "delta_source_detail": "https://api.github.com/repos/vllm-project/vllm/compare/v0.27.0...v0.27.1",
   "repo": "vllm-project/vllm",
   "generated_kst": "26082212",
-  "judge": "judge_version_delta.py (P1:D0+D1 · P2:D2)",
+  "judge": "judge_version_delta.sh (P1:D0+D1 · P2:D2)",
   "ahead_by": 4,
   "total_commits": 4,
   "files": [
@@ -134,7 +134,7 @@
         "bundle_base_is_to_ref": false
       }
     ],
-    "note": "이식 스코프와 델타가 겹친다 → `regen_build_patches_src.py derive` 재파생 필수. 재파생 후 silent_revert_risk == [] 가 될 때까지 진행 금지(계획 §5.3)."
+    "note": "이식 스코프와 델타가 겹친다 → `regen_build_patches_src.sh derive` 재파생 필수. 재파생 후 silent_revert_risk == [] 가 될 때까지 진행 금지(계획 §5.3)."
   },
   "axis_C_model_path": {
     "verdict": "NOT_IMPLEMENTED",

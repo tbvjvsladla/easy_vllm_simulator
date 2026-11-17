@@ -1,4 +1,4 @@
-usage: adversarial_stress.py [-h] [--endpoint ENDPOINT] [--model MODEL]
+usage: adversarial_stress.sh [-h] [--endpoint ENDPOINT] [--model MODEL]
                              [--concurrency CONCURRENCY]
                              [--prompt-tokens PROMPT_TOKENS]
                              [--max-tokens MAX_TOKENS] [--multimodal]

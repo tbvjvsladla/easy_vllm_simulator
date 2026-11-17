@@ -882,7 +882,7 @@ pub fn seal(repo: &Path, tag: &str, anchor: &str, message: &str, generated_utc: 
             return core::fail(
                 "HINT_NAME_COLLISION",
                 format!("봉인 직전 원격 재조회: {tag} 가 원격 {} 에 이미 있다({where_}) — 봉인하지 않았다.", redact(remote)),
-                Some("봉인은 개명하지 않는다(이름은 페이로드 안에 있다). hint.py continue 가 이름 확정 단계에서 `-t<YYMMDDHHMM>` 를 붙여 새 페이로드로 다시 짓는다(원격 중복 시만 · §4.1 U7)."),
+                Some("봉인은 개명하지 않는다(이름은 페이로드 안에 있다). hint.sh continue 가 이름 확정 단계에서 `-t<YYMMDDHHMM>` 를 붙여 새 페이로드로 다시 짓는다(원격 중복 시만 · §4.1 U7)."),
             );
         }
     }
@@ -896,7 +896,7 @@ pub fn seal(repo: &Path, tag: &str, anchor: &str, message: &str, generated_utc: 
             "HINT_SEAL_REFUSED",
             "봉인 전 검사",
             &probs,
-            "각 항목의 code 를 고친다(페이로드는 hint.py publish 스캐폴드 · 커밋은 hint.py continue).",
+            "각 항목의 code 를 고친다(페이로드는 hint.sh publish 스캐폴드 · 커밋은 hint.sh continue).",
         );
     }
     let sha = _create_tag(repo, tag, anchor, message, &utc)?;
@@ -1568,7 +1568,7 @@ pub fn push_tag(repo: &Path, remote: &str, tag: &str, dry_run: bool, lint_fn: Op
             "HINT_PUSH_UNVERIFIED",
             "push 전 로컬 검증(이 태그)",
             &probs,
-            "hint.py verify --tag <태그> 로 확인하고 고친다 — 검증되지 않은 것은 밀지 않는다.",
+            "hint.sh verify --tag <태그> 로 확인하고 고친다 — 검증되지 않은 것은 밀지 않는다.",
         );
     }
     let r = tref(tag);

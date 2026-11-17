@@ -366,7 +366,7 @@ impl OwnerUid for std::fs::Metadata {
 /// The self-check as the program runs it: the report lines and whether the native P1 passed.
 pub fn report() -> (Vec<String>, bool) {
     let mut lines = vec![
-        "scan_node P1 native self-check (embedded saved-raw rows; native P1 only - not the legacy scan_node.py --self-test, no P2/P3/CLI)".to_string(),
+        "scan_node P1 native self-check (embedded saved-raw rows; native P1 only - not the legacy scan_node.sh --self-test, no P2/P3/CLI)".to_string(),
     ];
     let uid = OwnerUid::uid_of_owner(&std::fs::metadata("/proc/self").expect("proc"));
     if uid == 0 {

@@ -1,4 +1,4 @@
-//! Goldens captured from the ORIGINAL verify_distribution.py by checks/capture_goldens.sh (frozen inputs: the tree of
+//! Goldens captured from the ORIGINAL verify_distribution.py by checks/capture_goldens.sh [retired with the originals · frozen · plan_26111717] (frozen inputs: the tree of
 //! the golden's `rev` + literal fixtures). Nothing here runs Python: the Rust port is compared against those files.
 use agent_runtime_support::pyjson;
 use agent_runtime_support::pyvalue::{float_repr, PyValue};
@@ -77,7 +77,7 @@ impl Drop for Tree {
         let _ = std::fs::remove_dir_all(&self.0);
     }
 }
-/// The frozen input tree: `git archive <rev>` + a fresh index on branch single-node (as capture_goldens.sh builds it).
+/// The frozen input tree: `git archive <rev>` + a fresh index on branch single-node (as capture_goldens.sh [retired with the originals · frozen · plan_26111717] builds it).
 fn frozen_tree(rev: &str, tag: &str) -> Tree {
     let n = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
     let dir = std::env::temp_dir().join(format!("vd-golden-rs-{tag}-{}-{n}", std::process::id()));
@@ -235,7 +235,7 @@ fn stub_report(tree: &Path, py: &str) -> PyValue {
     };
     let flag = |_: &Path| false;
     let record = observe_policy_as_of(Some("2026-11-16"), None).unwrap();
-    let hooks = Hooks { run: &run, gitless: &gitless, flag_issued: &flag, python: py.to_string() };
+    let hooks = Hooks { run: &run, gitless: &gitless, flag_issued: &flag };
     let report = verify_with(tree, record, &hooks).expect("no uncaught exception");
     norm(&report, tree, py)
 }

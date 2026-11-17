@@ -1,4 +1,4 @@
-usage: evidence_publisher.py append-raw [-h] [--repo-root REPO_ROOT] --topic
+usage: evidence_publisher.sh append-raw [-h] [--repo-root REPO_ROOT] --topic
                                         TOPIC --kind
                                         {plan,devlog,testlog,simlog,bench_report,certificate,verification,commit,report}
                                         --src SRC --recorded-utc RECORDED_UTC

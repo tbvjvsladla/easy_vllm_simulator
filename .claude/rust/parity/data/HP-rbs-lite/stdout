@@ -1,4 +1,4 @@
-{"id": "p", "kind": "exception", "type": "BenchSectionFailure", "message": "리포트에서 스윕 표 머리행을 찾지 못했다 — render_report.py 의 형식이 바뀌었거나 이 문서가 full 리포트가 아니다. 빈 표를 내지 않는다(형식 계약 위반은 fail-loud)."}
+{"id": "p", "kind": "exception", "type": "BenchSectionFailure", "message": "리포트에서 스윕 표 머리행을 찾지 못했다 — render_report.sh 의 형식이 바뀌었거나 이 문서가 full 리포트가 아니다. 빈 표를 내지 않는다(형식 계약 위반은 fail-loud)."}
 {"id": "mc", "kind": "value", "value": {"bench_mode": "lite", "bench_mode_kind": "declared-lite", "bench_mode_source": "declared(lite_bench --publish-report · lite-only 셀)", "downgrade_reason": null, "bench_tool": "vllm-bench-serve", "repeats": 1, "repeats_completed": "x1"}}
 {"id": "lite", "kind": "value", "value": true}
 {"id": "lite2", "kind": "value", "value": true}
