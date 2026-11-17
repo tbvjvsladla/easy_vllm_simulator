@@ -2,7 +2,7 @@
 
 **topology: multi** · layer: topology · 경로 규약 `*.topology.md` · policy:BRANCH_CONSTITUTION_LAYERING
 
-> 자기선언 헤더는 위 한 줄이다(`topology_parity.py` 가 읽는 바이트). 이 파일은 **특화층**이라 같은
+> 자기선언 헤더는 위 한 줄이다(`topology_parity.sh` 가 읽는 바이트). 이 파일은 **특화층**이라 같은
 > 경로가 `single-node` 에서는 다른 내용이고 브랜치 동기화가 옮기지 않는다.
 >
 > `terraforming_node` SKILL.md §2.7.9(노드 오케스트레이터 — Phase 감독)가 이 파일을 참조한다.
@@ -24,7 +24,7 @@
 3. **컨테이너 산출물을 직접 전달하지 않는다.** 이미지 save/load 전송은 영구 금지이고, 전달 단위는
    빌드킷과 **레시피**다. 서브는 받은 레시피로 자기 빌드를 돌린다.
 4. **서브의 런타임 스킬은 꺼진다.** 서브의 tool_plane 은 비어 있다 — 탐색·벤치·발행은 메인 평면의
-   일이다. 이 사실의 **정본은 `node_role_contract.py` 의 manifest 파생값**이고 여기서는 *왜 그런가*만
+   일이다. 이 사실의 **정본은 `node_role_contract.sh` 의 manifest 파생값**이고 여기서는 *왜 그런가*만
    말한다: Ray 워커는 판단 주체가 아니라 집단 연산 안의 위치이기 때문이다.
 5. **Ray role 은 최대한 평등하게 둔다.** head/worker 는 제어 평면의 비대칭일 뿐이고, 연산 부담과
    메모리 예산에서는 평등을 지향한다. 예산 파생이 노드 역할의 함수여야 하는 자리에 상수가 박혀
@@ -36,7 +36,7 @@
   에는 메인만 등장하고 서브는 그 셀의 일부로 참여한다. 공통층 `references/campaign/assignment_supervision.md` §배정 계층이 말하는
   "서로 다른 노드의 리스트는 동시에 돈다"는 이 토폴로지에서 **적용되지 않는다**.
 - 착수 순서에 서브 지시서 선행 규칙이 없다. 서브는 독립 셀을 받지 않기 때문이다.
-- 감독은 상주가 아니라 한 걸음이다(`relay.py --supervise-step`) — 절차 정본은 공통층이다.
+- 감독은 상주가 아니라 한 걸음이다(`relay.sh --supervise-step`) — 절차 정본은 공통층이다.
 - 벤치(GuideLLM)는 API 서버가 있는 **메인에만** 뜬다(`--network host` 로 `localhost:$PORT` 에 붙는다).
   예산 파생에서 이 비대칭을 지운 상수는 결함이다.
 
