@@ -2,8 +2,9 @@
 //! `.claude/skills/adversarial-benchmark/scripts/sweep_stop.py`.
 //!
 //! [`evaluate`] is the pure decision; [`cli::run`] is the program's command line. State files follow Python's
-//! JSON and `datetime.fromisoformat` rules exactly (see [`pyjson`] and [`utc`]), because the files are written by
-//! Python tools and the original's observable behaviour on odd input is part of the contract.
+//! JSON and `datetime.fromisoformat` rules (see [`pyjson`] and [`utc`]): the Python tools that wrote them are retired, and
+//! the rules stay only as the contract the frozen goldens pin (plan_26111708 roadmap stage 3 replaces them). The `py*`
+//! modules are the shared ones of `agent-runtime-support`, re-exported under their old paths (plan_26111708 A2).
 
 pub mod argv;
 pub mod assemble_sweep_meta;
@@ -97,17 +98,17 @@ pub mod ospath;
 pub mod owner_bridge;
 pub mod parse_bench;
 pub mod publish_record;
-pub mod pydyn;
-pub mod pyformat;
+pub use agent_runtime_support::pydyn;
+pub use agent_runtime_support::pyformat;
 pub mod pyfs;
-pub mod pyjson;
-pub mod pylower;
-pub mod pynumber;
-pub mod pyops;
-pub mod pysort;
-pub mod pystr;
-pub mod pyvalue;
-pub mod pyyaml;
+pub use agent_runtime_support::pyjson;
+pub use agent_runtime_support::pylower;
+pub use agent_runtime_support::pynumber;
+pub use agent_runtime_support::pyops;
+pub use agent_runtime_support::pysort;
+pub use agent_runtime_support::pystr;
+pub use agent_runtime_support::pyvalue;
+pub use agent_runtime_support::pyyaml;
 pub mod render_max_report;
 pub mod render_report;
 pub mod render_sweep_map;
@@ -156,10 +157,7 @@ pub mod topology_parity_run;
 pub mod turn_budget_bridge;
 pub mod turn_budget_cli;
 pub mod typed_wire;
-mod unicode_alnum_table;
 mod unicode_digit_tables;
-mod unicode_lower_table;
-mod unicode_tables;
 pub mod utc;
 pub mod verdict;
 pub mod verdict_cli;

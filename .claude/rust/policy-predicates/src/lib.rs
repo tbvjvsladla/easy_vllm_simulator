@@ -10,7 +10,6 @@ pub mod claims_selftest;
 pub mod claims_tf;
 pub mod claims_upstream;
 pub mod companion;
-pub mod pyast;
 pub mod runtime_patch;
 pub mod support;
 pub mod unit;

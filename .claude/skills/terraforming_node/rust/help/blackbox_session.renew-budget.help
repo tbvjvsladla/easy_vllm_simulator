@@ -1,9 +1,14 @@
 usage: blackbox_session.py renew-budget [-h] [--ttl-s TTL_S]
                                         [--expected-load-s EXPECTED_LOAD_S]
                                         --now NOW
+                                        [--expect-label EXPECT_LABEL]
 
 options:
   -h, --help            show this help message and exit
   --ttl-s TTL_S         지금부터 다시 셀 초(기본 7200 · 상한 86400)
   --expected-load-s EXPECTED_LOAD_S
   --now NOW
+  --expect-label EXPECT_LABEL
+                        선언 label 이 이것과 다르면(다른 모델이 공존 적층했다)
+                        갱신하지 않고 exit 3 — 그 모델의 갱신 루프가 멈춘다
+                        (plan_26111708 B L6)

@@ -27,6 +27,140 @@ use std::io::Write;
 use std::os::unix::fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt};
 use std::path::PathBuf;
 
+/// The port vLLM listens on inside the container of the single compose: its `vllm-serve` service publishes
+/// `"${SERVING_PORT:-8080}:8000"` over the bridge network, so the container side of that mapping is the owner of this value
+/// and [`compose_port_parity`] fails whenever a tracked compose source says otherwise. `SERVING_PORT` (the env file) stays the
+/// host side. plan_26111708 B L4 (10-14 F1 재발: 생성기가 호스트 포트를 yaml `port:` 에 넣어 health 불가).
+pub const SINGLE_COMPOSE_CONTAINER_PORT: i64 = 8000;
+
+/// The compose sources that serve the single topology (repo-relative): the template first (required), then the files rendered
+/// or kept from it (checked when present on this checkout — the other branch's channel may be absent).
+pub const SINGLE_COMPOSE_SOURCES: [&str; 3] = [
+    ".claude/skills/upstream-version-watch/templates/docker-compose.single.template.yaml",
+    "docker-compose.template.yaml",
+    "output/single/docker-compose.yaml",
+];
+
+/// The compose sources that serve the multi topology (repo-relative), the template first (required).
+pub const MULTI_COMPOSE_SOURCES: [&str; 2] = [
+    ".claude/skills/upstream-version-watch/templates/docker-compose.multi.template.yaml",
+    "output/multi/docker-compose.yaml",
+];
+
+/// `listen_port(topology, host_port)`: the `port:` the serving yaml gives vLLM. single (and any non-`multi` text, as
+/// [`build_env`] reads it): the container side of the compose port mapping, [`SINGLE_COMPOSE_CONTAINER_PORT`]. multi: the host
+/// port itself — the multi compose runs `network_mode: host` and publishes no mapping, so vLLM must listen on `SERVING_PORT`
+/// directly (the multi smoke polls that port). plan_26111708 B L4.
+pub fn listen_port(topology: &PyValue, host_port: &PyValue) -> PyValue {
+    if is_text(topology, "multi") {
+        host_port.clone()
+    } else {
+        PyValue::int(SINGLE_COMPOSE_CONTAINER_PORT)
+    }
+}
+
+/// A compose line without its trailing `# comment` and surrounding white space.
+fn compose_line(line: &str) -> &str {
+    line.split(" #").next().unwrap_or("").trim()
+}
+
+/// The `ports:` items that publish `SERVING_PORT` (`- "${SERVING_PORT:-8080}:8000"`, quoted or not), as `(line number, item)`.
+fn serving_port_items(text: &str) -> Vec<(usize, String)> {
+    text.lines()
+        .enumerate()
+        .filter_map(|(index, line)| {
+            let item = compose_line(line).strip_prefix('-')?.trim();
+            let item = item.trim_matches(|c| c == '"' || c == '\'');
+            item.starts_with("${SERVING_PORT").then(|| (index + 1, item.to_string()))
+        })
+        .collect()
+}
+
+/// The container side of the one `SERVING_PORT` mapping of a single compose text; an error names what is wrong (no mapping,
+/// more than one, a container side that is not a number).
+pub fn single_serving_container_port(text: &str) -> Result<i64, String> {
+    let items = serving_port_items(text);
+    let [(line, item)] = items.as_slice() else {
+        return Err(format!(
+            "SERVING_PORT 포트매핑이 정확히 1개여야 한다(발견 {}개: {:?})",
+            items.len(),
+            items
+        ));
+    };
+    let container = item.rsplit(':').next().unwrap_or("");
+    container
+        .parse::<i64>()
+        .map_err(|_| format!("{line}행 '{item}' 의 컨테이너 쪽 '{container}' 가 포트 번호가 아니다"))
+}
+
+/// Whether a multi compose text serves on the host network with no published `SERVING_PORT` mapping (what makes the yaml
+/// `port:` equal to the host port); an error names the missing or contradicting line.
+pub fn multi_serving_host_network(text: &str) -> Result<(), String> {
+    if !text.lines().any(|line| compose_line(line) == "network_mode: host") {
+        return Err("`network_mode: host` 가 없다 — multi yaml port 를 호스트 포트로 둘 근거가 사라졌다".to_string());
+    }
+    match serving_port_items(text).first() {
+        Some((line, item)) => Err(format!(
+            "{line}행 '{item}' — host 네트워크인데 SERVING_PORT 를 포트매핑한다(컨테이너 포트와 호스트 포트가 갈린다)"
+        )),
+        None => Ok(()),
+    }
+}
+
+/// The parity of [`listen_port`] with the compose sources below `repo_root`: every present single source maps `SERVING_PORT`
+/// to [`SINGLE_COMPOSE_CONTAINER_PORT`] and every present multi source runs on the host network. A missing template (the first
+/// entry of each list) is a failure; a missing rendered file is listed as absent. `Ok` carries one line per source looked at,
+/// `Err` every disagreement (plan_26111708 B L4 — the constant has one owner, the compose mapping).
+pub fn compose_port_parity(repo_root: &std::path::Path) -> Result<Vec<String>, Vec<String>> {
+    let mut seen = Vec::new();
+    let mut problems = Vec::new();
+    let sources = SINGLE_COMPOSE_SOURCES
+        .iter()
+        .enumerate()
+        .map(|(index, path)| (*path, index == 0, true))
+        .chain(
+            MULTI_COMPOSE_SOURCES
+                .iter()
+                .enumerate()
+                .map(|(index, path)| (*path, index == 0, false)),
+        );
+    for (relative, required, single) in sources {
+        let text = match std::fs::read_to_string(repo_root.join(relative)) {
+            Ok(text) => text,
+            Err(error) if required => {
+                problems.push(format!("{relative}: 읽지 못했다({error}) — 포트 소유자(템플릿)가 없다"));
+                continue;
+            }
+            Err(_) => {
+                seen.push(format!("{relative}: 부재(이 체크아웃에 없음)"));
+                continue;
+            }
+        };
+        let verdict = if single {
+            single_serving_container_port(&text).and_then(|port| {
+                if port == SINGLE_COMPOSE_CONTAINER_PORT {
+                    Ok(format!("{relative}: SERVING_PORT → 컨테이너 {port}"))
+                } else {
+                    Err(format!(
+                        "컨테이너 포트 {port} ≠ SINGLE_COMPOSE_CONTAINER_PORT {SINGLE_COMPOSE_CONTAINER_PORT}"
+                    ))
+                }
+            })
+        } else {
+            multi_serving_host_network(&text).map(|()| format!("{relative}: network_mode host · 포트매핑 없음"))
+        };
+        match verdict {
+            Ok(line) => seen.push(line),
+            Err(why) => problems.push(format!("{relative}: {why}")),
+        }
+    }
+    if problems.is_empty() {
+        Ok(seen)
+    } else {
+        Err(problems)
+    }
+}
+
 /// Values of a recipe that mean "no quantization" (after `str().strip().lower()`); `None` is native as well.
 pub const NATIVE_QUANT_TEXTS: [&str; 10] = [
     "", "none", "null", "native", "bf16", "fp16", "float16", "bfloat16", "float32", "fp32",
@@ -592,6 +726,54 @@ fn serve_knob_gaps(mut consumed: Vec<String>, raise_on_gap: &PyValue) -> Res<Vec
     Ok(gaps)
 }
 
+/// The build coordinates a stock image tag implies (see [`stock_build_coordinates`]).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BuildCoordinates {
+    /// `BUILD_DOCKERFILE` (`Dockerfile` for the wheel track, `Dockerfile.source-build` for the source track).
+    pub dockerfile: &'static str,
+    /// The version identity key of the track: `VLLM_VERSION` (wheel) or `VLLM_REF` (source).
+    pub version_key: &'static str,
+    /// Its value: the tag's version (wheel) or `v<version>` (source).
+    pub version_value: String,
+}
+
+/// The build coordinates a **stock** image tag implies under the image naming invariant `easy-vllm:{vllm}-cu{cuda}-{arch}-{track}`
+/// (CLAUDE.md §이미지 네이밍): exactly the pair the multi smoke's track and version gates demand before a build
+/// (`upstream-version-watch/scripts/multinode_serve_smoke.sh` §빌드 트랙 ↔ 이미지 태그 정합 · §버전 정합: wheel →
+/// `BUILD_DOCKERFILE=Dockerfile` + `VLLM_VERSION=<ver>`; source → `BUILD_DOCKERFILE=Dockerfile.source-build` + `VLLM_REF=v<ver>`;
+/// the version is the `[0-9][0-9.]*` piece the gate reads). Any other tag — a variant or fork suffix (`-source-sm12x`,
+/// `-source-deps2`, `-source-fork<PR>`), a pre-release version, a foreign name — gives `None`: those coordinates live in
+/// `.claude/policies/arch_variant_ledger.json` or with the person, not in the tag (plan_26111708 B L10).
+pub fn stock_build_coordinates(image: &str) -> Option<BuildCoordinates> {
+    let rest = image.strip_prefix("easy-vllm:")?;
+    let parts: Vec<&str> = rest.split('-').collect();
+    let [version, cuda, arch, track] = parts.as_slice() else {
+        return None;
+    };
+    let version_ok = version.starts_with(|c: char| c.is_ascii_digit())
+        && version.chars().all(|c| c.is_ascii_digit() || c == '.');
+    let cuda_ok = cuda
+        .strip_prefix("cu")
+        .map_or(false, |digits| !digits.is_empty() && digits.chars().all(|c| c.is_ascii_digit()));
+    let arch_ok = !arch.is_empty() && arch.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
+    if !(version_ok && cuda_ok && arch_ok) {
+        return None;
+    }
+    match *track {
+        "wheel" => Some(BuildCoordinates {
+            dockerfile: "Dockerfile",
+            version_key: "VLLM_VERSION",
+            version_value: version.to_string(),
+        }),
+        "source" => Some(BuildCoordinates {
+            dockerfile: "Dockerfile.source-build",
+            version_key: "VLLM_REF",
+            version_value: format!("v{version}"),
+        }),
+        _ => None,
+    }
+}
+
 /// The arguments of `_build_env`.
 pub struct EnvSettings<'a> {
     pub name: &'a PyValue,
@@ -601,10 +783,20 @@ pub struct EnvSettings<'a> {
     pub topology: &'a PyValue,
     pub vllm_version: &'a PyValue,
     pub build_dockerfile: &'a PyValue,
+    /// The source track's version identity (`VLLM_REF` of the multi compose build args); `None` when not given
+    /// (plan_26111708 B L10).
+    pub vllm_ref: &'a PyValue,
 }
 
 /// `_build_env(name, served_model_name, port, image=None, topology="single", vllm_version=None, build_dockerfile=None)`: the
 /// text of `envs/.env.<name>`. The warnings the original writes to standard error while building are appended to `stderr`.
+///
+/// plan_26111708 B L10: the original's unconditional `TIKTOKEN_ENABLED=true` is no longer written — no model-specific ground
+/// was found for it (vLLM 0.32.0 reads no `TIKTOKEN_*` variable itself), and both compose templates already set
+/// `TIKTOKEN_ENCODINGS_BASE=/encodings` for the serving services (`docker-compose.single.template.yaml` `vllm-serve.environment`,
+/// `docker-compose.multi.template.yaml` `vllm-master-serve.environment`). The generated `.sh` still honours the variable when a
+/// person sets it. For multi, the build coordinates a stock `image` tag implies fill the keys that were not given explicitly
+/// ([`stock_build_coordinates`], marked by a provenance comment line).
 pub fn build_env(settings: &EnvSettings<'_>, stderr: &mut PyStr) -> Res<PyStr> {
     let EnvSettings {
         name,
@@ -614,6 +806,7 @@ pub fn build_env(settings: &EnvSettings<'_>, stderr: &mut PyStr) -> Res<PyStr> {
         topology,
         vllm_version,
         build_dockerfile,
+        vllm_ref,
     } = *settings;
     let mut lines: Vec<PyStr> = Vec::new();
     let separator: String = format!("# {}", "═".repeat(69));
@@ -674,7 +867,6 @@ pub fn build_env(settings: &EnvSettings<'_>, stderr: &mut PyStr) -> Res<PyStr> {
     lines.push(line(
         "# ─────────────── 2) LLM 서빙 설정 ─────────────────────────────────────",
     ));
-    lines.push(line("TIKTOKEN_ENABLED=true"));
     lines.push(
         Message::new()
             .lit("SERVING_MODEL_NAME=")
@@ -700,6 +892,26 @@ pub fn build_env(settings: &EnvSettings<'_>, stderr: &mut PyStr) -> Res<PyStr> {
         lines.push(line(
             "# ─────────────── 4) 분산(멀티노드) 전용 ──────────────────────────────",
         ));
+        let derived = match image.peel() {
+            PyValue::Str(tag) if image.is_truthy() => tag.to_utf8().and_then(|t| stock_build_coordinates(&t)),
+            _ => None,
+        };
+        let version_given = vllm_version.is_truthy() || vllm_ref.is_truthy();
+        let mut derived_keys: Vec<&str> = Vec::new();
+        if let Some(coords) = &derived {
+            if !build_dockerfile.is_truthy() {
+                derived_keys.push("BUILD_DOCKERFILE");
+            }
+            if !version_given {
+                derived_keys.push(coords.version_key);
+            }
+        }
+        if !derived_keys.is_empty() {
+            lines.push(line(&format!(
+                "# 빌드 좌표 출처(IMAGE_TAG 파생 · 이미지 네이밍 불변식 easy-vllm:{{vllm}}-cu{{cuda}}-{{arch}}-{{track}} · multinode_serve_smoke 트랙/버전 게이트가 요구하는 짝 · plan_26111708 B L10): {}",
+                derived_keys.join(", ")
+            )));
+        }
         if build_dockerfile.is_truthy() {
             lines.push(
                 Message::new()
@@ -707,6 +919,8 @@ pub fn build_env(settings: &EnvSettings<'_>, stderr: &mut PyStr) -> Res<PyStr> {
                     .val(build_dockerfile)
                     .done(),
             );
+        } else if let Some(coords) = &derived {
+            lines.push(line(&format!("BUILD_DOCKERFILE={}", coords.dockerfile)));
         } else {
             lines.push(line("# BUILD_DOCKERFILE=<미지정 — 반드시 채울 것>"));
             stderr
@@ -714,9 +928,18 @@ pub fn build_env(settings: &EnvSettings<'_>, stderr: &mut PyStr) -> Res<PyStr> {
         }
         if vllm_version.is_truthy() {
             lines.push(Message::new().lit("VLLM_VERSION=").val(vllm_version).done());
-        } else {
-            lines.push(line("# VLLM_VERSION=<미지정 — 반드시 채울 것>"));
-            stderr.push_str("[gen_recipe_set] WARN: topology=multi 인데 vllm_version 미지정 — 이미지 정체성 변수다(틀리면 다른 버전을 측정하고도 모른다).\n");
+        }
+        if vllm_ref.is_truthy() {
+            lines.push(Message::new().lit("VLLM_REF=").val(vllm_ref).done());
+        }
+        if !version_given {
+            if let Some(coords) = &derived {
+                lines.push(line(&format!("{}={}", coords.version_key, coords.version_value)));
+            } else {
+                lines.push(line("# VLLM_VERSION=<미지정 — 반드시 채울 것>"));
+                lines.push(line("# VLLM_REF=<미지정 — source 트랙이면 VLLM_VERSION 대신 이것이 이미지 정체성이다(compose multi 빌드 args)>"));
+                stderr.push_str("[gen_recipe_set] WARN: topology=multi 인데 vllm_version 미지정 — 이미지 정체성 변수다(틀리면 다른 버전을 측정하고도 모른다).\n");
+            }
         }
     }
     Ok(joined(&lines))
@@ -828,6 +1051,8 @@ pub fn write_text(path: &PyStr, text: &PyStr, append: bool) -> Res<()> {
 
 /// `generate(parsed, recipe, name, repo_root, port, served_model_name, force=False, topology="single", vllm_version=None,
 /// build_dockerfile=None, image=None)`: the three files of a serving set; the paths of `[yaml, sh, env]`.
+///
+/// `port` is the host port (`SERVING_PORT` of the env); the yaml gets [`listen_port`] of it (plan_26111708 B L4).
 pub struct Request<'a> {
     pub parsed: &'a PyValue,
     pub recipe: &'a PyValue,
@@ -840,6 +1065,8 @@ pub struct Request<'a> {
     pub vllm_version: &'a PyValue,
     pub build_dockerfile: &'a PyValue,
     pub image: &'a PyValue,
+    /// See [`EnvSettings::vllm_ref`].
+    pub vllm_ref: &'a PyValue,
 }
 
 pub fn generate(request: &Request<'_>, stderr: &mut PyStr) -> Res<Vec<PyStr>> {
@@ -873,7 +1100,13 @@ pub fn generate(request: &Request<'_>, stderr: &mut PyStr) -> Res<Vec<PyStr>> {
             return Err(Failure::with_message("FileExistsError", message));
         }
     }
-    let yaml_text = build_yaml(request.parsed, request.recipe, request.port)?;
+    // plan_26111708 B L4: the yaml gets the port vLLM listens on (container side for single, the host port for host-network
+    // multi); the env keeps the host port as SERVING_PORT.
+    let yaml_text = build_yaml(
+        request.parsed,
+        request.recipe,
+        &listen_port(request.topology, request.port),
+    )?;
     let sh_text = build_sh(request.name, request.recipe)?;
     let env_text = build_env(
         &EnvSettings {
@@ -884,6 +1117,7 @@ pub fn generate(request: &Request<'_>, stderr: &mut PyStr) -> Res<Vec<PyStr>> {
             topology: request.topology,
             vllm_version: request.vllm_version,
             build_dockerfile: request.build_dockerfile,
+            vllm_ref: request.vllm_ref,
         },
         stderr,
     )?;
@@ -907,4 +1141,121 @@ pub fn load_json(path: &PyValue) -> Res<PyValue> {
 /// Whether the failure is an `OSError` of any class (what an `except OSError` catches).
 pub fn is_os_failure(failure: &Failure) -> bool {
     is_os_error(failure.class)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn repo_root() -> std::path::PathBuf {
+        // `.claude/skills/vllm-recipe-explorer/rust/runtime` → the repository root.
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).ancestors().nth(5).expect("repo root").to_path_buf()
+    }
+
+    fn env_text(topology: &str, image: PyValue, version: PyValue, dockerfile: PyValue, vllm_ref: PyValue) -> (String, String) {
+        let mut stderr = PyStr::default();
+        let text = build_env(
+            &EnvSettings {
+                name: &PyValue::str("cell"),
+                served_model_name: &PyValue::str("served"),
+                port: &PyValue::int(18080),
+                image: &image,
+                topology: &PyValue::str(topology),
+                vllm_version: &version,
+                build_dockerfile: &dockerfile,
+                vllm_ref: &vllm_ref,
+            },
+            &mut stderr,
+        )
+        .expect("env");
+        (text.to_utf8().expect("utf8"), stderr.to_utf8().expect("utf8"))
+    }
+
+    /// plan_26111708 B L4: single listens on the compose container side, multi (host network) on the host port.
+    #[test]
+    fn the_yaml_port_is_the_listen_port_of_the_topology() {
+        let host = PyValue::int(18080);
+        assert_eq!(listen_port(&PyValue::str("single"), &host), PyValue::int(SINGLE_COMPOSE_CONTAINER_PORT));
+        assert_eq!(listen_port(&PyValue::str("other"), &host), PyValue::int(SINGLE_COMPOSE_CONTAINER_PORT));
+        assert_eq!(listen_port(&PyValue::str("multi"), &host), host);
+    }
+
+    /// plan_26111708 B L4: the constant agrees with every tracked compose source of this checkout (one owner: the mapping).
+    #[test]
+    fn the_container_port_constant_matches_the_compose_mapping() {
+        match compose_port_parity(&repo_root()) {
+            Ok(seen) => assert!(seen.iter().any(|line| line.contains("docker-compose.single.template.yaml")), "{seen:?}"),
+            Err(problems) => panic!("compose 포트 파리티 위반: {problems:?}"),
+        }
+    }
+
+    #[test]
+    fn a_compose_that_disagrees_with_the_constant_is_named() {
+        let mapped = "    ports:\n      - \"${SERVING_PORT:-8080}:9000\"\n";
+        assert_eq!(single_serving_container_port(mapped), Ok(9000));
+        assert!(single_serving_container_port("    ports:\n      - \"8081:8000\" # debug\n").is_err());
+        let two = format!("{mapped}{mapped}");
+        assert!(single_serving_container_port(&two).is_err());
+        assert!(single_serving_container_port("      - \"${SERVING_PORT:-8080}:abc\"\n").is_err());
+        assert_eq!(multi_serving_host_network("  network_mode: host\n    environment:\n      SERVING_PORT: ${SERVING_PORT:-8080}\n"), Ok(()));
+        assert!(multi_serving_host_network("  ipc: host\n").is_err());
+        assert!(multi_serving_host_network("  network_mode: host\n    ports:\n      - \"${SERVING_PORT:-8080}:8000\"\n").is_err());
+    }
+
+    /// plan_26111708 B L10: only a stock tag implies build coordinates (the multi smoke's gate pair).
+    #[test]
+    fn stock_tags_imply_the_gate_pair_and_variants_do_not() {
+        let source = stock_build_coordinates("easy-vllm:0.32.0-cu133-aarch64-source").expect("stock source");
+        assert_eq!((source.dockerfile, source.version_key, source.version_value.as_str()), ("Dockerfile.source-build", "VLLM_REF", "v0.32.0"));
+        let wheel = stock_build_coordinates("easy-vllm:0.18.0-cu132-x86_64-wheel").expect("stock wheel");
+        assert_eq!((wheel.dockerfile, wheel.version_key, wheel.version_value.as_str()), ("Dockerfile", "VLLM_VERSION", "0.18.0"));
+        for tag in [
+            "easy-vllm:0.32.0-cu133-aarch64-source-deps2",
+            "easy-vllm:0.23.0-cu132-aarch64-source-sm12x",
+            "easy-vllm:0.29.0rc6-cu133-aarch64-source",
+            "easy-vllm:0.32.0-cu133-aarch64-nightly",
+            "vllm-src-022:clean",
+            "image:tag",
+        ] {
+            assert_eq!(stock_build_coordinates(tag), None, "{tag}");
+        }
+    }
+
+    #[test]
+    fn the_env_drops_the_unconditional_tiktoken_flag_and_keeps_the_host_port() {
+        let (single, _) = env_text("single", PyValue::str("img:tag"), PyValue::None, PyValue::None, PyValue::None);
+        assert!(!single.contains("TIKTOKEN_ENABLED"), "{single}");
+        assert!(single.contains("\nSERVING_PORT=18080\n") && single.contains("\nCONTAINER_NAME=cell-serving-container\n"));
+        assert!(!single.contains("MASTER_CONTAINER_NAME"));
+    }
+
+    #[test]
+    fn a_multi_env_carries_the_master_slave_names_and_the_build_coordinates() {
+        let (derived, warnings) = env_text("multi", PyValue::str("easy-vllm:0.32.0-cu133-aarch64-source"), PyValue::None, PyValue::None, PyValue::None);
+        for line in [
+            "MASTER_CONTAINER_NAME=cell-master-container",
+            "SLAVE_CONTAINER_NAME=cell-slave-container",
+            "BUILD_DOCKERFILE=Dockerfile.source-build",
+            "VLLM_REF=v0.32.0",
+            "SERVING_PORT=18080",
+        ] {
+            assert!(derived.lines().any(|l| l == line), "{line}\n{derived}");
+        }
+        assert!(derived.contains("빌드 좌표 출처(IMAGE_TAG 파생") && derived.contains("): BUILD_DOCKERFILE, VLLM_REF\n"), "{derived}");
+        assert!(!derived.contains("VLLM_VERSION=") && warnings.is_empty(), "{warnings}");
+        // explicit values win and are not marked as derived
+        let (explicit, _) = env_text(
+            "multi",
+            PyValue::str("easy-vllm:0.32.0-cu133-aarch64-source"),
+            PyValue::None,
+            PyValue::str("Dockerfile.source-build-deps2"),
+            PyValue::str("5df63a7203cdb9328d824a27b682e77c7b9928be"),
+        );
+        assert!(explicit.contains("\nBUILD_DOCKERFILE=Dockerfile.source-build-deps2\n") && explicit.contains("\nVLLM_REF=5df63a7203cdb9328d824a27b682e77c7b9928be\n"));
+        assert!(!explicit.contains("빌드 좌표 출처"), "{explicit}");
+        // a variant tag implies nothing: explicit placeholders and the warnings, never a guessed stock coordinate
+        let (variant, warnings) = env_text("multi", PyValue::str("easy-vllm:0.32.0-cu133-aarch64-source-deps2"), PyValue::None, PyValue::None, PyValue::None);
+        assert!(variant.contains("# BUILD_DOCKERFILE=<미지정") && variant.contains("# VLLM_REF=<미지정") && !variant.contains("\nVLLM_REF="), "{variant}");
+        assert!(warnings.contains("build_dockerfile 미지정") && warnings.contains("vllm_version 미지정"), "{warnings}");
+    }
 }

@@ -15,7 +15,7 @@
 
 | Phase | 서브 | 메인(오케스트레이터) | 노드 간 이동 |
 |---|---|---|---|
-| **install** | (사람 request) 클론 → 카나리 | terraforming: `--peer-ssh` 실측 → 서브 manifest 발행(`scan_node.py --emit-sub-manifest`) → Agent_Card v2 렌더·구조검증 → **설치 오버레이** 배달(`sync_to_sub --provision`) → model-less 카나리 | 설치 산출물(오버레이)만 |
+| **install** | (사람 request) 클론 → 카나리 | terraforming: `--peer-ssh` 실측 → 서브 manifest 발행(`scan_node.sh --emit-sub-manifest`) → Agent_Card v2 렌더·구조검증 → **설치 오버레이** 배달(`sync_to_sub --provision`) → model-less 카나리 | 설치 산출물(오버레이)만 |
 | **config · build · serve · bench** | 자율(도서관은 wiki-desk 접근자로 직접 조회 · §2.7.8) | 릴레이 감독(원장 append-only · 재개 결정은 에이전트 · §2.7.7) | **없음** — `output/**` 이동 ✗ · 이미지 전송 ✗ |
 | **(모든 phase 전이)** | `campaign_init --write-brief` 로 `docs/logs/<node_id>/campaign_brief.json` 갱신 | 미러에서 그 파일 하나만 읽는다(`sub.campaign.brief`) | 브리핑은 기계판독 데이터 평면이다(산문 규약 밖) |
 | **publish** | `docs/` 에 문서 발행: sweep map · benchmark 인증서/리포트 · devlog/testlog · **hint 입력 사이드카** `docs/benchmark/hint_inputs_<measured_utc>/`(렌더된 Dockerfile·compose·3+1+1·바깥영역 산출물의 사본) → task-report 에 경로 | `fetch_sub_docs.sh` 로 `docs/` 회수(simlog raw 제외) → devlog·benchmark 저작(서브 결과 신뢰 — raw 재요구 ✗) · hint 사이드카는 **참조용**이다(2026-09-22 `plan_26092119`: 메인 `hint.py publish` 는 읽지 않는다 — 발행 자격은 관측이라 서브 단독 셀은 `HINT_QUALIFICATION_UNOBSERVED` · 열린 설계) | 문서 평면만 |
@@ -42,7 +42,7 @@
 | `build` | `campaign.yaml` 의 matrix 행 · `cells/<cell>/config.yaml` | 이미지 태그·digest | 이미지가 실재하고 `--gpus=all` 기능 프로브 통과 |
 | `serve` | build status · `cells/<cell>/lockset.json` | health·엔진 로그 경로 | health 200 + 추론 1회 성공 |
 | `bench` | serve status | `docs/benchmark/` 리포트(+PASS 면 인증서) | 리포트 실재 + `measurement_ok` |
-| `publish` | bench status | 메인: 셀 hint 태그 1개(`hint.py continue` · 셀의 승인 기록 필요) · 서브: `hint_inputs` 문서 평면 참조 사이드카(발행기는 읽지 않는다 — 서브 단독 셀 발행은 열린 설계) · 증거 포인터 | 메인: push 뒤 원격 태그 오브젝트 SHA = 로컬(`refs/tags/<tag>@<sha>`) · 서브: 포인터 전수 실재 |
+| `publish` | bench status | 메인: 셀 hint 태그 1개(`hint.sh continue` · 셀의 승인 기록 필요) · 서브: `hint_inputs` 문서 평면 참조 사이드카(발행기는 읽지 않는다 — 서브 단독 셀 발행은 열린 설계) · 증거 포인터 | 메인: push 뒤 원격 태그 오브젝트 SHA = 로컬(`refs/tags/<tag>@<sha>`) · 서브: 포인터 전수 실재 |
 
 - **proof 는 선언이 아니라 관측이다** — `ok: true` 옆에 `source`(그 판정을 낸 명령·파일)를 함께
   적는다. 출처 없는 `ok` 는 단언이 검증을 대체한 것이고, 그러면 깨진 순간을 아무도 모른다.
@@ -56,7 +56,8 @@
 
 | 실행자 | 옛 기본값 | 파생 경로 |
 |---|---|---|
-| `vllm-recipe-explorer` `recipe.py --config` | `/config.yaml` | `campaigns/<id>/cells/<cell>/config.yaml` |
+| `vllm-recipe-explorer` `recipe.sh generate --config` · `recipe.sh simulate --config` | `/config.yaml` | `campaigns/<id>/cells/<cell>/config.yaml` |
 | recipe lock-set | `/lockset.json` | `campaigns/<id>/cells/<cell>/lockset.json` |
 | `adversarial-benchmark` `broad_search.sh --state` | 호출자 임의 | `campaigns/<id>/sweeps/<sweep>.json` |
+| `adversarial-benchmark` `sweep_bench.sh --campaign-cell` 셀 sweep 기록 | 없음(broad_search 만 썼다 — P2·P3 `sweeps/` 공란) | `campaigns/<id>/sweeps/<스윕 디렉터리 이름>.json`(`--derive sweep` · `_bootstrap` 이면 no-op · plan_26111708 B L12) |
 | `terraforming_node` `relay.sh` 원장 | `/tasks/` | `campaigns/<id>/relay/` (활성 캠페인 없으면 `_bootstrap`) |

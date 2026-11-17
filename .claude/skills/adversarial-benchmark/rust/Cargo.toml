@@ -428,6 +428,9 @@ policy-publisher = { path = "../../../rust/policy-publisher" }
 # The hint reader library (Rust port of render_bench_section.py, crate `hintlib`): the lite-report and sweep-repeats
 # selftests ask its parse_report / parse_measurement_config / render_lite and contract constants directly (no Python).
 hint-publisher = { path = "../../hint-publisher/rust" }
+# The model-config owner (vllm-recipe-explorer): the roofline reads the nested text config through its one resolver
+# `model_config::text_config_of` (vLLM llm_config remap + transformers get_text_config names) — plan_26111708 B L9.
+recipe-runtime = { path = "../../vllm-recipe-explorer/rust/runtime" }
 # SHA-256 of the dataset source (`hashlib.sha256` of the original): the `ring` digest `Context` (its own aarch64/x86_64
 # assembly with run-time CPU feature dispatch), pinned exactly. Replaced the first plan, `sha2` =0.10.9 (kept in PORTING.md).
 ring = "=0.17.14"

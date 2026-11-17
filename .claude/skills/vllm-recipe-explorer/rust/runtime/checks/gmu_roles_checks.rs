@@ -32,6 +32,7 @@ fn the_unit_layer_of_the_gmu_roles_self_test_passes_over_the_native_owners() {
 fn the_fake_engine_layer_of_the_gmu_roles_self_test_passes() {
     let dir = PrivateDirectory::create("gmu-roles-engine-").expect("a private directory");
     let report = engine_layer(dir.path(), &repo());
-    assert_eq!(report.lines.len(), 12, "{}", report.lines.join("\n"));
+    // 12 (F1-F9) + 6 (F10-F14 · plan_26111708 B L2 · L3 engine refusals)
+    assert_eq!(report.lines.len(), 18, "{}", report.lines.join("\n"));
     assert!(report.failures.is_empty(), "{}", report.lines.join("\n"));
 }

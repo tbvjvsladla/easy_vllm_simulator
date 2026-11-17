@@ -2,7 +2,7 @@
   "id": "api-090",
   "kind": "exception",
   "type": "UnicodeEncodeError",
-  "message": "'utf-8' codec can't encode character '\\udcff' in position 767: surrogates not allowed",
+  "message": "'utf-8' codec can't encode character '\\udcff' in position 745: surrogates not allowed",
   "stdout": "",
   "stderr": "",
   "args_after": [

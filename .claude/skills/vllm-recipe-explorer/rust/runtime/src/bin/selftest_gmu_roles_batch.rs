@@ -1,4 +1,4 @@
-//! `selftest_gmu_roles_batch`: the unit (U0-U9), CLI (E1-E17) and fake-engine (F1-F9) layers of gmu role separation, max-num-seqs derivation and lockset stamping,
+//! `selftest_gmu_roles_batch`: the unit (U0-U9), CLI (E1-E17) and fake-engine (F1-F14) layers of gmu role separation, max-num-seqs derivation and lockset stamping,
 //! run against the sibling installed `recipe` program over a throwaway copy of the owning skill (see `gmu_roles_selftest`).
 use recipe_runtime::anchor::process_skill_root;
 use std::path::PathBuf;

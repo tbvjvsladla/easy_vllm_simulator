@@ -45,4 +45,4 @@
 |---|---|---|---|
 | **파생 선언**(`campaign_init --emit-slice <node>` 산출) | ignored(휘발) | **메인→서브 단방향**(독립 campaign executor만 relay 지시서 JSON→stdin으로 전달 · 2026-09-18) | 배정 SSOT 는 메인 `assignments`; sub는 `--init --from-slice -`로 stdin 선언을 소비한다. `--from-slice <PATH>`는 호환 입력이며, 독립 instance를 열지 않는 sub mode에는 보내지 않는다. |
 
-- 바이트를 쓰는 문은 `campaign_init.py` 하나다(`writers.md`). 읽는 눈은 `--resume-brief` 이며 `campaigns/README.md` 읽기 순서 **0번**이다.
+- 바이트를 쓰는 문은 `campaign_init.sh` 하나다(`writers.md`). 읽는 눈은 `--resume-brief` 이며 `campaigns/README.md` 읽기 순서 **0번**이다.

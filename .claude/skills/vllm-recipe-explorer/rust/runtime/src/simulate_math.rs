@@ -30,6 +30,10 @@ pub struct Profile {
     pub device_total_gib: Option<f64>,
     pub gmu_used: Option<f64>,
     pub gmu_source: Option<String>,
+    /// The engine's `Maximum concurrency for <max_model_len> tokens per request` (plan_26111708 B L2).
+    pub max_concurrency: Option<f64>,
+    /// The attention block size the engine set for a hybrid model, from its log (`vllm_log::attention_block_size` · L2).
+    pub block_tokens: Option<i64>,
 }
 
 /// `max_safe_kv_bytes(budget, gmu, weights, overhead)`: `int(budget*gmu*GIB) - int(weights) - int(overhead)`.
@@ -211,6 +215,8 @@ pub struct Clamp {
     /// `(failure_class, note)` of a structural infeasibility.
     pub fail: Option<(&'static str, String)>,
     pub note: String,
+    /// The deployed KV ceiling `max_safe` when it was computed (weights and overhead measured) — the next raise checks it.
+    pub max_safe: Option<i64>,
 }
 
 /// `_resolve_clamp_kv`: `kv = min(required, max_safe)`. `formula_required(tokens)` is `required_kv_bytes(parsed, tokens, 1,
@@ -226,7 +232,7 @@ pub fn resolve_clamp_kv(
     formula_required: &dyn Fn(i64) -> i64,
 ) -> Clamp {
     let (Some(w), Some(o)) = (p.weights_gib, p.non_kv_overhead_gib) else {
-        return Clamp { kv: None, fail: None, note: "weights/overhead 실측 부재.".to_string() };
+        return Clamp { kv: None, fail: None, note: "weights/overhead 실측 부재.".to_string(), max_safe: None };
     };
     let (mut wb, mut ob) = (w * GIB, o * GIB);
     if tp_divisor > 1 {
@@ -235,7 +241,7 @@ pub fn resolve_clamp_kv(
     }
     let batch = batch.filter(|b| *b != 0).unwrap_or(1);
     let req_tokens = request_tokens.filter(|t| *t != 0).map(|t| max_model_len.max(t * batch));
-    let required: i64 = match (p.kv_cache_gib.filter(|v| *v != 0.0), p.kv_cache_tokens.filter(|v| *v != 0)) {
+    let mut required: i64 = match (p.kv_cache_gib.filter(|v| *v != 0.0), p.kv_cache_tokens.filter(|v| *v != 0)) {
         (Some(g), Some(t)) => {
             let per_token = g * GIB / t as f64;
             match req_tokens {
@@ -248,16 +254,24 @@ pub fn resolve_clamp_kv(
             Some(rt) => formula_required(rt),
         },
     };
-    let basis = match (req_tokens, request_tokens) {
+    let mut basis = match (req_tokens, request_tokens) {
         (Some(rt), Some(l)) => format!("max(max_model_len={}, L={}×batch={})={} tokens", max_model_len, l, batch, rt),
         _ => format!("max_model_len={}×batch={}", max_model_len, batch),
     };
+    // plan_26111708 B L2: the clamp never goes below one max-length request as the engine itself measured it.
+    if let Some((floor, why)) = one_request_floor_bytes(p, max_model_len) {
+        if floor > required {
+            required = floor;
+            basis = format!("{} · 1건 하한 적용: {}", basis, why);
+        }
+    }
     let max_safe = max_safe_kv_bytes(budget, deploy_gmu, wb, ob);
     if max_safe <= 0 {
         return Clamp {
             kv: None,
             fail: Some(("vram_infeasible", "weights+overhead(실측) 만으로 천장 초과 → KV 조정 불가(HITL).".to_string())),
             note: String::new(),
+            max_safe: Some(max_safe),
         };
     }
     if required > max_safe {
@@ -271,10 +285,90 @@ pub fn resolve_clamp_kv(
                 ),
             )),
             note: String::new(),
+            max_safe: Some(max_safe),
         };
     }
     let kv = required.min(max_safe);
-    Clamp { kv: Some(kv), fail: None, note: format!("kv=min(required={}, max_safe={})={}. ({})", required, max_safe, kv, basis) }
+    Clamp {
+        kv: Some(kv),
+        fail: None,
+        note: format!("kv=min(required={}, max_safe={})={}. ({})", required, max_safe, kv, basis),
+        max_safe: Some(max_safe),
+    }
+}
+
+/// Half the step of the engine's GiB figures (`format_gib` = `round(b / GiB, 2)`, vLLM 0.32.0 `utils/mem_utils.py:30-31`):
+/// a printed figure is within this of the true one.
+const GIB_FIGURE_HALF_STEP: f64 = 0.005;
+
+/// The bytes one max-length request needs in a clamped pool, from the engine's own figures of a trial (plan_26111708 B L2 —
+/// camp P2 q36-27b: the clamp held 1.32 GiB, the engine needed 1.29 GiB but had 1.27 GiB). vLLM refuses a pool unless
+/// `pool − one block ≥ one request` (`v1/core/kv_cache_utils.py:1003-1040`, the held-back null block `:1123-1131`), and it
+/// reports `Maximum concurrency for <max_model_len> tokens per request` = pool blocks ÷ blocks per request (`:1195-1227`), so
+/// one request ≤ `(kv_gib + ½step) ÷ (concurrency − ½step)` and one block ≤ that ÷ ⌈max_model_len ÷ block⌉, where the block is
+/// the size the engine set for a hybrid model (`platforms/interface.py:1094-1100`). Only when all three figures were measured
+/// (`kv_cache_gib`, `max_concurrency`, `block_tokens`); otherwise `None` (the per-token formula and its buffer stand alone,
+/// and a refused clamp is raised by [`raise_to_one_request`]).
+pub fn one_request_floor_bytes(p: &Profile, max_model_len: i64) -> Option<(i64, String)> {
+    let (Some(kv_gib), Some(concurrency), Some(block)) = (p.kv_cache_gib, p.max_concurrency, p.block_tokens) else {
+        return None;
+    };
+    let lowest_concurrency = concurrency - GIB_FIGURE_HALF_STEP;
+    if kv_gib <= 0.0 || lowest_concurrency <= 0.0 || block <= 0 || max_model_len <= 0 {
+        return None;
+    }
+    let one_request = (kv_gib + GIB_FIGURE_HALF_STEP) * GIB / lowest_concurrency;
+    let blocks = (max_model_len + block - 1) / block;
+    let floor = (one_request * (1.0 + 1.0 / blocks as f64)).ceil() as i64;
+    Some((
+        floor,
+        format!(
+            "엔진 실측 1건 {:.0} B = KV {} GiB ÷ 동시성 {}x(@max_model_len={}) + 널 블록 ≤ 1건÷⌈{}÷block {}⌉ → {} B (vLLM kv_cache_utils.py:1003-1040,1123-1131)",
+            one_request, kv_gib, concurrency, max_model_len, max_model_len, block, floor
+        ),
+    ))
+}
+
+/// The clamp after the engine refused it for one max-length request (plan_26111708 B L2 — measurement over formula): the
+/// engine printed what one request needs and what the clamp left (`available = current − one block`, rounded to 0.01 GiB), so
+/// `current + (needed − available + 2 × ½step) GiB` leaves at least `needed` after the block. Over a known deployed ceiling
+/// `max_safe` it is a structural `vram_infeasible` (with the engine's estimated max length when it gave one).
+pub fn raise_to_one_request(
+    current: i64,
+    needed_gib: f64,
+    available_gib: f64,
+    max_safe: Option<i64>,
+    estimated_max_model_len: Option<i64>,
+) -> Clamp {
+    let shortfall_gib = needed_gib - available_gib + 2.0 * GIB_FIGURE_HALF_STEP;
+    let next = current + (shortfall_gib.max(2.0 * GIB_FIGURE_HALF_STEP) * GIB).ceil() as i64;
+    let measured = format!(
+        "엔진 실측(vllm-needed-measured): needed {} GiB > available {} GiB @clamp {} B → {} + ({} − {} + 0.01) GiB = {} B",
+        needed_gib, available_gib, current, current, needed_gib, available_gib, next
+    );
+    match max_safe {
+        Some(ceiling) if next > ceiling => Clamp {
+            kv: None,
+            fail: Some((
+                "vram_infeasible",
+                format!(
+                    "{} > max_safe_kv={} → max_model_len 요청 1건도 배포 천장에 들지 않는다(HITL · 엔진 추정 최대 길이 {}).",
+                    measured,
+                    ceiling,
+                    estimated_max_model_len.map_or("미보고".to_string(), |n| n.to_string())
+                ),
+            )),
+            note: String::new(),
+            max_safe: Some(ceiling),
+        },
+        Some(ceiling) => Clamp { kv: Some(next), fail: None, note: format!("{} ≤ max_safe {}.", measured, ceiling), max_safe: Some(ceiling) },
+        None => Clamp {
+            kv: Some(next),
+            fail: None,
+            note: format!("{} (배포 천장 max_safe 미측정 — 다음 트라이얼의 예산 게이트가 판정한다).", measured),
+            max_safe: None,
+        },
+    }
 }
 
 #[cfg(test)]
@@ -307,6 +401,57 @@ mod tests {
         assert_eq!(c.kv, Some((per * 2000.0 * 2.0 * 1.02) as i64));
         let c = resolve_clamp_kv(&p, 2000, Some(2), 12.0, 0.9, 1, None, &|_| 0);
         assert_eq!(c.fail.as_ref().map(|f| f.0), Some("vram_infeasible"));
+    }
+
+    /// plan_26111708 B L2 (camp P2 q36-27b · simlog 2026111621_1 trial01/02): measured 4.0 GiB → 100,731 tokens · 3.07x at
+    /// 32768 · attention block 1568; the formula clamp 1,415,837,142 B left 1.27 GiB against 1.29 GiB needed.
+    fn q36_measured() -> Profile {
+        Profile {
+            weights_gib: Some(19.87),
+            non_kv_overhead_gib: Some(4.0),
+            kv_cache_gib: Some(4.0),
+            kv_cache_tokens: Some(100_731),
+            max_concurrency: Some(3.07),
+            block_tokens: Some(1568),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn the_clamp_floor_covers_one_max_len_request_and_its_block() {
+        let p = q36_measured();
+        let (floor, why) = one_request_floor_bytes(&p, 32768).expect("all three figures measured");
+        // the engine's need (1.29 GiB) plus the held-back block it showed (1.3186 − 1.27 GiB) fits under the floor
+        assert!(floor as f64 >= (1.29 + 0.005 + (1_415_837_142.0 / GIB - 1.27 + 0.005)) * GIB, "{floor} {why}");
+        let c = resolve_clamp_kv(&p, 32768, Some(8), 121.0, 0.42, 1, Some(4096), &|_| 0);
+        assert_eq!(c.kv, Some(floor), "{}", c.note);
+        assert!(c.note.contains("1건 하한 적용") && c.max_safe.is_some());
+        // negative: without the engine's block size there is no floor and the per-token formula stands alone (old clamp)
+        let mut q = q36_measured();
+        q.block_tokens = None;
+        assert_eq!(one_request_floor_bytes(&q, 32768), None);
+        let c = resolve_clamp_kv(&q, 32768, Some(8), 121.0, 0.42, 1, Some(4096), &|_| 0);
+        assert_eq!(c.kv, Some((4.0 * GIB / 100_731.0 * 32768.0 * KV_BLOCK_ALIGN_BUFFER) as i64));
+        assert!(!c.note.contains("1건 하한"));
+    }
+
+    #[test]
+    fn a_refused_clamp_is_raised_by_the_engines_own_shortfall() {
+        let raised = raise_to_one_request(1_415_837_142, 1.29, 1.27, Some(24_728_274_207), Some(31360));
+        let want = 1_415_837_142 + (0.03 * GIB).ceil() as i64;
+        assert_eq!((raised.kv, raised.fail.as_ref()), (Some(want), None), "{}", raised.note);
+        assert!(raised.note.contains("vllm-needed-measured"));
+        // what it leaves after the block the refused run lost (1.32 − 1.27 GiB, ± rounding) still covers the need
+        assert!(want as f64 - (1_415_837_142.0 - (1.27 - 0.005) * GIB) >= (1.29 + 0.005) * GIB);
+        // negative: over the deployed ceiling it is structural, with the engine's estimate in the note
+        let refused = raise_to_one_request(1_415_837_142, 1.29, 1.27, Some(1_420_000_000), Some(31360));
+        assert_eq!(refused.kv, None);
+        assert_eq!(refused.fail.as_ref().map(|f| f.0), Some("vram_infeasible"));
+        assert!(refused.fail.as_ref().is_some_and(|f| f.1.contains("31360")));
+        // an unknown ceiling still raises, and says the next trial's gate decides
+        let blind = raise_to_one_request(1_415_837_142, 1.29, 1.27, None, None);
+        assert_eq!(blind.kv, Some(want));
+        assert!(blind.note.contains("max_safe 미측정"));
     }
 
     #[test]

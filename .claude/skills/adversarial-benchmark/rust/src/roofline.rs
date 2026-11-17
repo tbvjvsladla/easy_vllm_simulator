@@ -830,9 +830,12 @@ fn compute(options: &RooflineOptions, stderr: &mut String) -> Result<PyDict, Sto
     let cfg_value = json_file(&config_path)?;
     let cfg = dict_items(&cfg_value, "get")?;
     let empty = PyDict::new();
-    let tc = match cfg.get("text_config") {
-        Some(PyValue::Dict(map)) => map,
-        _ => &empty,
+    // The nested language-model config through the config owner's one resolver (plan_26111708 B L9): `text_config` alone
+    // missed an omni/VL config that nests it as `llm_config` (MoE undetected → full weights counted as active bytes). An
+    // ambiguous config (two candidates) stops here instead of silently reading one.
+    let tc = match recipe_runtime::model_config::text_config_of(cfg) {
+        Ok(found) => found.nested.unwrap_or(&empty),
+        Err(failure) => return Err(die(cat(&[&lit("config.json 텍스트 config 해소 불가: "), &failure.line()]))),
     };
     let hidden = config_pick(tc, cfg, &["hidden_size"]);
     let n_layers = config_pick(tc, cfg, &["num_hidden_layers"]);

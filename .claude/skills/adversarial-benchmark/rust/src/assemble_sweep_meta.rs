@@ -1027,10 +1027,11 @@ fn assemble_inner(
     // The GPU model is the manifest's alone; without it the certificate key would be `NA`, so the run stops here.
     let gpu_model = scan::grep_yaml(&manifest, "gpu_model").filter(|own| !own.is_empty());
     let Some(gpu_model) = gpu_model else {
+        // plan_26111708 B L8: the remedy names the live `scan_node.sh` launcher (scan_node.py is retired).
         stderr.push_py(&cat!(
             "[sweep_bench] FAIL: manifest(",
             var(env, "MANIFEST").unwrap_or_else(|| PyStr::new("?")),
-            ") 에 gpu_model 이 없다 — 인증서 강한 키 gpu 를 NA 로 발행하지 않는다. terraforming_node 스캔(서브면 scan_node.py --emit-sub-manifest)으로 채워라.\n"
+            ") 에 gpu_model 이 없다 — 인증서 강한 키 gpu 를 NA 로 발행하지 않는다. terraforming_node 스캔(서브면 scan_node.sh --emit-sub-manifest)으로 채워라.\n"
         ));
         return Err(Stop::Status(2));
     };

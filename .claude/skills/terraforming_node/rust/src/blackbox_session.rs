@@ -6,6 +6,17 @@
 //!
 //! Times are `--now` only (no wall clock). The budget file is replaced atomically (tmp + fsync + rename) because the
 //! watchdog reads it every second.
+//!
+//! **Two models on one node (plan_26111708 B L6 · F2 of 2026-10-14).** The consumer — the root watchdog
+//! `mem_watchdog_eta.sh` — reads ONE file and takes the first `floor_mib`/`expires_epoch`/`label` line each (`sed … |
+//! head -1`); it cannot hold per-model floors, and changing it means a reinstall plus a dry-run observation before
+//! arming (C1-5), which no deterministic test here can stand in for. So the combination is done on the writer side and
+//! the consumer still sees one ordinary declaration: when a **live declaration of another label** exists, declare-budget
+//! stacks the new one on it — overhead = the caller's own `--overhead-mib` + (MemTotal − MemAvailable) measured now
+//! (the documented two-step, `testlog_26111700` §3 L6) — and records that with provenance (`stacked_on`·`stack_*` keys,
+//! a comment line, the event). The first model's refresh loop stops by itself: it renews with `--expect-label` and gets
+//! exit 3 once the declaration carries another label. Anything it cannot decide fails closed and leaves the live
+//! declaration untouched; with no live declaration of another label the path is byte-identical to before.
 
 use crate::argp::{self, flag, store, Arg, Outcome, Parsed, Spec, HELP};
 use crate::bb::{self, repr, Fail, R};
@@ -23,6 +34,12 @@ pub const TTL_SAFETY_MULT: i64 = 3;
 pub const BLOCK_STAGES: [&str; 3] = ["derive", "preflight_ceiling", "declare"];
 const WD_UNIT: &str = "easy-vllm-memwatch.service";
 const WD_CONST_SOURCE: &str = "derived:blackbox_eta.DEFAULTS";
+/// `renew-budget --expect-label` when the declaration now carries another label (a co-resident model stacked on it):
+/// a state, not an error — the superseded model's refresh loop (`budget_renew_loop.sh`) ends on it. plan_26111708 B L6.
+pub const RENEW_SUPERSEDED_RC: i32 = 3;
+const MEMINFO_PATH: &str = "/proc/meminfo";
+/// The value written as `stack_source=` (watchdog value charset `[A-Za-z0-9._-]`).
+const MEMINFO_SOURCE: &str = "measured-proc-meminfo";
 
 fn wd_margin() -> i64 {
     blackbox_eta::default_int("decl_margin_mib")
@@ -105,6 +122,8 @@ pub struct A {
     pub ttl_s: Option<i64>,
     pub expected_load_s: Option<i64>,
     pub label: Option<String>,
+    /// `renew-budget --expect-label` (plan_26111708 B L6).
+    pub expect_label: Option<String>,
     pub field: Option<String>,
     pub reason: Option<String>,
     pub stage: Option<String>,
@@ -393,13 +412,49 @@ fn write_budget(node_dir: &str, body: &str) -> Result<String, Raised> {
 /// The watchdog-threshold lookup `cmd_declare_budget` uses (the self-test swaps in fixtures, as the original does).
 pub type TripFn = fn() -> (Option<i64>, String);
 
+/// The node's MemTotal/MemAvailable (MiB) and the source that produced them (§결정론 규율 — 출처 표시).
+#[derive(Clone, Debug)]
+pub struct Meminfo {
+    pub total_mib: i64,
+    pub avail_mib: i64,
+    pub source: String,
+}
+
+/// Where a co-resident declaration reads the node's memory (plan_26111708 B L6). Production is [`read_meminfo`]; the
+/// self-test passes fixtures, so no test reads the host's /proc/meminfo.
+pub type MeminfoFn = fn() -> Result<Meminfo, String>;
+
+/// MemTotal/MemAvailable from `/proc/meminfo` text through the one parser (`blackbox_eta::meminfo_mib`).
+pub fn parse_meminfo(text: &str, source: &str) -> Result<Meminfo, String> {
+    match (
+        blackbox_eta::meminfo_mib(text, "MemTotal"),
+        blackbox_eta::meminfo_mib(text, "MemAvailable"),
+    ) {
+        (Some(t), Some(v)) => Ok(Meminfo {
+            total_mib: t,
+            avail_mib: v,
+            source: source.into(),
+        }),
+        _ => Err(format!("{source}: MemTotal/MemAvailable 판독 불가")),
+    }
+}
+
+pub fn read_meminfo() -> Result<Meminfo, String> {
+    let text = bb::read_text(MEMINFO_PATH).map_err(|e| format!("{MEMINFO_PATH} 판독 실패({})", e.0))?;
+    parse_meminfo(&text, MEMINFO_SOURCE)
+}
+
 pub fn cmd_declare_budget(a: &A) -> R<i32> {
     cmd_declare_budget_with(a, watchdog_trip_mib)
 }
 
 pub fn cmd_declare_budget_with(a: &A, trip: TripFn) -> R<i32> {
+    cmd_declare_budget_with_sources(a, trip, read_meminfo)
+}
+
+pub fn cmd_declare_budget_with_sources(a: &A, trip: TripFn, meminfo: MeminfoFn) -> R<i32> {
     let now = parse_now(a.now.as_deref())?;
-    match declare_budget(a, &now, trip) {
+    match declare_budget(a, &now, trip, meminfo) {
         Err(Fail::Exit(m)) => {
             record_declare_rejection(a, &now, &m);
             Err(Fail::Exit(m))
@@ -439,7 +494,91 @@ fn record_declare_rejection(a: &A, now: &str, reason: &str) {
     }
 }
 
-fn declare_budget(a: &A, now: &str, trip_fn: TripFn) -> R<i32> {
+/// A declaration stacked on another model's live declaration on the same node (plan_26111708 B L6).
+struct Stack {
+    on_label: String,
+    live_floor: i64,
+    own_overhead_mib: i64,
+    used_mib: i64,
+    mem: Meminfo,
+}
+
+/// plan_26111708 B L6: is there a **live declaration of another model** on this node? Then the new one is stacked on it.
+///
+/// Not stacked — the single-model path, byte-identical to before: no declaration file, one the consumer cannot interpret
+/// (`read_budget` → None; the watchdog rejects it too), an expired one (stale — the watchdog already runs without it),
+/// the same label (the same model re-declares), or a new label the later charset check rejects (its rejection stays
+/// where it was). A `--now` that passes the pattern but is no date also falls through: the single path raises it at its
+/// original place and nothing is written.
+///
+/// Fail closed — the live declaration is left as it is: the declaration file cannot be read (the watchdog's `sed` may
+/// still honour it), the node memory cannot be read, MemAvailable is outside [0, MemTotal], or `--mem-total-mib` is not
+/// the measured MemTotal (facts of two different nodes or moments must not be combined).
+fn co_resident_stack(a: &A, now: &str, mt: i64, own_oh: i64, mem_fn: MeminfoFn) -> R<Option<Stack>> {
+    let label = a
+        .label
+        .as_deref()
+        .filter(|l| !l.is_empty())
+        .unwrap_or("unlabeled");
+    if !safe_id(label) {
+        return Ok(None);
+    }
+    let path = budget_path(&a.node_dir);
+    let cur = read_budget(&a.node_dir).map_err(|e| {
+        exit(format!(
+            "기존 예산 선언을 읽지 못했다({}) — 워치독은 그 파일을 sed 로 읽으므로 다른 모델의 살아 있는 선언일 수 있다. 덮지 않는다(fail-closed): {path}",
+            e.0
+        ))
+    })?;
+    let Some(cur) = cur else {
+        return Ok(None);
+    };
+    let Ok(now_e) = epoch(now) else {
+        return Ok(None);
+    };
+    let ex = as_i64(cur.get("expires_epoch").unwrap()).unwrap();
+    if ex <= now_e {
+        return Ok(None);
+    }
+    let on_label = cur
+        .get("label")
+        .map(bb::s)
+        .unwrap_or_else(|| "unlabeled".into());
+    if on_label == label {
+        return Ok(None);
+    }
+    let live_floor = as_i64(cur.get("floor_mib").unwrap()).unwrap();
+    let ctx = format!(
+        "살아 있는 다른 모델의 선언(label={on_label} · floor {live_floor} MiB · 잔여 {}s) 위 공존 적층",
+        ex - now_e
+    );
+    let mem = mem_fn().map_err(|why| {
+        exit(format!(
+            "{ctx}: 노드 메모리를 읽지 못했다({why}) — 공존 상주분(MemTotal − MemAvailable)을 산출할 수 없어 기존 선언을 덮지 않는다(fail-closed)."
+        ))
+    })?;
+    if mem.avail_mib < 0 || mem.avail_mib > mem.total_mib {
+        return Err(exit(format!(
+            "{ctx}: 측정 MemAvailable {} MiB 가 [0, MemTotal {} MiB] 밖이다({}) — 판독이 깨졌다. 기존 선언을 덮지 않는다(fail-closed).",
+            mem.avail_mib, mem.total_mib, mem.source
+        )));
+    }
+    if mem.total_mib != mt {
+        return Err(exit(format!(
+            "{ctx}: --mem-total-mib {mt} 가 측정 MemTotal {} MiB({}) 와 다르다 — 다른 노드·시점의 사실로 적층하지 않는다. 기존 선언을 덮지 않는다(fail-closed).",
+            mem.total_mib, mem.source
+        )));
+    }
+    Ok(Some(Stack {
+        on_label,
+        live_floor,
+        own_overhead_mib: own_oh,
+        used_mib: mem.total_mib - mem.avail_mib,
+        mem,
+    }))
+}
+
+fn declare_budget(a: &A, now: &str, trip_fn: TripFn, mem_fn: MeminfoFn) -> R<i32> {
     let ttl = a.ttl_s.unwrap_or(DEFAULT_TTL_S);
     validate_ttl(ttl, a.expected_load_s.unwrap_or(0))?;
     let mt = a.mem_total_mib.unwrap_or(0);
@@ -456,12 +595,32 @@ fn declare_budget(a: &A, now: &str, trip_fn: TripFn) -> R<i32> {
             return Err(exit(format!("{name} 는 0 이상이어야 한다: {v}")));
         }
     }
+    // plan_26111708 B L6: another model's live declaration → the overhead also carries what is resident now. None = the
+    // single-model path (oh stays the caller's value and every text below is unchanged).
+    let stack = co_resident_stack(a, now, mt, oh, mem_fn)?;
+    let oh = oh + stack.as_ref().map_or(0, |s| s.used_mib);
+    let stack_note = stack.as_ref().map_or(String::new(), |s| {
+        format!(
+            "\n  공존 적층: overhead {oh} = 자기 {} + 상주 {} (MemTotal {} − MemAvailable {} · 출처 {}) · 기존 선언 label={}",
+            s.own_overhead_mib, s.used_mib, s.mem.total_mib, s.mem.avail_mib, s.mem.source, s.on_label
+        )
+    });
     let resident = w + kv + oh;
     let floor = mt - resident;
     if floor <= 0 {
         return Err(exit(format!(
-            "예상 상주 {resident} MiB 가 총량 {mt} MiB 이상이다 — 이 구성은 애초에 못 올린다."
+            "예상 상주 {resident} MiB 가 총량 {mt} MiB 이상이다 — 이 구성은 애초에 못 올린다.{stack_note}"
         )));
+    }
+    if let Some(s) = &stack {
+        // One more resident model can only lower the floor. A stacked floor at or above the live one means the measured
+        // MemAvailable does not yet hold what that declaration expects — its model is still loading or already gone.
+        if floor >= s.live_floor {
+            return Err(exit(format!(
+                "공존 적층 바닥 {floor} MiB 가 기존 선언(label={}) 바닥 {} MiB 이상이다 — 모델을 하나 더 올리면 바닥은 내려가야 한다.\n  측정 MemAvailable {} MiB 가 기존 선언이 예상한 상주를 아직 담지 않았다: 그 모델이 로드 중이거나(READY 뒤 다시 선언하라)\n  이미 내려갔다(stale — clear-budget 뒤 단독 선언하라). 기존 선언을 덮지 않는다(fail-closed).{stack_note}",
+                s.on_label, s.live_floor, s.mem.avail_mib
+            )));
+        }
     }
     let margin = wd_margin();
     let (trip, trip_src) = trip_fn();
@@ -471,7 +630,7 @@ fn declare_budget(a: &A, now: &str, trip_fn: TripFn) -> R<i32> {
         ),
         Some(t) if floor <= t => {
             return Err(exit(format!(
-                "선언 floor {floor} MiB 가 워치독 트립 임계 {t} MiB 이하다 — 이 구성은 정상 정상상태의\n  MemAvailable 이 트립선 아래라는 뜻이고, 서빙이 성공해도 워치독이 죽인다.\n  출처: {trip_src}\n  산출: floor = mem_total({mt}) - [weights({w}) + kv({kv}) + overhead({oh})]\n  → KV(--kv-mib)를 줄여라(max_num_seqs·max_model_len 하향) 또는 더 작은 모델로 가라."
+                "선언 floor {floor} MiB 가 워치독 트립 임계 {t} MiB 이하다 — 이 구성은 정상 정상상태의\n  MemAvailable 이 트립선 아래라는 뜻이고, 서빙이 성공해도 워치독이 죽인다.\n  출처: {trip_src}\n  산출: floor = mem_total({mt}) - [weights({w}) + kv({kv}) + overhead({oh})]\n  → KV(--kv-mib)를 줄여라(max_num_seqs·max_model_len 하향) 또는 더 작은 모델로 가라.{stack_note}"
             )))
         }
         Some(t) if floor < t + margin => eprintln!(
@@ -493,26 +652,55 @@ fn declare_budget(a: &A, now: &str, trip_fn: TripFn) -> R<i32> {
             repr(&label)
         )));
     }
-    let body = format!(
+    let mut body = format!(
         "# easy-vllm serve budget declaration — 워치독이 sed 로 읽는다(source 하지 않는다).\n# 산출: floor_mib = mem_total({mt}) - [weights({w}) + kv({kv}) + overhead({oh})]\n# 발행 {now} · TTL {ttl}s · 근거 testlog_26073123\nfloor_mib={floor}\nexpires_epoch={expires}\nlabel={label}\n"
     );
+    if let Some(s) = &stack {
+        // plan_26111708 B L6 provenance. The watchdog reads only floor_mib/expires_epoch/label (first line each), so the
+        // stack is still exactly one declaration it interprets; the `stack*` keys are for budget-status and the next
+        // stacker, and their values keep the watchdog charset.
+        body.push_str(&format!(
+            "# 공존 적층(plan_26111708 B L6): overhead({oh}) = 자기({}) + 상주({}) · 상주 = MemTotal({}) - MemAvailable({}) · 출처 {} · 기존 선언 label={} floor={}\nstacked_on={}\nstack_used_mib={}\nstack_own_overhead_mib={}\nstack_source={}\n",
+            s.own_overhead_mib,
+            s.used_mib,
+            s.mem.total_mib,
+            s.mem.avail_mib,
+            s.mem.source,
+            s.on_label,
+            s.live_floor,
+            s.on_label,
+            s.used_mib,
+            s.own_overhead_mib,
+            s.mem.source
+        ));
+    }
     bb::write_atomic(&path, &body)?;
     let ceiling = floor - margin;
-    append_event(
-        &a.node_dir,
-        &py::dict(vec![
-            ("kind", py::s("budget_declare")),
-            ("ts", py::s(now)),
-            ("source", py::s("blackbox_session")),
-            ("label", py::s(&label)),
-            ("floor_mib", PyValue::int(floor)),
-            ("expires_epoch", PyValue::int(expires)),
-            ("weights_mib", PyValue::int(w)),
-            ("kv_mib", PyValue::int(kv)),
-            ("overhead_mib", PyValue::int(oh)),
-            ("mem_total_mib", PyValue::int(mt)),
-        ]),
-    )?;
+    let mut ev = vec![
+        ("kind", py::s("budget_declare")),
+        ("ts", py::s(now)),
+        ("source", py::s("blackbox_session")),
+        ("label", py::s(&label)),
+        ("floor_mib", PyValue::int(floor)),
+        ("expires_epoch", PyValue::int(expires)),
+        ("weights_mib", PyValue::int(w)),
+        ("kv_mib", PyValue::int(kv)),
+        ("overhead_mib", PyValue::int(oh)),
+        ("mem_total_mib", PyValue::int(mt)),
+    ];
+    if let Some(s) = &stack {
+        // overhead_mib stays the one that reproduces floor (= mem_total − weights − kv − overhead); its parts follow.
+        ev.extend([
+            ("stacked_on", py::s(&s.on_label)),
+            ("stacked_on_floor_mib", PyValue::int(s.live_floor)),
+            ("own_overhead_mib", PyValue::int(s.own_overhead_mib)),
+            ("stack_used_mib", PyValue::int(s.used_mib)),
+            ("meminfo_total_mib", PyValue::int(s.mem.total_mib)),
+            ("meminfo_available_mib", PyValue::int(s.mem.avail_mib)),
+            ("stack_source", py::s(&s.mem.source)),
+        ]);
+    }
+    append_event(&a.node_dir, &py::dict(ev))?;
     println!("선언 발행: {path}");
     println!(
         "  예상 상주 {resident} MiB → 예상 바닥 {floor} MiB · 만료 epoch {expires} (TTL {ttl}s)"
@@ -522,6 +710,19 @@ fn declare_budget(a: &A, now: &str, trip_fn: TripFn) -> R<i32> {
     if ceiling < minc {
         println!(
             "  ⚠ 상한이 최소 {minc} MiB 미만 → **워치독이 이 선언을 거부**하고 현행 규칙으로 돈다."
+        );
+    }
+    if let Some(s) = &stack {
+        println!(
+            "  공존 적층: 기존 선언 label={}(floor {} MiB) 위 — overhead {oh} = 자기 {} + 상주 {} (MemTotal {} − MemAvailable {} · 출처 {})",
+            s.on_label, s.live_floor, s.own_overhead_mib, s.used_mib, s.mem.total_mib, s.mem.avail_mib, s.mem.source
+        );
+        println!(
+            "  --overhead-mib 에는 이 모델 자신의 overhead 만 준다 — 공존 상주분은 이 도구가 더한다(손으로 더하면 이중 계상)."
+        );
+        println!(
+            "  label={} 의 갱신 루프는 다음 갱신에서 스스로 멈춘다(renew-budget --expect-label 불일치 → exit {RENEW_SUPERSEDED_RC}).",
+            s.on_label
         );
     }
     Ok(0)
@@ -622,6 +823,38 @@ pub fn cmd_renew_budget(a: &A) -> R<i32> {
     let now_epoch = epoch(&now)?;
     let ex = as_i64(cur.get("expires_epoch").unwrap()).unwrap();
     let floor = as_i64(cur.get("floor_mib").unwrap()).unwrap();
+    // plan_26111708 B L6: a refresh loop renews only ITS declaration. Once a co-resident model stacked on top, the label
+    // differs and renewing would tie the stacked floor to the wrong serving's lifetime (it would outlive the stacker).
+    if let Some(want) = a.expect_label.as_deref() {
+        if !safe_id(want) {
+            return Err(exit(format!(
+                "--expect-label 은 [A-Za-z0-9._-]+ 여야 한다: {}",
+                repr(want)
+            )));
+        }
+        let have = cur
+            .get("label")
+            .map(bb::s)
+            .unwrap_or_else(|| "unlabeled".into());
+        if have != want {
+            append_event(
+                &a.node_dir,
+                &py::dict(vec![
+                    ("kind", py::s("budget_renew_superseded")),
+                    ("ts", py::s(&now)),
+                    ("source", py::s("blackbox_session")),
+                    ("label", py::s(&have)),
+                    ("expected_label", py::s(want)),
+                    ("floor_mib", PyValue::int(floor)),
+                    ("expires_epoch", PyValue::int(ex)),
+                ]),
+            )?;
+            println!(
+                "갱신 중단(대체됨): {path} 의 선언은 label={have} 다(기대 {want}) — 다른 모델이 공존 적층했다. 이 선언을 갱신하지 않는다(exit {RENEW_SUPERSEDED_RC})."
+            );
+            return Ok(RENEW_SUPERSEDED_RC);
+        }
+    }
     if ex <= now_epoch {
         return Err(exit(format!(
             "이미 만료된 선언은 갱신하지 않는다(expires_epoch={ex} <= now={now_epoch}). 만료 구간 동안 워치독은 옛 규칙으로 돌았고 상주 구성이 그대로라는 보장이 없다 — declare-budget 으로 바닥을 다시 산출하라."
@@ -1047,12 +1280,13 @@ fn self_test() -> i32 {
     fn fix_unknown() -> (Option<i64>, String) {
         (None, "fixture-unknown".into())
     }
+    // plan_26111708 B L6: these guard checks re-declare under the live declaration's label (the same model re-declaring)
+    // so they stay on the single-model path; a different live label would be stacked (co-resident checks at the end).
     let raised = match cmd_declare_budget_with(
         &bud(&|x| {
             x.weights_mib = Some(13123);
             x.kv_mib = Some(99000);
             x.overhead_mib = Some(12265);
-            x.label = Some("kv-too-big".into());
         }),
         fix_10240,
     ) {
@@ -1068,7 +1302,6 @@ fn self_test() -> i32 {
             x.weights_mib = Some(13123);
             x.kv_mib = Some(53862);
             x.overhead_mib = Some(12265);
-            x.label = Some("kv-native-ok".into());
         }),
         fix_10240,
     ));
@@ -1084,7 +1317,6 @@ fn self_test() -> i32 {
             x.weights_mib = Some(13123);
             x.kv_mib = Some(99000);
             x.overhead_mib = Some(12265);
-            x.label = Some("trip-unknown".into());
         }),
         fix_unknown,
     ));
@@ -1271,6 +1503,209 @@ fn self_test() -> i32 {
         "session-id 이스케이프 거부",
         session_path(&node, Some("../escape")).is_err(),
     );
+
+    // ── plan_26111708 B L6: two models on one node (co-resident stacking) ──────────────────────────────
+    // Memory comes from fixtures through MeminfoFn: no check reads this host's /proc/meminfo. MemTotal 124610 MiB.
+    fn fix_mem_a_up() -> Result<Meminfo, String> {
+        parse_meminfo(
+            "MemTotal:       127600640 kB\nMemFree:         2097152 kB\nMemAvailable:   88366080 kB\n",
+            "fixture-a-settled",
+        )
+    }
+    fn fix_mem_idle() -> Result<Meminfo, String> {
+        parse_meminfo("MemTotal: 127600640 kB\nMemAvailable: 120832000 kB\n", "fixture-idle")
+    }
+    fn fix_mem_big_up() -> Result<Meminfo, String> {
+        parse_meminfo("MemTotal: 127600640 kB\nMemAvailable: 40960000 kB\n", "fixture-big-settled")
+    }
+    fn fix_mem_other_node() -> Result<Meminfo, String> {
+        parse_meminfo("MemTotal: 130023424 kB\nMemAvailable: 88366080 kB\n", "fixture-other-node")
+    }
+    fn fix_mem_no_avail() -> Result<Meminfo, String> {
+        parse_meminfo("MemTotal: 127600640 kB\n", "fixture-no-avail")
+    }
+    fn fix_mem_unread() -> Result<Meminfo, String> {
+        Err("fixture: 이 경로는 노드 메모리를 읽지 않아야 한다".into())
+    }
+    let decl = |nd: &str, label: &str, wkvoh: (i64, i64, i64), mt: i64, now: &str, mem: MeminfoFn| {
+        cmd_declare_budget_with_sources(
+            &A {
+                node_dir: nd.to_string(),
+                mem_total_mib: Some(mt),
+                weights_mib: Some(wkvoh.0),
+                kv_mib: Some(wkvoh.1),
+                overhead_mib: Some(wkvoh.2),
+                ttl_s: Some(7200),
+                expected_load_s: Some(0),
+                label: Some(label.into()),
+                now: Some(now.into()),
+                ..Default::default()
+            },
+            fix_10240,
+            mem,
+        )
+    };
+    let read = |p: &str| std::fs::read_to_string(p).unwrap_or_default();
+    let evs = |nd: &str| -> Vec<PyValue> {
+        let t = read(&bb::join(&bb::join(nd, "events"), "2026-07.jsonl"));
+        t.lines()
+            .filter(|l| !py::strip(l).is_empty())
+            .filter_map(|l| agent_runtime_support::pyjson::loads(l).ok())
+            .collect()
+    };
+    let rejected = |r: &R<i32>, needle: &str| matches!(r, Err(Fail::Exit(m)) if m.contains(needle));
+    let small = (13123, 8192, 12265); // 상주 33580 → 단독 바닥 91030
+    let co = bb::join(td.path(), "node-co");
+    let cbp = budget_path(&co);
+    let r = quiet(decl(&co, "model-a", small, 124610, "2026-07-31T00:00:00Z", fix_mem_unread));
+    let txt = read(&cbp);
+    c(
+        "★ 단일 경로: 선언이 없으면 적층하지 않고 노드 메모리도 읽지 않는다",
+        r && txt.contains("floor_mib=91030\n") && !txt.contains("stack"),
+    );
+    let r = quiet(decl(&co, "model-a", small, 124610, "2026-07-31T00:05:00Z", fix_mem_unread));
+    c(
+        "★ 단일 경로: 같은 라벨 재선언(같은 모델)은 개정 전 바이트 그대로",
+        r && read(&cbp)
+            == format!(
+                "# easy-vllm serve budget declaration — 워치독이 sed 로 읽는다(source 하지 않는다).\n# 산출: floor_mib = mem_total(124610) - [weights(13123) + kv(8192) + overhead(12265)]\n# 발행 2026-07-31T00:05:00Z · TTL 7200s · 근거 testlog_26073123\nfloor_mib=91030\nexpires_epoch={}\nlabel=model-a\n",
+                e0 + 300 + 7200
+            ),
+    );
+    let r = quiet(decl(&co, "model-b", small, 124610, "2026-07-31T00:10:00Z", fix_mem_a_up));
+    let txt = read(&cbp);
+    c(
+        "★ 공존 적층: 둘째 overhead = 자기 + (MemTotal − MemAvailable) → 바닥 = MemAvailable − 자기 상주",
+        r && txt.contains("floor_mib=52715\n") && txt.contains("label=model-b\n"),
+    );
+    c(
+        "적층 산출 헤더가 실효 overhead 로 바닥을 재현",
+        txt.contains("# 산출: floor_mib = mem_total(124610) - [weights(13123) + kv(8192) + overhead(50580)]\n"),
+    );
+    c(
+        "적층 provenance(대상 라벨·상주·자기 overhead·출처)",
+        ["stacked_on=model-a\n", "stack_used_mib=38315\n", "stack_own_overhead_mib=12265\n", "stack_source=fixture-a-settled\n"]
+            .iter()
+            .all(|k| txt.contains(k)),
+    );
+    c(
+        "★ 적층 선언도 워치독이 읽는 키가 각 1줄(head -1 오독 ✗)",
+        ["floor_mib=", "expires_epoch=", "label="]
+            .iter()
+            .all(|k| py::splitlines(&txt).iter().filter(|l| l.starts_with(k)).count() == 1),
+    );
+    c("적층 선언 값도 워치독 문자셋 준수", vals_ok(&txt));
+    let ev_b = evs(&co)
+        .into_iter()
+        .rfind(|e| kind(e) == "budget_declare" && py::get_str(e, "label").as_deref() == Some("model-b"));
+    c(
+        "적층 이벤트: overhead 는 바닥 재현값 · 구성(자기·상주·측정)은 따로",
+        ev_b.as_ref().is_some_and(|e| {
+            [("overhead_mib", 50580), ("own_overhead_mib", 12265), ("stack_used_mib", 38315), ("meminfo_available_mib", 86295), ("stacked_on_floor_mib", 91030)]
+                .iter()
+                .all(|(k, v)| py::get(e, k) == Some(&PyValue::int(*v)))
+                && py::get_str(e, "stacked_on").as_deref() == Some("model-a")
+                && py::get_str(e, "stack_source").as_deref() == Some("fixture-a-settled")
+        }),
+    );
+    c(
+        "budget-status 리더가 적층 대상을 보인다",
+        read_budget(&co)
+            .ok()
+            .flatten()
+            .is_some_and(|d| d.get("stacked_on").map(bb::s).as_deref() == Some("model-a")),
+    );
+    let ren_x = |want: &str| A {
+        node_dir: co.clone(),
+        ttl_s: Some(3600),
+        expected_load_s: Some(0),
+        expect_label: Some(want.into()),
+        now: Some("2026-07-31T00:20:00Z".into()),
+        ..Default::default()
+    };
+    let before = read(&cbp);
+    let r = cmd_renew_budget(&ren_x("model-a"));
+    c(
+        "★ 대체된 모델(model-a)의 갱신 루프는 exit 3 을 받는다",
+        matches!(r, Ok(RENEW_SUPERSEDED_RC)),
+    );
+    c("대체 거부는 선언을 건드리지 않는다", read(&cbp) == before);
+    c(
+        "대체 거부가 events 에 남는다",
+        evs(&co).iter().any(|e| {
+            kind(e) == "budget_renew_superseded"
+                && py::get_str(e, "expected_label").as_deref() == Some("model-a")
+                && py::get_str(e, "label").as_deref() == Some("model-b")
+        }),
+    );
+    let r = cmd_renew_budget(&ren_x("model-b"));
+    let post = read(&cbp);
+    let e20 = epoch("2026-07-31T00:20:00Z").unwrap_or(0);
+    c(
+        "적층한 모델(model-b)의 갱신은 통과하고 바닥·적층 키를 보존",
+        matches!(r, Ok(0))
+            && post.contains("floor_mib=52715\n")
+            && post.contains("stacked_on=model-a\n")
+            && post.contains(&format!("expires_epoch={}\n", e20 + 3600)),
+    );
+    c(
+        "--expect-label 문자셋 위반은 거부(대체로 오인 ✗)",
+        matches!(cmd_renew_budget(&ren_x("bad label")), Err(Fail::Exit(_))),
+    );
+
+    let cf = bb::join(td.path(), "node-cf");
+    let fbp = budget_path(&cf);
+    let _ = quiet(decl(&cf, "model-a", (59556, 16384, 12288), 124610, "2026-07-31T00:00:00Z", fix_mem_unread));
+    let live = read(&fbp);
+    let t10 = "2026-07-31T00:10:00Z";
+    let r = decl(&cf, "model-b", small, 124610, t10, fix_mem_no_avail);
+    c(
+        "★ 노드 메모리 판독 불가 → 거부 · 살아 있는 선언 불변",
+        rejected(&r, "노드 메모리를 읽지 못했다") && read(&fbp) == live,
+    );
+    let r = decl(&cf, "model-b", small, 124610, t10, fix_mem_other_node);
+    c(
+        "★ --mem-total-mib ≠ 측정 MemTotal → 거부 · 불변",
+        rejected(&r, "측정 MemTotal") && read(&fbp) == live,
+    );
+    let r = decl(&cf, "model-b", (4000, 2048, 8192), 124610, t10, fix_mem_idle);
+    c(
+        "★ 적층 바닥 ≥ 기존 바닥(기존 모델 로드 중·stale) → 거부 · 불변",
+        rejected(&r, "기존 선언(label=model-a) 바닥 36382") && read(&fbp) == live,
+    );
+    let r = decl(&cf, "model-b", small, 124610, t10, fix_mem_big_up);
+    c(
+        "★ 적층 뒤에도 트립 가드 유지(바닥 6420 ≤ 트립선 → 거부 · 불변)",
+        rejected(&r, "워치독 트립 임계") && read(&fbp) == live,
+    );
+    let r = decl(&cf, "bad label$(id)", small, 124610, t10, fix_mem_unread);
+    c(
+        "불량 라벨은 적층 판정 없이 단일 경로의 라벨 거부(노드 메모리 미판독)",
+        rejected(&r, "--label 은") && read(&fbp) == live,
+    );
+    c(
+        "적층 거부도 events 에 남는다(5건)",
+        evs(&cf).iter().filter(|e| kind(e) == "budget_declare_rejected").count() == 5,
+    );
+    let r = quiet(decl(&cf, "model-b", small, 124610, "2026-07-31T03:00:00Z", fix_mem_unread));
+    let txt = read(&fbp);
+    c(
+        "★ 만료된(stale) 다른 라벨 선언 위에는 적층하지 않는다(단일 경로 · 노드 메모리 미판독)",
+        r && txt.contains("floor_mib=91030\n") && txt.contains("label=model-b\n") && !txt.contains("stack"),
+    );
+    let bin = bb::join(td.path(), "node-bin");
+    let _ = std::fs::create_dir_all(&bin);
+    let raw: Vec<u8> = [
+        &b"# \xff\n"[..],
+        format!("floor_mib=40000\nexpires_epoch={}\nlabel=model-a\n", e0 + 7200).as_bytes(),
+    ]
+    .concat();
+    let _ = std::fs::write(budget_path(&bin), &raw);
+    let r = decl(&bin, "model-b", small, 124610, t10, fix_mem_a_up);
+    c(
+        "★ 읽지 못하는 기존 선언(워치독 sed 는 읽는다) → 거부 · 바이트 불변",
+        rejected(&r, "기존 예산 선언을 읽지 못했다") && std::fs::read(budget_path(&bin)).ok() == Some(raw),
+    );
     drop(td);
     let mut o = std::io::stdout().lock();
     for (name, good) in &ok {
@@ -1319,11 +1754,12 @@ static DECLARE_ARGS: [Arg; 9] = [
     store(&["--now"]).required(),
 ];
 static STATUS_ARGS: [Arg; 2] = [HELP, store(&["--now"])];
-static RENEW_ARGS: [Arg; 4] = [
+static RENEW_ARGS: [Arg; 5] = [
     HELP,
     store(&["--ttl-s"]).int(),
     store(&["--expected-load-s"]).int(),
     store(&["--now"]).required(),
+    store(&["--expect-label"]),
 ];
 static DEFAULTS_ARGS: [Arg; 2] = [
     HELP,
@@ -1446,6 +1882,7 @@ fn to_a(node_dir: String, name: &str, p: &Parsed) -> A {
             a.ttl_s = Some(p.int(1).unwrap_or(DEFAULT_TTL_S));
             a.expected_load_s = Some(p.int(2).unwrap_or(0));
             a.now = t(3);
+            a.expect_label = t(4);
         }
         "budget-defaults" => a.field = t(1),
         "clear-budget" => a.now = t(1),

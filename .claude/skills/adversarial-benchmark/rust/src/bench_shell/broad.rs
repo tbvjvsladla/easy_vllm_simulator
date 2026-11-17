@@ -1,5 +1,6 @@
-//! The two operations that write the Broad Search state: opening a sweep (`broad-init`) and recording one finished
-//! cell (`broad-cell`).
+//! The operations that write a sweep state: opening a Broad Search (`broad-init`), recording one finished cell of it
+//! (`broad-cell`), and recording the cell a standalone `sweep_bench.sh --campaign-cell` measured
+//! (`campaign-cell-record` · plan_26111708 B L12) with the same record builder.
 
 use super::document::{get, get_or_empty_object, load_file, load_text, or_empty, write_pretty};
 use super::{Console, Context, Done, Stop};
@@ -236,6 +237,133 @@ fn verdict_narrative(verdict: &PyValue) -> Result<PyValue, Failure> {
 pub(super) fn cell(context: &Context<'_>, console: &mut Console) -> Done {
     let state_path = context.argument(0)?;
     let mut state = load_file(state_path)?;
+    let (cell, outcome) = cell_record(context, Citation::Declared)?;
+    replace_cell(&mut state, cell)?;
+    write_pretty(state_path, &state, false)?;
+    let key = context.required("CELL_KEY")?;
+    console.print(cat!(
+        "[broad_search] cell ",
+        key,
+        " → ",
+        outcome.display_text()
+    ));
+    Ok(())
+}
+
+/// Where a cell record's axis citation comes from: the `--axis-citation` argument of the Broad Search cell, or nowhere (a
+/// standalone campaign-cell sweep has no axis argument — plan_26111708 B L12).
+#[derive(Clone, Copy)]
+enum Citation {
+    Declared,
+    Absent,
+}
+
+/// What a standalone campaign-cell record says about the fields only a Broad Search declares (plan_26111708 B L12): the
+/// value is `null` and this sentence is its source, so an absent declaration never reads as a declared one.
+const STANDALONE_ORIGIN: &str = "sweep_bench --campaign-cell";
+const AXIS_CITATION_ABSENT: &str =
+    "absent(단독 sweep_bench --campaign-cell — 축 인용은 broad_search cell 의 --axis-citation 선언이다 · plan_26111708 B L12)";
+const DECLARED_BUDGET_ABSENT: &str =
+    "absent(단독 sweep_bench --campaign-cell — 스윕 예산 선언은 broad_search init 의 몫이다 · 이 상태는 셀 기록만 든다 · plan_26111708 B L12)";
+
+/// `campaign-cell-record STATE`: the record of one cell measured by `sweep_bench.sh --campaign-cell`, written into the
+/// campaign's sweep state — the record `campaign_init --cell-set --sweep-state` reads. plan_26111708 B L12: only the Broad
+/// Search transaction wrote it, so a campaign measured with sweep_bench alone (P2 single · P3 multi) left `sweeps/` empty
+/// and its measurement was entered by hand. The record is the one `broad-cell` builds ([`cell_record`]); the place is
+/// never the caller's choice: STATE is the derivation of `campaigns/ACTIVE` (`campaign_init --derive sweep`), so it must be
+/// `campaigns/<id>/sweeps/<name>.json`, and outside a campaign (`_bootstrap`) the writer is a no-op. A state that does not
+/// exist yet is opened as a standalone state whose absent budget says so.
+pub(super) fn campaign_cell(context: &Context<'_>, console: &mut Console) -> Done {
+    let state_path = context.argument(0)?;
+    let campaign = match campaign_of_state(state_path) {
+        Ok(campaign) => campaign,
+        Err(reason) => {
+            console.warn(&format!("[sweep_bench] ERROR campaign-cell-record: {reason}\n"));
+            return Err(Stop::Exit(2));
+        }
+    };
+    let Some(campaign) = campaign else {
+        console.print(cat!(
+            "[sweep_bench] ⓘ 캠페인 밖(ACTIVE=_bootstrap) — 캠페인 sweep 기록을 쓰지 않는다(writer no-op): ",
+            state_path.clone()
+        ));
+        return Ok(());
+    };
+    let fresh = !ospath::lexists(state_path);
+    let mut state = if fresh { standalone_state(context, state_path)? } else { load_file(state_path)? };
+    let (mut cell, outcome) = cell_record(context, Citation::Absent)?;
+    cell.set("axis_citation_source", text(PyStr::new(AXIS_CITATION_ABSENT)));
+    replace_cell(&mut state, cell)?;
+    if fresh {
+        crate::pyfs::mkdir_parents_exist_ok(&ospath::split(state_path).0)?;
+    }
+    write_pretty(state_path, &state, false)?;
+    let key = context.required("CELL_KEY")?;
+    let shown = ospath::relpath(state_path, &context.required("REPO")?)?;
+    console.print(cat!(
+        "[sweep_bench] 캠페인 sweep 기록(",
+        PyStr::new(&campaign),
+        "): ",
+        shown.clone(),
+        " · cell ",
+        key.clone(),
+        " → ",
+        outcome.display_text()
+    ));
+    console.print(cat!(
+        "[sweep_bench]   셀 상태는 이 기록에서 읽는다: campaign_init.sh --cell-set ",
+        key,
+        " --outcome ",
+        outcome.display_text(),
+        " --sweep-state ",
+        shown,
+        " --utc <UTC>"
+    ));
+    Ok(())
+}
+
+/// The campaign a sweep state belongs to, from its place: `campaigns/<id>/sweeps/<name>.json` → `Some(id)`, the reserved
+/// `_bootstrap` instance → `None` (no campaign); any other place is refused (it was not derived from the declaration).
+fn campaign_of_state(path: &PyStr) -> Result<Option<String>, String> {
+    let shown = path.to_utf8().unwrap_or_default();
+    let parts: Vec<&str> = shown.split('/').filter(|part| !part.is_empty() && *part != ".").collect();
+    let refuse = || format!("{shown:?} 는 campaigns/<id>/sweeps/<name>.json 이 아니다 — 자리는 campaign_init.sh --derive sweep 의 파생이다(호출자가 고르지 않는다)");
+    if parts.len() < 4 || parts.contains(&"..") {
+        return Err(refuse());
+    }
+    let tail = &parts[parts.len() - 4..];
+    let named = tail[3].strip_suffix(".json").is_some_and(|stem| !stem.is_empty());
+    if tail[0] != "campaigns" || tail[2] != "sweeps" || !named {
+        return Err(refuse());
+    }
+    match tail[1] {
+        "_bootstrap" => Ok(None),
+        "_template" => Err(format!("{shown:?} 는 뼈대(_template)다 — 인스턴스가 아니다")),
+        id => Ok(Some(id.to_string())),
+    }
+}
+
+/// The state a standalone campaign-cell sweep opens: no declared budget (said so), no planned cells, the record list.
+fn standalone_state(context: &Context<'_>, state_path: &PyStr) -> Result<PyValue, Failure> {
+    let name = ospath::split(state_path).1.to_utf8().unwrap_or_default();
+    let sweep_id = name.strip_suffix(".json").unwrap_or(&name).to_string();
+    let mut state = PyDict::new();
+    state.set("schema_version", PyValue::int(1));
+    state.set("sweep_id", text(PyStr::new(&sweep_id)));
+    state.set("topology", text(context.required("TOPO")?));
+    state.set("origin", text(PyStr::new(STANDALONE_ORIGIN)));
+    state.set("started_utc", text(context.required("STARTED")?));
+    state.set("declared_budget", PyValue::None);
+    state.set("declared_budget_source", text(PyStr::new(DECLARED_BUDGET_ABSENT)));
+    state.set("cells_remaining", PyValue::List(Vec::new()));
+    state.set("cells", PyValue::List(Vec::new()));
+    Ok(PyValue::Dict(state))
+}
+
+/// The record of one finished cell from the classification (`CLS`), the sweep directory and the shell's variables, and
+/// the outcome it carries. plan_26111708 B L12: the one record builder — `broad-cell` and `campaign-cell-record` both
+/// write what this returns (the citation is the only field whose source differs).
+fn cell_record(context: &Context<'_>, citation: Citation) -> Result<(PyDict, PyValue), Failure> {
     let classification = load_text(&context.required("CLS")?)?;
     let sweep_dir = context.required("SWEEPDIR")?;
     let index = or_empty_object(load_sweep_file(&sweep_dir, &["sweep_index.json"])?);
@@ -388,7 +516,13 @@ pub(super) fn cell(context: &Context<'_>, console: &mut Console) -> Done {
     }
     cell.set("measurement", PyValue::Dict(measurement));
     cell.set("verdict_narrative", verdict_narrative(&verdict)?);
-    cell.set("axis_citation", text(context.required("CITATION")?));
+    cell.set(
+        "axis_citation",
+        match citation {
+            Citation::Declared => text(context.required("CITATION")?),
+            Citation::Absent => PyValue::None,
+        },
+    );
     cell.set(
         "next_intent",
         context.non_empty("NEXT_INTENT").map_or(PyValue::None, text),
@@ -409,16 +543,7 @@ pub(super) fn cell(context: &Context<'_>, console: &mut Console) -> Done {
         let earlier = or_empty(&get_cell(&cell, "note"));
         cell.set("note", text(cat!(earlier, " / ", reason)));
     }
-    replace_cell(&mut state, cell)?;
-    write_pretty(state_path, &state, false)?;
-    let key = context.required("CELL_KEY")?;
-    console.print(cat!(
-        "[broad_search] cell ",
-        key,
-        " → ",
-        outcome.display_text()
-    ));
-    Ok(())
+    Ok((cell, outcome))
 }
 
 fn get_cell(cell: &PyDict, key: &str) -> PyValue {

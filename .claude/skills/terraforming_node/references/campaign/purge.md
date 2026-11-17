@@ -36,7 +36,7 @@
 A 를 진행하던 중 성격이 다른 B 로 넘어가야 할 때가 있다(예: 3모드 테스트 A 에서 모드3 동작 조건 탐색 B 를 파생).
 종전에는 그 경로가 없었다 — close·purge 는 "다 끝났다"를 요구하고, `--purge-previous` 없이 `--init B` 를 치면
 ACTIVE 만 덮이고 A 가 이름 없는 잔재가 됐다. 이제 수명은 **journey 이벤트가 단일 권위**이고 상태는 `campaign_init`
-이 fold 로 파생한다(별도 상태 필드 ✗). 확인: `campaign_init.py --lifecycle [<id>]`.
+이 fold 로 파생한다(별도 상태 필드 ✗). 확인: `campaign_init.sh --lifecycle [<id>]`.
 
 | 상태 | 뜻 | 들어오는 전이 |
 |---|---|---|

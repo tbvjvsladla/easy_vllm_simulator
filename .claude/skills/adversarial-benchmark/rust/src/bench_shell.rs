@@ -32,6 +32,8 @@ const USAGE: &str = "usage: bench_shell OPERATION [ARGUMENT ...] | --self-test\n
 pub enum Operation {
     BroadInit,
     BroadCell,
+    /// plan_26111708 B L12: the cell record of a standalone `sweep_bench.sh --campaign-cell` (same builder as `broad-cell`).
+    CampaignCellRecord,
     ProvenanceStatus,
     MeasurementOk,
     BroadMeasurementOk,
@@ -66,9 +68,10 @@ pub enum Operation {
     DataArg,
 }
 
-const OPERATIONS: [(&str, Operation); 34] = [
+const OPERATIONS: [(&str, Operation); 35] = [
     ("broad-init", Operation::BroadInit),
     ("broad-cell", Operation::BroadCell),
+    ("campaign-cell-record", Operation::CampaignCellRecord),
     ("provenance-status", Operation::ProvenanceStatus),
     ("measurement-ok", Operation::MeasurementOk),
     ("broad-measurement-ok", Operation::BroadMeasurementOk),
@@ -239,6 +242,7 @@ fn perform(operation: Operation, context: &Context<'_>, console: &mut Console) -
     match operation {
         Operation::BroadInit => broad::init(context, console),
         Operation::BroadCell => broad::cell(context, console),
+        Operation::CampaignCellRecord => broad::campaign_cell(context, console),
         Operation::ProvenanceStatus => projection::provenance_status(context, console),
         Operation::MeasurementOk => projection::measurement_ok(context),
         Operation::BroadMeasurementOk => projection::broad_measurement_ok(context),

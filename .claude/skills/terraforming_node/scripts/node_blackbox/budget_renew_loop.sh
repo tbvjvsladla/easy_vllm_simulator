@@ -31,7 +31,14 @@
 #   이름 기반 판정(pgrep -f)은 쓰지 않는다(C6 · F11: 워커가 argv 를 바꾼다). --container 와 결합 불가(exit 2),
 #   --pgid 에 --starttime 이 없으면 exit 2(fail-closed).
 #
-# 종료코드: 0=표적(컨테이너·프로세스그룹) 소멸로 정상 종료(또는 --once 성공) · 2=사용오류 · 5=갱신 실패(fail-loud)
+# ★ 같은 노드 둘째 모델 (2026-11-17 · plan_26111708 B L6). 선언 파일은 노드당 하나다. 둘째 모델의
+#   declare-budget 이 첫 모델의 살아 있는 선언 위에 **공존 적층**하면 선언의 label 이 둘째 모델 것이 된다.
+#   이 루프는 시작할 때 그 순간의 label(= 자기 서빙의 선언)을 고정하고 매 갱신에 `--expect-label` 로 넘긴다
+#   → label 이 바뀌면 renew-budget 이 갱신하지 않고 exit 3 을 내며, 루프는 사유를 남기고 exit 0 으로 끝난다.
+#   그래야 적층 선언의 수명이 **적층한 서빙의 갱신 루프 하나**에만 묶인다(첫 루프가 계속 밀면 둘째 서빙이
+#   죽은 뒤에도 낮춘 바닥이 살아남는다). 고정에 실패하면(선언 부재 등) 기대 label 없이 종전처럼 돈다.
+#
+# 종료코드: 0=표적(컨테이너·프로세스그룹) 소멸로 정상 종료(또는 --once 성공 · 선언 대체로 갱신 중단) · 2=사용오류 · 5=갱신 실패(fail-loud)
 set -uo pipefail
 
 RL_TAG="[budget-renew]"
@@ -129,10 +136,26 @@ done
 RL_HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RL_SESSION_SH="${BUDGET_RENEW_SESSION_SH:-$RL_HERE/blackbox_session.sh}"
 
-rl_renew_once(){   # → 0=갱신됨 · 1=실패(사유는 stdout/stderr 에 그대로)
+# 자기 서빙 선언의 label 고정(plan_26111708 B L6). budget-status 의 JSON 에서 label 만 읽는다 — 값 문자셋은
+# 선언 파서와 같은 [A-Za-z0-9._-]{1,64} 로 좁힌다. 선언이 없거나 읽지 못하면 빈 값(= 기대 label 없음 · 종전 동작).
+RL_LABEL=""
+rl_pin_label(){
+    local _st
+    _st="$(bash "$RL_SESSION_SH" --node-dir "$RL_NODE_DIR" budget-status 2>/dev/null)" || return 0
+    printf '%s\n' "$_st" | sed -n 's/.*"label": *"\([A-Za-z0-9._-]\{1,64\}\)".*/\1/p' | head -1
+}
+
+rl_renew_once(){   # → 0=갱신됨 · 3=선언 대체(다른 모델이 적층 · 갱신 안 함) · 1=실패(사유는 stdout/stderr 에 그대로)
     local out rc
+    local -a _exp=()
+    [ -n "$RL_LABEL" ] && _exp=(--expect-label "$RL_LABEL")
     out="$(bash "$RL_SESSION_SH" --node-dir "$RL_NODE_DIR" renew-budget \
-                   --ttl-s "$RL_TTL_S" --now "$(rl_now)" 2>&1)"; rc=$?
+                   --ttl-s "$RL_TTL_S" "${_exp[@]}" --now "$(rl_now)" 2>&1)"; rc=$?
+    # exit 3 은 --expect-label 을 넘겼을 때만 대체 판정이다(renew-budget help 의 계약). 넘기지 않았으면 실패로 센다.
+    if [ $rc -eq 3 ] && [ -n "$RL_LABEL" ]; then
+        printf '%s\n' "$out" | sed "s|^|$RL_TAG |"
+        return 3
+    fi
     if [ $rc -ne 0 ]; then
         echo "$RL_TAG FAIL: renew-budget 거부(rc=$rc) — 삼키지 않는다:" >&2
         printf '%s\n' "$out" | sed 's/^/  /' >&2
@@ -140,6 +163,16 @@ rl_renew_once(){   # → 0=갱신됨 · 1=실패(사유는 stdout/stderr 에 그
     fi
     printf '%s\n' "$out" | sed "s|^|$RL_TAG |"
     return 0
+}
+
+rl_renew_or_end(){   # 갱신 1회. 대체면 사유를 남기고 exit 0, 실패면 exit 5(fail-loud).
+    rl_renew_once; local _r=$?
+    if [ "$_r" -eq 3 ]; then
+        echo "$RL_TAG 종료 — 선언이 다른 모델로 대체됐다(기대 label=$RL_LABEL). 적층 선언의 갱신은 적층한 서빙의 루프가 맡는다."
+        echo "$RL_TAG ⚠ 이 서빙만 남으면 그 몫으로 다시 declare-budget 해야 한다 — 이 루프는 갱신만 멈춘다."
+        exit 0
+    fi
+    [ "$_r" -eq 0 ] || exit 5
 }
 
 # ── self-test (docker·실 선언 불요 — 주입 프로브로 분기만 고정) ─────────────────────────
@@ -189,6 +222,38 @@ if [ "$RL_SELFTEST" = "1" ]; then
         bash "${BASH_SOURCE[0]}" --node-dir "$rl_tmp" --container c --ttl-s "$RL_FIXTURE_TTL_S" \
         --once >/dev/null 2>&1 && rl_r=0 || rl_r=1
     rl_chk "--once 성공 → exit 0" "$rl_r" "0"
+
+    # ── 같은 노드 둘째 모델(plan_26111708 B L6) — 주입 세션: budget-status 는 label JSON, renew 는 대본대로 ──
+    cat >"$rl_tmp/sup.sh" <<'EOF'
+case " $* " in
+  *" budget-status "*) echo '{"floor_mib": 91030, "expires_epoch": 1, "label": "model-a", "declared": true}' ;;
+  *" renew-budget "*" --expect-label model-a "*) echo "갱신 중단(대체됨): fixture"; exit 3 ;;
+  *) echo "unexpected: $*"; exit 9 ;;
+esac
+EOF
+    cat >"$rl_tmp/pin.sh" <<'EOF'
+case " $* " in
+  *" budget-status "*) echo '{"floor_mib": 91030, "expires_epoch": 1, "label": "model-a", "declared": true}' ;;
+  *) echo "argv: $*" ;;
+esac
+EOF
+    printf '%s\n' 'case " $* " in *" budget-status "*) exit 3 ;; *) exit 3 ;; esac' >"$rl_tmp/rc3.sh"
+    rl_out="$(BUDGET_RENEW_PROBE='exit 0' BUDGET_RENEW_SESSION_SH="$rl_tmp/pin.sh" \
+              bash "${BASH_SOURCE[0]}" --node-dir "$rl_tmp" --container c --ttl-s "$RL_FIXTURE_TTL_S" --once 2>&1)"
+    case "$rl_out" in *"label=model-a"*"--expect-label model-a"*) rl_r=0 ;; *) rl_r=1 ;; esac
+    rl_chk "★ 시작 시 자기 선언 label 고정 → 매 갱신에 --expect-label 로 넘긴다" "$rl_r" "0"
+    rl_out="$(BUDGET_RENEW_PROBE='exit 0' BUDGET_RENEW_SESSION_SH="$rl_tmp/sup.sh" \
+              bash "${BASH_SOURCE[0]}" --node-dir "$rl_tmp" --container c --ttl-s "$RL_FIXTURE_TTL_S" --once 2>&1)"; rl_r=$?
+    rl_chk "★ 선언이 다른 모델로 대체(exit 3) → 갱신 중단 · exit 0" "$rl_r" "0"
+    case "$rl_out" in *"다른 모델로 대체"*) rl_r=0 ;; *) rl_r=1 ;; esac
+    rl_chk "  종료 사유를 남긴다(침묵 종료 ✗)" "$rl_r" "0"
+    rl_out="$(BUDGET_RENEW_PROBE='exit 0' BUDGET_RENEW_SESSION_SH="$rl_tmp/sup.sh" \
+              timeout -s KILL 5 bash "${BASH_SOURCE[0]}" --node-dir "$rl_tmp" --container c \
+                   --ttl-s "$RL_FIXTURE_TTL_S" --interval-s 60 2>&1)"; rl_r=$?
+    rl_chk "상주 루프도 대체 시 스스로 끝난다(timeout 아님)" "$rl_r" "0"
+    rl_out="$(BUDGET_RENEW_PROBE='exit 0' BUDGET_RENEW_SESSION_SH="$rl_tmp/rc3.sh" \
+              bash "${BASH_SOURCE[0]}" --node-dir "$rl_tmp" --container c --ttl-s "$RL_FIXTURE_TTL_S" --once 2>&1)"; rl_r=$?
+    rl_chk "label 미고정이면 exit 3 도 갱신 실패(exit 5 · 대체로 오인 ✗)" "$rl_r" "5"
 
     # ★ TTL 기본값 파생(2026-09-05 · G-B2): --ttl-s 를 주지 않으면 **단일 소유자**에게 묻는다.
     #   여기서 기대값도 손으로 적지 않고 같은 소유자에게 물어 대조한다(두 자리가 갈라지지 않게).
@@ -308,14 +373,16 @@ if [ "$RL_INTERVAL_S" -gt $(( RL_TTL_S / 2 )) ]; then
     echo "$RL_TAG interval 을 TTL 의 절반($RL_INTERVAL_S s)으로 낮춘다 — 만료 후 갱신은 거부되므로 여유가 필요하다."
 fi
 
+# 루프는 자기 서빙의 선언 **뒤에** 기동된다(single_serve_up 6/7 · multinode keep-up) — 이 순간의 label 이 자기 것이다.
+RL_LABEL="$(rl_pin_label)"
 if [ "$RL_TARGET_KIND" = "pgid" ]; then
-    echo "$RL_TAG 시작 — node_dir=$RL_NODE_DIR target=pgid:$RL_PGID starttime=$RL_STARTTIME ttl=${RL_TTL_S}s interval=${RL_INTERVAL_S}s"
+    echo "$RL_TAG 시작 — node_dir=$RL_NODE_DIR target=pgid:$RL_PGID starttime=$RL_STARTTIME ttl=${RL_TTL_S}s interval=${RL_INTERVAL_S}s label=${RL_LABEL:-미고정}"
 else
-echo "$RL_TAG 시작 — node_dir=$RL_NODE_DIR container=$RL_CONTAINER ttl=${RL_TTL_S}s interval=${RL_INTERVAL_S}s"
+echo "$RL_TAG 시작 — node_dir=$RL_NODE_DIR container=$RL_CONTAINER ttl=${RL_TTL_S}s interval=${RL_INTERVAL_S}s label=${RL_LABEL:-미고정}"
 fi
 
 if [ "$RL_ONCE" = "1" ]; then
-    rl_renew_once || exit 5
+    rl_renew_or_end
     echo "$RL_TAG --once 완료."
     exit 0
 fi
@@ -328,7 +395,7 @@ while :; do
             echo "$RL_TAG ⚠ 선언 자체의 회수(clear-budget)는 teardown 진입점이 한다 — 이 루프는 갱신만 멈춘다."
             exit 0
         fi
-        rl_renew_once || exit 5
+        rl_renew_or_end
         sleep "$RL_INTERVAL_S"
         continue
     fi
@@ -344,6 +411,6 @@ while :; do
         # 절대 바닥(hard_floor)은 선언과 무관하게 항상 무장하므로 호스트는 여전히 보호된다.
         echo "$RL_TAG ⚠ 컨테이너 생사 판정 불가 — 갱신을 계속한다(선언 만료가 더 위험하다). 부재로 접지 않는다."
     fi
-    rl_renew_once || exit 5
+    rl_renew_or_end
     sleep "$RL_INTERVAL_S"
 done

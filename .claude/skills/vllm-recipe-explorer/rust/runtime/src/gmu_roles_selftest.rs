@@ -255,6 +255,14 @@ impl Fixture {
         let model = tmp.join("nas/fx-org/fx-model");
         std::fs::create_dir_all(&model)?;
         std::fs::write(model.join("config.json"), MODEL_CONFIG)?;
+        // plan_26111708 B L3: the same shape as a hybrid (linear-attention) model — the parser marks it `is_hybrid`.
+        let hybrid = tmp.join("nas/fx-org/fx-hybrid");
+        std::fs::create_dir_all(&hybrid)?;
+        let layer_types: Vec<&str> = (0..32).map(|i| if i % 4 == 3 { "\"full_attention\"" } else { "\"linear_attention\"" }).collect();
+        std::fs::write(
+            hybrid.join("config.json"),
+            MODEL_CONFIG.replacen('}', &format!(", \"layer_types\": [{}]}}", layer_types.join(", ")), 1),
+        )?;
         for (name, blob) in [
             ("near", PROFILE_NEAR),
             ("short", PROFILE_SHORT),
@@ -902,6 +910,11 @@ struct Engine {
     oom_trials: Vec<i64>,
     clamped_tokens_unobserved: bool,
     clamped_per_token_scale: f64,
+    /// plan_26111708 B L3: the engine refuses `max_num_seqs` (default 256 when no batch) above this many Mamba cache blocks.
+    mamba_blocks: Option<i64>,
+    /// plan_26111708 B L2: one max-length request needs this many GiB; a clamp minus `null_block_gib` below it is refused.
+    one_request_gib: Option<f64>,
+    null_block_gib: f64,
 }
 
 impl Default for Engine {
@@ -916,6 +929,9 @@ impl Default for Engine {
             oom_trials: Vec::new(),
             clamped_tokens_unobserved: false,
             clamped_per_token_scale: 1.0,
+            mamba_blocks: None,
+            one_request_gib: None,
+            null_block_gib: 0.0,
         }
     }
 }
@@ -934,6 +950,8 @@ struct FakeEngine {
     eng: Engine,
     calls: Vec<Call>,
     feedback: Vec<PyValue>,
+    /// Where a refusing trial writes its engine log (the loop reads the statement from `log_path`).
+    log_dir: PathBuf,
 }
 
 fn dict_get(d: &agent_runtime_support::pyvalue::PyDict, k: &str) -> PyValue {
@@ -959,9 +977,30 @@ impl crate::recipe_cmd::TrialEngine for FakeEngine {
             Some(c) => (c, (e.per_token_bytes as f64 * e.clamped_per_token_scale) as i64),
         };
         let tokens = kv_bytes.div_euclid(per_tok * e.block) * e.block;
-        let load_ok = !e.oom_trials.contains(&trial_number);
-        let unobserved = clamp.is_some() && e.clamped_tokens_unobserved;
         let max_len = num(&dict_get(cand, "max_model_len")).unwrap_or(1.0);
+        // plan_26111708 B L2 · L3: the engine's own refusals, in vLLM 0.32.0's words (config/compilation.py:1519-1523 ·
+        // v1/core/kv_cache_utils.py:1030-1040), written to the trial log the loop reads.
+        let batch = int(&dict_get(cand, "batch"));
+        let mut refusal: Option<String> = None;
+        if let Some(blocks) = e.mamba_blocks {
+            let seqs = batch.unwrap_or(256);
+            if seqs > blocks {
+                refusal = Some(format!("ValueError: max_num_seqs ({seqs}) exceeds available Mamba cache blocks ({blocks}). Each decode sequence requires one Mamba cache block, so CUDA graph capture cannot proceed. Please lower max_num_seqs to at most {blocks} or increase gpu_memory_utilization."));
+            }
+        }
+        if let (None, Some(need), Some(c)) = (&refusal, e.one_request_gib, clamp) {
+            let available = c as f64 / GIB - e.null_block_gib;
+            if available < need {
+                refusal = Some(format!("ValueError: To serve at least one request with the model's max seq len ({}), ({:.2} GiB KV cache is needed, which is larger than the available KV cache memory ({:.2} GiB). Based on the available memory, the estimated maximum model length is 4096. Try increasing `gpu_memory_utilization` or decreasing `max_model_len` when initializing the engine.", max_len as i64, need, available));
+            }
+        }
+        let log_path = refusal.as_ref().map(|text| {
+            let path = self.log_dir.join(format!("fake_trial{trial_number:02}_vllm.log"));
+            let _ = std::fs::write(&path, format!("(EngineCore) ERROR [core.py:1510] {text}\n"));
+            path
+        });
+        let load_ok = !e.oom_trials.contains(&trial_number) && refusal.is_none();
+        let unobserved = clamp.is_some() && e.clamped_tokens_unobserved;
         let mut prof = PyDict::new();
         prof.set("weights_gib", PyValue::Float(e.weights_gib));
         prof.set("non_kv_overhead_gib", PyValue::Float(e.overhead_gib));
@@ -978,8 +1017,11 @@ impl crate::recipe_cmd::TrialEngine for FakeEngine {
         out.set("load_ok", PyValue::Bool(load_ok));
         out.set("vllm_profile", PyValue::Dict(prof));
         out.set("functional", if load_ok { PyValue::Dict(functional) } else { PyValue::None });
-        out.set("log_path", PyValue::None);
-        out.set("error_excerpt", PyValue::str(""));
+        out.set(
+            "log_path",
+            log_path.map_or(PyValue::None, |p| PyValue::Str(PyStr::from_surrogateescape(p.as_os_str().as_bytes()))),
+        );
+        out.set("error_excerpt", PyValue::str(refusal.as_deref().unwrap_or("")));
         out.set("provenance", PyValue::str("mock"));
         out.set("health_wait", PyValue::None);
         out.set("effective_gmu", dict_get(cand, "gpu_memory_utilization"));
@@ -1061,7 +1103,7 @@ impl Fixture {
             PyStr::new("--cap"),
             PyStr::new(&cap.to_string()),
         ];
-        let mut fake = FakeEngine { eng: engine, calls: Vec::new(), feedback: Vec::new() };
+        let mut fake = FakeEngine { eng: engine, calls: Vec::new(), feedback: Vec::new(), log_dir: case.clone() };
         let run = crate::recipe_cmd::simulate_with_engine(&args, &p(&self.root.join(SKILL_REL)), &mut fake);
         let stderr = run.stderr.to_utf8().unwrap_or_default();
         EngineOut {
@@ -1095,7 +1137,7 @@ fn calls_text(calls: &[Call]) -> String {
     format!("{calls:?}")
 }
 
-/// Runs F1-F9 against a copy of the skill taken from `repo`, in a directory below `tmp` (no program is started: the simulate
+/// Runs F1-F14 (F10-F14: the engine refusals of plan_26111708 B L2 · L3) against a copy of the skill taken from `repo`, in a directory below `tmp` (no program is started: the simulate
 /// command runs in this process over the copy, with the trial engine replaced).
 #[allow(clippy::too_many_lines)]
 pub fn engine_layer(tmp: &Path, repo: &Path) -> Report {
@@ -1279,6 +1321,91 @@ pub fn engine_layer(tmp: &Path, repo: &Path) -> Report {
             && calls[1].tokens / L_TYP >= 64
             && fb_ok(&o),
         || format!("{} {}", calls_text(calls), tail(&der.dumps_ascii().unwrap_or_default(), 300)),
+    );
+
+    // ── plan_26111708 B L2 · L3 (the engine's own refusals) ──
+    let history_text = |o: &EngineOut| {
+        o.summary.as_ref().map_or(String::new(), |s| at(s, "correction_history").dumps_ascii().unwrap_or_default())
+    };
+    let one_request = (131072.0 * MAX_LEN as f64 * BUFFER) / GIB; // the formula clamp of one max_model_len request (GiB)
+
+    // F10 — the clamp leaves less than one request after the null block → raised by the engine's printed shortfall → passes
+    let short = Engine { one_request_gib: Some(one_request + 0.02), null_block_gib: 0.05, ..Engine::default() };
+    let o = fx.engine_case("shortfall", &[decl_opt(None, None)], &[], short, MANIFEST, 3);
+    let (lk, calls) = (&o.lockset, &o.calls);
+    let raised = calls.get(2).and_then(|c| c.clamp);
+    r.ck(
+        "F10 L2 클램프 1건 부족 거부 → 엔진 실측 부족분만큼 올림(축소 ✗) · 널 블록 뒤에도 1건 · 3트라이얼 수렴 · kv_source=measured-clamp",
+        o.rc == 0
+            && calls.len() == 3
+            && !calls[1].load_ok
+            && raised.zip(calls[1].clamp).is_some_and(|(up, before)| up > before)
+            && raised.is_some_and(|up| up as f64 / GIB - 0.05 >= one_request + 0.02)
+            && int(&at(lk, "kv_cache_memory_bytes")) == raised
+            && eq_text(&at(lk, "kv_source"), "measured-clamp")
+            && history_text(&o).contains("vllm-needed-measured"),
+        || format!("calls={} {}", calls_text(calls), tail(&o.stderr, 600)),
+    );
+
+    // F11 — the engine's need is over the deployed ceiling → structural (HITL), no further trial, nothing stamped
+    let huge = Engine { one_request_gib: Some(80.0), null_block_gib: 0.05, ..Engine::default() };
+    let o = fx.engine_case("shortfall_huge", &[decl_opt(None, None)], &[], huge, MANIFEST, 3);
+    let s = o.summary.clone().unwrap_or(PyValue::None);
+    r.ck(
+        "F11 L2 음성: 엔진 실측 1건 > 배포 천장 → vram_infeasible · 2칸에서 멈춤 · lockset 미각인",
+        o.rc == 3
+            && o.calls.len() == 2
+            && eq_text(&at(&s, "failure_class"), "vram_infeasible")
+            && contains(&at(&s, "note"), "배포 천장")
+            && !has(&o.lockset, "provenance"),
+        || format!("rc={} calls={} note={:?}", o.rc, calls_text(&o.calls), text(&at(&s, "note"))),
+    );
+
+    let hybrid_model = ("target_model", r#"{"path": "/app/models/fx-org/fx-hybrid"}"#.to_string());
+    let mamba = Engine { mamba_blocks: Some(83), ..Engine::default() };
+
+    // F12 — hybrid ∧ declared requirement → the first trial already carries the requirement (never the engine default 256)
+    let o = fx.engine_case("hybrid_req", &[decl_opt(Some(16), Some(L_TYP)), hybrid_model.clone()], &[], mamba.clone(), MANIFEST, 3);
+    let calls = &o.calls;
+    r.ck(
+        "F12 L3 하이브리드 ∧ 요구 16 → 첫 트라이얼 batch=16(엔진 기본 256 ✗) · Mamba 거부 0 · 수렴",
+        o.rc == 0 && calls.first().is_some_and(|c| c.batch == Some(16) && c.load_ok) && calls.iter().all(|c| c.load_ok),
+        || format!("calls={} {}", calls_text(calls), tail(&o.stderr, 600)),
+    );
+    // F12 음성대조: the same model as a non-hybrid would have gone in without a batch (the trial-1 batch is the L3 rule)
+    let o = fx.engine_case("nonhybrid_req", &[decl_opt(Some(16), Some(L_TYP))], &[], Engine::default(), MANIFEST, 3);
+    r.ck(
+        "F12 음성대조: 비하이브리드는 첫 트라이얼 batch 없음(종전 그대로)",
+        o.rc == 0 && o.calls.first().is_some_and(|c| c.batch.is_none()),
+        || calls_text(&o.calls),
+    );
+
+    // F13 — hybrid ∧ no requirement → refused at the default → batch = the engine's Mamba blocks (measured) · the clamp stays
+    // one request (the cap is an admission ceiling, not a concurrency claim)
+    let o = fx.engine_case("hybrid_noreq", &[decl_opt(None, None), hybrid_model.clone()], &[], mamba.clone(), MANIFEST, 3);
+    let (lk, der, calls) = (&o.lockset, der_of(&o), &o.calls);
+    r.ck(
+        "F13 L3 요구 없음 → 기본값 거부 → batch=83(엔진 실측 Mamba 블록) · batch_source=kv-fit-measured · 클램프 = 1건 · 3칸",
+        o.rc == 0
+            && calls.len() == 3
+            && !calls[0].load_ok
+            && calls[0].batch.is_none()
+            && calls[1].batch == Some(83)
+            && int(&at(lk, "batch")) == Some(83)
+            && eq_text(&at(lk, "batch_source"), "kv-fit-measured")
+            && int(&at(&der, "mamba_cache_cap")) == Some(83)
+            && int(&at(lk, "kv_cache_memory_bytes")).is_some_and(|k| (k as f64) < 1.5 * one_request * GIB)
+            && history_text(&o).contains("Mamba"),
+        || format!("calls={} {} {}", calls_text(calls), tail(&der.dumps_ascii().unwrap_or_default(), 400), tail(&o.stderr, 400)),
+    );
+
+    // F14 — a hand-lever batch over the measured blocks is not overwritten → HITL with the measured limit
+    let o = fx.engine_case("hybrid_hand", &[decl_opt(None, None), hybrid_model], &[("batch", "128".to_string())], mamba, MANIFEST, 3);
+    let s = o.summary.clone().unwrap_or(PyValue::None);
+    r.ck(
+        "F14 L3 음성: 손레버 batch 128 > Mamba 블록 83 → 덮어쓰지 않고 HITL(rc 3 · 1칸 · note 에 83)",
+        o.rc == 3 && o.calls.len() == 1 && contains(&at(&s, "note"), "손레버") && contains(&at(&s, "note"), "83"),
+        || format!("rc={} calls={} note={:?}", o.rc, calls_text(&o.calls), text(&at(&s, "note"))),
     );
     r
 }

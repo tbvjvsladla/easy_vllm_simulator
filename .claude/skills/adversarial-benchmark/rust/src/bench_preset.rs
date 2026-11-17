@@ -21,7 +21,7 @@ use crate::pyjson::{decode_file_text, loads_text_objects};
 use crate::pyops::{compare, Compare};
 use crate::pysort::{py_eq, same_or_eq, sorted_by_key};
 use crate::pystr::{is_python_space, PyStr};
-use crate::pyvalue::{DumpError, NonStringKey, Opaque, PyDict, PyValue};
+use crate::pyvalue::{DumpError, NonStringKey, Opaque, PyDict, PyValue, Typed};
 use crate::pyyaml;
 use crate::repeat_axis::REPEAT_KIND_WARM;
 use crate::repeat_owner::{
@@ -464,6 +464,8 @@ fn rebuild_key(key: &NonStringKey) -> PyValue {
                     type_name,
                     repr: other.to_string(),
                     truthy: true,
+                    typed: Typed::Plain,
+                    identity: None,
                 })
             }
         }

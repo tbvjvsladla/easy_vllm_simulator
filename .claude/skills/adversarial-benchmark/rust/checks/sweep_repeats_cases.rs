@@ -3,7 +3,7 @@
 //! there (sweep, judge, repeat axis, classify, report, publish, broad search) and, for case G, the installed
 //! conformance program:
 //!
-//! * the passing run of the deployed tree: the 75 check lines and the closing line byte for byte as the original
+//! * the passing run of the deployed tree: the 80 check lines (75 + C1~C4 · plan_26111708 B L12) and the closing line byte for byte as the original
 //!   printed them, no diagnostics, the temporary directory gone, and **nothing in the private tree changed**
 //!   (contents, permissions, inodes, modification times, and no new file such as a byte-code cache);
 //! * arguments: everything but `-v` is ignored (`--help` included), `-v` adds the sweep output after the first check;
@@ -361,14 +361,14 @@ fn first_lines(text: &str, count: usize) -> String {
 }
 
 #[test]
-fn the_deployed_tree_passes_75_checks_with_the_original_output_and_changes_nothing_in_it() {
+fn the_deployed_tree_passes_80_checks_with_the_original_output_and_changes_nothing_in_it() {
     let scratch = Scratch::new("pass");
     let tree = private_tree(&scratch);
     let before = snapshot(&tree);
     let result = run(&Setup::on(&tree), &scratch);
     assert_eq!(result.status, Some(0), "stderr: {}", result.stderr);
     assert_eq!(result.stderr, "");
-    assert_eq!(result.passed(), 75, "{}", result.stdout);
+    assert_eq!(result.passed(), 80, "{}", result.stdout);
     assert!(result.failures().is_empty());
     assert_eq!(
         result.stdout, NORMAL_STDOUT,
@@ -527,7 +527,7 @@ fn a_changed_deployed_log_line_fails_only_the_check_that_reads_it() {
     );
     let result = run(&Setup::on(&tree), &scratch);
     assert_eq!(result.status, Some(1), "{}", result.stdout);
-    assert_eq!(result.passed(), 74, "{}", result.stdout);
+    assert_eq!(result.passed(), 79, "{}", result.stdout);
     let name = "N3 sweep_bench 로그에 판정이 보인다(부르기만 하고 판정하지 않는다)";
     let failed = result.failures();
     assert_eq!(failed.len(), 1, "{}", result.stdout);
@@ -569,7 +569,7 @@ fn poisoned_interpreters(scratch: &Scratch) -> (PathBuf, PathBuf) {
 #[test]
 fn the_hint_reader_check_needs_no_reader_py_and_starts_no_interpreter() {
     // plan_26111615 pass 3: the reader is the hint-publisher Rust library. Without its `.py` and with every Python
-    // interpreter on `PATH` poisoned, the run is the normal 75-check pass, byte for byte.
+    // interpreter on `PATH` poisoned, the run is the normal 80-check pass, byte for byte.
     let scratch = Scratch::new("no-python");
     let tree = private_tree(&scratch);
     // absent already when the run has no `.py` at all
@@ -600,7 +600,7 @@ fn a_missing_conformance_program_fails_only_the_conformance_check() {
         .expect("remove the deployed conformance program");
     let result = run(&Setup::on(&tree), &scratch);
     assert_eq!(result.status, Some(1), "{}", result.stdout);
-    assert_eq!(result.passed(), 74, "{}", result.stdout);
+    assert_eq!(result.passed(), 79, "{}", result.stdout);
     let name = "G conformance(게이트 포함 단언 포함) 초록";
     assert_eq!(result.failures(), [format!("  [FAIL] {name} — ")]);
     assert_eq!(

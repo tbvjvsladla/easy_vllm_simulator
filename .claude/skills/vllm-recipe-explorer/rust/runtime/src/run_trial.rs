@@ -15,7 +15,16 @@ pub const PROVENANCE_MEASURED: &str = "measured";
 pub const PROVENANCE_MOCK: &str = "mock";
 pub const PROVENANCE_DRY_RUN: &str = "dry-run";
 
-pub const DEFAULT_IMAGE: &str = "vllm-src-022:clean";
+/// A real trial has no default image (plan_26111708 B L1): the old default `vllm-src-022:clean` named an image this node does
+/// not hold, so a run without `--image` pulled and failed. The image is the measured thing's identity — it is named or the run
+/// does not start (status 2, the argument-error status). This is the one text of that refusal.
+pub const MISSING_IMAGE: &str = "--image 미지정 — 실서빙 트라이얼(--dry-run·--mock-profile 아님)은 docker 이미지를 명시해야 한다: --image <IMAGE_TAG> (셀 env 의 IMAGE_TAG 또는 `docker image ls` 로 확인한 로컬 보유 이미지). 기본값은 없다 — 옛 기본값 vllm-src-022:clean 은 이 노드에 없어 pull 실패로 끝났다(plan_26111708 B L1).";
+
+/// The trial image, or the refusal text when it is absent or empty (see [`MISSING_IMAGE`]).
+pub fn require_image(image: Option<&PyStr>) -> Result<PyStr, &'static str> {
+    image.filter(|text| !text.is_empty()).cloned().ok_or(MISSING_IMAGE)
+}
+
 pub const DEFAULT_TIMEOUT: f64 = 900.0;
 pub const DEFAULT_PORT: i64 = 8903;
 pub const NAS_MOUNT: &str = "/mnt/models";

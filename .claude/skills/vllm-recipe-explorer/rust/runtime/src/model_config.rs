@@ -57,8 +57,112 @@ pub const SAFETENSORS_DTYPE_ELEM_BYTES: [(&str, i64); 12] = [
     ("BOOL", 1),
 ];
 /// `_KV_FREE_LAYER_TYPES`: layer types that hold no standard KV cache (a closed list on purpose).
-pub const KV_FREE_LAYER_TYPES: [&str; 1] = ["linear_attention"];
+///
+/// `moe` and `mlp` joined with plan_26111708 B L9: they are the FFN-only blocks of the NemotronH layer vocabulary
+/// (transformers 5.19.0 `models/nemotron_h/configuration_nemotron_h.py:29-31,203` — `mlp`, `linear_attention`,
+/// `full_attention`, `moe`), and in vLLM 0.32.0 only the `*` (attention) block builds an `Attention` (KV cache) —
+/// `model_executor/models/nemotron_h.py:481`; the MLP (`:279-308`) and MoE (`:335-353`) mixers hold none.
+pub const KV_FREE_LAYER_TYPES: [&str; 3] = ["linear_attention", "moe", "mlp"];
 pub const KV_FULL_LAYER_TYPE: &str = "full_attention";
+
+/// The sub-config names transformers' `PretrainedConfig.get_text_config()` searches when neither `decoder` nor `encoder` is
+/// set: the encoder names, then the decoder names (transformers 5.19.0 `configuration_utils.py:1364-1373`).
+pub const TEXT_CONFIG_KEYS: [&str; 4] = ["text_encoder", "decoder", "generator", "text_config"];
+
+/// vLLM's config attribute remap, applied before that search: `_CONFIG_ATTRS_MAPPING = {"llm_config": "text_config"}`
+/// (vllm 0.32.0 `transformers_utils/config.py:152-154`), applied by `_maybe_remap_hf_config_attrs` only when the config has no
+/// `text_config` attribute (`config.py:744-751`, called at `:421`).
+pub const CONFIG_ATTRS_MAPPING: [(&str, &str); 1] = [("llm_config", "text_config")];
+
+/// transformers' legacy layer-type names and their current names (`_LEGACY_LAYER_TYPE_REMAP`, transformers 5.19.0
+/// `configuration_utils.py:92-97`), applied to every config's `layer_types` at construction (`:398`).
+pub const LEGACY_LAYER_TYPE_REMAP: [(&str, &str); 4] = [
+    ("mamba", "linear_attention"),
+    ("attention", "full_attention"),
+    ("deepseek_sparse_attention", "indexed_attention"),
+    ("qwen_sparse_attention", "indexed_attention"),
+];
+
+/// Where the language-model fields of a `config.json` live (see [`text_config_of`]).
+#[derive(Clone, Copy, Debug)]
+pub struct TextConfig<'a> {
+    /// The nested text config, or `None` for a flat config (transformers returns the config itself).
+    pub nested: Option<&'a PyDict>,
+    /// The name transformers found it under (one of [`TEXT_CONFIG_KEYS`]).
+    pub key: Option<&'static str>,
+    /// The `config.json` key it was read from when vLLM's remap supplied it (`llm_config` for `text_config`).
+    pub remapped_from: Option<&'static str>,
+}
+
+/// `get_hf_text_config(config)` of vLLM 0.32.0 over a `config.json` mapping, with no CLI or file state (plan_26111708 B L9 —
+/// the one owner of nested text-config resolution; the explorer parser and the adversarial-benchmark roofline both call it):
+///
+/// 1. vLLM's remap [`CONFIG_ATTRS_MAPPING`]: a config with `llm_config` and no `text_config` key reads `llm_config` as its
+///    `text_config` (`transformers_utils/config.py:152-154,744-751` — the Nemotron omni VL layout).
+/// 2. transformers' search over [`TEXT_CONFIG_KEYS`] (`configuration_utils.py:1364-1391`): more than one present is the same
+///    `ValueError` as transformers'; exactly one is the text config; none is the flat config itself (`nested: None`).
+///    vLLM's `get_hf_text_config` (`transformers_utils/config.py:1195-1209`) delegates to it.
+///
+/// A sub-config counts only when it is a mapping: transformers holds sub-configs as objects, and in `config.json` a
+/// sub-config is an object; a value of another type (or `null`) is not a config (the parser always ignored a non-mapping
+/// `text_config`). vLLM's extra `num_attention_heads` check on the sub-config is not repeated here — the parser reports a
+/// missing field as a warning instead of stopping.
+pub fn text_config_of(config: &PyDict) -> Res<TextConfig<'_>> {
+    fn mapping(value: Option<&PyValue>) -> Option<&PyDict> {
+        match value.map(PyValue::peel) {
+            Some(PyValue::Dict(map)) => Some(map),
+            _ => None,
+        }
+    }
+    let mut found: Vec<(&'static str, &PyDict, Option<&'static str>)> = Vec::new();
+    for key in TEXT_CONFIG_KEYS {
+        let remap = CONFIG_ATTRS_MAPPING
+            .iter()
+            .find(|(_, new)| *new == key && !config.contains_key(key))
+            .filter(|(old, _)| config.contains_key(old));
+        let (value, remapped_from) = match remap {
+            Some((old, _)) => (config.get(old), Some(*old)),
+            None => (config.get(key), None),
+        };
+        if let Some(map) = mapping(value) {
+            found.push((key, map, remapped_from));
+        }
+    }
+    match found.as_slice() {
+        [] => Ok(TextConfig { nested: None, key: None, remapped_from: None }),
+        [(key, map, remapped_from)] => Ok(TextConfig { nested: Some(map), key: Some(key), remapped_from: *remapped_from }),
+        many => {
+            let names: Vec<String> = many.iter().map(|(key, _, _)| format!("'{key}'")).collect();
+            Err(Failure::new(
+                "ValueError",
+                &format!(
+                    "Multiple valid text configs were found in the model config: [{}]. In this case, using `get_text_config()` would be ambiguous. Please specify the desired text config directly, e.g. `text_config = config.sub_config_name`",
+                    names.join(", ")
+                ),
+            ))
+        }
+    }
+}
+
+/// `layer_types` with [`LEGACY_LAYER_TYPE_REMAP`] applied (a list stays a list, item by item; anything else is returned as
+/// it is).
+pub fn remap_legacy_layer_types(layer_types: &PyValue) -> PyValue {
+    match layer_types.peel() {
+        PyValue::List(items) => PyValue::List(
+            items
+                .iter()
+                .map(|item| match item.peel() {
+                    PyValue::Str(name) => LEGACY_LAYER_TYPE_REMAP
+                        .iter()
+                        .find(|(old, _)| name.equals(old))
+                        .map_or_else(|| item.clone(), |(_, new)| PyValue::str(new)),
+                    _ => item.clone(),
+                })
+                .collect(),
+        ),
+        _ => layer_types.clone(),
+    }
+}
 /// `MMAP_OFFLOADABLE_PATTERNS`: tensors an NVMe-mmap mechanism keeps out of residency, by the tensor-name pattern the
 /// original compiles (kept as the pattern text; [`matches_offload_pattern`] is the matcher).
 pub const MMAP_OFFLOADABLE_PATTERNS: [(&str, &str); 2] = [
@@ -1263,13 +1367,28 @@ pub fn parse(
     }
     let config_value = load_json_file(&config_path)?;
     let config = as_get_target(&config_value)?;
-    let text_config_value = config.get("text_config").cloned().unwrap_or(PyValue::None);
+    // plan_26111708 B L9: the nested text config is resolved by the one owner (vLLM's `llm_config` remap + transformers'
+    // `get_text_config` names), not by `text_config` alone — the Nemotron omni VL config nests its language model under
+    // `llm_config`, and every field (MoE, heads, layers) used to be missed.
+    let resolved = text_config_of(config)?;
     let empty = PyDict::new();
-    let text_config: Option<&PyDict> = match text_config_value.peel() {
-        PyValue::Dict(map) => Some(map),
-        _ => None,
-    };
+    let text_config: Option<&PyDict> = resolved.nested;
     let text_or_empty: &PyDict = text_config.unwrap_or(&empty);
+    if let (Some(key), true) = (resolved.key, resolved.key != Some("text_config") || resolved.remapped_from.is_some()) {
+        let source = resolved.remapped_from.unwrap_or(key);
+        note(
+            Message::new()
+                .lit("텍스트 config ← '")
+                .lit(source)
+                .lit("'")
+                .lit(if resolved.remapped_from.is_some() {
+                    " (vLLM _CONFIG_ATTRS_MAPPING llm_config→text_config · transformers_utils/config.py:152)"
+                } else {
+                    " (transformers get_text_config · configuration_utils.py:1366)"
+                })
+                .done(),
+        );
+    }
     let field = |key: &str| -> PyValue {
         if let Some(text) = text_config {
             if let Some(value) = text.get(key) {
@@ -1281,7 +1400,32 @@ pub fn parse(
     let is_none = |value: &PyValue| matches!(value.peel(), PyValue::None);
 
     let hidden_size = field("hidden_size");
-    let num_hidden_layers = field("num_hidden_layers");
+    let mut num_hidden_layers = field("num_hidden_layers");
+    // plan_26111708 B L9: a NemotronH text config names its layers `layers_block_type` (transformers aliases `layer_types` to
+    // it — `configuration_nemotron_h.py:84` attribute_map) and derives the layer count from its length (`num_hidden_layers`
+    // property, `:229-235`); its legacy names (`mamba`, `attention`) are remapped as transformers remaps every config.
+    let mut layer_types = field("layer_types");
+    if is_none(&layer_types) {
+        let blocks = field("layers_block_type");
+        if let PyValue::List(items) = blocks.peel() {
+            if !items.is_empty() {
+                let count = items.len();
+                layer_types = blocks.clone();
+                note(s("layer_types ← layers_block_type (transformers NemotronH attribute_map · configuration_nemotron_h.py:84)"));
+                if is_none(&num_hidden_layers) {
+                    num_hidden_layers = PyValue::int(BigInt::from(count));
+                    note(
+                        Message::new()
+                            .lit("num_hidden_layers ← len(layers_block_type)=")
+                            .count(count)
+                            .lit(" (transformers NemotronH num_hidden_layers property · configuration_nemotron_h.py:229)")
+                            .done(),
+                    );
+                }
+            }
+        }
+    }
+    let layer_types = remap_legacy_layer_types(&layer_types);
     let num_attention_heads = field("num_attention_heads");
     if is_none(&hidden_size) {
         note(s("hidden_size 누락 (필수)"));
@@ -1348,7 +1492,6 @@ pub fn parse(
         }
     }
 
-    let layer_types = field("layer_types");
     let full_attention_interval = field("full_attention_interval");
     let kv = resolve_kv_layers(&layer_types, &num_hidden_layers, &full_attention_interval)?;
     let (num_full_attention_layers, is_hybrid, layer_type_counts, lt_warnings) = (
@@ -1513,7 +1656,22 @@ pub fn parse(
                     }
                     other => (other, PyValue::None),
                 };
-            if is_none(&bpw) {
+            if is_none(&bpw) && quant_table::is_mixed_precision_quant(&quant_method_native)? {
+                // plan_26111708 B L9: a registered vLLM method with per-layer precision — a named reason, not "unknown".
+                note(
+                    Message::new()
+                        .lit("quant_method ")
+                        .lit(&quant_method_native.repr().to_string())
+                        .lit(" = 층별 혼합 정밀도(vLLM ModelOptMixedPrecisionConfig · quantization/modelopt.py:1543 — quantization_config.quantized_layers 의 층별 quant_algo) → 단일 bpw 가 정의되지 않는다 → disk_bpw(")
+                        .float(disk_bpw_value)
+                        .lit(") 실측으로 num_params 폴백(best-effort · 가중치 바이트는 disk 실측 그대로)")
+                        .done(),
+                );
+                (
+                    PyValue::Int(round_to_int(int_over_float(native, disk_bpw_value)?)?),
+                    PyValue::str("disk_total/disk_bpw(prequant_mixed_precision)"),
+                )
+            } else if is_none(&bpw) {
                 note(
                     Message::new()
                         .val(&qwarn)
@@ -1605,4 +1763,120 @@ pub fn parse(
     }
     out.set("warnings", warnings_value(warnings));
     Ok(out)
+}
+
+#[cfg(test)]
+mod text_config_tests {
+    //! plan_26111708 B L9: the one owner of nested text-config resolution, and the Nemotron omni VL shape end to end
+    //! (parse → `is_moe` · hybrid layers → estimate without an error).
+    use super::*;
+    use agent_runtime_support::pyjson::loads_text;
+
+    fn dict(json: &str) -> PyDict {
+        match loads_text(&PyStr::new(json)).expect("json") {
+            PyValue::Dict(map) => map,
+            other => panic!("{other:?}"),
+        }
+    }
+
+    fn hidden(resolved: &TextConfig<'_>) -> Option<PyValue> {
+        resolved.nested.and_then(|map| map.get("hidden_size").cloned())
+    }
+
+    #[test]
+    fn the_nested_text_config_is_found_where_vllm_and_transformers_look() {
+        // vLLM's remap: llm_config → text_config (no text_config key)
+        let nemotron = dict(r#"{"model_type": "nemotron_h_omni", "llm_config": {"hidden_size": 4096}, "vision_config": {"hidden_size": 1}}"#);
+        let r = text_config_of(&nemotron).expect("one");
+        assert_eq!((r.key, r.remapped_from, hidden(&r)), (Some("text_config"), Some("llm_config"), Some(PyValue::int(4096))));
+        // text_config present → the remap does not apply (vLLM: `if not hasattr(config, new_attr)`)
+        let both = dict(r#"{"text_config": {"hidden_size": 8}, "llm_config": {"hidden_size": 9}}"#);
+        let r = text_config_of(&both).expect("one");
+        assert_eq!((r.key, r.remapped_from, hidden(&r)), (Some("text_config"), None, Some(PyValue::int(8))));
+        // transformers' other names
+        let decoder = dict(r#"{"decoder": {"hidden_size": 7}}"#);
+        assert_eq!(text_config_of(&decoder).expect("one").key, Some("decoder"));
+        // flat, null, non-mapping → the config itself
+        for flat in [r#"{"hidden_size": 5}"#, r#"{"text_config": null}"#, r#"{"text_config": ["nested"]}"#, r#"{"generator": "x"}"#] {
+            let config = dict(flat);
+            let r = text_config_of(&config).expect("flat");
+            assert!(r.nested.is_none() && r.key.is_none(), "{flat}");
+        }
+        // negative: two text configs are transformers' ambiguity error
+        let failure = text_config_of(&dict(r#"{"decoder": {}, "text_config": {}}"#)).expect_err("ambiguous");
+        assert!(failure.is_value_error() && failure.message.to_utf8().unwrap().contains("['decoder', 'text_config']"));
+    }
+
+    #[test]
+    fn legacy_layer_names_are_remapped_and_others_kept() {
+        let types = loads_text(&PyStr::new(r#"["mamba", "attention", "moe", "full_attention", "sliding_attention", 3]"#)).unwrap();
+        let want = loads_text(&PyStr::new(r#"["linear_attention", "full_attention", "moe", "full_attention", "sliding_attention", 3]"#)).unwrap();
+        assert_eq!(remap_legacy_layer_types(&types), want);
+        assert_eq!(remap_legacy_layer_types(&PyValue::None), PyValue::None);
+    }
+
+    /// The Nemotron-3.5-Super-VL layout in miniature: the language model under `llm_config` (MoE · `layers_block_type` with
+    /// legacy names · no `num_hidden_layers`), a top-level ModelOpt MIXED_PRECISION `quantization_config`, one weight file.
+    fn nemotron_dir(label: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("rx_nemotron_vl_{}_{label}", std::process::id()));
+        let model = dir.join("nvidia/Nemotron-VL");
+        std::fs::create_dir_all(&model).unwrap();
+        let blocks: Vec<&str> = (0..11).map(|i| match i % 11 { 3 | 9 => "\"attention\"", i if i % 2 == 0 => "\"mamba\"", _ => "\"moe\"" }).collect();
+        std::fs::write(
+            model.join("config.json"),
+            format!(
+                r#"{{"architectures": ["NemotronH_Omni_Reasoning_V3"], "model_type": "nemotron_h_omni", "dtype": "bfloat16",
+                    "quantization_config": {{"quant_method": "modelopt_mixed", "quant_algo": "MIXED_PRECISION",
+                                             "quantized_layers": {{"language_model.backbone.layers.1.mixer": {{"quant_algo": "NVFP4"}}}}}},
+                    "vision_config": {{"hidden_size": 1280, "num_attention_heads": 16}},
+                    "llm_config": {{"model_type": "nemotron_h", "hidden_size": 4096, "num_attention_heads": 32, "num_key_value_heads": 2,
+                                    "head_dim": 128, "n_routed_experts": 512, "num_experts_per_tok": 22, "vocab_size": 131072,
+                                    "max_position_embeddings": 1048576, "layers_block_type": [{}]}}}}"#,
+                blocks.join(", ")
+            ),
+        )
+        .unwrap();
+        let weights = std::fs::File::create(model.join("pytorch_model.bin")).unwrap();
+        weights.set_len(64 << 20).unwrap();
+        dir
+    }
+
+    #[test]
+    fn a_nemotron_omni_config_parses_as_a_hybrid_moe_and_estimates_without_an_error() {
+        let dir = nemotron_dir("parse");
+        let parsed = parse(&PyValue::str("/app/models/nvidia/Nemotron-VL"), &PyValue::str(dir.to_str().unwrap()), &PyValue::str("/app/models")).expect("parse");
+        let at = |key: &str| parsed.get(key).cloned().unwrap_or(PyValue::None);
+        assert_eq!(at("is_moe"), PyValue::Bool(true));
+        assert_eq!(at("num_experts"), PyValue::int(512));
+        assert_eq!(at("num_hidden_layers"), PyValue::int(11));
+        assert_eq!(at("num_full_attention_layers"), PyValue::int(2));
+        assert_eq!(at("is_hybrid"), PyValue::Bool(true));
+        assert_eq!((at("num_key_value_heads"), at("head_dim")), (PyValue::int(2), PyValue::int(128)));
+        assert_eq!(at("weight_basis"), PyValue::str("disk_total/disk_bpw(prequant_mixed_precision)"));
+        let warnings = at("warnings").dumps_ascii().unwrap();
+        assert!(!warnings.contains("unknown quant_method") && !warnings.contains("hidden_size \\ub204\\ub77d"), "{warnings}");
+        let parsed = PyValue::Dict(parsed);
+        let candidate = |quant: &str| PyValue::Dict(dict(&format!(r#"{{"id": "r1", "quantization": "{quant}", "max_model_len": 4096, "gpu_memory_utilization": 0.9}}"#)));
+        let result = crate::estimate_vram::estimate(&parsed, &candidate("modelopt_mixed"), &PyValue::int(2), &PyValue::Float(96.0), &PyValue::Float(0.9), &PyValue::int(2)).expect("estimate");
+        assert_eq!(get(&result, "error").unwrap(), PyValue::None, "{}", result.dumps_ascii().unwrap());
+        assert_eq!(get(&result, "kv_layers").unwrap(), PyValue::int(2));
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    /// (b) the named reason: a non-prequantized checkpoint cannot be served as `modelopt_mixed`; an unregistered method keeps
+    /// the generic `unknown_quant_method`.
+    #[test]
+    fn modelopt_mixed_without_a_prequantized_checkpoint_has_a_named_reason() {
+        let parsed = PyValue::Dict(dict(r#"{"prequantized": false, "num_params": 1000000, "serve_bpw": 2.0, "num_hidden_layers": 2,
+                                         "num_key_value_heads": 2, "head_dim": 64}"#));
+        let run = |quant: &str| {
+            let candidate = PyValue::Dict(dict(&format!(r#"{{"id": "r1", "quantization": "{quant}", "max_model_len": 4096, "gpu_memory_utilization": 0.9}}"#)));
+            let result = crate::estimate_vram::estimate(&parsed, &candidate, &PyValue::int(1), &PyValue::Float(96.0), &PyValue::Float(0.9), &PyValue::int(2)).unwrap();
+            get(&result, "error").unwrap()
+        };
+        assert_eq!(run("modelopt_mixed"), PyValue::str("mixed_precision_requires_prequantized_checkpoint"));
+        assert_eq!(run("no-such-method"), PyValue::str("unknown_quant_method"));
+        let failure = crate::estimate_vram::weights_bytes_for(&parsed, &PyValue::str("MODELOPT_MIXED")).expect_err("named");
+        assert!(failure.message.to_utf8().unwrap().contains("mixed_precision_requires_prequantized_checkpoint"));
+    }
 }

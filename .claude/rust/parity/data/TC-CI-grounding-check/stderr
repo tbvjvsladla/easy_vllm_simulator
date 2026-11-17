@@ -1,2 +1,2 @@
 [campaign_init] 그라운딩 백스톱: 통과하지 못했다 (policy:LIBRARY_GROUNDING_FAIL_CLOSED C2)
-  - 그라운딩 기록이 없다: campaigns/camp-a/grounding/ — 캠페인 착수·셀 축 변경 시 통제변인 파생 질의로 사서를 부른 기록이 있어야 한다(policy:LIBRARY_GROUNDING_FAIL_CLOSED C1). `campaign_init.py --ground --utc <t>` 로 물어라.
+  - 그라운딩 기록이 없다: campaigns/camp-a/grounding/ — 캠페인 착수·셀 축 변경 시 통제변인 파생 질의로 사서를 부른 기록이 있어야 한다(policy:LIBRARY_GROUNDING_FAIL_CLOSED C1). `campaign_init.sh --ground --utc <t>` 로 물어라.

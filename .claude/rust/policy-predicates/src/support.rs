@@ -168,8 +168,20 @@ pub fn repr_list<S: AsRef<str>>(items: &[S]) -> String {
 
 // ---------------------------------------------------------------- regex (Python `re`)
 
+/// The compiled pattern, compiled once per process (plan_26111708 A3 — the clauses call `search`/`findall`/`fullmatch` with the same
+/// source constants many times). A pattern the engine rejects still panics on its first use.
 pub fn re(pattern: &str) -> fancy_regex::Regex {
-    fancy_regex::Regex::new(pattern).unwrap_or_else(|e| panic!("predicate regex {pattern:?} must compile: {e}"))
+    use std::collections::HashMap;
+    use std::sync::{Mutex, OnceLock};
+    static CACHE: OnceLock<Mutex<HashMap<String, fancy_regex::Regex>>> = OnceLock::new();
+    let cache = CACHE.get_or_init(Default::default);
+    if let Some(hit) = cache.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).get(pattern) {
+        return hit.clone();
+    }
+    let compiled =
+        fancy_regex::Regex::new(pattern).unwrap_or_else(|e| panic!("predicate regex {pattern:?} must compile: {e}"));
+    cache.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).insert(pattern.to_string(), compiled.clone());
+    compiled
 }
 
 /// `re.search(pattern, s)` → the match span.

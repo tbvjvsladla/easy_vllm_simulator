@@ -1,2 +1,2 @@
 [hint] FAIL HINT_APPROVAL_SOURCE_CONFLICT: 캠페인 셀의 승인 원천은 campaign.yaml hint_targets 하나다(O6) — --approved-by/--approved-utc 는 캠페인 밖(재생) 발행용이다.
-  → 캠페인 승인은 `campaign_init.py --hint-approve` 로 적는다(선언 확인·발행 팝업의 사람 발화 전사).
+  → 캠페인 승인은 `campaign_init.sh --hint-approve` 로 적는다(선언 확인·발행 팝업의 사람 발화 전사).

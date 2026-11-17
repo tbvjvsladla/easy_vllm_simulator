@@ -429,8 +429,16 @@ pub fn read_mem_total_mib() -> Option<i64> {
 
 pub fn read_mem_total_from(path: &str) -> Option<i64> {
     let text = bb::read_text(path).ok()?;
-    for ln in bb::text_lines(&text) {
-        if ln.starts_with("MemTotal:") {
+    meminfo_mib(&text, "MemTotal")
+}
+
+/// One `/proc/meminfo` field (`<key>: <kB> kB`) in MiB from the file's text; None when the first `<key>:` line has no
+/// integer value or there is no such line. The single parse of that file — the serving-budget co-resident stacking
+/// (`blackbox_session`, plan_26111708 B L6) reads MemTotal/MemAvailable through it instead of a second parser.
+pub fn meminfo_mib(text: &str, key: &str) -> Option<i64> {
+    let head = format!("{key}:");
+    for ln in bb::text_lines(text) {
+        if ln.starts_with(&head) {
             let f = py::split_ws(ln);
             let v = bb::py_int_text(f.get(1)?)?;
             return Some((v as f64 / 1024.0) as i64);

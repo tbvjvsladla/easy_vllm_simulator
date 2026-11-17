@@ -256,7 +256,7 @@ fn two_roster_mains_in_one_manifest_name_the_file_and_the_count_with_the_repo_sp
     assert_eq!(got.status, 1);
     assert_eq!(
         text(&got.stderr),
-        format!("[node-identity] FAIL: {}//output/multi/manifest.yaml 에 role: main 항목이 2개다(계약은 정확히 1개).\n[node-identity]       scan_node.py manifest 게이트를 다시 통과시켜라.\n", root.display())
+        format!("[node-identity] FAIL: {}//output/multi/manifest.yaml 에 role: main 항목이 2개다(계약은 정확히 1개).\n[node-identity]       scan_node.sh manifest 게이트를 다시 통과시켜라.\n", root.display())
     );
 }
 

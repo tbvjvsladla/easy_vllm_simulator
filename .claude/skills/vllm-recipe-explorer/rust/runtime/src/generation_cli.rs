@@ -257,6 +257,9 @@ pub fn generator_main(args: &[PyStr], columns: Option<&str>, skill_root: &PyStr)
         vllm_version: &vllm_version,
         build_dockerfile: &build_dockerfile,
         image: &image,
+        // The original command line has no `--vllm-ref` (its help and argument errors are kept); a stock image tag still fills
+        // the multi build coordinates (plan_26111708 B L10).
+        vllm_ref: &PyValue::None,
     };
     let mut warnings = PyStr::default();
     let outcome = recipe_set::generate(&request, &mut warnings);

@@ -361,6 +361,9 @@ fn profile_of(d: &PyDict) -> Profile {
         device_total_gib: f("device_total_gib"),
         gmu_used: f("gmu_used"),
         gmu_source: None,
+        max_concurrency: f("max_concurrency"),
+        // set from the trial log by the loop (`vllm_log::attention_block_size`) — not a `parse_log` field
+        block_tokens: None,
     }
 }
 
@@ -460,7 +463,7 @@ impl memory::Host for GateHost<'_> {
 // ── run_trial (mock / dry-run in process; the real docker session through run_trial_session) ──────────────────────────
 
 struct TrialOpts {
-    image: PyStr,
+    image: Option<PyStr>,
     timeout: f64,
     dry_run: bool,
     mock_profile: Option<PyStr>,
@@ -498,7 +501,7 @@ fn run_trial(cand: &PyDict, run_dir: &PyStr, n: i64, o: &TrialOpts, root: &PyStr
         return Ok(dict_of(&r));
     }
     let opts = SessionOpts {
-        image: Some(o.image.clone()),
+        image: o.image.clone(),
         timeout: Some(o.timeout),
         port: o.port,
         served_model_name: o.served_model_name.clone(),
@@ -525,6 +528,30 @@ fn run_trial(cand: &PyDict, run_dir: &PyStr, n: i64, o: &TrialOpts, root: &PyStr
     Ok(dict_of(&r))
 }
 
+/// plan_26111708 B L2: a formula clamp never goes back under the clamp the engine's own one-request shortfall raised to
+/// (`floor`) — it is lifted to the floor, or is structural when the floor is over the computed ceiling. The computed ceiling is
+/// remembered for the next raise.
+fn keep_measured_floor(mut res: sm::Clamp, floor: Option<i64>, last_max_safe: &mut Option<i64>) -> sm::Clamp {
+    if res.max_safe.is_some() {
+        *last_max_safe = res.max_safe;
+    }
+    if let (Some(kv), Some(f)) = (res.kv, floor) {
+        if kv < f {
+            match res.max_safe {
+                Some(ceiling) if f > ceiling => {
+                    res.kv = None;
+                    res.fail = Some(("vram_infeasible", format!("엔진 실측 1건 하한 {} B > max_safe_kv={} → max_model_len 요청 1건도 배포 천장에 들지 않는다(HITL).", f, ceiling)));
+                }
+                _ => {
+                    res.kv = Some(f);
+                    res.note = format!("{} · 산식 클램프 {} B < 엔진 실측 1건 하한 {} B → 하한으로 올림(vllm-needed-measured).", res.note, kv, f);
+                }
+            }
+        }
+    }
+    res
+}
+
 // ── the command ─────────────────────────────────────────────────────────────────────────────────────────────────────
 
 pub struct Args {
@@ -535,7 +562,8 @@ pub struct Args {
     pub run_id: Option<PyStr>,
     pub topic: Option<PyStr>,
     pub cap: i64,
-    pub image: PyStr,
+    /// `--image`; `None` only on the docker-free paths (the real trial requires it · plan_26111708 B L1).
+    pub image: Option<PyStr>,
     pub timeout: i64,
     pub overhead_mib: Option<i64>,
     pub force: bool,
@@ -788,15 +816,40 @@ pub fn cmd_simulate_engine(
     let mut derivation: Option<PyDict> = None;
     let mut engine_obs: Vec<PyDict> = Vec::new();
     let mplan = math_plan(&plan);
+    // plan_26111708 B L2 · L3: what the engine logs measured — the hybrid attention block size (the one-request clamp floor),
+    // the last computed deployed KV ceiling (the ceiling a raise is checked against) and the Mamba cache blocks it allows.
+    let mut block_tokens: Option<i64> = None;
+    let mut last_max_safe: Option<i64> = None;
+    let mut mamba_cap: Option<i64> = None;
+    // the clamp the engine's own one-request shortfall raised to (a later formula clamp never goes back under it)
+    let mut measured_floor: Option<i64> = None;
 
-    let clamp_of = |prof: &PyDict, cand: &PyDict| -> sm::Clamp {
+    // plan_26111708 B L3: a hybrid (Mamba-family) model must not reach the engine without a batch — vLLM refuses a
+    // `max_num_seqs` above the Mamba cache blocks under full CUDA graphs (config/compilation.py:1503-1524), and its default
+    // (256) exceeded the 83 blocks of camp P2 q36-27b. The declared concurrency requirement is the one grounded number before a
+    // measurement, so the first trial carries it; without one, the engine's own refusal gives the limit (below).
+    let is_hybrid = g(&parsed, "is_hybrid").is_truthy();
+    if is_hybrid && plan.derive && is_none(&cg(&cand, "batch")) {
+        if let Some(r) = plan.requirement {
+            cand.set("batch", PyValue::int(r));
+            streams.eprint(&PyStr::new(&format!("[recipe] ⓘ 하이브리드(Mamba 계열) 모델 — 첫 트라이얼부터 선언 요구 batch={} 를 넘긴다(vLLM max_num_seqs ≤ Mamba 캐시 블록 · config/compilation.py:1503-1524 · plan_26111708 B L3). 측정 뒤 min(요구, KV-fit) 로 다시 산출한다.", r)));
+        } else {
+            streams.eprint(&PyStr::new("[recipe] ⓘ 하이브리드(Mamba 계열) 모델 · 동시성 요구 미선언 — 첫 트라이얼은 batch 없이 간다. 엔진이 Mamba 캐시 블록 초과로 거부하면 그 보고값으로 batch 상한을 정한다(실측 · plan_26111708 B L3)."));
+        }
+    }
+
+    let clamp_of = |prof: &PyDict, cand: &PyDict, block: Option<i64>| -> sm::Clamp {
         let max_len = to_i64(&cg(cand, "max_model_len")).unwrap_or(0);
-        let batch = to_i64(&cg(cand, "batch"));
+        // The clamp is sized by the requirement-derived batch; without a declared requirement it is one request even when a
+        // Mamba admission cap (L3) put a `max-num-seqs` on the candidate.
+        let batch = if plan.derive && plan.requirement.is_none() { None } else { to_i64(&cg(cand, "batch")) };
         let formula = |tokens: i64| -> i64 {
             required_kv_bytes(&parsed, &PyValue::int(tokens), &PyValue::int(1), &PyValue::int(kv_dtype_bytes))
                 .ok().and_then(|b| i64::try_from(b).ok()).unwrap_or(i64::MAX)
         };
-        sm::resolve_clamp_kv(&profile_of(prof), max_len, batch, budget, deploy_gmu, tp_divisor, kv_fit_length(&plan, cand), &formula)
+        let mut profile = profile_of(prof);
+        profile.block_tokens = block;
+        sm::resolve_clamp_kv(&profile, max_len, batch, budget, deploy_gmu, tp_divisor, kv_fit_length(&plan, cand), &formula)
     };
     let fail_dict = |class: &str, adjust: Option<&str>, note: &str| -> PyDict {
         let mut d = PyDict::new();
@@ -874,6 +927,9 @@ pub fn cmd_simulate_engine(
             }
         };
         sl(simlog::write_trial(&mut Plain, true, [&PyValue::Str(run_dir.clone()), &PyValue::int(trial_number), &PyValue::str(&log_text), &cg(&trial, "vllm_profile"), &dv(&cand), &cg(&trial, "functional")]))?;
+        if let Some(block) = crate::vllm_log::attention_block_size(&log_text) {
+            block_tokens = Some(block);
+        }
 
         let typical_arg = if batch_decided { oi(kv_fit_length(&plan, &cand)) } else { PyValue::None };
         let verdict = raise(classifier::classify(&dv(&trial), &fl(budget), &fl(gate_margin), &typical_arg))?;
@@ -882,6 +938,53 @@ pub fn cmd_simulate_engine(
         let fclass = str_of(&cg(&verdict, "failure_class")).unwrap_or_default();
         let adjust = str_of(&cg(&verdict, "adjust_target"));
         streams.eprint(&Message::new().lit(&format!("[recipe] classify → {} (adjust=", fclass)).val(&cg(&verdict, "adjust_target")).lit(") :: ").val(&cg(&verdict, "note")).done());
+
+        // plan_26111708 B L3: the engine's refusal `max_num_seqs (N) exceeds available Mamba cache blocks (M)` is a measured
+        // batch limit (config/compilation.py:1503-1524), not an unknown failure: a derived batch is capped at M and re-verified;
+        // a hand-lever batch is not overwritten (HITL with the measured M).
+        if fclass != "none" {
+            if let Some((seqs, blocks)) = crate::vllm_log::mamba_block_limit(&log_text) {
+                let mut rec = PyDict::new();
+                rec.set("trial_number", PyValue::int(trial_number));
+                rec.set("failure_class", PyValue::str(&fclass));
+                rec.set("adjust_target", PyValue::str("batch"));
+                rec.set("note", PyValue::str(&format!("엔진 거부: max_num_seqs ({}) > Mamba 캐시 블록 ({}) — 디코드 시퀀스마다 Mamba 블록 1개(vLLM config/compilation.py:1503-1524) · batch 상한 실측(trial{:02} 로그).", seqs, blocks, trial_number)));
+                let mut before = PyDict::new();
+                before.set("batch", cg(&cand, "batch"));
+                rec.set("before", dv(&before));
+                if blocks < 1 || !plan.derive {
+                    let why = if blocks < 1 {
+                        "Mamba 캐시 블록 0 — 요청 1건도 받을 수 없다(HITL · KV 클램프·예산 재검토).".to_string()
+                    } else {
+                        format!("손레버 batch={} > 엔진 실측 Mamba 캐시 블록 {} — 손레버는 덮어쓰지 않는다: lockset batch 를 {} 이하로 고쳐 다시 돈다(HITL · plan_26111708 B L3).", disp(&cg(&cand, "batch")), blocks, blocks)
+                    };
+                    let class = if blocks < 1 { "vram_infeasible" } else { "functional" };
+                    rec.set("after_note", PyValue::str(&why));
+                    final_class = Some(fail_dict(class, Some("batch"), &why));
+                    append_record(&rec, &mut history)?;
+                    break;
+                }
+                let limit = mamba_cap.map_or(blocks, |c| c.min(blocks));
+                mamba_cap = Some(limit);
+                let new_batch = to_i64(&cg(&cand, "batch")).map_or(limit, |b| b.min(limit));
+                cand.set("batch", PyValue::int(new_batch));
+                let mut after = PyDict::new();
+                after.set("batch", PyValue::int(new_batch));
+                rec.set("after", dv(&after));
+                rec.set("after_note", PyValue::str(&format!("batch → {} (Mamba 캐시 블록 상한 {} · 엔진 실측 · batch_source=kv-fit-measured) 재검증 트라이얼.", new_batch, limit)));
+                if let Some(der) = derivation.as_mut() {
+                    der.set("batch", PyValue::int(new_batch));
+                    der.set("batch_source", PyValue::str("kv-fit-measured"));
+                    der.set("mamba_cache_cap", PyValue::int(limit));
+                }
+                append_record(&rec, &mut history)?;
+                if trial_number == cap {
+                    let note = format!("cap 소진 — 엔진이 Mamba 캐시 블록 {} 로 batch 를 거부했고 batch={} 재검증 트라이얼을 돌 칸이 없다. --cap 을 늘려 다시 돈다(클램프 후 블록 수가 줄면 한 번 더 실측된다).", blocks, new_batch);
+                    final_class = Some(fail_dict(&fclass, Some("batch"), &note));
+                }
+                continue;
+            }
+        }
 
         if fclass == "none" {
             let clamp_arg = if clamp_provisional { None } else { to_i64(&cg(&cand, "kv_cache_memory_bytes")).filter(|_| !is_none(&cg(&cand, "kv_cache_memory_bytes"))) };
@@ -893,13 +996,27 @@ pub fn cmd_simulate_engine(
                 batch_decided = true;
                 cand.set("batch", oi(d.batch));
                 streams.eprint(&Message::new().lit("[recipe] max-num-seqs 산출 → batch=").val(&cg(&cand, "batch")).lit(&format!(" ({}) :: {}", d.batch_source.unwrap_or("None"), d.reason)).done());
+                // plan_26111708 B L3: a measured Mamba cache block limit caps the derived batch (and gives a batch where the
+                // formula gives none — a hybrid serve without `max-num-seqs` is refused at the engine default).
+                if let Some(limit) = mamba_cap {
+                    if d.batch.map_or(true, |b| b > limit) {
+                        cand.set("batch", PyValue::int(limit));
+                        if let Some(der) = derivation.as_mut() {
+                            der.set("batch", PyValue::int(limit));
+                            der.set("batch_source", PyValue::str("kv-fit-measured"));
+                            der.set("mamba_cache_cap", PyValue::int(limit));
+                            der.set("reason", PyValue::str(&format!("{} · 엔진 실측 Mamba 캐시 블록 상한 {} 으로 batch={} (max-num-seqs ≤ Mamba 블록 · config/compilation.py:1503-1524)", d.reason, limit, limit)));
+                        }
+                        streams.eprint(&PyStr::new(&format!("[recipe] max-num-seqs → batch={} (엔진 실측 Mamba 캐시 블록 상한 · plan_26111708 B L3)", limit)));
+                    }
+                }
                 if clamp_provisional && is_none(&cg(&cand, "batch")) {
                     converged = true;
                     break;
                 }
                 if clamp_provisional {
                     let clamp_before = cg(&cand, "kv_cache_memory_bytes");
-                    let res = clamp_of(&prof, &cand);
+                    let res = keep_measured_floor(clamp_of(&prof, &cand, block_tokens), measured_floor, &mut last_max_safe);
                     let mut rec = PyDict::new();
                     rec.set("trial_number", PyValue::int(trial_number));
                     rec.set("failure_class", PyValue::str("measure"));
@@ -969,9 +1086,11 @@ pub fn cmd_simulate_engine(
                 dd.set("reason", PyValue::Str(Message::new().lit("손레버 batch=").val(&cg(&cand, "batch")).lit(" 유지(측정 산물 아님) · 산식 대조: ").val(&reason).done()));
                 derivation = Some(dd);
             }
-            if adjust.as_deref() == Some("batch") && !is_none(&cg(&verdict, "kv_fit")) && plan.derive {
+            // plan_26111708 B L3: without a declared requirement the batch is only the measured Mamba admission cap (not a
+            // concurrency claim) — the KV-fit re-check does not lower it. Without a cap such a batch is None (unchanged).
+            if adjust.as_deref() == Some("batch") && !is_none(&cg(&verdict, "kv_fit")) && plan.derive && plan.requirement.is_some() {
                 let kvf = to_i64(&cg(&verdict, "kv_fit")).unwrap_or(1);
-                let new_batch = kvf.max(1);
+                let new_batch = mamba_cap.map_or(kvf.max(1), |limit| kvf.max(1).min(limit));
                 let mut rec = PyDict::new();
                 rec.set("trial_number", PyValue::int(trial_number));
                 rec.set("failure_class", PyValue::str(&fclass));
@@ -1010,7 +1129,7 @@ pub fn cmd_simulate_engine(
                 continue;
             }
             if is_none(&cg(&cand, "kv_cache_memory_bytes")) {
-                let res = clamp_of(&prof, &cand);
+                let res = keep_measured_floor(clamp_of(&prof, &cand, block_tokens), measured_floor, &mut last_max_safe);
                 let mut rec = PyDict::new();
                 rec.set("trial_number", PyValue::int(trial_number));
                 rec.set("failure_class", PyValue::str("measure"));
@@ -1064,7 +1183,20 @@ pub fn cmd_simulate_engine(
 
         match adjust.as_deref() {
             Some("kv_cache_memory_bytes") => {
-                let res = clamp_of(&prof, &cand);
+                // plan_26111708 B L2: when the engine refused the clamp for one max-length request it printed what that request
+                // needs — the clamp is raised by that measured shortfall (never shrunk: shrinking can only fail again).
+                let current = { let c = cg(&cand, "kv_cache_memory_bytes"); if is_none(&c) { None } else { to_i64(&c) } };
+                let res = match (current, crate::vllm_log::one_request_shortfall(&log_text)) {
+                    (Some(cur), Some(sf)) => {
+                        rec.set("note", PyValue::str(&format!("엔진 거부: max_model_len({}) 1건에 KV {} GiB 필요 > 가용 {} GiB(클램프 − 널 블록 · vLLM v1/core/kv_cache_utils.py:1003-1040) → 클램프를 엔진 실측 부족분만큼 올린다(축소 ✗).", sf.max_model_len, sf.needed_gib, sf.available_gib)));
+                        let raised = sm::raise_to_one_request(cur, sf.needed_gib, sf.available_gib, last_max_safe, sf.estimated_max_model_len);
+                        if let Some(kv) = raised.kv {
+                            measured_floor = Some(measured_floor.map_or(kv, |f| f.max(kv)));
+                        }
+                        raised
+                    }
+                    _ => keep_measured_floor(clamp_of(&prof, &cand, block_tokens), measured_floor, &mut last_max_safe),
+                };
                 if let Some((c, n)) = &res.fail {
                     rec.set("after_note", PyValue::str(n));
                     final_class = Some(fail_dict(c, None, n));
@@ -1145,7 +1277,7 @@ pub fn cmd_simulate_engine(
         der.set("engine_max_concurrency", dv(&emc));
         let chk = final_class.as_ref().map_or(PyValue::None, |f| cg(f, "kv_fit_check"));
         der.set("verification", chk.clone());
-        if plan.derive && !is_none(&cg(der, "batch")) {
+        if plan.derive && plan.requirement.is_some() && !is_none(&cg(der, "batch")) {
             let chk_d = dict_of(&chk);
             let verified = chk.is_truthy() && cg(&chk_d, "checked").is_truthy() && !cg(&chk_d, "exceeds").is_truthy();
             der.set("verified", PyValue::Bool(verified));
@@ -1253,14 +1385,23 @@ fn converged_path(
     vb.set("headroom_gib", if is_none(&total) { PyValue::None } else { fl(budget - to_f64(&total).unwrap_or(0.0)) });
     let (k_gm, k_bs, k_gs, k_tg, k_vb) = (s("gpu_memory_utilization"), s("batch_source"), s("gmu_source"), s("target_gpu"), s("vram_breakdown"));
     let (v_gm, v_bs, v_gs, v_tg, v_vb) = (fl(deploy_gmu), cg(&lockset, "batch_source"), cg(&lockset, "gmu_source"), g(cfg, "target_gpu"), dv(&vb));
-    let recipe = PyValue::Dict(raise(crate::recipe_set::recipe_from_candidate(&dv(cand), &[(&k_gm, &v_gm), (&k_bs, &v_bs), (&k_gs, &v_gs), (&k_tg, &v_tg), (&k_vb, &v_vb)]))?);
+    let mut recipe_dict = raise(crate::recipe_set::recipe_from_candidate(&dv(cand), &[(&k_gm, &v_gm), (&k_bs, &v_bs), (&k_gs, &v_gs), (&k_tg, &v_tg), (&k_vb, &v_vb)]))?;
 
     let out_root = PyValue::Str(join(&join(root, &s("output")), &s(topology_of(root))));
     let force = PyValue::Bool(a.force);
-    let topology = PyValue::str("single");
+    // plan_26111708 B L10: the manifest's topology (was hard-coded `single`); multi adds the TP/Ray knobs.
+    let topology_name = manifest_topology(root)?;
+    if topology_name == "multi" {
+        for note in apply_multi_knobs(&mut recipe_dict, tp)? {
+            streams.eprint(&note);
+        }
+    }
+    let recipe = PyValue::Dict(recipe_dict);
+    let topology = PyValue::str(topology_name);
     let none = PyValue::None;
-    let image = { let c = cg(cand, "image"); if c.is_truthy() { c } else { PyValue::Str(a.image.clone()) } };
-    let request = crate::recipe_set::Request { parsed, recipe: &recipe, name: &name, repo_root: &out_root, port: &port, served_model_name: &served, force: &force, topology: &topology, vllm_version: &none, build_dockerfile: &none, image: &image };
+    // plan_26111708 B L1: no default image — the candidate's or `--image`, else the env's explicit "미지정" line and warning.
+    let image = { let c = cg(cand, "image"); if c.is_truthy() { c } else { a.image.clone().map_or(PyValue::None, PyValue::Str) } };
+    let request = crate::recipe_set::Request { parsed, recipe: &recipe, name: &name, repo_root: &out_root, port: &port, served_model_name: &served, force: &force, topology: &topology, vllm_version: &none, build_dockerfile: &none, image: &image, vllm_ref: &none };
     let mut warnings = PyStr::default();
     let outcome = crate::recipe_set::generate(&request, &mut warnings);
     streams.stderr.push_py(&warnings);

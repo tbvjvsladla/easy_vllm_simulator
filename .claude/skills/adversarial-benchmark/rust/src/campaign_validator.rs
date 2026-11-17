@@ -7,10 +7,11 @@
 //! `FAIL (n)` with one `  - <problem>` line each on standard error (status 1).
 
 use crate::campaign_write::{
-    assigned_cells, assignments_of, dict_of, py, get_text, list_of, lockset_observable, lockset_provenance_reason, py_repr,
-    read_declaration, text_of, tuple_repr, Ctx, Sinks, FILL,
+    assigned_cells, assignments_of, cell_serving_config, dict_of, py, get_text, list_of, lockset_observable,
+    lockset_provenance_reason, py_repr, read_declaration, text_of, tuple_repr, Ctx, Sinks, FILL,
 };
 use crate::pyjson;
+use crate::pystr::PyStr;
 use crate::pyvalue::{PyDict, PyValue};
 use std::path::{Path, PathBuf};
 
@@ -606,13 +607,84 @@ fn retired_hint_key_reasons(doc: &PyDict) -> Vec<String> {
     if let Some(items) = doc.get("hint_targets").and_then(list_of) {
         for (i, t) in items.iter().enumerate() {
             if dict_of(t).map(|d| d.contains_key("arch")).unwrap_or(false) {
+                // plan_26111708 B L8: the remedy names the live `campaign_init.sh` launcher.
                 out.push(format!(
-                    "hint_targets[{i}].arch 는 폐기된 키다 — 태그 이름은 발행 도구가 전량 파생한다(2026-09-21 D8) — 손으로 적은 arch 는 '파생 가능한데 손으로 적은 값'이다. 키를 지우고 승인은 `campaign_init.py --hint-approve` 로 적는다"
+                    "hint_targets[{i}].arch 는 폐기된 키다 — 태그 이름은 발행 도구가 전량 파생한다(2026-09-21 D8) — 손으로 적은 arch 는 '파생 가능한데 손으로 적은 값'이다. 키를 지우고 승인은 `campaign_init.sh --hint-approve` 로 적는다"
                 ));
             }
         }
     }
     out
+}
+
+/// The cell id ↔ serving config binding of one observable assigned cell (`None` = it holds). plan_26111708 B L11: a cell id
+/// IS its serving config name — the template says `serving.config_name = cell_id`, `--cell-materialize` reads
+/// `output/<topo>/configs/<cell>.yaml` and the hint gate binds by that name — so there is no mapping to declare; the
+/// declaration step (`--assign-set` through this validator, and `--campaign`/`--instance`) refuses what materialize would
+/// only find later (P3: `solar2-250b-nv4-tp2` declared for the triplet `solar032-nv4-safe-tp2`).
+/// ① a cell input that declares another `serving.config_name` breaks the binding (named, with the expected name);
+/// ② a cell of the declaring instance needs something that already carries its name — the serving config (the materialize
+///    input) or its own cell input (the explorer input, which names the triplet it generates). Asked only when
+///    `absent_is_problem`: an absence is undecided, not a contradiction (workflow.md §캠페인 — only three places block
+///    progress; other gaps are recorded and the run proceeds), so `--assign-set` reports it and goes on, and only the strict
+///    validator counts it (where it replaces the bare "입력이 없다" line). A sub instance gets its
+///    assignment from the main before its triplets can exist (`--slice-update` · reslice), so ② is not asked there: the
+///    main cannot observe the sub's configs and the sub's own `--cell-materialize` names the expected file.
+pub(crate) fn config_binding_problem(
+    ctx: &Ctx,
+    doc: &PyDict,
+    node: &str,
+    cell: &str,
+    cfg: &Path,
+    absent_is_problem: bool,
+) -> Option<String> {
+    let (_, serving) = match cell_serving_config(ctx, doc, node, cell) {
+        Ok(found) => found,
+        Err(reason) => return Some(format!("셀 {} 의 서빙 config 자리를 정하지 못했다 — {reason}", py_repr(cell))),
+    };
+    let expected = ctx.rel(&serving);
+    if cfg.is_file() {
+        let loaded = std::fs::read(cfg)
+            .ok()
+            .and_then(|b| String::from_utf8(b).ok())
+            .map(|text| crate::pyyaml::safe_load_text(&PyStr::new(&text), 0));
+        let Some(Ok(doc)) = loaded else {
+            // A gate does not guess past an unreadable input (no silent fallback): the binding is undecided, say so.
+            return Some(format!(
+                "셀 {} 의 입력 {} 을 읽지 못했다 — serving.config_name 과 셀 id 의 결속을 판정할 수 없다",
+                py_repr(cell),
+                ctx.rel(cfg)
+            ));
+        };
+        let declared = dict_of(&doc)
+            .and_then(|d| d.get("serving"))
+            .and_then(dict_of)
+            .and_then(|s| s.get("config_name"))
+            .and_then(text_of)
+            .filter(|name| !name.is_empty() && name != FILL);
+        return match declared {
+            Some(name) if name != cell => Some(format!(
+                "셀 {} 의 입력 {} 이 serving.config_name={} 을 선언한다 — 셀 id = config 이름이다(이름이 곧 증거 연결): 기대 config 이름 {} ({}). config {} 를 쓰려면 셀 id 를 {} 로 선언한다",
+                py_repr(cell),
+                ctx.rel(cfg),
+                py_repr(&name),
+                py_repr(cell),
+                expected,
+                py_repr(&name),
+                py_repr(&name)
+            )),
+            _ => None,
+        };
+    }
+    if !absent_is_problem || get_text(doc, "self_role").as_deref() == Some("sub") || serving.is_file() {
+        return None;
+    }
+    Some(format!(
+        "셀 {} 을 결속할 config 가 없다 — 셀 id = config 이름이다(이름이 곧 증거 연결): 기대 서빙 config {} 도 셀 입력 {} 도 없다. 기존 트리플렛을 쓰려면 셀 id 를 그 config 이름으로 선언하고, 새로 만들면 이 이름으로 트리플렛(또는 셀 입력)을 먼저 저작한다",
+        py_repr(cell),
+        expected,
+        ctx.rel(cfg)
+    ))
 }
 
 fn name_of(path: &Path) -> String {
@@ -749,6 +821,14 @@ pub fn validate_campaign(ctx: &Ctx, campaign_path: &Path, strict_paths: bool) ->
             let cfg = cells_dir.join(&cell).join("config.yaml");
             if !lockset_observable(&doc, Some(node)) {
                 continue;
+            }
+            // plan_26111708 B L11: the cell id ↔ serving config binding is a declaration fact, not a materialize-time surprise.
+            if let Some(problem) = config_binding_problem(ctx, &doc, node, &cell, &cfg, strict_paths) {
+                problems.push(problem);
+                if !cfg.is_file() {
+                    // The binding sentence names both missing pieces; the bare "입력이 없다" line would only repeat it.
+                    continue;
+                }
             }
             if strict_paths && !cfg.is_file() {
                 problems.push(format!("배정된 셀 {} 입력이 없다: {}", py_repr(&cell), ctx.rel(&cfg)));
@@ -1153,8 +1233,9 @@ pub fn hint_target_reasons(doc: &PyDict) -> Vec<String> {
         for (i, target) in items.iter().enumerate() {
             if let Some(t) = dict_of(target) {
                 if t.contains_key("arch") {
+                    // plan_26111708 B L8: the remedy names the live `campaign_init.sh` launcher.
                     problems.push(format!(
-                        "hint_targets[{i}].arch 는 폐기된 키다 — 태그 이름은 발행 도구가 전량 파생한다(2026-09-21 D8) — 손으로 적은 arch 는 '파생 가능한데 손으로 적은 값'이다. 키를 지우고 승인은 `campaign_init.py --hint-approve` 로 적는다"
+                        "hint_targets[{i}].arch 는 폐기된 키다 — 태그 이름은 발행 도구가 전량 파생한다(2026-09-21 D8) — 손으로 적은 arch 는 '파생 가능한데 손으로 적은 값'이다. 키를 지우고 승인은 `campaign_init.sh --hint-approve` 로 적는다"
                     ));
                 }
             }

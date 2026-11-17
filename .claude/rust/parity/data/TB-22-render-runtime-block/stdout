@@ -14,7 +14,7 @@
    + .claude/skills/vllm-recipe-explorer/ (160 tracked files)
    + .agents/skills/vllm-recipe-explorer/SKILL.md
    + .claude/skills/vllm-recipe-explorer/feedback/.gitkeep
-   + .claude/skills/adversarial-benchmark/ (298 tracked files)
+   + .claude/skills/adversarial-benchmark/ (280 tracked files)
    + .agents/skills/adversarial-benchmark/SKILL.md
    + .claude/skills/upstream-version-watch/ (254 tracked files · 메인전용 17건 제외)
    + .agents/skills/upstream-version-watch/SKILL.md

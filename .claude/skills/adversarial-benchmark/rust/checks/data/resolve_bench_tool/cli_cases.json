@@ -167,7 +167,7 @@
    "BENCH_TOOL_FIXTURE_RC": "0"
   },
   "fixture_path": ".fixture-bin",
-  "stderr": "[resolve_bench_tool] NOTE ghcr.io/vllm-project/guidellm:v0.7.3 의 로컬 digest(sha256:a)가 기록(sha256:e3ad2371bfa8e42f2c3d1251b62d0d9c9706c27ae2143c8c048eb5fc6aebb558)과 다르다. 막지 않는다 — 실제로 돈 digest 를 결과·리포트에 적는다(측정 provenance). 기록을 갱신하려면 resolve_guidellm.py --record 를 쓴다.\n"
+  "stderr": "[resolve_bench_tool] NOTE ghcr.io/vllm-project/guidellm:v0.7.3 의 로컬 digest(sha256:a)가 기록(sha256:e3ad2371bfa8e42f2c3d1251b62d0d9c9706c27ae2143c8c048eb5fc6aebb558)과 다르다. 막지 않는다 — 실제로 돈 digest 를 결과·리포트에 적는다(측정 provenance). 기록을 갱신하려면 resolve_guidellm.sh --record 를 쓴다.\n"
  },
  {
   "id": "004-pin-missing-arg",
@@ -401,7 +401,7 @@
    "BENCH_TOOL_FIXTURE_RC": "0"
   },
   "fixture_path": ".fixture-bin",
-  "stderr": "[resolve_bench_tool] NOTE fixture/image:0.7.3 의 로컬 digest(sha256:z)가 기록(sha256:a)과 다르다. 막지 않는다 — 실제로 돈 digest 를 결과·리포트에 적는다(측정 provenance). 기록을 갱신하려면 resolve_guidellm.py --record 를 쓴다.\n"
+  "stderr": "[resolve_bench_tool] NOTE fixture/image:0.7.3 의 로컬 digest(sha256:z)가 기록(sha256:a)과 다르다. 막지 않는다 — 실제로 돈 digest 를 결과·리포트에 적는다(측정 provenance). 기록을 갱신하려면 resolve_guidellm.sh --record 를 쓴다.\n"
  },
  {
   "id": "009-tag-only",
@@ -449,7 +449,7 @@
    "BENCH_TOOL_FIXTURE_RC": "0"
   },
   "fixture_path": ".fixture-bin",
-  "stderr": "[resolve_bench_tool] NOTE fixture/image:0.7.3 의 로컬 digest(None)가 기록(sha256:a)과 다르다. 막지 않는다 — 실제로 돈 digest 를 결과·리포트에 적는다(측정 provenance). 기록을 갱신하려면 resolve_guidellm.py --record 를 쓴다.\n"
+  "stderr": "[resolve_bench_tool] NOTE fixture/image:0.7.3 의 로컬 digest(None)가 기록(sha256:a)과 다르다. 막지 않는다 — 실제로 돈 digest 를 결과·리포트에 적는다(측정 provenance). 기록을 갱신하려면 resolve_guidellm.sh --record 를 쓴다.\n"
  },
  {
   "id": "010-empty-list",
@@ -497,7 +497,7 @@
    "BENCH_TOOL_FIXTURE_RC": "0"
   },
   "fixture_path": ".fixture-bin",
-  "stderr": "[resolve_bench_tool] NOTE fixture/image:0.7.3 의 로컬 digest(None)가 기록(sha256:a)과 다르다. 막지 않는다 — 실제로 돈 digest 를 결과·리포트에 적는다(측정 provenance). 기록을 갱신하려면 resolve_guidellm.py --record 를 쓴다.\n"
+  "stderr": "[resolve_bench_tool] NOTE fixture/image:0.7.3 의 로컬 digest(None)가 기록(sha256:a)과 다르다. 막지 않는다 — 실제로 돈 digest 를 결과·리포트에 적는다(측정 provenance). 기록을 갱신하려면 resolve_guidellm.sh --record 를 쓴다.\n"
  },
  {
   "id": "011-null",
@@ -977,7 +977,7 @@
    "BENCH_TOOL_FIXTURE_RC": "0"
   },
   "fixture_path": ".fixture-bin",
-  "stderr": "[resolve_bench_tool] NOTE fixture/image:0.7.3 의 로컬 digest(sha256:z)가 기록(sha256:a)과 다르다. 막지 않는다 — 실제로 돈 digest 를 결과·리포트에 적는다(측정 provenance). 기록을 갱신하려면 resolve_guidellm.py --record 를 쓴다.\n"
+  "stderr": "[resolve_bench_tool] NOTE fixture/image:0.7.3 의 로컬 digest(sha256:z)가 기록(sha256:a)과 다르다. 막지 않는다 — 실제로 돈 digest 를 결과·리포트에 적는다(측정 provenance). 기록을 갱신하려면 resolve_guidellm.sh --record 를 쓴다.\n"
  },
  {
   "id": "021-plain-absent",
@@ -1533,7 +1533,7 @@
    "BENCH_TOOL_FIXTURE_RC": "0"
   },
   "fixture_path": ".fixture-bin",
-  "stderr": "[resolve_bench_tool] ERROR 기록 guidellm.versions 가 비었다 — 스테이징한 버전이 없다(resolve_guidellm.py --record 로 먼저 해소·스테이징하라)\n"
+  "stderr": "[resolve_bench_tool] ERROR 기록 guidellm.versions 가 비었다 — 스테이징한 버전이 없다(resolve_guidellm.sh --record 로 먼저 해소·스테이징하라)\n"
  },
  {
   "id": "033-doc-empty-versions",
@@ -1577,7 +1577,7 @@
    "BENCH_TOOL_FIXTURE_RC": "0"
   },
   "fixture_path": ".fixture-bin",
-  "stderr": "[resolve_bench_tool] ERROR 기록 guidellm.versions 가 비었다 — 스테이징한 버전이 없다(resolve_guidellm.py --record 로 먼저 해소·스테이징하라)\n"
+  "stderr": "[resolve_bench_tool] ERROR 기록 guidellm.versions 가 비었다 — 스테이징한 버전이 없다(resolve_guidellm.sh --record 로 먼저 해소·스테이징하라)\n"
  },
  {
   "id": "034-row-empty-image",
@@ -1757,7 +1757,7 @@
    "BENCH_TOOL_FIXTURE_RC": "0"
   },
   "fixture_path": ".fixture-bin",
-  "stderr": "[resolve_bench_tool] NOTE fixture/image:0.7.3 의 로컬 digest(sha256:a)가 기록(None)과 다르다. 막지 않는다 — 실제로 돈 digest 를 결과·리포트에 적는다(측정 provenance). 기록을 갱신하려면 resolve_guidellm.py --record 를 쓴다.\n"
+  "stderr": "[resolve_bench_tool] NOTE fixture/image:0.7.3 의 로컬 digest(sha256:a)가 기록(None)과 다르다. 막지 않는다 — 실제로 돈 digest 를 결과·리포트에 적는다(측정 provenance). 기록을 갱신하려면 resolve_guidellm.sh --record 를 쓴다.\n"
  },
  {
   "id": "038-row-empty-platforms",

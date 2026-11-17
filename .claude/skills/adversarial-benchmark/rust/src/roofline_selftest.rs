@@ -346,6 +346,28 @@ pub fn run_self_test() -> SelfTestReport {
         }),
     );
 
+    // R10 (plan_26111708 B L9): an omni/VL config that nests the language model as `llm_config` is MoE through the config
+    // owner's resolver — active bytes are the R1 MoE figure (2150), not the full weights; two candidates are refused.
+    let nested_dir = sparse_model(&scratch, "nested-llm-config", false);
+    std::fs::write(
+        nested_dir.join("config.json"),
+        "{\"architectures\": [\"X\"], \"llm_config\": {\"hidden_size\": 64, \"num_hidden_layers\": 2, \"n_routed_experts\": 8, \"num_experts_per_tok\": 2}}",
+    )
+    .expect("config");
+    let nested = run(&options(&nested_dir));
+    let ambiguous_dir = dense_model(&scratch, "ambiguous-text-config", None);
+    std::fs::write(
+        ambiguous_dir.join("config.json"),
+        "{\"text_config\": {\"hidden_size\": 64, \"num_hidden_layers\": 2}, \"decoder\": {\"hidden_size\": 64, \"num_hidden_layers\": 2}}",
+    )
+    .expect("config");
+    check(
+        "R10 중첩 llm_config 의 MoE 를 감지한다(active 2150 · 전체 가중치 아님) · text config 후보 둘은 모호로 멈춘다",
+        nested.result.as_ref().ok().is_some_and(|r| {
+            matches!(r.get("is_moe"), Some(PyValue::Bool(true))) && number(r, "active_bytes") == Some(2150.0)
+        }) && matches!(run(&options(&ambiguous_dir)).result, Err(Stop::Die(_))),
+    );
+
     // R9: a missing model is refused, never guessed.
     let missing = RooflineOptions::new(path_text(&scratch.0.join("no-such-model")));
     check(

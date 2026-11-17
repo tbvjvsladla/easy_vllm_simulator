@@ -1,11 +1,11 @@
 //! The launch record's PII substitution and deploy scan: the part of `hintlib/pii.py` that `native_multinode_serve.py::_write_launch` uses
 //! (`substitution_table`, `substitute`, `scan_text(profile="deploy")`, `load_pii_terms`) and `launch_substitution_table`. Only these functions are
-//! ported (the rest of hintlib stays Python). The four generic patterns run on the Python-`re` engine of this crate, so spans match `re`.
+//! ported. The four generic patterns are the canonical ones of `hintlib::pii` (docs.md §PII 정본 · plan_26111708 A5 — one owner, no copy);
+//! their spans are converted from byte offsets to code points.
 //! Known narrowing: manifest dict keys that are not strings are skipped (a YAML manifest does not carry such keys).
 
 use super::*;
-use crate::py_regex_engine::{compile, CompiledPattern, PatternSource};
-use std::sync::OnceLock;
+use hintlib::pii::{generic_pii, GENERIC_PII_NAMES};
 
 pub const PH_REPO: &str = "<repo>";
 pub const PH_HOME: &str = "<home>";
@@ -16,16 +16,6 @@ pub const PH_REDACTED: &str = "<redacted>";
 pub const PH_RUN_ROOT_BASE: &str = "<campaign.native_run_root_base>";
 pub const REL_PII_TERMS: &str = ".claude/pii_terms.txt";
 
-/// `GENERIC_PII` in the dict order of `pii.py`.
-const GENERIC: [(&str, &str); 4] = [
-    (
-        "private-ipv4",
-        r"\b(?:192\.168\.|10\.\d{1,3}\.|172\.(?:1[6-9]|2\d|3[01])\.)\d{1,3}\.\d{1,3}|(?<!==)\b(?:192\.168\.|10\.\d{1,3}\.|172\.(?:1[6-9]|2\d|3[01])\.)\d{1,3}",
-    ),
-    ("email", r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"),
-    ("abs-op-path", r"/(?:mnt|home)/[A-Za-z0-9._/-]+"),
-    ("spark-host", r"spark-[0-9a-f]{3,}"),
-];
 const RESIDUAL: [(&str, &str); 4] = [("private-ipv4", PH_PRIV_IP), ("email", PH_REDACTED), ("abs-op-path", PH_ABS_PATH), ("spark-host", PH_HOST)];
 const NIC_KEY_TOKENS: [&str; 10] = ["iface", "ifaces", "ifname", "interface", "interfaces", "nic", "nics", "netdev", "hca", "hcas"];
 const NIC_LABEL_SHARED: &str = "cluster";
@@ -50,33 +40,22 @@ fn prio_name(p: u8) -> &'static str {
     }
 }
 
-fn patterns() -> R<&'static Vec<CompiledPattern>> {
-    static P: OnceLock<Result<Vec<CompiledPattern>, String>> = OnceLock::new();
-    let r = P.get_or_init(|| {
-        let mut v = Vec::new();
-        for (name, src) in GENERIC {
-            match compile(PatternSource::Text(&PyStr::new(src))) {
-                Ok(p) => v.push(p),
-                Err(e) => return Err(format!("PII 패턴 {name} 컴파일 불가: {e:?}")),
-            }
-        }
-        Ok(v)
-    });
-    match r {
-        Ok(v) => Ok(v),
-        Err(m) => serve(m.clone()),
-    }
-}
-
-/// Spans (code points) of generic pattern `idx` in `text`.
+/// Spans (code points) of generic pattern `idx` (`GENERIC_PII_NAMES` order) in `text`. An engine error fails loudly.
 fn spans(idx: usize, text: &[char]) -> R<Vec<(usize, usize)>> {
+    let name = GENERIC_PII_NAMES[idx];
+    let Some(re) = generic_pii(name) else {
+        return serve(format!("PII 패턴 {name} 이 정본에 없다"));
+    };
     let s: String = text.iter().collect();
-    let mut it = patterns()?[idx].finditer_text(&PyStr::new(&s)).map_err(|e| Err::Serve(format!("PII 스캔 불가: {e:?}")))?;
-    let mut out = Vec::new();
-    while let Some(sp) = it.next_span().map_err(|e| Err::Serve(format!("PII 스캔 불가: {e:?}")))? {
-        out.push(sp);
+    let bytes = re.try_find_spans(&s).map_err(|e| Err::Serve(format!("PII 스캔 불가: {e}")))?;
+    // byte offset -> code point index (the offsets fall on char boundaries)
+    let mut at = Vec::with_capacity(text.len() + 1);
+    for (b, _) in s.char_indices() {
+        at.push(b);
     }
-    Ok(out)
+    at.push(s.len());
+    let cp = |b: usize| at.partition_point(|&x| x < b);
+    Ok(bytes.into_iter().map(|(start, end)| (cp(start), cp(end))).collect())
 }
 
 fn is_py_space(c: char) -> bool {
@@ -172,7 +151,7 @@ pub fn scan_deploy(text: &str, terms: Option<&[String]>) -> R<Vec<(String, Strin
         }
     }
     let base = lits.len();
-    for (idx, (name, _)) in GENERIC.iter().enumerate() {
+    for (idx, name) in GENERIC_PII_NAMES.iter().enumerate() {
         for (s, e) in spans(idx, &chars)? {
             if *name == "private-ipv4" && section_anchored(&chars, s) {
                 continue;
@@ -191,22 +170,14 @@ fn is_ipv4(v: &str) -> bool {
     p.len() == 4 && p.iter().all(|o| (1..=3).contains(&o.len()) && o.bytes().all(|b| b.is_ascii_digit()) && o.parse::<u32>().is_ok_and(|n| n <= 255))
 }
 
-/// `GENERIC_PII["private-ipv4"].fullmatch(v)` for a string that is already a dotted quad.
+/// `GENERIC_PII["private-ipv4"].fullmatch(v)` for a string that is already a dotted quad (the canonical pattern, not a hand copy).
 fn is_private_ipv4(v: &str) -> bool {
-    let p: Vec<&str> = v.split('.').collect();
-    if p.len() != 4 {
-        return false;
-    }
-    match p[0] {
-        "192" => p[1] == "168",
-        "10" => true,
-        "172" => matches!(p[1], "16" | "17" | "18" | "19" | "20" | "21" | "22" | "23" | "24" | "25" | "26" | "27" | "28" | "29" | "30" | "31"),
-        _ => false,
-    }
+    generic_pii("private-ipv4").is_some_and(|re| re.is_full(v))
 }
 
+/// `GENERIC_PII["spark-host"].fullmatch(v)` (the canonical pattern).
 fn is_spark_host(v: &str) -> bool {
-    v.strip_prefix("spark-").is_some_and(|r| r.chars().count() >= 3 && r.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f')))
+    generic_pii("spark-host").is_some_and(|re| re.is_full(v))
 }
 
 fn is_host_key(key: &str) -> bool {

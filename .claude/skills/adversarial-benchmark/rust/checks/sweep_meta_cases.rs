@@ -1390,7 +1390,7 @@ fn a_manifest_without_the_gpu_model_ends_with_status_two_and_the_original_messag
     assert_eq!(
         stderr_text(&produced),
         format!(
-            "[sweep_bench] FAIL: manifest({}) 에 gpu_model 이 없다 — 인증서 강한 키 gpu 를 NA 로 발행하지 않는다. terraforming_node 스캔(서브면 scan_node.py --emit-sub-manifest)으로 채워라.\n",
+            "[sweep_bench] FAIL: manifest({}) 에 gpu_model 이 없다 — 인증서 강한 키 gpu 를 NA 로 발행하지 않는다. terraforming_node 스캔(서브면 scan_node.sh --emit-sub-manifest)으로 채워라.\n",
             cell.path("manifest.yaml")
         )
     );

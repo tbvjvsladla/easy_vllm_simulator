@@ -12,13 +12,14 @@ bash scripts/recipe.sh simulate --config config.yaml --candidate lockset.json \
   --dry-run --mock-profile mock.json --run-id 2026062122_1_qwen_sim --cap 3
 
 # 실서빙(컨테이너 띄움): NAS 모델 존재 전제. 각인한 lockset 을 남길 자리를 --lockset-out 으로 준다.
+#   --image 는 필수다(기본값 없음 · 미지정이면 exit 2 — plan_26111708 B L1): 셀 env 의 IMAGE_TAG 또는 로컬 보유 이미지.
 bash scripts/recipe.sh simulate --config config.yaml --candidate lockset.json --lockset-out lockset.json \
-  --image vllm-src-022:clean --topic qwen36-27b --cap 3
+  --image <IMAGE_TAG> --topic qwen36-27b --cap 3
 
 # 캠페인 셀: 자리를 파생하고(campaign_init.py --derive config|lockset --cell <id>) 셀 lockset 을 --candidate 로 주면
 #   --lockset-out 을 생략해도 수렴 각인(provenance=explorer-phase2 · *_source · trial_provenance)이 그 파일에 쓰인다.
 bash scripts/recipe.sh simulate --config "$(bash .claude/skills/terraforming_node/scripts/campaign_init.sh --derive config --cell <id>)" \
-  --candidate "$(bash .claude/skills/terraforming_node/scripts/campaign_init.sh --derive lockset --cell <id>)" --topic <id> --cap 3
+  --candidate "$(bash .claude/skills/terraforming_node/scripts/campaign_init.sh --derive lockset --cell <id>)" --image <IMAGE_TAG> --topic <id> --cap 3
 ```
 
 루프(cap 기본 3 = reconciliation_cap, workflow S3 와 동일):

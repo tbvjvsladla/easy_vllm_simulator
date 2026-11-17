@@ -154,6 +154,8 @@ pub const FUNCTIONS: &[Function] = &[
             optional("topology", single),
             optional("vllm_version", none),
             optional("build_dockerfile", none),
+            // plan_26111708 B L10: the source track's version identity (after the original's parameters).
+            optional("vllm_ref", none),
         ],
         rest: false,
         body: |c, _, stderr| {
@@ -165,6 +167,7 @@ pub const FUNCTIONS: &[Function] = &[
                 topology: &c[4],
                 vllm_version: &c[5],
                 build_dockerfile: &c[6],
+                vllm_ref: &c[7],
             };
             recipe_set::build_env(&settings, stderr).map(PyValue::Str)
         },
@@ -184,6 +187,8 @@ pub const FUNCTIONS: &[Function] = &[
             optional("vllm_version", none),
             optional("build_dockerfile", none),
             optional("image", none),
+            // plan_26111708 B L10: the source track's version identity (after the original's parameters).
+            optional("vllm_ref", none),
         ],
         rest: false,
         body: |c, _, stderr| {
@@ -199,6 +204,7 @@ pub const FUNCTIONS: &[Function] = &[
                 vllm_version: &c[8],
                 build_dockerfile: &c[9],
                 image: &c[10],
+                vllm_ref: &c[11],
             };
             recipe_set::generate(&request, stderr).map(texts)
         },

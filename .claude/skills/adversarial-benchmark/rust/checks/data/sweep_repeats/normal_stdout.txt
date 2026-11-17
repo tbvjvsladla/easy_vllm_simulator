@@ -73,4 +73,9 @@
   [PASS] M1★ --reassemble-only 에 선언된 허용오차 15s·출처 → 판정 기록에 실린다 · 창 끝+10s 서브 사살 → lite · blackbox_kill
   [PASS] M2★ broad_search multi --serve-failed 가 선언된 허용오차를 셀 종결 분류에 넘긴다(구간 시작 10s 전 서브 사살 → 사인 = 이벤트)
   [PASS] M2★ 음성대조: 같은 사실에 허용오차 선언 없음 → 사인 null · not-scanned(창을 넓히지 않는다 · 낡은 미러는 not_covered)
-[selftest_sweep_repeats] PASS — N1~N8 · P1~P3 · R1 · G(lite 게이트 5) · F1~F8 · V1 · A1~A4 · B1~B8 · O1~O6 · M1~M2 · R★(실패주입·음성대조 포함)
+  [PASS] C1 sweep_bench --campaign-cell → 캠페인 sweeps/ 에 셀 기록(measured · sweep_dir · 선언 없는 칸은 null 과 출처)
+  [PASS] C1 --cell-set --sweep-state 가 그 기록을 받는다(측정값·출력 경로가 손 없이 셀 상태로)
+  [PASS] C2★ 음성대조: ACTIVE=_bootstrap 이면 sweep 기록을 쓰지 않는다(writer no-op · 측정은 그대로)
+  [PASS] C3★ 판정점 측정 실패 rc → 셀 기록 measurement_void(분류기 판정 · 출력 경로 없음) · bench phase failed
+  [PASS] C4 multi 도 같은 자리(campaigns/ACTIVE 파생)에 기록하고 --cell-set 이 받는다(--sweep-dir 명시 경로)
+[selftest_sweep_repeats] PASS — N1~N8 · P1~P3 · R1 · G(lite 게이트 5) · F1~F8 · V1 · A1~A4 · B1~B8 · O1~O6 · M1~M2 · C1~C4 · R★(실패주입·음성대조 포함)

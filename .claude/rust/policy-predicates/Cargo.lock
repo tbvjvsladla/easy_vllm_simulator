@@ -322,6 +322,7 @@ version = "0.1.0"
 dependencies = [
  "agent-runtime-support",
  "fancy-regex",
+ "hint-publisher",
 ]
 
 [[package]]
@@ -617,6 +618,7 @@ dependencies = [
  "openssl-probe",
  "policy-gate",
  "policy-publisher",
+ "recipe-runtime",
  "ring",
  "role-contract",
  "rustix",
@@ -672,6 +674,7 @@ dependencies = [
  "agent-runtime-support",
  "crc32fast",
  "fancy-regex",
+ "hint-publisher",
  "libc",
  "miniz_oxide",
  "num-bigint",

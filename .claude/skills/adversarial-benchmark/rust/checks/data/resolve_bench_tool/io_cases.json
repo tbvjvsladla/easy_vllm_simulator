@@ -510,7 +510,7 @@
   "expected": {
    "kind": "exception",
    "type": "PinError",
-   "message": "기록 guidellm.versions 가 비었다 — 스테이징한 버전이 없다(resolve_guidellm.py --record 로 먼저 해소·스테이징하라)"
+   "message": "기록 guidellm.versions 가 비었다 — 스테이징한 버전이 없다(resolve_guidellm.sh --record 로 먼저 해소·스테이징하라)"
   }
  },
  {
@@ -536,7 +536,7 @@
   "expected": {
    "kind": "exception",
    "type": "PinError",
-   "message": "기록 guidellm.versions 가 비었다 — 스테이징한 버전이 없다(resolve_guidellm.py --record 로 먼저 해소·스테이징하라)"
+   "message": "기록 guidellm.versions 가 비었다 — 스테이징한 버전이 없다(resolve_guidellm.sh --record 로 먼저 해소·스테이징하라)"
   }
  },
  {

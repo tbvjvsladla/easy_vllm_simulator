@@ -2,8 +2,8 @@
 //! packages need, as plain typed data and functions. Nothing here knows a skill, a node, a topology or a serving rule,
 //! starts a process, opens a network connection or reads a credential; the YAML reader takes the bytes its caller read.
 //!
-//! The owner packages re-export these modules under their old paths (`pystr`, `pyvalue`, ...) so that no business type
-//! path changed and every type stays one nominal type.
+//! Owner packages use these modules by their paths here; the benchmark owner (`sweep-stop`) re-exports them under its old paths
+//! (`sweep_stop::pystr`, `sweep_stop::pyvalue`, ...; plan_26111708 A2), so every type stays one nominal type.
 
 pub mod failure;
 pub mod pycall;
