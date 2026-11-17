@@ -18261,6 +18261,797 @@
           "provenance": "agent-judged"
         }
       ]
+    },
+    {
+      "entry_id": "sync-202611170252-single-to-multi-stage0-l1l12",
+      "utc": "2026-11-17T02:52:41Z",
+      "departure": "single-node",
+      "departure_commit": "817d2ef1a36b562b01e3bf7728d0e28f9d207783",
+      "approved_by": "AhnSangHun: 종료 시퀀스 ③ 승인 팝업 \"승인\" (2026-11-17T02:53:11Z)",
+      "approved_utc": "2026-11-17T02:53:11Z",
+      "_reach": "multi-node vs HEAD 트리차이 · 동기 지점 0ef14bdae402(departure-landed)",
+      "classification": [
+        {
+          "file": ".claude/rust/parity/data/HP-cli-continue-campaign-conflict/stderr",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/parity/data/HP-evidence-e4-campaign/stdout",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/parity/data/TB-22-render-runtime-block/stdout",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 A 흉내층 0단계(bench py* 포크 → agent-runtime-support 재노출 · PII 패턴 정본 단일화 · 무호출 파서 삭제 · 낡은 주장 정정) — 하네스 crate·스킬·parity 골든은 공통층(두 토폴로지가 같은 바이트를 빌드·검사)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/parity/data/TC-CI-grounding-check/stderr",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/Cargo.lock",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 A 흉내층 0단계(bench py* 포크 → agent-runtime-support 재노출 · PII 패턴 정본 단일화 · 무호출 파서 삭제 · 낡은 주장 정정) — 하네스 crate·스킬·parity 골든은 공통층(두 토폴로지가 같은 바이트를 빌드·검사)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-distribution/Cargo.lock",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 A 흉내층 0단계(bench py* 포크 → agent-runtime-support 재노출 · PII 패턴 정본 단일화 · 무호출 파서 삭제 · 낡은 주장 정정) — 하네스 crate·스킬·parity 골든은 공통층(두 토폴로지가 같은 바이트를 빌드·검사)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-distribution/Cargo.toml",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 A 흉내층 0단계(bench py* 포크 → agent-runtime-support 재노출 · PII 패턴 정본 단일화 · 무호출 파서 삭제 · 낡은 주장 정정) — 하네스 crate·스킬·parity 골든은 공통층(두 토폴로지가 같은 바이트를 빌드·검사)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-distribution/src/checks.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 A 흉내층 0단계(bench py* 포크 → agent-runtime-support 재노출 · PII 패턴 정본 단일화 · 무호출 파서 삭제 · 낡은 주장 정정) — 하네스 crate·스킬·parity 골든은 공통층(두 토폴로지가 같은 바이트를 빌드·검사)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-predicates/Cargo.lock",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 A 흉내층 0단계(bench py* 포크 → agent-runtime-support 재노출 · PII 패턴 정본 단일화 · 무호출 파서 삭제 · 낡은 주장 정정) — 하네스 crate·스킬·parity 골든은 공통층(두 토폴로지가 같은 바이트를 빌드·검사)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-predicates/src/lib.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 A 흉내층 0단계(bench py* 포크 → agent-runtime-support 재노출 · PII 패턴 정본 단일화 · 무호출 파서 삭제 · 낡은 주장 정정) — 하네스 crate·스킬·parity 골든은 공통층(두 토폴로지가 같은 바이트를 빌드·검사)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-predicates/src/pyast.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 A 흉내층 0단계(bench py* 포크 → agent-runtime-support 재노출 · PII 패턴 정본 단일화 · 무호출 파서 삭제 · 낡은 주장 정정) — 하네스 crate·스킬·parity 골든은 공통층(두 토폴로지가 같은 바이트를 빌드·검사)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-predicates/src/support.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 A 흉내층 0단계(bench py* 포크 → agent-runtime-support 재노출 · PII 패턴 정본 단일화 · 무호출 파서 삭제 · 낡은 주장 정정) — 하네스 crate·스킬·parity 골든은 공통층(두 토폴로지가 같은 바이트를 빌드·검사)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-selftest/Cargo.lock",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 A 흉내층 0단계(bench py* 포크 → agent-runtime-support 재노출 · PII 패턴 정본 단일화 · 무호출 파서 삭제 · 낡은 주장 정정) — 하네스 crate·스킬·parity 골든은 공통층(두 토폴로지가 같은 바이트를 빌드·검사)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/role-contract/checks/identity_checks.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/role-contract/src/identity.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/runtime-support/README.md",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 A 흉내층 0단계(bench py* 포크 → agent-runtime-support 재노출 · PII 패턴 정본 단일화 · 무호출 파서 삭제 · 낡은 주장 정정) — 하네스 crate·스킬·parity 골든은 공통층(두 토폴로지가 같은 바이트를 빌드·검사)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/runtime-support/src/lib.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 A 흉내층 0단계(bench py* 포크 → agent-runtime-support 재노출 · PII 패턴 정본 단일화 · 무호출 파서 삭제 · 낡은 주장 정정) — 하네스 crate·스킬·parity 골든은 공통층(두 토폴로지가 같은 바이트를 빌드·검사)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/Cargo.lock",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/Cargo.toml",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/campaign_write_cases.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/resolve_bench_tool/cli_cases.json",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/resolve_bench_tool/io_cases.json",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/sweep_meta/gpu-model-absent/expect.json",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/sweep_repeats/normal_stdout.txt",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/guidellm_release_write_path.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 A 흉내층 0단계(bench py* 포크 → agent-runtime-support 재노출 · PII 패턴 정본 단일화 · 무호출 파서 삭제 · 낡은 주장 정정) — 하네스 crate·스킬·parity 골든은 공통층(두 토폴로지가 같은 바이트를 빌드·검사)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/sweep_meta_cases.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/sweep_repeats_cases.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/notices/NOTICE.md",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 A 흉내층 0단계(bench py* 포크 → agent-runtime-support 재노출 · PII 패턴 정본 단일화 · 무호출 파서 삭제 · 낡은 주장 정정) — 하네스 crate·스킬·parity 골든은 공통층(두 토폴로지가 같은 바이트를 빌드·검사)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/assemble_sweep_meta.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/bench_preset.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 A 흉내층 0단계(bench py* 포크 → agent-runtime-support 재노출 · PII 패턴 정본 단일화 · 무호출 파서 삭제 · 낡은 주장 정정) — 하네스 crate·스킬·parity 골든은 공통층(두 토폴로지가 같은 바이트를 빌드·검사)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/bench_shell.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/bench_shell/broad.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/bench_tool_cli.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/bench_tool_pin.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 A 흉내층 0단계(bench py* 포크 → agent-runtime-support 재노출 · PII 패턴 정본 단일화 · 무호출 파서 삭제 · 낡은 주장 정정) — 하네스 crate·스킬·parity 골든은 공통층(두 토폴로지가 같은 바이트를 빌드·검사)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/campaign_validator.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/campaign_write.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/guidellm.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 A 흉내층 0단계(bench py* 포크 → agent-runtime-support 재노출 · PII 패턴 정본 단일화 · 무호출 파서 삭제 · 낡은 주장 정정) — 하네스 crate·스킬·parity 골든은 공통층(두 토폴로지가 같은 바이트를 빌드·검사)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/lib.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 A 흉내층 0단계(bench py* 포크 → agent-runtime-support 재노출 · PII 패턴 정본 단일화 · 무호출 파서 삭제 · 낡은 주장 정정) — 하네스 crate·스킬·parity 골든은 공통층(두 토폴로지가 같은 바이트를 빌드·검사)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/pydyn.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 A 흉내층 0단계(bench py* 포크 → agent-runtime-support 재노출 · PII 패턴 정본 단일화 · 무호출 파서 삭제 · 낡은 주장 정정) — 하네스 crate·스킬·parity 골든은 공통층(두 토폴로지가 같은 바이트를 빌드·검사)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/pyformat.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 A 흉내층 0단계(bench py* 포크 → agent-runtime-support 재노출 · PII 패턴 정본 단일화 · 무호출 파서 삭제 · 낡은 주장 정정) — 하네스 crate·스킬·parity 골든은 공통층(두 토폴로지가 같은 바이트를 빌드·검사)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/pyjson.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 A 흉내층 0단계(bench py* 포크 → agent-runtime-support 재노출 · PII 패턴 정본 단일화 · 무호출 파서 삭제 · 낡은 주장 정정) — 하네스 crate·스킬·parity 골든은 공통층(두 토폴로지가 같은 바이트를 빌드·검사)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/pylower.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 A 흉내층 0단계(bench py* 포크 → agent-runtime-support 재노출 · PII 패턴 정본 단일화 · 무호출 파서 삭제 · 낡은 주장 정정) — 하네스 crate·스킬·parity 골든은 공통층(두 토폴로지가 같은 바이트를 빌드·검사)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/pynumber.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 A 흉내층 0단계(bench py* 포크 → agent-runtime-support 재노출 · PII 패턴 정본 단일화 · 무호출 파서 삭제 · 낡은 주장 정정) — 하네스 crate·스킬·parity 골든은 공통층(두 토폴로지가 같은 바이트를 빌드·검사)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/pyops.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 A 흉내층 0단계(bench py* 포크 → agent-runtime-support 재노출 · PII 패턴 정본 단일화 · 무호출 파서 삭제 · 낡은 주장 정정) — 하네스 crate·스킬·parity 골든은 공통층(두 토폴로지가 같은 바이트를 빌드·검사)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/pysort.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 A 흉내층 0단계(bench py* 포크 → agent-runtime-support 재노출 · PII 패턴 정본 단일화 · 무호출 파서 삭제 · 낡은 주장 정정) — 하네스 crate·스킬·parity 골든은 공통층(두 토폴로지가 같은 바이트를 빌드·검사)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/pystr.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 A 흉내층 0단계(bench py* 포크 → agent-runtime-support 재노출 · PII 패턴 정본 단일화 · 무호출 파서 삭제 · 낡은 주장 정정) — 하네스 crate·스킬·parity 골든은 공통층(두 토폴로지가 같은 바이트를 빌드·검사)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/pyvalue.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 A 흉내층 0단계(bench py* 포크 → agent-runtime-support 재노출 · PII 패턴 정본 단일화 · 무호출 파서 삭제 · 낡은 주장 정정) — 하네스 crate·스킬·parity 골든은 공통층(두 토폴로지가 같은 바이트를 빌드·검사)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/pyyaml/compose.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 A 흉내층 0단계(bench py* 포크 → agent-runtime-support 재노출 · PII 패턴 정본 단일화 · 무호출 파서 삭제 · 낡은 주장 정정) — 하네스 crate·스킬·parity 골든은 공통층(두 토폴로지가 같은 바이트를 빌드·검사)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/pyyaml/frames.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 A 흉내층 0단계(bench py* 포크 → agent-runtime-support 재노출 · PII 패턴 정본 단일화 · 무호출 파서 삭제 · 낡은 주장 정정) — 하네스 crate·스킬·parity 골든은 공통층(두 토폴로지가 같은 바이트를 빌드·검사)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/pyyaml/mod.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 A 흉내층 0단계(bench py* 포크 → agent-runtime-support 재노출 · PII 패턴 정본 단일화 · 무호출 파서 삭제 · 낡은 주장 정정) — 하네스 crate·스킬·parity 골든은 공통층(두 토폴로지가 같은 바이트를 빌드·검사)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/pyyaml/parser.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 A 흉내층 0단계(bench py* 포크 → agent-runtime-support 재노출 · PII 패턴 정본 단일화 · 무호출 파서 삭제 · 낡은 주장 정정) — 하네스 crate·스킬·parity 골든은 공통층(두 토폴로지가 같은 바이트를 빌드·검사)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/pyyaml/reader.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 A 흉내층 0단계(bench py* 포크 → agent-runtime-support 재노출 · PII 패턴 정본 단일화 · 무호출 파서 삭제 · 낡은 주장 정정) — 하네스 crate·스킬·parity 골든은 공통층(두 토폴로지가 같은 바이트를 빌드·검사)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/pyyaml/scanner.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 A 흉내층 0단계(bench py* 포크 → agent-runtime-support 재노출 · PII 패턴 정본 단일화 · 무호출 파서 삭제 · 낡은 주장 정정) — 하네스 crate·스킬·parity 골든은 공통층(두 토폴로지가 같은 바이트를 빌드·검사)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/role_bridge.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 A 흉내층 0단계(bench py* 포크 → agent-runtime-support 재노출 · PII 패턴 정본 단일화 · 무호출 파서 삭제 · 낡은 주장 정정) — 하네스 crate·스킬·parity 골든은 공통층(두 토폴로지가 같은 바이트를 빌드·검사)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/roofline.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/roofline_selftest.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/selftest_sweep_repeats.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/sweep_repeats_broad.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/unicode_alnum_table.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 A 흉내층 0단계(bench py* 포크 → agent-runtime-support 재노출 · PII 패턴 정본 단일화 · 무호출 파서 삭제 · 낡은 주장 정정) — 하네스 crate·스킬·parity 골든은 공통층(두 토폴로지가 같은 바이트를 빌드·검사)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/unicode_lower_table.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 A 흉내층 0단계(bench py* 포크 → agent-runtime-support 재노출 · PII 패턴 정본 단일화 · 무호출 파서 삭제 · 낡은 주장 정정) — 하네스 crate·스킬·parity 골든은 공통층(두 토폴로지가 같은 바이트를 빌드·검사)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/unicode_tables.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 A 흉내층 0단계(bench py* 포크 → agent-runtime-support 재노출 · PII 패턴 정본 단일화 · 무호출 파서 삭제 · 낡은 주장 정정) — 하네스 crate·스킬·parity 골든은 공통층(두 토폴로지가 같은 바이트를 빌드·검사)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/sweep_bench.sh",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/rust/src/cli/ops.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/rust/src/evidence/e4.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/rust/src/pyre.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 A 흉내층 0단계(bench py* 포크 → agent-runtime-support 재노출 · PII 패턴 정본 단일화 · 무호출 파서 삭제 · 낡은 주장 정정) — 하네스 crate·스킬·parity 골든은 공통층(두 토폴로지가 같은 바이트를 빌드·검사)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/references/campaign/assignment_supervision.md",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/references/campaign/layout.md",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/references/campaign/phases.md",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/references/campaign/purge.md",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/references/campaign/writers.md",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/checks/data/selftest/blackbox_session.stdout",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/help/blackbox_session.renew-budget.help",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/help/blackbox_session.renew-budget.usage",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/src/blackbox_eta.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/src/blackbox_session.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/node_blackbox/budget_renew_loop.sh",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/node_blackbox/node_identity.sh",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/rust/runtime/Cargo.lock",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 A 흉내층 0단계(bench py* 포크 → agent-runtime-support 재노출 · PII 패턴 정본 단일화 · 무호출 파서 삭제 · 낡은 주장 정정) — 하네스 crate·스킬·parity 골든은 공통층(두 토폴로지가 같은 바이트를 빌드·검사)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/rust/runtime/Cargo.toml",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 A 흉내층 0단계(bench py* 포크 → agent-runtime-support 재노출 · PII 패턴 정본 단일화 · 무호출 파서 삭제 · 낡은 주장 정정) — 하네스 crate·스킬·parity 골든은 공통층(두 토폴로지가 같은 바이트를 빌드·검사)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/rust/runtime/src/native_multinode/pii.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 A 흉내층 0단계(bench py* 포크 → agent-runtime-support 재노출 · PII 패턴 정본 단일화 · 무호출 파서 삭제 · 낡은 주장 정정) — 하네스 crate·스킬·parity 골든은 공통층(두 토폴로지가 같은 바이트를 빌드·검사)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/references/serving-closeout.md",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/rust/runtime/checks/data/generation_reference/api/api-061/original.json",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/rust/runtime/checks/data/generation_reference/api/api-062/original.json",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/rust/runtime/checks/data/generation_reference/api/api-063/original.json",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/rust/runtime/checks/data/generation_reference/api/api-064/original.json",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/rust/runtime/checks/data/generation_reference/api/api-065/original.json",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/rust/runtime/checks/data/generation_reference/api/api-066/original.json",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/rust/runtime/checks/data/generation_reference/api/api-077/after.json",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/rust/runtime/checks/data/generation_reference/api/api-078/after.json",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/rust/runtime/checks/data/generation_reference/api/api-079/after.json",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/rust/runtime/checks/data/generation_reference/api/api-080/after.json",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/rust/runtime/checks/data/generation_reference/api/api-083/after.json",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/rust/runtime/checks/data/generation_reference/api/api-084/after.json",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/rust/runtime/checks/data/generation_reference/api/api-085/after.json",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/rust/runtime/checks/data/generation_reference/api/api-088/after.json",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/rust/runtime/checks/data/generation_reference/api/api-090/after.json",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/rust/runtime/checks/data/generation_reference/api/api-090/original.json",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/rust/runtime/checks/data/generation_reference/api/api-091/after.json",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/rust/runtime/checks/data/generation_reference/api/api-092/after.json",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/rust/runtime/checks/data/generation_reference/api/api-094/after.json",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/rust/runtime/checks/data/generation_reference/api/api-096/after.json",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/rust/runtime/checks/data/generation_reference/api/api-098/after.json",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/rust/runtime/checks/data/generation_reference/cli/cli-004/after.json",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/rust/runtime/checks/data/generation_reference/cli/cli-005/after.json",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/rust/runtime/checks/data/generation_reference/cli/cli-007/after.json",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/rust/runtime/checks/data/generation_reference/cli/cli-011/after.json",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/rust/runtime/checks/data/generation_reference/cli/cli-011/stderr.bin",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/rust/runtime/checks/gmu_roles_checks.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/rust/runtime/checks/recipe_cmd_cases.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/rust/runtime/src/bin/selftest_gmu_roles_batch.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/rust/runtime/src/estimate_vram.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/rust/runtime/src/generation_api.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/rust/runtime/src/generation_cli.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/rust/runtime/src/gmu_roles_selftest.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/rust/runtime/src/model_config.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/rust/runtime/src/quant_table.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/rust/runtime/src/recipe_cmd.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/rust/runtime/src/recipe_cmd/simulate_body.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/rust/runtime/src/recipe_set.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/rust/runtime/src/run_trial.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/rust/runtime/src/run_trial_cli.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/rust/runtime/src/run_trial_session.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/rust/runtime/src/simulate_math.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/rust/runtime/src/vllm_log.rs",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/wiki-desk/SKILL.md",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 A 흉내층 0단계(bench py* 포크 → agent-runtime-support 재노출 · PII 패턴 정본 단일화 · 무호출 파서 삭제 · 낡은 주장 정정) — 하네스 crate·스킬·parity 골든은 공통층(두 토폴로지가 같은 바이트를 빌드·검사)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": "campaigns/README.md",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": "campaigns/_template/campaign.schema.json",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": "campaigns/_template/campaign.yaml",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": "campaigns/_template/cells/_cell/config.yaml",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": "campaigns/_template/cells/_cell/lockset.json",
+          "verdict": "common_promote",
+          "reason": "plan_26111708 B L1~L12 하네스 후속(생성기 포트·토폴로지 파생 · KV/Mamba 측정 하한 · 중첩 text config · 예산 공존 적층 · 셀 id 결속 · 스윕 기록 · 퇴역 .py 안내 교정) — crate·스킬·campaigns 뼈대는 공통층이며 토폴로지 분기는 manifest 에서 파생한다",
+          "provenance": "agent-judged"
+        }
+      ]
     }
   ]
 }
