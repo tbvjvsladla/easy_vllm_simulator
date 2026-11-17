@@ -1016,6 +1016,137 @@ impl Program<'_, '_> {
             ]),
         )
     }
+
+    /// `campaign_init.sh --cell-set KEY --outcome OUTCOME --sweep-state STATE --utc NOW` in the sandbox.
+    fn cell_set(&self, key: &str, outcome: &str, state: &Path) -> Result<TextRun, Raised> {
+        let mut command = vec![
+            OsString::from("bash"),
+            self.sb
+                .root()
+                .join(".claude/skills/terraforming_node/scripts/campaign_init.sh")
+                .into_os_string(),
+        ];
+        command.extend(arguments(&["--cell-set", key, "--outcome", outcome, "--sweep-state"]));
+        command.push(state.as_os_str().to_os_string());
+        command.extend(arguments(&["--utc", NOW]));
+        self.sb.run(command, None)
+    }
+
+    /// C1–C4 (plan_26111708 B L12): a standalone `sweep_bench.sh --campaign-cell` run leaves, in the campaign's `sweeps/`
+    /// (derived from `campaigns/ACTIVE`), the cell record `campaign_init --cell-set --sweep-state` reads — on both
+    /// topologies; outside a campaign it writes nothing; a failed measurement is recorded as the classifier closes it.
+    pub(crate) fn campaign_cell_records(&mut self) -> Outcome {
+        self.sb.declare(Some(3))?;
+        self.sb.clear_events();
+        self.sb.reset_calls()?;
+        let sweeps = self.sb.campaign_dir().join("sweeps");
+        let plan = tpot_plan(&[25.0, 25.5, 24.5]);
+        let run = self.sweep("cell-a", &["--campaign-cell", "cell-a"], Some(&plan), "1")?;
+        let state = sweeps.join("sweep_cell-a.json");
+        let record = self.record("cell-a", &state)?;
+        let document = load_object(&state);
+        let cond = run.status == 0
+            && is_text_at(&record, "cell_outcome", "measured")?
+            && is_text_at(&record, "sweep_dir", "output/single/benchlog/sweep_cell-a")?
+            && is_none_at(&record, "axis_citation")?
+            && str_at_starts(&record, "axis_citation_source", "absent(")?
+            && is_text_at(&document, "origin", "sweep_bench --campaign-cell")?
+            && is_none_at(&document, "declared_budget")?
+            && str_at_starts(&document, "declared_budget_source", "absent(")?;
+        self.ck(
+            "C1 sweep_bench --campaign-cell → 캠페인 sweeps/ 에 셀 기록(measured · sweep_dir · 선언 없는 칸은 null 과 출처)",
+            cond,
+            &tup(vec![status(&run), record.clone(), tl(&run.stdout, 400), tl(&run.stderr, 400)]),
+        )?;
+        let set = self.cell_set("cell-a", "measured", &state)?;
+        let measurement = get_obj(
+            &load_object(&self.sb.campaign_dir().join("cells/cell-a/cell.status.json")),
+            "measurement",
+        )?;
+        let source = format!("sweep:campaigns/{CAMPAIGN}/sweeps/sweep_cell-a.json#cells[cell_key=cell-a]");
+        let cond = set.status == 0
+            && crate::conformance::py_equals(&get(&measurement, "measurement_ok")?, &PyValue::Bool(true))
+            && str_at_starts(&measurement, "source", &source)?
+            && is_text_at(&measurement, "sweep_dir", "output/single/benchlog/sweep_cell-a")?;
+        self.ck(
+            "C1 --cell-set --sweep-state 가 그 기록을 받는다(측정값·출력 경로가 손 없이 셀 상태로)",
+            cond,
+            &tup(vec![status(&set), measurement, tl(&set.stderr, 400)]),
+        )?;
+        let active = self.sb.root().join("campaigns/ACTIVE");
+        write_str(&active, "_bootstrap\n")?;
+        let run = self.sweep("cell-b", &["--campaign-cell", "cell-b"], Some(&plan), "1");
+        write_str(&active, &format!("{CAMPAIGN}\n"))?;
+        let run = run?;
+        let wrote = exists(&self.sb.root().join("campaigns/_bootstrap/sweeps/sweep_cell-b.json"))?
+            || exists(&sweeps.join("sweep_cell-b.json"))?;
+        let cond = run.status == 0 && !wrote && run.stdout.contains("캠페인 밖(ACTIVE=_bootstrap)");
+        self.ck(
+            "C2★ 음성대조: ACTIVE=_bootstrap 이면 sweep 기록을 쓰지 않는다(writer no-op · 측정은 그대로)",
+            cond,
+            &tup(vec![status(&run), tl(&run.stdout, 400), tl(&run.stderr, 300)]),
+        )?;
+        self.sb.reset_calls()?;
+        let failing = dict_of(vec![("fail", dict_of(vec![("1:1", st("measurement"))]))]);
+        let run = self.sweep("cell-b", &["--campaign-cell", "cell-b"], Some(&failing), "1")?;
+        let record = self.record("cell-b", &sweeps.join("sweep_cell-b.json"))?;
+        let phase = load_object(&self.sb.campaign_dir().join("phases/main/bench.status.json"));
+        let cond = run.status != 0
+            && run.status != 2
+            && is_text_at(&record, "cell_outcome", "measurement_void")?
+            && is_none_at(&record, "sweep_dir")?
+            && is_text_at(&phase, "state", "failed")?;
+        self.ck(
+            "C3★ 판정점 측정 실패 rc → 셀 기록 measurement_void(분류기 판정 · 출력 경로 없음) · bench phase failed",
+            cond,
+            &tup(vec![status(&run), pick(&record, &["cell_outcome", "void_reason", "sweep_dir"])?, tl(&run.stderr, 400)]),
+        )?;
+        // the multi topology: the same record, derived from the same declaration, read for a cell of a multi node
+        let declaration = self.sb.campaign_dir().join("campaign.yaml");
+        write_str(&declaration, &read_text(&declaration)?.replace("\"single\"", "\"multi\""))?;
+        self.sb.config("cell-b", "multi")?;
+        let mut words = arguments(&[
+            "cell-b",
+            "--topology",
+            "multi",
+            "--tool",
+            "guidellm",
+            "--bench-budget-mib",
+            "4096",
+            "--backend",
+            "openai",
+        ]);
+        words.extend(KNOB_REASONS.map(OsString::from));
+        words.extend(arguments(&["--levels", "1"]));
+        words.extend(LEVEL_REASON.map(OsString::from));
+        words.extend(arguments(&[
+            "--sweep-dir",
+            "output/multi/benchlog/sweep_cell-b_multi",
+            "--campaign-cell",
+            "cell-b",
+        ]));
+        let mut command = vec![OsString::from("bash"), self.sb.script("sweep_bench.sh")];
+        command.extend(words);
+        let run = self.sb.run(command, Some(&plan))?;
+        let state = sweeps.join("sweep_cell-b_multi.json");
+        let record = self.record("cell-b", &state)?;
+        let set = self.cell_set("cell-b", "measured", &state)?;
+        let measurement = get_obj(
+            &load_object(&self.sb.campaign_dir().join("cells/cell-b/cell.status.json")),
+            "measurement",
+        )?;
+        self.sb.declare(Some(3))?;
+        let cond = run.status == 0
+            && is_text_at(&record, "cell_outcome", "measured")?
+            && is_text_at(&load_object(&state), "topology", "multi")?
+            && set.status == 0
+            && is_text_at(&measurement, "sweep_dir", "output/multi/benchlog/sweep_cell-b_multi")?;
+        self.ck(
+            "C4 multi 도 같은 자리(campaigns/ACTIVE 파생)에 기록하고 --cell-set 이 받는다(--sweep-dir 명시 경로)",
+            cond,
+            &tup(vec![status(&run), status(&set), measurement, tl(&run.stderr, 300), tl(&set.stderr, 300)]),
+        )
+    }
 }
 
 /// `{"tpot": {"1": [..]}}`: the shim plan that sets the first level's per-run TPOT.

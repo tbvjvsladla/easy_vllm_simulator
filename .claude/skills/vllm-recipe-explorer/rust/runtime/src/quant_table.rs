@@ -102,6 +102,23 @@ pub const DTYPE_BPW: [(&str, f64); 12] = [
     ("f8", 1.0),
 ];
 
+/// Quantization methods vLLM registers whose bytes per weight are not one number (plan_26111708 B L9). `modelopt_mixed` is
+/// ModelOpt MIXED_PRECISION: a per-layer `quant_algo` (FP8, NVFP4, W4A16_NVFP4, MXFP8, ...) read from
+/// `quantization_config.quantized_layers` (vllm 0.32.0 `model_executor/layers/quantization/modelopt.py:1543-1551`, registered
+/// at `quantization/__init__.py:166`), and it exists only in a pre-quantized ModelOpt checkpoint — `_from_config` raises when
+/// `quantized_layers` is empty (`modelopt.py:1653-1658`). Deliberately not a row of [`VLLM_QUANT_BYTES`]: there is no single
+/// bytes-per-weight to put there, so the callers name the reason instead of reporting an unknown method.
+pub const MIXED_PRECISION_QUANT: [&str; 1] = ["modelopt_mixed"];
+
+/// Whether `quant` is one of [`MIXED_PRECISION_QUANT`] (after `str().strip().lower()`; `None` is not).
+pub fn is_mixed_precision_quant(quant: &PyValue) -> Res<bool> {
+    if matches!(quant.peel(), PyValue::None) {
+        return Ok(false);
+    }
+    let key = stripped_lower(quant)?;
+    Ok(MIXED_PRECISION_QUANT.iter().any(|name| key.equals(name)))
+}
+
 fn table_entry(key: &PyStr) -> Option<Option<f64>> {
     VLLM_QUANT_BYTES
         .iter()

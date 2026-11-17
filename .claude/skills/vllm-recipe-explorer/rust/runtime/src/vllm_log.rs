@@ -573,3 +573,116 @@ pub fn parse_log(log: &PyValue) -> Res<PyDict> {
     result.set("raw_matched", PyValue::Dict(raw));
     Ok(result)
 }
+
+// ── engine statements the trial loop acts on (plan_26111708 B L2 · L3) ─────────────────────────────────────────────
+//
+// Plain readers over the engine log text, outside `parse_log` (whose twelve fields and evidence are a saved contract). Each
+// returns `None` when the statement is absent; the caller decides what the measured number means.
+
+/// The decimal number (digits, optional `.` fraction) at the start of `text`.
+fn leading_number(text: &str) -> Option<&str> {
+    let end = text
+        .char_indices()
+        .find(|(_, c)| !(c.is_ascii_digit() || *c == '.'))
+        .map_or(text.len(), |(at, _)| at);
+    let number = &text[..end];
+    (!number.is_empty() && number.starts_with(|c: char| c.is_ascii_digit())).then_some(number)
+}
+
+/// The decimal number that ends `text` (after the last character that is not a digit or `.`).
+fn trailing_number(text: &str) -> Option<&str> {
+    let start = text
+        .char_indices()
+        .rev()
+        .find(|(_, c)| !(c.is_ascii_digit() || *c == '.'))
+        .map_or(0, |(at, c)| at + c.len_utf8());
+    let number = &text[start..];
+    (!number.is_empty() && number.starts_with(|c: char| c.is_ascii_digit())).then_some(number)
+}
+
+/// The attention block size the engine set for a hybrid model, in tokens: `Setting attention block size to N tokens ...`
+/// (vLLM 0.32.0 `platforms/interface.py:1094-1100` — page size ≥ the Mamba page — and `:921-927`). The last statement wins.
+pub fn attention_block_size(log: &str) -> Option<i64> {
+    const LEAD: &str = "Setting attention block size to ";
+    log.match_indices(LEAD)
+        .filter_map(|(at, _)| leading_number(&log[at + LEAD.len()..])?.parse::<i64>().ok())
+        .filter(|tokens| *tokens > 0)
+        .last()
+}
+
+/// The engine's refusal of a KV pool that cannot hold one request of the model's max length (vLLM 0.32.0
+/// `v1/core/kv_cache_utils.py:1003-1040` `_check_enough_kv_cache_memory`): the figures it prints, in GiB rounded to two
+/// decimals (`utils/mem_utils.py:30-31` `format_gib` = `round(b / GiB, 2)`). `available` is the pool minus the one block the
+/// block pool holds back (`kv_cache_utils.py:1123-1131`).
+#[derive(Clone, Debug, PartialEq)]
+pub struct OneRequestShortfall {
+    pub max_model_len: i64,
+    pub needed_gib: f64,
+    pub available_gib: f64,
+    /// `the estimated maximum model length is N` (absent when the engine estimated 0).
+    pub estimated_max_model_len: Option<i64>,
+}
+
+/// The first [`OneRequestShortfall`] statement of the log.
+pub fn one_request_shortfall(log: &str) -> Option<OneRequestShortfall> {
+    const LEAD: &str = "To serve at least one request with the model's max seq len (";
+    const NEEDED: &str = " GiB KV cache is needed";
+    const AVAILABLE: &str = "available KV cache memory (";
+    const ESTIMATED: &str = "the estimated maximum model length is ";
+    let at = log.find(LEAD)? + LEAD.len();
+    let rest = &log[at..];
+    let max_model_len = leading_number(rest)?.parse::<i64>().ok()?;
+    let line = rest.split('\n').next().unwrap_or(rest);
+    let needed_at = line.find(NEEDED)?;
+    let needed_gib = trailing_number(&line[..needed_at])?.parse::<f64>().ok()?;
+    let available_at = line.find(AVAILABLE)? + AVAILABLE.len();
+    let available_gib = leading_number(&line[available_at..])?.parse::<f64>().ok()?;
+    let estimated_max_model_len = line
+        .find(ESTIMATED)
+        .and_then(|e| leading_number(&line[e + ESTIMATED.len()..]))
+        .and_then(|n| n.trim_end_matches('.').parse::<i64>().ok());
+    Some(OneRequestShortfall { max_model_len, needed_gib, available_gib, estimated_max_model_len })
+}
+
+/// The engine's refusal of `max_num_seqs` above the Mamba cache blocks under full CUDA graphs: `max_num_seqs (N) exceeds
+/// available Mamba cache blocks (M)` (vLLM 0.32.0 `config/compilation.py:1503-1524` — each decode sequence needs one Mamba
+/// cache block; "lower max_num_seqs to at most M"). `(N, M)` of the last statement.
+pub fn mamba_block_limit(log: &str) -> Option<(i64, i64)> {
+    const LEAD: &str = "max_num_seqs (";
+    const BLOCKS: &str = ") exceeds available Mamba cache blocks (";
+    log.match_indices(BLOCKS)
+        .filter_map(|(at, _)| {
+            let head = &log[..at];
+            let seqs_at = head.rfind(LEAD)? + LEAD.len();
+            let seqs = leading_number(&head[seqs_at..])?.parse::<i64>().ok()?;
+            let blocks = leading_number(&log[at + BLOCKS.len()..])?.parse::<i64>().ok()?;
+            Some((seqs, blocks))
+        })
+        .last()
+}
+
+#[cfg(test)]
+mod engine_statement_tests {
+    use super::*;
+
+    // The two failing trials of camp P2 q36-27b (docs/simlog/2026111621_1_Qwen_Qwen3.6-27B-NVFP4/trial02_vllm.log) and the
+    // CUDA-graph refusal text of vLLM 0.32.0 config/compilation.py:1519-1523.
+    const SHORTFALL: &str = "(EngineCore pid=281) ERROR 11-16 12:34:40 [core.py:1510] ValueError: To serve at least one request with the model's max seq len (32768), (1.29 GiB KV cache is needed, which is larger than the available KV cache memory (1.27 GiB). Based on the available memory, the estimated maximum model length is 31360. Try increasing `gpu_memory_utilization` (which also controls CPU memory on the CPU backend) or decreasing `max_model_len` when initializing the engine.\n";
+    const MAMBA: &str = "ValueError: max_num_seqs (256) exceeds available Mamba cache blocks (83). Each decode sequence requires one Mamba cache block, so CUDA graph capture cannot proceed. Please lower max_num_seqs to at most 83 or increase gpu_memory_utilization.\n";
+
+    #[test]
+    fn the_engine_figures_are_read_and_their_absence_is_none() {
+        assert_eq!(
+            one_request_shortfall(SHORTFALL),
+            Some(OneRequestShortfall { max_model_len: 32768, needed_gib: 1.29, available_gib: 1.27, estimated_max_model_len: Some(31360) })
+        );
+        assert_eq!(mamba_block_limit(MAMBA), Some((256, 83)));
+        let block = "INFO [interface.py:1096] Setting attention block size to 1568 tokens to ensure that attention page size is >= mamba page size.\n";
+        assert_eq!(attention_block_size(block), Some(1568));
+        for other in ["", "No available memory for the cache blocks.", "CUDA out of memory", "GPU KV cache size: 100,731 tokens"] {
+            assert_eq!(one_request_shortfall(other), None);
+            assert_eq!(mamba_block_limit(other), None);
+            assert_eq!(attention_block_size(other), None);
+        }
+    }
+}

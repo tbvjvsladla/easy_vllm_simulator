@@ -10,7 +10,8 @@
 # 비용 규율(편지 B.5): 이 스윕은 재탐색 루프 내부가 아니라 **full 런 종결 시 1회**만 호출한다.
 #
 # 사용: sweep_bench.sh <config_name> [--topology single|multi] [--serve-plane docker|native] [--host-endpoint URL] [--engine-log PATH(native 필수)]
-#        [--campaign-cell CELL(캠페인 셀 bench phase 를 직접 적는다 · 명시로만 · plan_26101722 K5)]
+#        [--campaign-cell CELL(캠페인 셀 bench phase 를 직접 적는다 · 명시로만 · plan_26101722 K5 · 종료 시 셀 sweep 기록을
+#                              campaigns/<id>/sweeps/<스윕 디렉터리 이름>.json 에 쓴다 · --cell-set --sweep-state 가 읽는다 · plan_26111708 B L12)]
 #        [--levels CSV] [--backend openai-chat|openai] [--bench-budget-mib N]
 #        [--input-len N] [--output-len N] [--num-prompts N] [--warmups N] [--vllm-version X] [--dry-run]
 #        [--preset NAME|PATH] [--knob-reason KNOB=CODE]... [--approved-by TEXT] [--pin KNOB=VALUE... --pinned-by TEXT]
@@ -387,9 +388,44 @@ _campaign_phase() {  # $1=state(running|done|failed) $2=rc
   bash "$_CI" "${_a[@]}" >&2 \
     || echo "[sweep_bench] ⚠ 캠페인 셀 '$CAMPAIGN_CELL' bench phase=$1 기록 실패(위 사유) — 진행표가 낡는다" >&2
 }
+# 캠페인 셀 sweep 기록(2026-11-17 · plan_26111708 B L12) — `campaign_init --cell-set --sweep-state` 가 읽는 셀 기록을
+#   측정한 **바로 이 트랜잭션**에서 쓴다. 종전에는 broad_search cell 만 그 기록을 썼고, sweep_bench 단독으로 잰 캠페인
+#   (P2 single · P3 multi)은 `sweeps/` 가 비어 측정값을 손으로 옮겨 적었다(토폴로지 분기가 아니라 진입점 차이였다).
+#   · 자리는 고르지 않는다: 활성 캠페인(`--campaign-id` 가 있으면 그 캠페인)에서 `--derive sweep` 으로 파생하고,
+#     캠페인 밖(_bootstrap)이면 writer(bench_shell campaign-cell-record)가 no-op 이다.
+#   · 셀 종결 판정은 broad_search 와 같은 소유자(classify_cell)에 같은 인자로 묻는다 — 규칙을 여기 다시 적지 않는다.
+#   · rc 2(인자/전제 거부)와 --dry-run 은 측정이 아니므로 기록하지 않는다(broad_search 의 rc 2 규칙과 같다 · 실측인 척 ✗).
+#   기록은 셀 상태를 쓰지 않는다 — `--cell-set` 은 판정(judge_bench) 뒤 호출자가 이 기록을 넘겨 쓴다(writer 가 안내를 찍는다).
+_campaign_record() {  # $1=rc
+  local rc="$1" _ended _st _cls
+  if [ "$rc" = 2 ] || [ "$DRYRUN" = 1 ]; then
+    echo "[sweep_bench] ⓘ 측정이 아니다(rc=$rc · dry-run=$DRYRUN) — 캠페인 sweep 기록 ✗" >&2
+    return 0
+  fi
+  _ended="$(date -u +%FT%TZ)"
+  local _da=(--derive sweep --sweep "${SWEEPDIR##*/}")
+  [ -n "$CAMPAIGN_ID" ] && _da+=(--campaign-id "$CAMPAIGN_ID")
+  if ! _st="$(bash "$_CI" "${_da[@]}")"; then
+    echo "[sweep_bench] ⚠ 캠페인 sweep 기록 자리를 파생하지 못했다(위 사유) — 셀 기록 미기록" >&2
+    return 0
+  fi
+  local _ca=(--serve-rc 0 --measure-rc "$rc" --started-utc "$_CAMPAIGN_STARTED" --ended-utc "$_ended"
+             --events-from-repo "$REPO" --topology "$TOPO" --manifest "$MANIFEST")
+  [ -n "$XNODE_TOL$XNODE_TOL_SRC" ] && _ca+=(--cross-node-tolerance-s "$XNODE_TOL" --cross-node-tolerance-source "$XNODE_TOL_SRC")
+  [ -n "${LITE_RAW:-}" ] && _ca+=(--lite-raw "$LITE_RAW")
+  if ! _cls="$(bash "$SDIR/classify_cell.sh" "${_ca[@]}")"; then
+    echo "[sweep_bench] ⚠ 셀 종결을 판정하지 못했다(위 사유) — 캠페인 sweep 기록 미기록" >&2
+    return 0
+  fi
+  CELL_KEY="$CAMPAIGN_CELL" CONFIG="$CONFIG" SWEEPDIR="$SWEEPDIR" REPO="$REPO" CLS="$_cls" \
+  STARTED="$_CAMPAIGN_STARTED" ENDED="$_ended" TOPO="$TOPO" SDIR="$SDIR" \
+  bash "$SDIR/bench_shell.sh" campaign-cell-record "$_st" \
+    || echo "[sweep_bench] ⚠ 캠페인 sweep 기록 실패(위 사유) — --cell-set 이 읽을 기록이 없다" >&2
+}
 _campaign_exit() {
   local rc=$?
   if [ "$rc" = 0 ]; then _campaign_phase done 0; else _campaign_phase failed "$rc"; fi
+  _campaign_record "$rc"
   return "$rc"
 }
 if [ -n "$CAMPAIGN_CELL" ]; then

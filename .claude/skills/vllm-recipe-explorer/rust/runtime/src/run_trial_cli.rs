@@ -6,7 +6,7 @@ use crate::cli::{dumps, load_json, println_text, Run};
 use crate::cliparse::{exit_with, parse, terminal_width, Kind, Opt, Outcome, Spec, Value};
 use crate::pyexpr::{get, is_none};
 use crate::run_trial::{
-    mock_result, self_test, DEFAULT_IMAGE, DEFAULT_PORT, DEFAULT_TIMEOUT, NAS_MOUNT,
+    mock_result, self_test, DEFAULT_PORT, DEFAULT_TIMEOUT, NAS_MOUNT,
     PROVENANCE_DRY_RUN, PROVENANCE_MOCK,
 };
 use agent_runtime_support::failure::Failure;
@@ -129,8 +129,9 @@ fn mock_main(
         Some(Value::Int(n)) => n.to_string().parse().unwrap_or(1),
         _ => 1,
     };
-    // The unused option defaults of the original live here only to document them (the docker path reads them).
-    let _ = (DEFAULT_IMAGE, DEFAULT_TIMEOUT, DEFAULT_PORT, NAS_MOUNT);
+    // The unused option defaults of the original live here only to document them (the docker path reads them). The image has
+    // no default any more (plan_26111708 B L1 · `run_trial::MISSING_IMAGE`).
+    let _ = (DEFAULT_TIMEOUT, DEFAULT_PORT, NAS_MOUNT);
     let mut log_path = simlog_dir.clone();
     log_path.push_str(&format!("/trial{:02}_vllm.log", trial_number));
     if let Some(trimmed) = simlog_dir.to_utf8() {

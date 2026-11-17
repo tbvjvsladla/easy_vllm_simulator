@@ -2037,9 +2037,10 @@ fn apply_lite_gate(ctx: &Ctx, doc: &mut PyDict, raw: &str, utc: Option<&str>) ->
     let spent = charges.len() as i64;
     reconciliation.set("charges", PyValue::List(charges));
     reconciliation.set("spent", PyValue::int(spent));
+    // plan_26111708 B L8: the cap owner is the explorer's `recipe.sh simulate --cap` (the retired recipe.py is gone).
     reconciliation.set(
         "cap_owner",
-        py("vllm-recipe-explorer recipe.py --cap — 잔여 = cap − spent(cap 값은 여기에 적지 않는다)"),
+        py("vllm-recipe-explorer recipe.sh simulate --cap — 잔여 = cap − spent(cap 값은 여기에 적지 않는다)"),
     );
     doc.set("reconciliation", PyValue::Dict(reconciliation));
     let prior = doc.get("reentry").and_then(dict_of).is_some();
@@ -4427,7 +4428,7 @@ fn assign_set(
     items: Vec<PyValue>,
     values: [Option<&str>; 4],
     source: &str,
-) -> R<(PathBuf, PyDict)> {
+) -> R<(PathBuf, PyDict, Vec<String>)> {
     let [reason, evidence, approved_by, utc] = values.map(|v| v.filter(|s| !s.is_empty()));
     for (need, val) in [("--assign-reason", reason), ("--assign-evidence", evidence), ("--assign-approved-by", approved_by), ("--utc", utc)] {
         if val.is_none() {
@@ -4507,6 +4508,37 @@ fn assign_set(
         approved.dedup();
         return refuse(format!("hint 사전승인을 든 셀은 뺄 수 없다: {} — 승인을 먼저 다시 받는다(무인 재태깅 ✗)", py_list_repr(&approved)));
     }
+    let added: Vec<String> = new_cells.iter().filter(|c| !old_mode.iter().any(|(o, _)| *o == py(c))).cloned().collect();
+    // plan_26111708 B L11: an added cell is bound to its serving config here, at declaration, not first at
+    // `--cell-materialize`. Asked directly (not only through the trial validation below): once a declaration carries a key
+    // the schema does not list, both validations stop at the schema and the per-cell checks would never run (2026-11-17:
+    // `assignment_revisions` itself was such a key until the template schema listed it).
+    // A contradiction (a cell input naming another config, an unreadable input) is refused; an absence (no config and no
+    // cell input yet — declaration may precede the triplet) is reported by the caller and the change proceeds.
+    let observable = lockset_observable(&doc, Some(node));
+    let binding = |cell: &String, absent_is_problem: bool| {
+        crate::campaign_validator::config_binding_problem(
+            ctx,
+            &doc,
+            node,
+            cell,
+            &base.join("cells").join(cell).join("config.yaml"),
+            absent_is_problem,
+        )
+    };
+    let unbound: Vec<String> = added.iter().filter(|_| observable).filter_map(|cell| binding(cell, false)).collect();
+    let unbound_absent: Vec<String> = added
+        .iter()
+        .filter(|_| observable)
+        .filter(|cell| binding(cell, false).is_none())
+        .filter_map(|cell| binding(cell, true))
+        .collect();
+    if !unbound.is_empty() {
+        return refuse(format!(
+            "배정 변경 뒤 선언이 계약을 깬다:\n{}",
+            unbound.iter().map(|w| format!("  - {w}")).collect::<Vec<_>>().join("\n")
+        ));
+    }
     let mut revs = list_or_empty(doc.get("assignment_revisions"));
     if doc.get("assignment_revisions").and_then(list_of).is_none() {
         revs = Vec::new();
@@ -4551,7 +4583,6 @@ fn assign_set(
             why.iter().map(|w| format!("  - {w}")).collect::<Vec<_>>().join("\n")
         ));
     }
-    let added: Vec<String> = new_cells.iter().filter(|c| !old_mode.iter().any(|(o, _)| *o == py(c))).cloned().collect();
     let mut rev = PyDict::new();
     rev.set("rev", PyValue::int(revs.len() as i64));
     rev.set("declared_utc", py(utc));
@@ -4586,7 +4617,7 @@ fn assign_set(
             ],
         ),
     )?;
-    Ok((path, rev))
+    Ok((path, rev, unbound_absent))
 }
 
 const RESERVED_CELL_NAMES_W: [&str; 2] = ["_cell", "_node"];
@@ -4600,10 +4631,15 @@ fn op_assign_set(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
     need_validator(ctx)?;
     let items = parse_assign_cells(spec)?;
     let values = [args.get("--assign-reason"), args.get("--assign-evidence"), args.get("--assign-approved-by"), args.get("--utc")];
-    let (path, rev) = assign_set(ctx, &base, &node, items, values, "campaign_init --assign-set")?;
+    let (path, rev, unbound_absent) = assign_set(ctx, &base, &node, items, values, "campaign_init --assign-set")?;
+    // plan_26111708 B L11: an added cell with no config and no cell input yet is recorded, not refused (the change proceeds).
+    for absent in &unbound_absent {
+        io.warn(&format!("[campaign_init] 경고(기재 · 진행): {absent}"));
+    }
     if sub_nodes_of(ctx, &base).iter().filter_map(text_of).any(|n| Some(&n) == get_text(&rev, "node").as_ref()) {
+        // plan_26111708 B L8: the A2A entry point is the `relay.sh` launcher (the retired relay.py no longer exists).
         io.warn(&format!(
-            "[campaign_init] 서브 재배정은 A2A 제어명령으로 전한다: relay.py --campaign-control reslice --campaign-id {camp} --node {node} … (echo 가 오기 전까지 '재배정 미수렴')"
+            "[campaign_init] 서브 재배정은 A2A 제어명령으로 전한다: relay.sh --campaign-control reslice --campaign-id {camp} --node {node} … (echo 가 오기 전까지 '재배정 미수렴')"
         ));
     }
     wrote_line(io, &camp, &[ctx.rel(&path)]);
@@ -4778,7 +4814,7 @@ fn op_slice_update(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
     let rev_text = if changed {
         let approved = format!("main-a2a: {}", shown(meta.get("approved_by")));
         let source_note = format!("campaign_init --slice-update (main rev {})", shown(meta.get("rev")));
-        let (_, rev) = assign_set(
+        let (_, rev, _) = assign_set(
             ctx,
             &base,
             &node,
@@ -4991,6 +5027,32 @@ fn load_yaml(path: &Path) -> R<Option<PyValue>> {
     }
 }
 
+/// The serving config a cell is bound to: `(topology, output/<topology>/configs/<cell>.yaml)`, the topology from the cell's
+/// node in the declaration (else `control_variables.topology`); `Err` is the refusal sentence when it cannot be resolved.
+/// A cell id IS its serving config name (`_template/cells/_cell/config.yaml` `serving.config_name = cell_id` — the hint gate
+/// and the materialize step bind by it), so there is no mapping to consult. plan_26111708 B L11: the one owner of this path
+/// rule — `--cell-materialize` reads it and the declaration check (`campaign_validator`) asks it before a cell is accepted.
+pub(crate) fn cell_serving_config(ctx: &Ctx, decl: &PyDict, node: &str, cell: &str) -> Result<(String, PathBuf), String> {
+    let node_decl = list_of(decl.get("nodes").unwrap_or(&PyValue::None))
+        .into_iter()
+        .flatten()
+        .filter_map(dict_of)
+        .find(|n| get_text(n, "node_id").as_deref() == Some(node))
+        .cloned()
+        .unwrap_or_default();
+    let topo_value = node_decl
+        .get("topology")
+        .filter(|v| v.is_truthy())
+        .cloned()
+        .or_else(|| get_dict(decl, "control_variables").and_then(|c| c.get("topology").cloned()).filter(|v| v.is_truthy()))
+        .unwrap_or(PyValue::None);
+    let Some(topo) = text_of(&topo_value).filter(|t| t == "single" || t == "multi") else {
+        return Err(format!("노드 {} 의 topology 를 선언에서 해소하지 못했다: {}(추측 ✗)", py_repr(node), topo_value.repr()));
+    };
+    let path = ctx.root.join("output").join(&topo).join("configs").join(format!("{cell}.yaml"));
+    Ok((topo, path))
+}
+
 fn op_cell_materialize(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
     let cell = args.get("--cell-materialize").unwrap_or_default().to_string();
     let Some((base, camp)) = progress_prelude(ctx, args, io, "cell_materialize")? else { return Ok(0) };
@@ -5023,24 +5085,10 @@ fn op_cell_materialize(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
         return refuse(format!("cells/{cell}/ 에 이미 {} 가 있다 — 덮어쓰지 않는다", py_list_repr(&have)));
     }
     let decl = read_declaration(&base);
-    let node_decl = list_of(decl.get("nodes").unwrap_or(&PyValue::None))
-        .into_iter()
-        .flatten()
-        .filter_map(dict_of)
-        .find(|n| get_text(n, "node_id").as_deref() == Some(node.as_str()))
-        .cloned()
-        .unwrap_or_default();
-    let topo_value = node_decl
-        .get("topology")
-        .filter(|v| v.is_truthy())
-        .cloned()
-        .or_else(|| get_dict(&decl, "control_variables").and_then(|c| c.get("topology").cloned()).filter(|v| v.is_truthy()))
-        .unwrap_or(PyValue::None);
-    let topo = match text_of(&topo_value).filter(|t| t == "single" || t == "multi") {
-        Some(t) => t,
-        None => return refuse(format!("노드 {} 의 topology 를 선언에서 해소하지 못했다: {}(추측 ✗)", py_repr(&node), topo_value.repr())),
+    let (topo, syaml) = match cell_serving_config(ctx, &decl, &node, &cell) {
+        Ok(found) => found,
+        Err(reason) => return refuse(reason),
     };
-    let syaml = ctx.root.join("output").join(&topo).join("configs").join(format!("{cell}.yaml"));
     if !syaml.is_file() {
         return refuse(format!("서빙 yaml {} 부재 — 셀 id = config 이름이어야 한다", ctx.rel(&syaml)));
     }
@@ -5194,8 +5242,9 @@ pub fn purge_gate_reasons(ctx: &Ctx, previous_id: &str) -> R<Vec<String>> {
         missing.sort();
         missing.dedup();
         let control = if life.close_reason.as_deref() == Some("abandoned") { "abandon" } else { "close" };
+        // plan_26111708 B L8: the remedy names the live `relay.sh` launcher, not the retired relay.py.
         return Ok(vec![format!(
-            "{previous_id}: 서브 종결이 수렴하지 않았다({}) — `relay.py --campaign-control {control} --campaign-id {previous_id} --node <sub>` 로 전하고 echo 를 받거나, 서브 미도달이면 사람이 `--sub-unconverged-accept {previous_id} --node <sub> --approved-by <전사> --utc <T>` 로 수용한다",
+            "{previous_id}: 서브 종결이 수렴하지 않았다({}) — `relay.sh --campaign-control {control} --campaign-id {previous_id} --node <sub>` 로 전하고 echo 를 받거나, 서브 미도달이면 사람이 `--sub-unconverged-accept {previous_id} --node <sub> --approved-by <전사> --utc <T>` 로 수용한다",
             missing.join(", ")
         )]);
     }
@@ -5344,8 +5393,9 @@ fn sub_close_hint(camp_id: &str, subs: &[String], control: &str) -> String {
     if subs.is_empty() {
         return String::new();
     }
+    // plan_26111708 B L8: `relay.sh` is the live launcher (relay.py is retired).
     format!(
-        " · 서브 종결은 A2A 제어명령으로 전한다: relay.py --campaign-control {control} --campaign-id {camp_id} --node {} … (echo 가 오기 전까지 '서브 미수렴' · purge 게이트가 이것을 묻는다)",
+        " · 서브 종결은 A2A 제어명령으로 전한다: relay.sh --campaign-control {control} --campaign-id {camp_id} --node {} … (echo 가 오기 전까지 '서브 미수렴' · purge 게이트가 이것을 묻는다)",
         subs.join("|")
     )
 }
@@ -5677,7 +5727,8 @@ fn write_parked_devlog(ctx: &Ctx, camp: &str, event: &PyDict, apply: bool) -> R<
         String::new(),
         "## 재개".to_string(),
         String::new(),
-        format!("- 재개는 `campaign_init.py --resume-campaign {camp} --approved-by <발화 전사> --utc <UTC> --apply`."),
+        // plan_26111708 B L8: the live entry point is the `campaign_init.sh` launcher.
+        format!("- 재개는 `campaign_init.sh --resume-campaign {camp} --approved-by <발화 전사> --utc <UTC> --apply`."),
         "- 재개 게이트: 보류 당시 핀·이미지 digest 대조(어긋나면 `--accept-drift` 또는 abandoned) · 토폴로지는 체크아웃과 같아야 한다(drift ✗).".to_string(),
         format!("- 권위는 `campaigns/{camp}/journey.jsonl` 이다 — 이 문서는 인스턴스가 사라졌을 때 사람이 재구성하기 위한 서사다."),
         String::new(),
@@ -5884,7 +5935,8 @@ fn op_resume_campaign(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
     write_text(&ctx.active_pointer(), &format!("{camp}\n"))?;
     let mut out = vec![format!("resumed {camp} → ACTIVE={camp}")];
     if !subs.is_empty() {
-        out.push(format!("서브 재개는 A2A 제어명령으로 전한다: relay.py --campaign-control resume --campaign-id {camp} --node <sub> … (echo 가 오기 전까지 '서브 미수렴')"));
+        // plan_26111708 B L8: `relay.sh` is the live launcher (relay.py is retired).
+        out.push(format!("서브 재개는 A2A 제어명령으로 전한다: relay.sh --campaign-control resume --campaign-id {camp} --node <sub> … (echo 가 오기 전까지 '서브 미수렴')"));
     }
     print_messages(io, mode, &out);
     Ok(0)
@@ -6322,7 +6374,8 @@ fn open_campaign(ctx: &Ctx, args: &Args, new_id: &str, plan_ref: &str, dispositi
         msgs.push(format!("_bootstrap/relay 정리 {}건", swept.len()));
     }
     if suspend_current && cur != BOOTSTRAP && !sub_nodes_of(ctx, &ctx.campaigns().join(&cur)).is_empty() {
-        msgs.push(format!("서브 보류는 A2A 제어명령으로 전한다: relay.py --campaign-control suspend --campaign-id {cur} --node <sub> … (echo 가 오기 전까지 '서브 미수렴' · 메인은 진행)"));
+        // plan_26111708 B L8: `relay.sh` is the live launcher (relay.py is retired).
+        msgs.push(format!("서브 보류는 A2A 제어명령으로 전한다: relay.sh --campaign-control suspend --campaign-id {cur} --node <sub> … (echo 가 오기 전까지 '서브 미수렴' · 메인은 진행)"));
     }
     Ok(msgs)
 }
@@ -6460,8 +6513,9 @@ fn op_lockset_precheck(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
 /// `grounding_reasons(base)`: why the grounding does not hold (empty = it does).
 pub fn grounding_reasons(ctx: &Ctx, base: &Path) -> Vec<String> {
     let Some((path, doc)) = latest_grounding(base) else {
+        // plan_26111708 B L8: the remedy names the live `campaign_init.sh` launcher.
         return vec![format!(
-            "그라운딩 기록이 없다: {}/ — 캠페인 착수·셀 축 변경 시 통제변인 파생 질의로 사서를 부른 기록이 있어야 한다(policy:LIBRARY_GROUNDING_FAIL_CLOSED C1). `campaign_init.py --ground --utc <t>` 로 물어라.",
+            "그라운딩 기록이 없다: {}/ — 캠페인 착수·셀 축 변경 시 통제변인 파생 질의로 사서를 부른 기록이 있어야 한다(policy:LIBRARY_GROUNDING_FAIL_CLOSED C1). `campaign_init.sh --ground --utc <t>` 로 물어라.",
             ctx.rel(&base.join("grounding"))
         )];
     };

@@ -89,6 +89,60 @@ fn topology_of(root: &PyStr) -> &'static str {
     }
 }
 
+/// The serving topology the triplet is generated for: the manifest's `topology`, its single authority (plan_26111708 B L10 —
+/// the generator used to write `single` unconditionally). The git branch only chooses the `output/<t>/` channel the manifest
+/// is read from ([`topology_of`]); it never decides the value. A `single…`/`multi…` text maps to `single`/`multi` (the prefix
+/// rule `resolve_tp` already applies); anything else is status 5 — there is no silent single.
+fn manifest_topology(root: &PyStr) -> Step<&'static str> {
+    let (man, path) = read_manifest(root)?;
+    let raw = get(&man, "topology").unwrap_or(PyValue::None);
+    match str_of(&raw) {
+        Some(text) if text.starts_with("single") => Ok("single"),
+        Some(text) if text.starts_with("multi") => Ok("multi"),
+        _ => Err(die_py(
+            5,
+            Message::new()
+                .lit("manifest(")
+                .text(&path)
+                .lit(") 의 topology=")
+                .val(&raw)
+                .lit(" 는 single/multi 가 아니다 — 트리플렛의 모양(포트·분산 키)을 정할 권위가 없다. terraforming_node 로 manifest 를 고쳐라(브랜치로 추론하지 않는다 · plan_26111708 B L10).")
+                .done(),
+        )),
+    }
+}
+
+/// The serving knobs a multi triplet needs that a ranked or trial candidate does not carry (plan_26111708 B L10):
+/// `tensor_parallel_size` = the manifest-derived TP (`resolve_tp`: nodes × gpus_per_node, the explorer's TP authority) and
+/// `distributed_executor_backend: ray` — the multi master starts a Ray head and `serve_runner.sh` refuses a yaml without
+/// `distributed-executor-backend` (upstream-version-watch `assets/configs/serve_runner.sh` §멀티 전용 필수 노브 게이트: without
+/// it vLLM goes multiprocessing and dies on `World size > available GPUs`). A backend the candidate already names is kept (a
+/// person's choice); a different candidate TP is replaced and reported. TP < 2 under a multi manifest is status 5.
+fn apply_multi_knobs(recipe: &mut PyDict, tp: i64) -> Step<Vec<PyStr>> {
+    if tp < 2 {
+        return Err(die(
+            5,
+            &format!("manifest topology=multi 인데 해소 TP={} < 2 — 분산 트리플렛을 만들 수 없다(manifest nodes·gpus_per_node 를 확인 · plan_26111708 B L10).", tp),
+        ));
+    }
+    let mut notes = Vec::new();
+    let given = recipe.get("tensor_parallel_size").cloned().unwrap_or(PyValue::None);
+    if given.is_truthy() && int_of(&given).ok() != Some(BigInt::from(tp)) {
+        notes.push(
+            Message::new()
+                .lit("[recipe] ⚠ 후보 tensor_parallel_size=")
+                .val(&given)
+                .lit(&format!(" → manifest 해소 TP={} 로 바꾼다(TP 의 권위는 manifest · plan_26111708 B L10).", tp))
+                .done(),
+        );
+    }
+    recipe.set("tensor_parallel_size", PyValue::int(tp));
+    if !recipe.get("distributed_executor_backend").map_or(false, |v| v.is_truthy()) {
+        recipe.set("distributed_executor_backend", PyValue::str("ray"));
+    }
+    Ok(notes)
+}
+
 fn str_of(value: &PyValue) -> Option<String> {
     match value.peel() {
         PyValue::Str(text) => text.to_utf8(),
@@ -919,7 +973,7 @@ fn simulate_spec() -> Spec {
             opt(&["--run-id"], "run_id", Kind::Text, Some("simlog run_id(미지정 시 <YYYYMMDDHH>_1_<topic> 자동)"), false),
             opt(&["--topic"], "topic", Kind::Text, Some("run_id 자동생성 시 주제(미지정 시 model_id)"), false),
             opt(&["--cap"], "cap", Kind::Int, Some("reconciliation_cap(기본 3)"), false),
-            opt(&["--image"], "image", Kind::Text, Some("run_trial docker 이미지"), false),
+            opt(&["--image"], "image", Kind::Text, Some("run_trial docker 이미지(실서빙 트라이얼이면 필수 · 기본값 없음)"), false),
             opt(&["--timeout"], "timeout", Kind::Int, Some("/health 폴링 타임아웃(초)"), false),
             opt(&["--overhead-mib"], "overhead_mib", Kind::Int, Some("예산 선언 overhead(MiB). 미지정 시 config.budget_overhead_mib → run_trial 기본값 순. 실측값이 있으면 넘긴다"), false),
             opt(&["--force"], "force", Kind::Flag, Some("수렴 시 3종 세트 덮어쓰기 허용"), false),
@@ -1077,7 +1131,23 @@ fn cmd_generate(
     let out_root = join(&join(root, &s("output")), &s(topology_of(root)));
     let out_root_value = PyValue::Str(out_root);
     let force_value = PyValue::Bool(force);
-    let topology = PyValue::str("single");
+    // plan_26111708 B L10: the topology is the manifest's (it was hard-coded `single`); multi adds the TP/Ray knobs, and the
+    // generator derives the multi env keys (MASTER/SLAVE names · build coordinates of a stock image tag).
+    let topology_name = manifest_topology(root)?;
+    let topology = PyValue::str(topology_name);
+    let recipe = if topology_name == "multi" {
+        let mut dict = match recipe.peel() {
+            PyValue::Dict(d) => d.clone(),
+            _ => return Err(die(1, "recipe 후보가 매핑이 아니다 — multi 노브를 더할 수 없다")),
+        };
+        let tp_i = int_of(&tp).ok().and_then(|n| i64::try_from(n).ok()).unwrap_or(0);
+        for note in apply_multi_knobs(&mut dict, tp_i)? {
+            streams.eprint(&note);
+        }
+        PyValue::Dict(dict)
+    } else {
+        recipe
+    };
     let none = PyValue::None;
     let image_value = image.map_or(PyValue::None, |i| PyValue::Str(i.clone()));
     let request = Request {
@@ -1092,6 +1162,7 @@ fn cmd_generate(
         vllm_version: &none,
         build_dockerfile: &none,
         image: &image_value,
+        vllm_ref: &none,
     };
     let mut warnings = PyStr::default();
     let outcome = recipe_set::generate(&request, &mut warnings);
@@ -1206,8 +1277,14 @@ pub fn recipe_main(args: &[PyStr], columns: Option<&str>, skill_root: &PyStr) ->
                 Err(run) => return run,
             };
             let root = repo_root(skill_root);
-            // The Flag gate runs after the command line parses, as for estimate/generate.
+            // The Flag gate runs after the command line parses, as for estimate/generate (policy:TERRAFORM_FLAG_GATE — an
+            // unterraformed tree is info-only, exit 4, whatever else the command line lacks).
             if let Err(d) = require_terraform_flag(&root) {
+                return stop(streams, d);
+            }
+            // plan_26111708 B L1: a real trial names its image (no default). The original's argparse never refused a missing
+            // image (it had a default), so this is a semantic check after the Flag gate, not an argument-parser error.
+            if let Err(d) = require_trial_image(&values) {
                 return stop(streams, d);
             }
             return simulate_values(streams, &values, &root, skill_root, None);
@@ -1223,6 +1300,20 @@ pub fn recipe_main(args: &[PyStr], columns: Option<&str>, skill_root: &PyStr) ->
         }
     }
     estimate_or_generate(streams, command.as_deref() == Some("generate"), args, columns, skill_root)
+}
+
+/// `simulate` without `--dry-run` and without `--mock-profile` starts a real trial, which needs `--image` (no default ·
+/// [`crate::run_trial::MISSING_IMAGE`] · status 2). plan_26111708 B L1.
+fn require_trial_image(values: &std::collections::BTreeMap<&'static str, Value>) -> Result<(), Die> {
+    let text = |d: &str| match values.get(d) {
+        Some(Value::Text(t)) => Some(t.clone()),
+        _ => None,
+    };
+    let real_trial = !matches!(values.get("dry_run"), Some(Value::Flag)) && text("mock_profile").is_none();
+    if real_trial {
+        crate::run_trial::require_image(text("image").as_ref()).map_err(|why| die(2, why))?;
+    }
+    Ok(())
 }
 
 pub use simulate_body::TrialEngine;
@@ -1265,7 +1356,7 @@ fn simulate_values(
                 run_id: text("run_id").filter(|t| !t.is_empty()),
                 topic: text("topic").filter(|t| !t.is_empty()),
                 cap: int("cap").unwrap_or(3),
-                image: text("image").unwrap_or_else(|| s("vllm-src-022:clean")),
+                image: text("image").filter(|t| !t.is_empty()),
                 timeout: int("timeout").unwrap_or(900),
                 overhead_mib: int("overhead_mib"),
                 force: matches!(values.get("force"), Some(Value::Flag)),

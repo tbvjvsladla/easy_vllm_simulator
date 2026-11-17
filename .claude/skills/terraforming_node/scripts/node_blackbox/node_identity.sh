@@ -93,7 +93,8 @@ ni_manifest_main_role() {  # $1=repo → stdout=슬러그 · 1=부재 · 2=계�
     [ "$hits" -eq 0 ] && continue
     if [ "$hits" -ne 1 ]; then
       echo "[node-identity] FAIL: $mf 에 role: ${NI_MAIN_ROLE} 항목이 ${hits}개다(계약은 정확히 1개)." >&2
-      echo "[node-identity]       scan_node.py manifest 게이트를 다시 통과시켜라." >&2
+      # 처방은 실재하는 런처를 가리킨다(plan_26111708 B L8 · scan_node.py 는 퇴역).
+      echo "[node-identity]       scan_node.sh manifest 게이트를 다시 통과시켜라." >&2
       return 2
     fi
     n=$((n + 1)); found="$NI_MAIN_ROLE"
@@ -134,7 +135,8 @@ ni_resolve_node_id() {  # $1=repo  $2=명시 --node-id(없으면 빈 문자열) 
   # 여기가 옛 `$(hostname)` 자리다. 조용히 만들지 않는다.
   echo "[node-identity] FAIL: node_id 를 해소하지 못했다 — hostname 으로 대체하지 않는다." >&2
   echo "[node-identity]   찾은 곳: (a) $repo/output/*/manifest.yaml 의 self_role: (서브 · terraforming 발급)  (b) 동 파일의 유일한 role: ${NI_MAIN_ROLE} (메인)" >&2
-  echo "[node-identity]   해소: 서브면 메인이 scan_node.py --emit-sub-manifest → render_sub_env.py 로 서브 manifest 재배달 · 메인이면 manifest 를" >&2
+  # 처방은 실재하는 런처를 가리킨다(plan_26111708 B L8 · scan_node.py/render_sub_env.py 는 퇴역).
+  echo "[node-identity]   해소: 서브면 메인이 scan_node.sh --emit-sub-manifest → render_sub_env.sh 로 서브 manifest 재배달 · 메인이면 manifest 를" >&2
   echo "[node-identity]         terraforming_node 로 채워라. 급하면 --node-id=<slug> 로 명시 주입." >&2
   return 1
 }

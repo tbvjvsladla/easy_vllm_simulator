@@ -624,3 +624,262 @@ fn the_native_selftest_holds() {
     assert_eq!(status, Some(0), "{out}\n{err}");
     assert!(out.ends_with("[campaign_init] PASS\n") && !out.contains("  FAIL "), "{out}");
 }
+
+// ── plan_26111708 B L8 (remedies name the live launchers) · L11 (cell id ↔ serving config bound at declaration) ──────
+
+/// A scratch checkout whose declaration the shipped schema accepts, so the per-cell declaration checks run past the
+/// schema. The shipped `campaigns/_template/campaign.schema.json` is read (copied into the scratch), never written.
+fn declared(name: &str) -> PathBuf {
+    let root = scratch(name);
+    let repo = Path::new(env!("CARGO_MANIFEST_DIR")).ancestors().nth(4).expect("installed layout has a repository root");
+    std::fs::copy(
+        repo.join("campaigns/_template/campaign.schema.json"),
+        root.join("campaigns/_template/campaign.schema.json"),
+    )
+    .unwrap();
+    // the validator asks for the schema engine's launcher by presence only (the engine itself is in-process)
+    put(&root, ".claude/policies/runtime/completion_gate.sh", "#");
+    put(&root, "campaigns/ACTIVE", "camp-a\n");
+    put(&root, "campaigns/camp-a/campaign.yaml", WELL_FORMED);
+    root
+}
+
+const WELL_FORMED: &str = "{\"schema_version\": 1, \"id\": \"camp-a\", \"plan_ref\": \"docs/plan/p.md\", \"declared_utc\": \"2026-11-17T00:00:00Z\", \"nodes\": [{\"node_id\": \"main\", \"role\": \"main\", \"topology\": \"multi\"}, {\"node_id\": \"sub\", \"role\": \"sub\", \"topology\": \"multi\"}], \"matrix\": {\"versions\": [\"0.32.0\"], \"models\": [\"m\"]}, \"assignments\": {\"main\": [{\"cell\": \"nemo35-super-vl-tp2\"}], \"sub\": [{\"cell\": \"s1\"}]}, \"budgets\": {\"smoke_budget_overhead_mib\": 1, \"ready_max_seconds\": 1}, \"control_variables\": {\"model\": \"m\", \"vllm_version\": \"0.32.0\", \"topology\": \"multi\", \"target_gpu\": \"gb10\"}, \"hint_targets\": [], \"topology_sections\": {\"single\": {}, \"multi\": {}}}";
+
+fn assign(root: &Path, node: &str, cells: &str) -> (Option<i32>, String, String) {
+    call(root, &["--assign-set", node, "--assign-cells", cells, "--assign-reason", "r", "--assign-evidence", "e", "--assign-approved-by", "a", "--utc", "U"])
+}
+
+fn validate(root: &Path, strict: bool) -> Vec<String> {
+    let ctx = Ctx { root: root.to_path_buf() };
+    sweep_stop::campaign_validator::validate_campaign(&ctx, &root.join("campaigns/camp-a/campaign.yaml"), strict)
+        .unwrap_or_else(|_| panic!("the fixture schema is readable"))
+}
+
+#[test]
+fn l8_grounding_remedy_names_the_campaign_init_launcher() {
+    let root = scratch("l8-grounding");
+    active(&root);
+    let (status, _, err) = call(&root, &["--grounding-check"]);
+    assert_eq!(status, Some(4));
+    assert!(err.contains("`campaign_init.sh --ground --utc <t>` 로 물어라"), "{err}");
+    assert!(!err.contains("campaign_init.py"), "{err}");
+}
+
+#[test]
+fn l8_sub_reslice_guidance_names_relay_sh_and_sub_cells_need_no_local_config() {
+    let root = declared("l8-reslice");
+    // an A2A sub (single topology: the multi sub is a cluster worker, not a reslice target)
+    put(&root, "campaigns/camp-a/campaign.yaml", &WELL_FORMED.replace("\"multi\"", "\"single\""));
+    // sub cells are not observable from the main instance: no serving config is asked for them (L11 ② is the main's own)
+    let (status, out, err) = assign(&root, "sub", "s1,s2");
+    assert_eq!(status, Some(0), "{out}{err}");
+    assert!(err.contains("relay.sh --campaign-control reslice --campaign-id camp-a --node sub"), "{err}");
+    assert!(!err.contains("relay.py"), "{err}");
+}
+
+#[test]
+fn l8_hint_arch_remedy_names_the_campaign_init_launcher() {
+    let doc = match sweep_stop::pyjson::loads("{\"hint_targets\": [{\"arch\": \"x\"}]}").ok().map(|v| v.peel().clone()) {
+        Some(sweep_stop::pyvalue::PyValue::Dict(d)) => d,
+        _ => panic!("fixture is an object"),
+    };
+    let reasons = sweep_stop::campaign_validator::hint_target_reasons(&doc);
+    assert!(reasons.iter().any(|r| r.contains("`campaign_init.sh --hint-approve` 로 적는다")), "{reasons:?}");
+    assert!(reasons.iter().all(|r| !r.contains("campaign_init.py")), "{reasons:?}");
+}
+
+/// A closed tripwire list: the retired-program commands a remedy may no longer name. Help/usage text (`prog`) is out of
+/// scope (golden-pinned; plan_26111708 A4 defers it), so only these command forms are listed.
+#[test]
+fn l8_no_remedy_in_this_crate_names_a_retired_python_command() {
+    const RETIRED: [&str; 7] = [
+        "relay.py --campaign-control",
+        "campaign_init.py --ground",
+        "campaign_init.py --resume-campaign",
+        "campaign_init.py --hint-approve",
+        "resolve_guidellm.py --record",
+        "scan_node.py --emit-sub-manifest",
+        "recipe.py --cap",
+    ];
+    let src = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+    let mut stack = vec![src];
+    let mut hits = Vec::new();
+    while let Some(dir) = stack.pop() {
+        for entry in std::fs::read_dir(&dir).unwrap().filter_map(Result::ok) {
+            let path = entry.path();
+            if path.is_dir() {
+                stack.push(path);
+                continue;
+            }
+            if path.extension().and_then(|e| e.to_str()) != Some("rs") {
+                continue;
+            }
+            let text = std::fs::read_to_string(&path).unwrap();
+            for (n, line) in text.lines().enumerate() {
+                let code = line.trim_start();
+                if code.starts_with("//") {
+                    continue;
+                }
+                for retired in RETIRED {
+                    if code.contains(retired) {
+                        hits.push(format!("{}:{}: {retired}", path.display(), n + 1));
+                    }
+                }
+            }
+        }
+    }
+    assert!(hits.is_empty(), "{hits:#?}");
+}
+
+#[test]
+fn l11_assign_set_names_a_cell_id_no_serving_config_carries_and_proceeds() {
+    let root = declared("l11-missing");
+    put(&root, "output/multi/configs/nemo35-super-vl-tp2.yaml", "model: /m\n");
+    put(&root, "output/multi/configs/solar032-nv4-safe-tp2.yaml", "model: /s\n");
+    let decl = root.join("campaigns/camp-a/campaign.yaml");
+    // P3: the cell was declared under a new id while the triplet it meant is `solar032-nv4-safe-tp2`. An absence is
+    // undecided (the triplet may come later), so the change proceeds — but the declaration step names it right away
+    // (workflow.md §캠페인: gaps are recorded, only three places block).
+    let (status, out, err) = assign(&root, "main", "nemo35-super-vl-tp2,solar2-250b-nv4-tp2");
+    assert_eq!(status, Some(0), "{out}{err}");
+    assert!(err.contains("경고(기재 · 진행): 셀 'solar2-250b-nv4-tp2' 을 결속할 config 가 없다"), "{err}");
+    assert!(err.contains("기대 서빙 config output/multi/configs/solar2-250b-nv4-tp2.yaml 도 셀 입력 campaigns/camp-a/cells/solar2-250b-nv4-tp2/config.yaml 도 없다"), "{err}");
+    assert!(std::fs::read_to_string(&decl).unwrap().contains("solar2-250b-nv4-tp2"));
+    // the P3 correction (the cell named after the config) is accepted at declaration
+    let (status, out, err) = assign(&root, "main", "nemo35-super-vl-tp2,solar032-nv4-safe-tp2");
+    assert_eq!(status, Some(0), "{out}{err}");
+    assert!(std::fs::read_to_string(&decl).unwrap().contains("solar032-nv4-safe-tp2"));
+    let journey = std::fs::read_to_string(root.join("campaigns/camp-a/journey.jsonl")).unwrap();
+    assert!(journey.contains("\"added\": [\"solar032-nv4-safe-tp2\"]") && journey.contains("campaign_assignments_revised"), "{journey}");
+}
+
+#[test]
+fn l11_a_cell_input_binds_a_fresh_cell_and_a_foreign_or_unreadable_one_is_refused() {
+    let root = declared("l11-input");
+    put(&root, "output/multi/configs/nemo35-super-vl-tp2.yaml", "model: /m\n");
+    // explorer flow: the cell input carries the cell's own name before its triplet exists
+    put(&root, "campaigns/camp-a/cells/fresh-tp2/config.yaml", "serving:\n  config_name: fresh-tp2\n");
+    let (status, out, err) = assign(&root, "main", "nemo35-super-vl-tp2,fresh-tp2");
+    assert_eq!(status, Some(0), "{out}{err}");
+    // a second change (the declaration now carries assignment_revisions) is still checked for the added cell
+    put(&root, "campaigns/camp-a/cells/odd-tp2/config.yaml", "serving:\n  config_name: solar032-nv4-safe-tp2\n");
+    let (status, _, err) = assign(&root, "main", "nemo35-super-vl-tp2,fresh-tp2,odd-tp2");
+    assert_eq!(status, Some(1));
+    assert!(err.contains("셀 'odd-tp2' 의 입력 campaigns/camp-a/cells/odd-tp2/config.yaml 이 serving.config_name='solar032-nv4-safe-tp2' 을 선언한다"), "{err}");
+    assert!(err.contains("기대 config 이름 'odd-tp2' (output/multi/configs/odd-tp2.yaml)"), "{err}");
+    put(&root, "campaigns/camp-a/cells/bad-tp2/config.yaml", "serving: [\n");
+    let (status, _, err) = assign(&root, "main", "nemo35-super-vl-tp2,fresh-tp2,bad-tp2");
+    assert_eq!(status, Some(1));
+    assert!(err.contains("셀 'bad-tp2' 의 입력 campaigns/camp-a/cells/bad-tp2/config.yaml 을 읽지 못했다"), "{err}");
+}
+
+#[test]
+fn l11_the_declaration_validator_names_the_expected_config() {
+    let root = declared("l11-validator");
+    // non-strict: an absence is undecided, not a contradiction — recorded at `--assign-set`, not counted here
+    assert!(validate(&root, false).is_empty(), "{:?}", validate(&root, false));
+    // strict: the binding sentence stands in for the bare missing-input line (one line per cell)
+    let problems = validate(&root, true);
+    assert_eq!(problems.len(), 1, "{problems:?}");
+    assert!(problems[0].contains("기대 서빙 config output/multi/configs/nemo35-super-vl-tp2.yaml"), "{problems:?}");
+    put(&root, "output/multi/configs/nemo35-super-vl-tp2.yaml", "model: /m\n");
+    assert!(validate(&root, false).is_empty(), "a bound, schema-valid declaration passes");
+    let problems = validate(&root, true);
+    assert_eq!(problems, vec!["배정된 셀 'nemo35-super-vl-tp2' 입력이 없다: campaigns/camp-a/cells/nemo35-super-vl-tp2/config.yaml".to_string()]);
+}
+
+#[test]
+fn l11_a_sub_instance_is_not_asked_for_configs_before_its_assignment() {
+    let root = declared("l11-sub");
+    put(
+        &root,
+        "campaigns/camp-a/campaign.yaml",
+        &WELL_FORMED
+            .replace("\"schema_version\": 1,", "\"schema_version\": 1, \"self_role\": \"sub\",")
+            .replace("\"assignments\": {\"main\": [{\"cell\": \"nemo35-super-vl-tp2\"}], \"sub\": [{\"cell\": \"s1\"}]}", "\"assignments\": {\"sub\": [{\"cell\": \"s1\"}]}"),
+    );
+    assert!(validate(&root, false).is_empty(), "{:?}", validate(&root, false));
+    // ① still holds there: the sub's own cell input may not name another config
+    put(&root, "campaigns/camp-a/cells/s1/config.yaml", "serving:\n  config_name: other\n");
+    let problems = validate(&root, false);
+    assert!(problems.len() == 1 && problems[0].contains("serving.config_name='other'"), "{problems:?}");
+}
+
+#[test]
+fn l11_materialize_keeps_its_refusals_through_the_shared_path_rule() {
+    let root = declared("l11-materialize");
+    put(&root, "campaigns/camp-a/campaign.yaml", &WELL_FORMED.replace("nemo35-super-vl-tp2", "solar2-250b-nv4-tp2"));
+    let (status, _, err) = call(&root, &["--cell-materialize", "solar2-250b-nv4-tp2", "--utc", "U"]);
+    assert_eq!(status, Some(1));
+    assert!(err.contains("서빙 yaml output/multi/configs/solar2-250b-nv4-tp2.yaml 부재 — 셀 id = config 이름이어야 한다"), "{err}");
+    let root = scratch("l11-materialize-topo");
+    active(&root);
+    let (status, _, err) = call(&root, &["--cell-materialize", "c1", "--utc", "U"]);
+    assert_eq!(status, Some(1));
+    assert!(err.contains("노드 'main' 의 topology 를 선언에서 해소하지 못했다: None(추측 ✗)"), "{err}");
+}
+
+// ── plan_26111708 B L12 (the standalone campaign-cell sweep record) ─────────────────────────────────────────────────
+// The end-to-end run (a real `sweep_bench.sh --campaign-cell` in the sandbox, read back by `--cell-set --sweep-state`,
+// the `_bootstrap` no-op, a failed measurement, the multi topology) is `selftest_sweep_repeats` C1–C4; here the writer's
+// own place contract.
+
+#[test]
+fn l12_campaign_cell_record_takes_only_a_place_derived_from_the_declaration() {
+    let root = scratch("l12-place");
+    for (state, code, said) in [
+        ("output/single/benchlog/sweep_x.json", Some(2), "campaigns/<id>/sweeps/<name>.json 이 아니다"),
+        ("campaigns/camp-a/relay/sweep_x.json", Some(2), "campaigns/<id>/sweeps/<name>.json 이 아니다"),
+        ("campaigns/_template/sweeps/sweep_x.json", Some(2), "뼈대(_template)다"),
+        ("campaigns/_bootstrap/sweeps/sweep_x.json", Some(0), "캠페인 밖(ACTIVE=_bootstrap)"),
+    ] {
+        let path = root.join(state);
+        let out = std::process::Command::new(env!("CARGO_BIN_EXE_bench_shell"))
+            .arg("campaign-cell-record")
+            .arg(&path)
+            .env_clear()
+            .env("PATH", "/nonexistent")
+            .output()
+            .expect("run bench_shell");
+        let shown = format!("{}{}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
+        assert_eq!(out.status.code(), code, "{state}: {shown}");
+        assert!(shown.contains(said), "{state}: {shown}");
+        assert!(!path.exists(), "{state}: nothing is written outside a campaign's sweeps/");
+    }
+}
+
+// ── plan_26111708 B (schema): the shipped schema lists what `--assign-set` writes ─────────────────────────────────────
+
+#[test]
+fn schema_reads_assignment_revisions_so_the_per_cell_checks_run_after_an_assign_set() {
+    let root = declared("schema-revisions");
+    put(&root, "output/multi/configs/nemo35-super-vl-tp2.yaml", "model: /m\n");
+    put(&root, "output/multi/configs/solar032-nv4-safe-tp2.yaml", "model: /s\n");
+    let (status, out, err) = assign(&root, "main", "nemo35-super-vl-tp2,solar032-nv4-safe-tp2");
+    assert_eq!(status, Some(0), "{out}{err}");
+    let decl = root.join("campaigns/camp-a/campaign.yaml");
+    let written = std::fs::read_to_string(&decl).unwrap();
+    assert!(written.contains("assignment_revisions"), "{written}");
+    // the writer's own output (t0 + rev 1) passes the schema: no SCHEMA_UNKNOWN_PROPERTY, nothing else either
+    assert!(validate(&root, false).is_empty(), "{:?}", validate(&root, false));
+    // and the validation goes past the schema: a hand-added cell whose input names another config is refused (L11 ①)
+    put(&root, "campaigns/camp-a/campaign.yaml", &written.replace("\"cell\": \"solar032-nv4-safe-tp2\"", "\"cell\": \"solar2-250b-nv4-tp2\""));
+    put(&root, "campaigns/camp-a/cells/solar2-250b-nv4-tp2/config.yaml", "serving:\n  config_name: solar032-nv4-safe-tp2\n");
+    let problems = validate(&root, false);
+    assert_eq!(problems.len(), 1, "{problems:?}");
+    assert!(problems[0].contains("serving.config_name='solar032-nv4-safe-tp2' 을 선언한다"), "{problems:?}");
+    std::fs::remove_file(root.join("campaigns/camp-a/cells/solar2-250b-nv4-tp2/config.yaml")).unwrap();
+    // the schema is no looser than the writer: t0 is the original (reason/approver fixed, no change fields), a change
+    // carries node·removed·added·source
+    for (from, to, code) in [
+        ("\"approved_by\": \"t0\"", "\"approved_by\": \"someone\"", "SCHEMA_CONST_VIOLATION:assignment_revisions[0].approved_by"),
+        ("\"source\": \"campaign_init --assign-set\"", "\"origin\": \"campaign_init --assign-set\"", "SCHEMA_MISSING_REQUIRED_KEY:assignment_revisions[1].source"),
+        ("\"reason\": \"t0 선언\",", "\"reason\": \"t0 선언\", \"node\": \"main\",", "SCHEMA_UNKNOWN_PROPERTY:assignment_revisions[0].node"),
+    ] {
+        assert!(written.contains(from), "fixture has {from}: {written}");
+        put(&root, "campaigns/camp-a/campaign.yaml", &written.replacen(from, to, 1));
+        let problems = validate(&root, false);
+        assert!(problems.iter().any(|p| p.contains(code)), "{code}: {problems:?}");
+    }
+}

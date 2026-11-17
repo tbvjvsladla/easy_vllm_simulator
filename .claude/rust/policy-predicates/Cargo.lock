@@ -618,6 +618,7 @@ dependencies = [
  "openssl-probe",
  "policy-gate",
  "policy-publisher",
+ "recipe-runtime",
  "ring",
  "role-contract",
  "rustix",

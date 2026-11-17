@@ -12,9 +12,9 @@
 - **배정의 단일 권위는 `assignments`** 다: `{"<node_id>": [{"cell": "<id>", "mode": "AUTO|HITL|STAY"}, …]}`.
   리스트 순서가 그 노드의 실행 순서이고, **서로 다른 노드의 리스트는 동시에 돈다**. `hint_targets[].cells`
   는 여기서 파생된다(검증기가 부분집합을 검사한다). 옛 `order` 는 대체됐다. 캠페인 셀의 **발행 게이트**는 선언 확인
-  팝업에서 받아 `campaign_init.py --hint-approve` 로 적은 `hint_targets[].approval`(셀별 사전 Y/N · 2026-09-21 O6)이다 — 셀마다
+  팝업에서 받아 `campaign_init.sh --hint-approve` 로 적은 `hint_targets[].approval`(셀별 사전 Y/N · 2026-09-21 O6)이다 — 셀마다
   멈추지 않되 무인 자동 태깅은 없다.
-- **배정 변경의 문은 `campaign_init.py --assign-set`** 하나다(2026-10-17 · plan_26101722 K8 — 종전에는 writer 가 없어 손편집이
+- **배정 변경의 문은 `campaign_init.sh --assign-set`** 하나다(2026-10-17 · plan_26101722 K8 — 종전에는 writer 가 없어 손편집이
   우회로였다). pending 셀만 추가·은퇴·순서·mode 를 바꾼다. 서브 몫은 `relay.sh --campaign-control reslice` 가 새 파생 선언을
   싣고 가고, 서브는 같은 writer(`--slice-update`)로 자기 상태에서 같은 규칙을 다시 검사한다. 상세는 `writers.md`.
 - **전이 모드**는 셀이 끝난 뒤의 행동이다 — `AUTO`(기본·생략 가능) = 정리 후 다음 셀 · `HITL` = 정리 후

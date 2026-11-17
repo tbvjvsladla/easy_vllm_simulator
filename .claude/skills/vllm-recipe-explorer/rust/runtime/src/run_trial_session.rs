@@ -14,8 +14,8 @@
 use crate::functional_smoke::{smoke, Constants, Plain};
 use crate::pyexpr::{get, is_none};
 use crate::run_trial::{
-    audit_emitted, build_docker_cmd, container_state, host_floor_gmu_cap, poll_health, DockerOptions,
-    CONTAINER_MODELS, DEFAULT_IMAGE, DEFAULT_PORT, DEFAULT_TIMEOUT, HEALTH_POLL_INTERVAL, HOST_FLOOR_HEADROOM_MIB,
+    audit_emitted, build_docker_cmd, container_state, host_floor_gmu_cap, poll_health, require_image, DockerOptions,
+    CONTAINER_MODELS, DEFAULT_PORT, DEFAULT_TIMEOUT, HEALTH_POLL_INTERVAL, HOST_FLOOR_HEADROOM_MIB,
     HOST_FLOOR_MIB, NAS_MOUNT, PROVENANCE_MEASURED,
 };
 use agent_runtime_support::failure::Failure;
@@ -553,8 +553,9 @@ pub fn run_session(
     opts: &SessionOpts,
 ) -> Result<PyValue, SessionError> {
     let root = repo_root();
-    let default_image = PyStr::new(DEFAULT_IMAGE);
-    let image = opts.image.clone().unwrap_or(default_image);
+    // plan_26111708 B L1: no default image — a missing one stops the session before docker is touched.
+    let image = require_image(opts.image.as_ref())
+        .map_err(|text| SessionError::Stop { status: 2, text: format!("[trial] 중단: {}\n", text) })?;
     let timeout = opts.timeout.unwrap_or(DEFAULT_TIMEOUT);
     let port = opts.port.unwrap_or(DEFAULT_PORT);
     let smoke_timeout = opts.smoke_timeout.unwrap_or(60.0);

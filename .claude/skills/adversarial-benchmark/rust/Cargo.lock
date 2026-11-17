@@ -318,6 +318,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "recipe-runtime"
+version = "0.1.0"
+dependencies = [
+ "agent-runtime-support",
+ "num-bigint",
+ "num-traits",
+ "openssl-probe",
+ "ring",
+ "rustls",
+ "rustls-native-certs",
+ "ureq",
+]
+
+[[package]]
 name = "regex-automata"
 version = "0.4.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -523,6 +537,7 @@ dependencies = [
  "openssl-probe",
  "policy-gate",
  "policy-publisher",
+ "recipe-runtime",
  "ring",
  "role-contract",
  "rustix",

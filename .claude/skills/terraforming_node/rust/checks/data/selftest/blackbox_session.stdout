@@ -30,6 +30,27 @@
 진입 차단 기록: stage=declare reason=budget_params_missing → /tmp/tmpp1im2hz4/node-x/events/2026-07.jsonl
 세션 시작: /tmp/tmpp1im2hz4/node-x/sessions/s2.json
 이벤트   : /tmp/tmpp1im2hz4/node-x/events/2026-07.jsonl
+선언 발행: /tmp/tmpp1im2hz4/node-co/serve_budget.env
+  예상 상주 33580 MiB → 예상 바닥 91030 MiB · 만료 epoch 1785463200 (TTL 7200s)
+  워치독 예상 arm 상한 = 91030 - 3072 = 87958 MiB
+선언 발행: /tmp/tmpp1im2hz4/node-co/serve_budget.env
+  예상 상주 33580 MiB → 예상 바닥 91030 MiB · 만료 epoch 1785463500 (TTL 7200s)
+  워치독 예상 arm 상한 = 91030 - 3072 = 87958 MiB
+선언 발행: /tmp/tmpp1im2hz4/node-co/serve_budget.env
+  예상 상주 71895 MiB → 예상 바닥 52715 MiB · 만료 epoch 1785463800 (TTL 7200s)
+  워치독 예상 arm 상한 = 52715 - 3072 = 49643 MiB
+  공존 적층: 기존 선언 label=model-a(floor 91030 MiB) 위 — overhead 50580 = 자기 12265 + 상주 38315 (MemTotal 124610 − MemAvailable 86295 · 출처 fixture-a-settled)
+  --overhead-mib 에는 이 모델 자신의 overhead 만 준다 — 공존 상주분은 이 도구가 더한다(손으로 더하면 이중 계상).
+  label=model-a 의 갱신 루프는 다음 갱신에서 스스로 멈춘다(renew-budget --expect-label 불일치 → exit 3).
+갱신 중단(대체됨): /tmp/tmpp1im2hz4/node-co/serve_budget.env 의 선언은 label=model-b 다(기대 model-a) — 다른 모델이 공존 적층했다. 이 선언을 갱신하지 않는다(exit 3).
+선언 갱신: /tmp/tmpp1im2hz4/node-co/serve_budget.env
+  바닥 52715 MiB 유지 · 만료 1785463800 → 1785460800 (갱신 전 잔여 6600s · 새 TTL 3600s)
+선언 발행: /tmp/tmpp1im2hz4/node-cf/serve_budget.env
+  예상 상주 88228 MiB → 예상 바닥 36382 MiB · 만료 epoch 1785463200 (TTL 7200s)
+  워치독 예상 arm 상한 = 36382 - 3072 = 33310 MiB
+선언 발행: /tmp/tmpp1im2hz4/node-cf/serve_budget.env
+  예상 상주 33580 MiB → 예상 바닥 91030 MiB · 만료 epoch 1785474000 (TTL 7200s)
+  워치독 예상 arm 상한 = 91030 - 3072 = 87958 MiB
 PASS 선언 상수를 정본에서 파생한다(사본 ✗ · G-B3)
 PASS 리터럴 사본이 되살아나지 않았다(tripwire)
 PASS start 사이드카 생성
@@ -77,5 +98,27 @@ PASS 미종료 세션은 stopped_utc=None
 PASS 중복 start 거부
 PASS 비ISO --now 거부
 PASS session-id 이스케이프 거부
+PASS ★ 단일 경로: 선언이 없으면 적층하지 않고 노드 메모리도 읽지 않는다
+PASS ★ 단일 경로: 같은 라벨 재선언(같은 모델)은 개정 전 바이트 그대로
+PASS ★ 공존 적층: 둘째 overhead = 자기 + (MemTotal − MemAvailable) → 바닥 = MemAvailable − 자기 상주
+PASS 적층 산출 헤더가 실효 overhead 로 바닥을 재현
+PASS 적층 provenance(대상 라벨·상주·자기 overhead·출처)
+PASS ★ 적층 선언도 워치독이 읽는 키가 각 1줄(head -1 오독 ✗)
+PASS 적층 선언 값도 워치독 문자셋 준수
+PASS 적층 이벤트: overhead 는 바닥 재현값 · 구성(자기·상주·측정)은 따로
+PASS budget-status 리더가 적층 대상을 보인다
+PASS ★ 대체된 모델(model-a)의 갱신 루프는 exit 3 을 받는다
+PASS 대체 거부는 선언을 건드리지 않는다
+PASS 대체 거부가 events 에 남는다
+PASS 적층한 모델(model-b)의 갱신은 통과하고 바닥·적층 키를 보존
+PASS --expect-label 문자셋 위반은 거부(대체로 오인 ✗)
+PASS ★ 노드 메모리 판독 불가 → 거부 · 살아 있는 선언 불변
+PASS ★ --mem-total-mib ≠ 측정 MemTotal → 거부 · 불변
+PASS ★ 적층 바닥 ≥ 기존 바닥(기존 모델 로드 중·stale) → 거부 · 불변
+PASS ★ 적층 뒤에도 트립 가드 유지(바닥 6420 ≤ 트립선 → 거부 · 불변)
+PASS 불량 라벨은 적층 판정 없이 단일 경로의 라벨 거부(노드 메모리 미판독)
+PASS 적층 거부도 events 에 남는다(5건)
+PASS ★ 만료된(stale) 다른 라벨 선언 위에는 적층하지 않는다(단일 경로 · 노드 메모리 미판독)
+PASS ★ 읽지 못하는 기존 선언(워치독 sed 는 읽는다) → 거부 · 바이트 불변
 
-self-test: 47/47 PASS
+self-test: 69/69 PASS

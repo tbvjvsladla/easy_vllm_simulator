@@ -166,7 +166,8 @@ pub fn main_with(args: &[PyStr], console: &mut dyn Console) -> Result<i32, Failu
             .val(&observed)
             .lit(")가 기록(")
             .val(&recorded)
-            .lit(")과 다르다. 막지 않는다 — 실제로 돈 digest 를 결과·리포트에 적는다(측정 provenance). 기록을 갱신하려면 resolve_guidellm.py --record 를 쓴다.\n")
+            // plan_26111708 B L8: the remedy names the live `resolve_guidellm.sh` launcher (resolve_guidellm.py is retired).
+            .lit(")과 다르다. 막지 않는다 — 실제로 돈 digest 를 결과·리포트에 적는다(측정 provenance). 기록을 갱신하려면 resolve_guidellm.sh --record 를 쓴다.\n")
             .done();
         console.error(&message);
     }

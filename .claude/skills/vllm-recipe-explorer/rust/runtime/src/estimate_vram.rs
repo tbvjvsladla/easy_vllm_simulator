@@ -162,6 +162,17 @@ pub fn estimate(
                 text("offline_quant_on_non_prequantized_checkpoint"),
             );
         }
+        if crate::quant_table::is_mixed_precision_quant(&quantization)? {
+            // plan_26111708 B L9: a named reason instead of the generic unknown-method error — vLLM's MIXED_PRECISION reads a
+            // per-layer recipe that only a pre-quantized ModelOpt checkpoint carries (quantization/modelopt.py:1653-1658).
+            result.set("error", text("mixed_precision_requires_prequantized_checkpoint"));
+            result.set(
+                "note",
+                text("modelopt_mixed = 층별 혼합 정밀도(vLLM ModelOptMixedPrecisionConfig) — quantization_config.quantized_layers 를 가진 사전양자화 ModelOpt 체크포인트에서만 성립한다(온라인 양자화 불가 · 단일 bpw 없음)"),
+            );
+            result.set("gate_pass", PyValue::Bool(false));
+            return Ok(PyValue::Dict(result));
+        }
         let PyValue::Tuple(pair) = vllm_quant_bpw_or_none(&quantization, &serve_bpw)? else {
             unreachable!("the resolver returns a pair")
         };
@@ -270,6 +281,10 @@ pub fn weights_bytes_for(parsed: &PyValue, quantization: &PyValue) -> Res<f64> {
     let num_params = get(parsed, "num_params")?;
     if is_none(&num_params) {
         return Err(Failure::new("ValueError", "num_params_unknown"));
+    }
+    if crate::quant_table::is_mixed_precision_quant(quantization)? {
+        // plan_26111708 B L9: the same named reason as `estimate` (no single bytes-per-weight · pre-quantized only).
+        return Err(Failure::new("ValueError", "mixed_precision_requires_prequantized_checkpoint"));
     }
     let serve_bpw = get(parsed, "serve_bpw")?;
     let bpw = vllm_quant_bpw(quantization, &serve_bpw)?;

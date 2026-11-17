@@ -492,7 +492,8 @@ pub fn _approval(repo: &Path, st: &J, approved_by: Option<&str>, approved_utc: O
             return fail(
                 "HINT_APPROVAL_SOURCE_CONFLICT",
                 "캠페인 셀의 승인 원천은 campaign.yaml hint_targets 하나다(O6) — --approved-by/--approved-utc 는 캠페인 밖(재생) 발행용이다.",
-                Some("캠페인 승인은 `campaign_init.py --hint-approve` 로 적는다(선언 확인·발행 팝업의 사람 발화 전사)."),
+                // plan_26111708 B L8: the remedy names the live `campaign_init.sh` launcher.
+                Some("캠페인 승인은 `campaign_init.sh --hint-approve` 로 적는다(선언 확인·발행 팝업의 사람 발화 전사)."),
             );
         }
         let ap = evidence::approval_for(repo, &sel["campaign"], &sel["cell"], &sel["node"])?;

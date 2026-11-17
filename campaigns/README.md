@@ -19,7 +19,7 @@
 
 새 세션이 캠페인 도중에 들어왔다면 **대화 기록을 찾지 말고** 아래 순서로 읽어라.
 
-0. **`campaign_init.py --resume-brief`** ← **여기서 시작한다**(2026-09-07 신설).
+0. **`campaign_init.sh --resume-brief`** ← **여기서 시작한다**(2026-09-07 신설).
    인스턴스만 읽고 한 화면으로 낸다: layer-1 현재 선언(+개정 수) · 셀 진행표 · 노드별 phase
    진행표 · 마지막 여정 3줄 · **다음 pending 셀** · **반증된 축(재시도 금지)** · 증거 포인터 수.
    아래 1~4 는 이 요약으로 부족할 때 보는 원문이다. 요약만으로 다음 셀에 착수하고 반증된 축을
@@ -75,7 +75,7 @@ campaigns writer(`--phase-set`·`--cell-set`·`--evidence-add`)는 **no-op** 이
 
 - **`<<FILL>>` 이 남으면 검증기가 fail-closed 한다.** 모르는 값을 그럴듯하게 채우지 말고, 모른다는
   사실 자체를 사람에게 올려라(`relay/pending_hitl.json`).
-- **상태 파일에 바이트를 쓰는 것은 `campaign_init.py` 하나다**(2026-09-07). `--phase-set`·
+- **상태 파일에 바이트를 쓰는 것은 `campaign_init.sh` 하나다**(2026-09-07). `--phase-set`·
   `--cell-set`·`--evidence-add`·`--revise`·`--evidence-prune-stubs`·`--hint-approve` 가 유일한 쓰기 문이고,
   호출부는 각 phase 의 **실제 실행 스크립트 종료부**다(포맷 소유 1 · 호출부 N). 2026-09-06 실측:
   상태를 쓴 것이 세션과 함께 소멸하는 스크래치패드 스크립트였다.
@@ -122,7 +122,7 @@ campaigns writer(`--phase-set`·`--cell-set`·`--evidence-add`)는 **no-op** 이
   막는다(위 §채우기 규칙). 모르는 값을 그럴듯하게 채우지 않는다: 요구가 없는 축(lite 만 재는 셀의
   `concurrency_requirement`·`typical_request_tokens` 등)은 `null` 로 **"선언하지 않았다"** 를 적는다.
 - **lockset 의 `provenance` 는 필수 표시다** — `explorer-phase2`(explorer Phase-2 절차가 잠갔다) 또는
-  `hand-authored`(그 절차 밖에서 사람이 적었다). 뼈대에서는 `<<FILL>>` 로 출발한다. **실행자**: `recipe.py simulate` 가
+  `hand-authored`(그 절차 밖에서 사람이 적었다). 뼈대에서는 `<<FILL>>` 로 출발한다. **실행자**: `recipe.sh simulate` 가
   셀 lockset 을 `--candidate` 로 받아 수렴하면 그 파일에(`--lockset-out` 생략 가능 — 캠페인 셀 lockset 이면 제자리가 기본)
   `provenance=explorer-phase2` 와 예외 노브의 `*_source`·`trial_provenance`(measured|mock|dry-run)를 **기계 각인**한다
   (2026-09-14 · plan_26091407 단계 ② — 그 전까지 이 표시는 절차 자기선언뿐이었다). 아직 트라이얼을 거치지 않은 lockset
@@ -166,7 +166,7 @@ campaigns writer(`--phase-set`·`--cell-set`·`--evidence-add`)는 **no-op** 이
 - **모양**: `{"node_id": "<선언 노드>", "cells": ["<그 노드의 배정 셀>", …], "approval": {"approved_by":
   "<사람 발화의 전사>", "approved_utc": "YYYY-MM-DDTHH:MM:SSZ", "source": "declaration-popup|publish-popup"}}`.
   항목 하나 = 승인 사건 하나이고, **한 셀의 승인은 하나다**.
-- **쓰는 손**: `campaign_init.py --hint-approve --node N --cells a,b --approved-by "<전사>" --utc <UTC>
+- **쓰는 손**: `campaign_init.sh --hint-approve --node N --cells a,b --approved-by "<전사>" --utc <UTC>
   [--source declaration-popup|publish-popup] [--campaign-id ID]`. node·cells·approved-by·utc 넷 중 하나라도
   없으면 승인이 아니다(`--revise` 와 같은 규율). 같은 승인을 다시 적으면 멱등이고, 다른 승인으로 이미 승인된
   셀은 **옛 승인을 지킨다**(귀속을 조용히 바꾸지 않는다). `_bootstrap` 이면 no-op 이고, 서브 인스턴스

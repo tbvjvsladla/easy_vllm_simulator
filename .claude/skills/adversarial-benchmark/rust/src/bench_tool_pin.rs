@@ -240,7 +240,8 @@ pub fn load_pin(path: &PyValue, tool: &PyValue, version: &PyValue) -> Result<PyD
             Text::new()
                 .lit("기록 ")
                 .str(&tool_name)
-                .lit(".versions 가 비었다 — 스테이징한 버전이 없다(resolve_guidellm.py --record 로 먼저 해소·스테이징하라)")
+                // plan_26111708 B L8: the remedy names the live `resolve_guidellm.sh` launcher.
+                .lit(".versions 가 비었다 — 스테이징한 버전이 없다(resolve_guidellm.sh --record 로 먼저 해소·스테이징하라)")
                 .done(),
         ));
     };

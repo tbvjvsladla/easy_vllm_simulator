@@ -268,8 +268,9 @@ fn v_hint_target_reasons(doc: &J) -> Vec<String> {
     if let Some(l) = targets.as_list() {
         for (i, t) in l.iter().enumerate() {
             if t.is_dict() && t.get("arch").is_some() {
+                // plan_26111708 B L8: the remedy names the live `campaign_init.sh` launcher (same text as the owner's).
                 problems.push(format!(
-                    "hint_targets[{i}].arch 는 폐기된 키다 — 태그 이름은 발행 도구가 전량 파생한다(2026-09-21 D8) — 손으로 적은 arch 는 '파생 가능한데 손으로 적은 값'이다. 키를 지우고 승인은 `campaign_init.py --hint-approve` 로 적는다"
+                    "hint_targets[{i}].arch 는 폐기된 키다 — 태그 이름은 발행 도구가 전량 파생한다(2026-09-21 D8) — 손으로 적은 arch 는 '파생 가능한데 손으로 적은 값'이다. 키를 지우고 승인은 `campaign_init.sh --hint-approve` 로 적는다"
                 ));
             }
         }
@@ -2174,7 +2175,8 @@ pub fn approval_for(repo: &Path, campaign_id: &J, cell: &J, node: &J) -> HR<Opti
         return core::fail(
             "HINT_APPROVAL_INVALID",
             format!("hint_targets 승인 기록이 무너졌다: {}", repr_strs(&reasons)),
-            Some("`campaign_init.py --hint-approve --campaign-id <id> --node N --cells … --approved-by <발화 전사> --utc U` 로 다시 적는다(손편집 ✗)."),
+            // plan_26111708 B L8: the remedy names the live `campaign_init.sh` launcher.
+            Some("`campaign_init.sh --hint-approve --campaign-id <id> --node N --cells … --approved-by <발화 전사> --utc U` 로 다시 적는다(손편집 ✗)."),
         );
     }
     let declared = declared_nodes(&decl);
@@ -2324,8 +2326,9 @@ pub fn _narratives(ev: &J) -> HR<J> {
             return core::fail(
                 "HINT_NARRATIVE_EVIDENCE_ABSENT",
                 format!("셀 {} 의 {kind} 증거가 없다.", ev["cell"].repr()),
+                // plan_26111708 B L8: the remedy names the live `campaign_init.sh` launcher.
                 Some(&format!(
-                    "셀 {kind} 문서를 먼저 발행하고 `campaign_init.py --evidence-add --kind {kind} --path <docs/…> --cell {} --node <n> --campaign-id {}` 로 등록한다. plan_ref가 원격 계획이면 선언을 유지하고 기존 위임 범위의 로컬 실행계획을 등록한다.",
+                    "셀 {kind} 문서를 먼저 발행하고 `campaign_init.sh --evidence-add --kind {kind} --path <docs/…> --cell {} --node <n> --campaign-id {}` 로 등록한다. plan_ref가 원격 계획이면 선언을 유지하고 기존 위임 범위의 로컬 실행계획을 등록한다.",
                     ps(&ev["cell"]),
                     ps(&ev["campaign_id"])
                 )),

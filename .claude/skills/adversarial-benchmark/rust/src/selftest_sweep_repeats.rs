@@ -337,7 +337,7 @@ pub fn main(
         return Ok(1);
     }
     checks.print(
-        "[selftest_sweep_repeats] PASS — N1~N8 · P1~P3 · R1 · G(lite 게이트 5) · F1~F8 · V1 · A1~A4 · B1~B8 · O1~O6 · M1~M2 · R★(실패주입·음성대조 포함)",
+        "[selftest_sweep_repeats] PASS — N1~N8 · P1~P3 · R1 · G(lite 게이트 5) · F1~F8 · V1 · A1~A4 · B1~B8 · O1~O6 · M1~M2 · C1~C4 · R★(실패주입·음성대조 포함)",
     )?;
     Ok(0)
 }
@@ -370,6 +370,8 @@ fn run_groups(
     program.new_output_paths()?;
     program.broad_cells_and_legacy_state()?;
     program.multi_node()?;
+    // plan_26111708 B L12: the standalone campaign-cell sweep writes the record `--cell-set --sweep-state` reads.
+    program.campaign_cell_records()?;
     Ok(())
 }
 

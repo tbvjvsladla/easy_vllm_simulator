@@ -443,7 +443,7 @@ fn manifest_main_role(profile: Profile, repo: &[u8], stderr: &mut Vec<u8>) -> St
             push_line(
                 stderr,
                 &[
-                    "[node-identity]       scan_node.py manifest 게이트를 다시 통과시켜라."
+                    "[node-identity]       scan_node.sh manifest 게이트를 다시 통과시켜라."
                         .as_bytes(),
                 ],
             );
@@ -542,7 +542,7 @@ pub fn resolve_with_page_size(repo: &[u8], profile: Profile, page_size: usize) -
     );
     push_line(
         &mut stderr,
-        &["[node-identity]   해소: 서브면 메인이 scan_node.py --emit-sub-manifest → render_sub_env.py 로 서브 manifest 재배달 · 메인이면 manifest 를".as_bytes()],
+        &["[node-identity]   해소: 서브면 메인이 scan_node.sh --emit-sub-manifest → render_sub_env.sh 로 서브 manifest 재배달 · 메인이면 manifest 를".as_bytes()],
     );
     push_line(
         &mut stderr,
