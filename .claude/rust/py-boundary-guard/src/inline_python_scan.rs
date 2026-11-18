@@ -9,14 +9,21 @@
 //! 허용목록(`inline_python_allowlist.tsv`)에 **사유와 함께** 적힌 줄만 통과한다. `Dockerfile*` 은 호스트 평면이 없으므로
 //! (모든 `RUN` 이 빌드 중인 이미지 안에서 돈다) 줄 단위 허용 없이 in-image 로 센다.
 //!
+//! `.rs` 모드(plan 26111805 c10 · 요청서 26111719 A-4): 같은 `check` 가 추적 `.rs` 소스도 syn 으로 읽어 인터프리터
+//! **기동**(`Command::new("python3")` 와 그 변형 · 인터프리터 이름을 프로그램 자리로 쓰는 경우)을 찾는다. 남은 기동은 임시
+//! 허용목록 `rs_python_allowlist.tsv` 에 파일 + 정규화 호출 텍스트 + 개수 + 대체 cell + 사유로만 통과하며, 목록 밖 기동과
+//! STALE 행은 둘 다 실패다(`rs_scan`).
+//!
 //! Usage:
-//!   inline_python_scan check [--repo DIR] [--allowlist FILE]
+//!   inline_python_scan check [--repo DIR] [--allowlist FILE] [--rs-allowlist FILE]
 //!
 //! 허용목록 한 줄 = `<repo 상대경로>\t<줄에 들어 있어야 할 리터럴>\t<분류>\t<사유>`. 분류 ∈ container · golden-capture.
 //! 적중 줄은 같은 경로의 어느 항목 리터럴을 포함할 때만 허용된다(파일 단위 허용 ✗ — 같은 파일의 새 인라인은 걸린다).
 //! 쓰이지 않는 항목은 stderr 에 `STALE` 로 알린다(실패시키지 않는다 — 브랜치별 부재).
 //!
 //! exit: 0 통과 · 1 위반 · 2 사용법/입력 오류(fail-closed).
+
+mod rs_scan;
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
@@ -34,7 +41,11 @@ struct Entry {
 }
 
 fn usage() -> &'static str {
-    "Usage: inline_python_scan check [--repo DIR] [--allowlist FILE]"
+    "Usage: inline_python_scan check [--repo DIR] [--allowlist FILE] [--rs-allowlist FILE]\n\
+     \x20 tracked non-.py executable surfaces (shell, Dockerfile, compose, units, templates, hooks): lines that start\n\
+     \x20 Python, against --allowlist (default .claude/rust/py-boundary-guard/inline_python_allowlist.tsv)\n\
+     \x20 tracked .rs sources (.rs mode): interpreter launches (Command::new(\"python3\") and the other program\n\
+     \x20 positions), against --rs-allowlist (default .claude/rust/py-boundary-guard/rs_python_allowlist.tsv)"
 }
 
 fn parse_allowlist(text: &str) -> Result<Vec<Entry>, String> {
@@ -66,9 +77,15 @@ fn parse_allowlist(text: &str) -> Result<Vec<Entry>, String> {
     Ok(out)
 }
 
-/// The executable surfaces this scan reads (everything else — prose, data, Rust sources — is out of scope).
+/// Frozen golden data (never executed), for both scans.
+fn in_data_plane(path: &str) -> bool {
+    DATA_PLANES.iter().any(|d| path.contains(d) || path.starts_with(d.trim_start_matches('/')))
+}
+
+/// The executable surfaces this scan reads (everything else — prose, data, Rust sources — is out of scope; Rust
+/// sources are the `.rs` mode's).
 fn in_scope(path: &str, head: &[u8]) -> bool {
-    if path.ends_with(".py") || DATA_PLANES.iter().any(|d| path.contains(d) || path.starts_with(d.trim_start_matches('/'))) {
+    if path.ends_with(".py") || in_data_plane(path) {
         return false;
     }
     let name = path.rsplit('/').next().unwrap_or(path);
@@ -175,15 +192,17 @@ fn git_ls(repo: &Path) -> Result<Vec<String>, String> {
     Ok(out.stdout.split(|b| *b == 0).filter(|s| !s.is_empty()).map(|s| String::from_utf8_lossy(s).into_owned()).collect())
 }
 
-fn run(repo: &Path, allow: Option<PathBuf>) -> Result<bool, String> {
+fn run(repo: &Path, allow: Option<PathBuf>, rs_allow: Option<PathBuf>) -> Result<bool, String> {
     let allow_path = allow.unwrap_or_else(|| repo.join(DEFAULT_ALLOWLIST));
     let text = std::fs::read_to_string(&allow_path).map_err(|e| format!("cannot read allowlist {}: {e}", allow_path.display()))?;
     let entries = parse_allowlist(&text)?;
+    let tracked = git_ls(repo)?;
+    let rs = rs_scan::scan(repo, &tracked, rs_allow.as_deref())?;
     let mut scanned = 0usize;
     let mut allowed = 0usize;
     let mut in_image = 0usize;
     let mut violations: Vec<String> = Vec::new();
-    for rel in git_ls(repo)? {
+    for rel in tracked {
         let p = repo.join(&rel);
         let Ok(bytes) = std::fs::read(&p) else { continue }; // tracked but absent in the work tree (deleted, unstaged)
         if bytes.contains(&0) || !in_scope(&rel, &bytes[..bytes.len().min(64)]) {
@@ -213,9 +232,13 @@ fn run(repo: &Path, allow: Option<PathBuf>) -> Result<bool, String> {
     for e in entries.iter().filter(|e| e.used.get() == 0) {
         eprintln!("[inline_python_scan] STALE allowlist entry (no matching line here): {}\t{}", e.path, e.needle);
     }
-    if violations.is_empty() {
+    rs.print();
+    if violations.is_empty() && rs.passed() {
         println!("[inline_python_scan] PASS scanned {scanned} files · {in_image} Dockerfile lines (in-image) · {allowed} lines within allowlist ({} entries)", entries.len());
-        Ok(true)
+        return Ok(true);
+    }
+    if violations.is_empty() {
+        println!("[inline_python_scan] non-.rs surfaces clean: scanned {scanned} files · {in_image} Dockerfile lines (in-image) · {allowed} lines within allowlist ({} entries)", entries.len());
     } else {
         for v in &violations {
             println!("VIOLATION {v}");
@@ -225,8 +248,11 @@ fn run(repo: &Path, allow: Option<PathBuf>) -> Result<bool, String> {
              하네스는 Rust 로 쓴다 — 컨테이너 내부 실행만 사유와 함께 허용목록에 둔다.",
             violations.len()
         );
-        Ok(false)
     }
+    if !rs.passed() {
+        rs.print_failure();
+    }
+    Ok(false)
 }
 
 fn main() -> ExitCode {
@@ -243,12 +269,13 @@ fn main() -> ExitCode {
             return ExitCode::from(2);
         }
     }
-    let (mut repo, mut allow) = (PathBuf::from("."), None);
+    let (mut repo, mut allow, mut rs_allow) = (PathBuf::from("."), None, None);
     while let Some(a) = it.next() {
         let need = |v: Option<&String>, what: &str| v.cloned().ok_or_else(|| format!("{a} requires {what}"));
         let r = match a.as_str() {
             "--repo" => need(it.next(), "DIR").map(|v| repo = PathBuf::from(v)),
             "--allowlist" => need(it.next(), "FILE").map(|v| allow = Some(PathBuf::from(v))),
+            "--rs-allowlist" => need(it.next(), "FILE").map(|v| rs_allow = Some(PathBuf::from(v))),
             other => Err(format!("unknown argument: {other}")),
         };
         if let Err(e) = r {
@@ -256,7 +283,7 @@ fn main() -> ExitCode {
             return ExitCode::from(2);
         }
     }
-    match run(&repo, allow) {
+    match run(&repo, allow, rs_allow) {
         Ok(true) => ExitCode::SUCCESS,
         Ok(false) => ExitCode::from(1),
         Err(e) => {
