@@ -1,0 +1,21 @@
+# .rs 인터프리터 기동 임시 허용목록 — plan 26111805 c10 · 요청서 26111719 A-4 (inline_python_scan .rs 모드의 데이터).
+# 한 줄 = <repo 상대경로>\t<정규화 호출 텍스트>\t<개수>\t<대체 cell>\t<사유>. '#' 줄과 빈 줄은 무시한다.
+# 정규화 호출 텍스트 = 검출된 호출 식의 토큰을 공백 없이 이은 것(낱말 사이만 한 칸 · 줄바꿈·들여쓰기·주석 무관).
+#   `inline_python_scan check` 가 RS-VIOLATION 줄에 그 텍스트를 그대로 보인다. 키 = 경로 + 이 텍스트다.
+# 개수 = 그 파일에서 같은 텍스트로 검출되는 기동 수. 더 많으면 넘는 기동이 위반이고, 적으면(0 포함) RS-STALE 이며 둘 다 실패다.
+#   파일 단위 허용은 없다 — 같은 파일의 새 기동은 걸린다.
+# 대체 cell = 이 기동을 없앨 캠페인 cell. 모두 임시 허용이며 최종 0 이 목표다. 실행이 아닌 python 언급(음성 시험·금지어 목록·
+#   DEFAULT_PYTHON 상수·픽스처 문자열)은 검출기가 기동으로 세지 않으므로 여기에 올리지 않는다.
+.claude/skills/vllm-recipe-explorer/rust/runtime/checks/classifier_checks.rs	Command::new("python3")	2	c34-recipe-runtime	요청서 26111719 A-1 오라클 — pattern_cases(re 예외 패턴)·product_cases(수·시퀀스 곱) 두 시험이 CPython 을 띄워 답을 받는다. A-3 동결 데이터로 바꾼다
+.claude/skills/vllm-recipe-explorer/rust/runtime/checks/generation_checks.rs	Command::new("python3")	1	c34-recipe-runtime	요청서 26111719 A-1 오라클 — 도우미 python()(argparse·datetime·posixpath·os.makedirs 대조 시험이 부른다). A-3 동결 데이터로 바꾼다
+.claude/skills/vllm-recipe-explorer/rust/runtime/checks/model_path_cases.rs	Command::new("python3")	1	c34-recipe-runtime	요청서 26111719 A-1 오라클 — 도우미 python()(fnmatch·glob·argparse 대조 시험이 부른다). A-3 동결 데이터로 바꾼다
+.claude/skills/upstream-version-watch/rust/runtime/src/wheelhouse_selftest.rs	Command::new("python3.12")	1	c43-upstream-runtime	wheelhouse selftest (3) 실제 offline pip install — 임시 venv 를 python3.12 -m venv 로 만든다(원본과 같은 명령). plan D16: vLLM 이미지 docker run(container 클래스)으로 옮긴다
+.claude/skills/upstream-version-watch/rust/runtime/src/wheelhouse_selftest.rs	Command::new(venv.join("bin/python"))	2	c43-upstream-runtime	wheelhouse selftest (3) — 그 venv 의 python 으로 pip install --no-index 와 import 확인. plan D16: container 클래스로 옮긴다
+.claude/skills/upstream-version-watch/rust/runtime/src/wheelhouse_verify.rs	["python3.12","-m","venv",&venv_s]	1	c43-upstream-runtime	wheelhouse verify venv_create — 깨끗한 venv 를 python3.12 -m venv 로 만든다(검사 대상 명령). plan D16: container 클래스로 옮긴다
+.claude/skills/upstream-version-watch/rust/runtime/src/wheelhouse_verify.rs	[&py,"-m","pip","list","--format","json"]	2	c43-upstream-runtime	wheelhouse verify — venv python 의 pip list(설치 전 기준·설치 후 집합). plan D16: container 클래스로 옮긴다
+.claude/skills/upstream-version-watch/rust/runtime/src/wheelhouse_verify.rs	[&py,"-m","pip","install","--no-index"]	1	c43-upstream-runtime	wheelhouse verify pip_install — venv python 의 pip install --no-index. plan D16: container 클래스로 옮긴다
+.claude/skills/upstream-version-watch/rust/runtime/src/wheelhouse_verify.rs	[&py,"-m","pip","check"]	1	c43-upstream-runtime	wheelhouse verify pip_check — venv python 의 pip check. plan D16: container 클래스로 옮긴다
+.claude/skills/upstream-version-watch/rust/runtime/src/wheelhouse_verify.rs	[&py,"-c","import sysconfig;print(sysconfig.get_paths()['purelib'])"]	1	c43-upstream-runtime	wheelhouse verify — venv python 의 purelib 경로(ldd 대상 확장 모듈 위치). plan D16: container 클래스로 옮긴다
+.claude/skills/upstream-version-watch/rust/runtime/src/wheelhouse_verify.rs	[&py,"-c",IMPORT_PROBE]	1	c43-upstream-runtime	wheelhouse verify import 탐침 — venv python 으로 torch·vllm import 를 확인한다(검사 대상). plan D16: container 클래스로 옮긴다
+.claude/skills/upstream-version-watch/rust/runtime/src/native_multinode.rs	vec![format!("{}/bin/python",venv_dir(root)),"-m".into(),"pip".into(),"freeze".into(),"--all".into()]	1	c43-upstream-runtime	native multinode up --apply(up.rs 가 노드마다 부른다) — 서빙 venv 의 python -m pip freeze --all 로 설치 집합을 simlog 에 남긴다. c10 이 처음 찾은 기동(cell.md 확인된 사실)
+.claude/rust/parity/src/main.rs	["/bin/sh","-c","python3 -c pass"]	1	c60-py-delete	parity --self-check 'strace-sees-python' — strace 계수기가 실제 python3 기동을 세는지 /bin/sh -c 'python3 -c pass' 로 확인한다. c10 이 처음 찾은 기동(cell.md 확인된 사실) · 전담 cell 이 없어 임시 허용 0 을 맡은 c60 으로 적는다

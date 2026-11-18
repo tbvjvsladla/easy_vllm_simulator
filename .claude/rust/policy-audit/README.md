@@ -8,8 +8,8 @@ Rust port of `.claude/policies/runtime/policy_registry.py` (the registry validat
 | `policy_registry.py verify / check-removal / --self-test` | `policy_registry` | `.claude/policies/runtime/policy_registry.sh` |
 | `harness_verify.py [--as-of ...]` | `harness_verify` | `.claude/policies/runtime/harness_verify.sh` |
 
-The launchers start the node-built release binary directly (`exec -a <same dir>/<name>.py`, so argparse `prog` text and the
-repository root derivation match the original); a missing binary is exit 2 with the build command
+The launchers start the node-built release binary directly (`exec -a <same dir>/<name>.sh`: the argparse `prog` text names the
+launcher and the repository root is derived from the same directory); a missing binary is exit 2 with the build command
 (`bash .claude/skills/terraforming_node/scripts/build_rust_packages.sh`). There is no Python fallback. `POLICY_REGISTRY_BIN` /
 `HARNESS_VERIFY_BIN` override the binary path (used by the checks).
 
@@ -55,12 +55,13 @@ repository root derivation match the original); a missing binary is exit 2 with 
 
 `cargo test --release --offline --locked` runs:
 
-- `ids_golden` — assertion-id sets vs. `checks/data/assertion_ids.json` (captured by `checks/capture_ids.sh`).
+- `ids_golden` — assertion-id sets vs. `checks/data/assertion_ids.json` (frozen — capture tool retired).
 - `cli_golden` — the CLI cases in `checks/data/cli/<id>/` (fixture `case.sh` + captured `stdout`/`stderr`/`exit_code`;
-  captured from the originals by `checks/capture_goldens.sh`, re-run here through the launchers by `checks/run_case.sh`).
+  frozen — capture tool retired; re-run here through the launchers by `checks/run_case.sh`).
   Fixtures are git repos built from commit `b1f3563e`'s blobs or literal text (helpers in `checks/fixture_lib.sh`).
 - `citations_golden` — `scan_policy_citations` / `citation_violations` vs. `checks/data/citations.json`
-  (captured by `checks/capture_citations.sh`).
+  (frozen — capture tool retired).
 - `harness_checks` — stage order / exit-code mapping with fake stage launchers.
 
-Re-capturing goldens needs the original `.py` files; the checks themselves never run Python.
+The goldens are frozen: their capture tools were retired with the Python originals (plan_26111717 R1, 28556136), so they are not
+re-captured; the checks themselves never run Python.

@@ -1,7 +1,7 @@
 # hint 태그 발행 계약 (v8 · 2026-10-11 — 발행 게이트 통일 · REFUTE 는 표시만 · OBSERVATION-ONLY ← v7 · 2026-09-29 — 결정론 3축 + 근거 붙은 꼬리 · native 구조 통일 · 판정 표면 · 안내 커밋 부모)
 
-> 정본. 집행자는 단일 진입 `.claude/skills/hint-publisher/scripts/hint.sh` 와 그 패키지 `scripts/hintlib/`
-> (naming · evidence · lineage · artifacts · template · pii · branch · tag · catalog)다. 이 문서는 **규칙과 그 이유**를 적는다 —
+> 정본. 집행자는 단일 진입 `.claude/skills/hint-publisher/scripts/hint.sh` 와 그 Rust crate `.claude/skills/hint-publisher/rust`
+> (모듈 naming · evidence · lineage · artifacts · template · pii · branch · tag · catalog)다. 이 문서는 **규칙과 그 이유**를 적는다 —
 > 명령별 인자는 `hint.sh <명령> --help`, 운영 요약은 스킬 `.claude/skills/hint-publisher/SKILL.md` 가 든다(같은 규칙을 두 자리에
 > 다시 적지 않는다). 설계 근거 `docs/plan/plan_26092908`(v7 · §3 결정 U1–U9 · §4 계약) ← `docs/plan/plan_26092119`(v6 · §3 결정
 > P1–P3·D1–D12 · §4 설계 · Execution approval O2–O6). **새 동작의 정본은 코드다** — 이 문서가 코드와 어긋나면 문서를 고친다.
@@ -47,7 +47,7 @@
 
 | 층 | 무엇 | 판정 | 집행 |
 |---|---|---|---|
-| **A** | **그 실행 평면의 재현 입력** — 트리플렛 3 · 쓰인 빌드 레시피 · 기동 방법 | **항상 필수**(선언으로 면제 불가) | `hintlib/artifacts.py` |
+| **A** | **그 실행 평면의 재현 입력** — 트리플렛 3 · 쓰인 빌드 레시피 · 기동 방법 | **항상 필수**(선언으로 면제 불가) | `.claude/skills/hint-publisher/rust/src/artifacts/` |
 | **B** | 승격 tier — `full_benchmark` · `hint_map_only`(지도 발행 통로 · plan·devlog·testlog 필수) | 게이트 판정 | `completion_gate` `BASE_REQUIRED_EVIDENCE` |
 | **C** | 승격 기록(work-manifest · promotion_target) | **도구가 쓴다 — 손 JSON 0**(identity · runtime · pii · promotion_target) | `evidence.drive_publisher` · `evidence_publisher set-promotion-target` |
 | **측정** | 성능 수치 | **관측 게재만** — `baseline`·권고 승격 금지 · lite 는 결손 기재 · 판정(PASS/REFUTE/FAIL/OBSERVATION-ONLY)은 **표시만**(§3.2 v8) | `completion_gate` + 00 `OBSERVATION-ONLY`/`REFUTE` 배너 · 린트 |
@@ -84,7 +84,7 @@
 
 **결손 가시성은 세 곳이다**(하나라도 빠지면 수신자가 비교할 수 없다): ① 00-hint 결손 블록(측정 결손은 03 §3.3 도) ②
 `PAYLOAD.json.missing[]` ③ 카탈로그 `결손` **파생 컬럼**(`hints/index.json`·`HINTS.md`). 태그 **이름**에는 등급을 새기지 않는다 —
-이름은 불변인데 결손은 재발행으로 바뀌고, 새기는 순간 이름이 거짓이 된다. 결손 코드는 `hintlib/evidence.py` `MISSING_CODES` 사전의
+이름은 불변인데 결손은 재발행으로 바뀌고, 새기는 순간 이름이 거짓이 된다. 결손 코드는 `.claude/skills/hint-publisher/rust/src/evidence/e1.rs` `MISSING_CODES` 사전의
 것만 쓴다(미등재 코드 = `HINT_MISSING_CODE_UNREGISTERED`).
 
 ### 3.0 벤치 절은 손저작하지 않는다
@@ -170,7 +170,7 @@ v4 는 "필수는 **여정 정보 하나**, 나머지 부재는 기재" 로 절�
 그 밖의 차단은 양성 검출이다(§5). 여정 = Agent 가 읽을 수 있는 형태로 *무엇을 시도했고 어디서 멈췄는지*. 없으면 그 태그는 아무 값도
 나르지 않으므로 fail-closed 다. 판정은 템플릿 린터가 한다(§8): 02 에 `kind: wall` 블록 ≥ 1(`HINT_JOURNEY_WALL_ABSENT` — "필수는 여정
 정보 하나") · 필수 챕터·필드 · 미저작 자리표시(`<<AGENT:`)·PROMPT 잔존 0 · 계보 문서 ≥ 1(`HINT_LINEAGE_EMPTY`). 옛 집행자로 적혀 있던 `selftest_hint_gate.py` 는 **실행자 0** 이었다(아무 러너에도 등록되지 않음) — 그 단언은
-각 hintlib 모듈 selftest 로 옮겨 `hint.sh --self-test` 가 전종 실행한다.
+각 모듈 selftest(지금은 Rust crate `hint-publisher/rust`)로 옮겨 `hint.sh --self-test` 가 전종 실행한다.
 
 - **부재는 차단이 아니라 기재다**(인증서 · lite · 슬레이브 attestation · env 형상 · 빌드 원장 · 캠페인 인스턴스 purge 등 —
   `MISSING_CODES`). 적어야 수신자가 *무엇을 모른 채 소비하는지* 안다.
@@ -290,7 +290,7 @@ hint/<vllm>/<model>/<arch>/q<quant>-len<n>-kv<dtype>[-<tail>][-t<YYMMDDHHMM>]
   어휘(`cluster` → 선언 노드)의 정본은 `campaign_template_validator.resolve_measurement_node` 한 벌이다. 입력은 명시한 캠페인 id 뿐이다 —
   `campaigns/ACTIVE` 를 읽으면 발행 시점마다 다른 것을 읽고(태그는 불변인데 입력이 흐른다) 캠페인 밖 발행이 활성 캠페인을 오독한다.
 - 발행자는 **결정론부**를 입력하지 않는다(D8 · 2026-08-20: 발행된 32 슬러그 중 27종이 정본표 밖이었고 같은 모델이 철자로 2건 갈렸다).
-- 왜 이 모양인가(날짜 박힌 불변식 · 정본 `hintlib/naming.py` docstring): 5세그먼트 레시피를 **맨 뒤**에 붙였다(2026-09-04 ·
+- 왜 이 모양인가(날짜 박힌 불변식 · 규칙 정본 `.claude/skills/hint-publisher/rust/src/naming.rs`): 5세그먼트 레시피를 **맨 뒤**에 붙였다(2026-09-04 ·
   모델 슬러그 인덱스 `split("/")[2]` 가 그대로 산다) · arch 에 노드 축(2026-09-06) · GPU 수·노드 수 분리(D7 — 옛 `x2` 가 2노드와 2 GPU 두
   뜻이었다) · 결측 생략 금지와 어휘 정규화(D6 — `kvfp8`/`kvfp8e4m3` 분열) · 레시피 결정론 = q · len · kv 로 축소(2026-09-29 U5).
 
@@ -368,7 +368,7 @@ code 로만 한다(봉인·push 거부는 `tag.problem_codes`).
 | **기재된** 결손(`MISSING_CODES` — 인증서 · 벤치 리포트 · 스윕 · lite · 슬레이브 attestation · env 형상 · 캠페인 인스턴스 · (v7) 서브 레시피 · 적용 집합 · native 기동 기록 …) | 통과 + **기재** | `HINT_MISSING_*`(v7 신설 `HINT_MISSING_SUB_RECIPE` · `HINT_MISSING_APPLIED_SET` · `HINT_MISSING_NATIVE_LAUNCH`) · `BENCH_MODE_LITE` |
 | 과거 · 타 PC 태그의 결함(옛 문법 · 로컬 오브젝트 부재 · lightweight) | **이번 발행을 막지 않는다**(D10 · §6.3) · 카탈로그에 정직한 행으로만 | `absent-local` · `not-annotated` |
 
-PII 는 배포 산출물이므로 `hintlib/pii.py` 의 `GENERIC_PII` 4종 전부와 `.claude/pii_terms.txt` 리터럴이 강제된다(`.claude/rules/docs.md`
+PII 는 배포 산출물이므로 `.claude/skills/hint-publisher/rust/src/pii.rs` 의 `GENERIC_PII_NAMES` 4종 전부와 `.claude/pii_terms.txt` 리터럴이 강제된다(`.claude/rules/docs.md`
 §PII 스캔 적용 범위). v3 부터 태그 본문뿐 아니라 **페이로드 트리 전량**이 대상이고(감사 N-3), v6 부터는 **커밋 메타데이터**도 대상이다
 (K1: 옛 페이로드 커밋 57/57 이 ambient `git config` 신원으로 찍혀 있었다 — 4종 스캔은 커밋 메타를 보지 않았다).
 
@@ -483,8 +483,8 @@ hint.sh refacts --draft <draft>   같은 generated_utc 로 FACT 블록 · PAYLOA
   `HINT_REMOTE_TAG_CONFLICT`(강제 ✗). push 뒤 원격 태그 오브젝트 SHA 를 로컬과 대조한다.
 - **자격증명**(2026-09-04 "could not read Username" 사건): https 원격만 토큰이 필요하다(환경변수 `GITHUB_TOKEN` → `envs/.env` 의 같은 키 ·
   없으면 `HINT_PUSH_CREDENTIAL_ABSENT`). ssh · scp형 · 로컬 경로 원격은 토큰 불요. 토큰은 argv · URL · reflog · remote.url 에 남지 않고
-  (`credential.helper=` 로 상속 헬퍼를 비운다 · `GIT_TERMINAL_PROMPT=0`), 평문 http · URL 속 자격증명은 거부한다. 같은 경로를 upstream
-  `push_branches.sh` 가 공개 API `hintlib.tag.git_push_authenticated` 로 재사용한다.
+  (`credential.helper=` 로 상속 헬퍼를 비운다 · `GIT_TERMINAL_PROMPT=0`), 평문 http · URL 속 자격증명은 거부한다. 이 경로는 Rust `.claude/skills/hint-publisher/rust/src/tag.rs` 의
+  `git_push_authenticated` 다. upstream `push_branches.sh`(Rust)는 이 경로를 재사용하지 않는다 — 토큰이 필요 없는 원격(ssh·scp형·로컬 경로)만 밀고 https 원격은 `HTTPS_NEEDS_HINTLIB` 로 멈춘다.
 
 ### 6.3 게이트 범위 = 이번 발행분만 (D10 · P1 의 귀결)
 
@@ -565,7 +565,7 @@ verify 에서 막혔고, 브랜치를 push 하면 원격 첫 화면이 마지막
 발행은 **메인 단독**이 기본이고, **single 서브(sub_mode `a2a-agent`)의 자기 셀**만 예외다 — 서브에서만 잰 셀은 메인이 관측 원시를 볼 수
 없어(D-e) 관측한 그 노드가 발행하는 것이 유일한 정합이다. 경계:
 
-- **엔진** — 발행 엔진(`hint.sh` · `hintlib`)은 원격 셸을 실행하지 않고 서브 배달·릴레이 도구를 부르지 않는다(불변). 메인→서브 배달은
+- **엔진** — 발행 엔진(`hint.sh` · Rust crate `hint-publisher/rust`)은 원격 셸을 실행하지 않고 서브 배달·릴레이 도구를 부르지 않는다(불변). 메인→서브 배달은
   single 서브에만 엔진과 `hints/` 의 계약·어휘(`HINT_ISSUANCE_CONTRACT.md` · `vocab.json`)를 나른다 — 색인(`hints/index.json`) ·
   카탈로그(`HINTS.md`) · 역할 마커는 어느 서브에도 가지 않는다(`render_sub_env.HINT_NEVER_DELIVER`). 런타임 스킬 평면 = 런타임 3종 +
   hint-publisher(single) · 0종(멀티 Ray 워커) — 정본 `node_role_contract.TOOL_PLANE_BY_SUB_MODE`.
@@ -774,8 +774,8 @@ bench_kind: certificate | bench_report
   가설(강등) = 원래 주장(기전)이 확인되지 않아 가설로 내려왔다(처방 ✗) · 미결 = 아직 가르지 못했다. 옛 뜻풀이는 원래 주장인지 정정된 이해인지
   말하지 않아 도구 결함 정정 등에서 `확증` 이 모호했다(2차 저작자 지적).
 - `출처` 는 LINEAGE 문서 · evidence_candidates · artifacts 경로여야 한다(`HINT_EVENT_SOURCE_OUTSIDE_LINEAGE`). 00 §0.3 벽 지도와 00 §0.5 노브
-  지위는 이 블록들에서 기계가 파생한다(파생 블록이 낡으면 `HINT_DERIVED_BLOCK_STALE` — continue 가 refresh 한다). 어휘 정본은 `template.py`
-  의 `EVENT_KINDS`·`EVENT_REQUIRED`·`TRANSFER_CLASSES`·`VALUE_STATUSES` 이고 범례도 거기서 렌더한다.
+  지위는 이 블록들에서 기계가 파생한다(파생 블록이 낡으면 `HINT_DERIVED_BLOCK_STALE` — continue 가 refresh 한다). 어휘 정본은 `.claude/skills/hint-publisher/rust/src/template/t1.rs`
+  의 `EVENT_KINDS`·`EVENT_REQUIRED`·`TRANSFER_CLASSES`·`VALUE_STATUSES` 이고 범례도 template 모듈이 렌더한다.
 
 ### 8.3 원문 발췌 — 허용하되 글자 그대로 (D2 · X16 · D-c)
 

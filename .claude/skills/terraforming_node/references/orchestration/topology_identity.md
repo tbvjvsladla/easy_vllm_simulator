@@ -120,7 +120,7 @@ node_id ::= manifest nodes[].role 슬러그
 
 ```text
 rank ::= manifest nodes[] 배열 인덱스 (0..n-1)
-권위 ::= scripts/node_role_contract.py :: resolve_rank(topology, nodes, role)
+권위 ::= .claude/rust/role-contract/src/lib.rs :: resolve_rank(topology, nodes, role)   # CLI = scripts/node_role_contract.sh
 ```
 
 | 토폴로지 | rank | `source` 값 | 근거 |
@@ -177,4 +177,4 @@ Agent_Card v2 는 A2A 1.0.1 표준 필드만 최상위에 둔다. 토폴로지 �
 
 ## node_role_contract 메모 (옛 §4 에서 이관)
 
-- `scripts/node_role_contract.sh` — **토폴로지 축 노드 계약의 단일 소유자**(§2.7.0·§2.7.6b). `evaluate --topology <t> --field {sub_mode,rank,identity_authority,delivery_plane} --format {json,value}` · `--self-test`. 배달 평면 판정의 **정본**이며 `role: sub` 존재로 추론하지 않는다. ✅ 소비자 배선 완료(2026-08-22): `sync_to_sub.sh:_single_extension_active`(배달 평면) · `render_sub_env.rs::_contract_placeholders`(Agent_Card 4필드). ⚠ venv `-S` shim 을 포함한 `load_yaml` 을 자체 보유한다 — `staleness_gate._load_yaml` 과 **같은 shim 이 두 곳에 있다**. 지금은 의도된 비결합(preflight 게이트가 이 파일 부재로 죽지 않게)이며, 갈라지면 신호는 두 파서의 판정 불일치로 온다.
+- `scripts/node_role_contract.sh` — **토폴로지 축 노드 계약의 단일 소유자**(§2.7.0·§2.7.6b). `evaluate --topology <t> --field {sub_mode,rank,identity_authority,delivery_plane} --format {json,value}` · `--self-test`. 배달 평면 판정의 **정본**이며 `role: sub` 존재로 추론하지 않는다. ✅ 소비자 배선 완료(2026-08-22): `sync_to_sub.sh:_single_extension_active`(배달 평면) · `render_sub_env.rs::_contract_placeholders`(Agent_Card 4필드). YAML 은 `role_contract::load::load_yaml` 로 읽고, `staleness_gate`(terraforming_node/rust)는 같은 공용 로더(Q `runtime-support` 의 `pyyaml::safe_load`)를 직접 부른다 — 옛 venv `-S` shim(`import yaml` 재시도)은 네이티브 프로세스에 없다. 두 진입은 서로를 부르지 않는다(의도된 비결합 · preflight 게이트가 역할 실행파일 부재로 죽지 않게). 로더가 하나이므로 두 파서의 판정 불일치는 생기지 않는다.

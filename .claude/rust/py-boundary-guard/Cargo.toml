@@ -2,7 +2,7 @@
 name = "py-boundary-guard"
 version = "0.1.0"
 edition = "2021"
-description = "Harness py boundary guard: tracked *.py must be a subset of the approved out-of-boundary allowlist (plan_26111615 D5). std-only."
+description = "Harness py boundary guard: tracked *.py must be a subset of the approved out-of-boundary allowlist (plan_26111615 D5); inline_python_scan finds Python started from tracked non-.py surfaces and from tracked .rs sources (syn)."
 publish = false
 autotests = false
 
@@ -10,7 +10,8 @@ autotests = false
 name = "py_boundary_guard"
 path = "src/main.rs"
 
-# Tracked non-.py executable surfaces must not start Python outside the container allow-list (plan_26111615 pass 3).
+# Tracked non-.py executable surfaces must not start Python outside the container allow-list (plan_26111615 pass 3),
+# and tracked .rs sources must not launch an interpreter outside rs_python_allowlist.tsv (.rs mode).
 [[bin]]
 name = "inline_python_scan"
 path = "src/inline_python_scan.rs"
@@ -23,7 +24,18 @@ path = "checks/guard_checks.rs"
 name = "inline_scan_checks"
 path = "checks/inline_scan_checks.rs"
 
+[[test]]
+name = "rs_scan_checks"
+path = "checks/rs_scan_checks.rs"
+
 [dependencies]
+# The .rs mode of inline_python_scan parses tracked Rust sources. syn and its dependencies (proc-macro2, quote,
+# unicode-ident) were approved in advance for this guard; py_boundary_guard and py_exec_trap use none of them.
+# proc-macro2 is named for `span-locations` (the line numbers of the findings) and quote for `ToTokens` (the
+# normalized call text that keys rs_python_allowlist.tsv).
+syn = { version = "3.0.9", default-features = false, features = ["clone-impls", "full", "parsing", "printing", "visit"] }
+proc-macro2 = { version = "1.0.107", default-features = false, features = ["span-locations"] }
+quote = { version = "1.0.47", default-features = false }
 
 [[bin]]
 name = "py_exec_trap"

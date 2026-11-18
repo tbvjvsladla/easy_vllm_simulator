@@ -1,6 +1,6 @@
 usage: doc_naming.sh [-h] [--self-test]
 
-doc_naming.sh -- Python shim over the naming SSOTs
+doc_naming.sh -- Rust launcher that reads the naming SSOTs (wiki-desk doc_naming.ts, bench_reporting_api.sh)
 
 options:
   -h, --help   show this help message and exit

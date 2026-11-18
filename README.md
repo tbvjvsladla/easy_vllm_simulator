@@ -58,7 +58,7 @@ easy-vllm 은 특정 코드에이전트 전용 프로젝트가 아닙니다. 이
 | 스킬 발견 | `.claude/skills/<skill>/` | `.agents/skills/<skill>/` → 정본 `.claude/skills/` 로 연결하는 얇은 래퍼 |
 | 권한 | `.claude/` 설정 | `.codex/config.toml` (main·sub 공통 프로파일) |
 | 원격 위임 실행 | `claude -p …` | `codex exec --json …` |
-| 실행 문법 발행처 | `scripts/providers/claude_code.py` | `scripts/providers/codex_cli.py` |
+| 실행 문법 발행처 | `.claude/skills/terraforming_node/rust/src/provider_claude_code.rs` | `.claude/skills/terraforming_node/rust/src/provider_codex_cli.rs` |
 
 스킬과 절차 문서는 *"서브에게 이 일을 위임한다"* 는 **의도**만 적고, 실제 CLI 문법은 `terraforming_node` 의
 provider 어댑터 두 파일만 발행합니다. 그래서 하네스를 하나 더 붙이는 일은 어댑터 하나를 더하는 일이지,
