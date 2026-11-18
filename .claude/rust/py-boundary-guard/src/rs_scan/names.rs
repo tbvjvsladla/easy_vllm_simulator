@@ -145,8 +145,11 @@ pub fn argv_starts_interpreter(items: &[Vec<String>]) -> Option<Via> {
 mod tests {
     use super::*;
 
-    fn argv(items: &[&str]) -> Vec<Vec<String>> {
-        items.iter().map(|text| vec![text.to_string()]).collect()
+    fn argv(items: &str) -> Vec<Vec<String>> {
+        items
+            .split('|')
+            .map(|text| vec![text.to_string()])
+            .collect()
     }
 
     #[test]
@@ -174,54 +177,42 @@ mod tests {
         }
     }
 
+    /// Argument vectors are written as `|`-separated text: an array literal here would itself be an argument-vector
+    /// launch of this tracked source, which the `.rs` mode reads too.
     #[test]
     fn argument_vectors() {
-        assert_eq!(
-            argv_starts_interpreter(&argv(&["python3.12", "-m", "venv"])),
-            Some(Via::Interpreter)
-        );
-        assert_eq!(
-            argv_starts_interpreter(&argv(&["python3", "tool.py"])),
-            Some(Via::Interpreter)
-        );
-        assert_eq!(
-            argv_starts_interpreter(&argv(&["/bin/sh", "-c", "python3 -c pass"])),
-            Some(Via::Shell)
-        );
-        assert_eq!(
-            argv_starts_interpreter(&argv(&[
-                "env",
-                "-i",
-                "PATH=/usr/bin/python3",
-                "python3",
-                "-V"
-            ])),
-            Some(Via::Wrapper)
-        );
-        assert_eq!(
-            argv_starts_interpreter(&argv(&["ssh", "sub.invalid", "cd /x && python3 -c 1"])),
-            Some(Via::Remote)
-        );
-        assert_eq!(argv_starts_interpreter(&argv(&["python3", "python"])), None);
-        assert_eq!(
-            argv_starts_interpreter(&argv(&["/bin/sh", "-c", "echo python3 is gone"])),
-            None
-        );
-        assert_eq!(
-            argv_starts_interpreter(&argv(&["env", "PYTHON=python3", "true"])),
-            None
-        );
-        assert_eq!(
-            command_starts_interpreter(&["python3".into()], &[]),
-            Some(Via::Interpreter)
-        );
-        assert_eq!(
-            command_starts_interpreter(&["bash".into()], &argv(&["-lc", "exec python3 \"$0\""])),
-            Some(Via::Shell)
-        );
-        assert_eq!(
-            command_starts_interpreter(&["bash".into()], &argv(&["-c", "echo hi"])),
-            None
-        );
+        let cases = [
+            ("python3.12|-m|venv", Some(Via::Interpreter)),
+            ("python3|tool.py", Some(Via::Interpreter)),
+            ("/bin/sh|-c|python3 -c pass", Some(Via::Shell)),
+            (
+                "env|-i|PATH=/usr/bin/python3|python3|-V",
+                Some(Via::Wrapper),
+            ),
+            ("ssh|sub.invalid|cd /x && python3 -c 1", Some(Via::Remote)),
+            ("python3|python", None),
+            ("/bin/sh|-c|echo python3 is gone", None),
+            ("env|PYTHON=python3|true", None),
+        ];
+        for (items, via) in cases {
+            assert_eq!(argv_starts_interpreter(&argv(items)), via, "{items}");
+        }
+        let commands = [
+            ("python3", "", Some(Via::Interpreter)),
+            ("bash", "-lc|exec python3 \"$0\"", Some(Via::Shell)),
+            ("bash", "-c|echo hi", None),
+        ];
+        for (program, args, via) in commands {
+            let args = if args.is_empty() {
+                Vec::new()
+            } else {
+                argv(args)
+            };
+            assert_eq!(
+                command_starts_interpreter(&[program.to_string()], &args),
+                via,
+                "{program} {args:?}"
+            );
+        }
     }
 }
