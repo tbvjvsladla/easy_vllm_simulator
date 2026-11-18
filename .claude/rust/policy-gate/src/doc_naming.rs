@@ -429,7 +429,7 @@ pub fn self_test(dn: &DocNaming) -> Result<(), String> {
     Ok(())
 }
 
-const HELP: &str = "usage: {prog} [-h] [--self-test]\n\n{prog} -- Python shim over the naming SSOTs\n\noptions:\n  -h, --help   show this help message and exit\n  --self-test\n";
+const HELP: &str = "usage: {prog} [-h] [--self-test]\n\n{prog} -- Rust launcher that reads the naming SSOTs (wiki-desk doc_naming.ts, bench_reporting_api.sh)\n\noptions:\n  -h, --help   show this help message and exit\n  --self-test\n";
 
 /// The whole `doc_naming.py` command line: (stdout, stderr, exit code).
 pub fn main_cli(argv: &[String]) -> (String, String, i32) {

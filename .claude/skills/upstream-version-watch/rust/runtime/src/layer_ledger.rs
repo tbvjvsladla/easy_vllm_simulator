@@ -3,7 +3,8 @@
 //! Subcommands of the original: `common-layer`, `sync-point`, `divergence`, `validate`, `append`, `merge` (same arguments, same JSON on
 //! stdout in the same key order, exit codes 0/2/5). Four new subcommands replace the inline Python of `closing_sequence.sh`:
 //! `emit-skeleton` (the classification blank), `entry-id`, `evidence-rels`, `utc-to-kst`.
-//! Port boundary: `--self-test` is not ported (exit 2; run `layer_ledger.py --self-test`); argparse's own usage/error text is approximated.
+//! `--self-test` is ported (`layer_ledger_selftest.rs`). Usage and error lines keep argparse's shape; `-h` prints, on stderr, the
+//! usage generated from the subcommand table `SUBCOMMANDS` that the parser reads.
 
 use agent_runtime_support::pyjson::{self, LoadError};
 use agent_runtime_support::pyvalue::{PyDict, PyValue};
@@ -1325,8 +1326,82 @@ mod selftest;
 
 // ---------------------------------------------------------------- command line
 
+/// One subcommand: every option it takes (each takes one value, `--opt VALUE` or `--opt=VALUE`) and the ones it requires.
+/// The parser and the `-h` text both read [`SUBCOMMANDS`], so the help cannot drift from what is accepted.
+struct Subcommand {
+    name: &'static str,
+    options: &'static [&'static str],
+    required: &'static [&'static str],
+}
+
+/// In the order of the usage line.
+const SUBCOMMANDS: [Subcommand; 10] = [
+    Subcommand { name: "common-layer", options: &["--repo"], required: &[] },
+    Subcommand { name: "sync-point", options: &["--repo", "--branch", "--counterpart", "--ledger-ref"], required: &["--branch"] },
+    Subcommand {
+        name: "divergence",
+        options: &["--repo", "--branch", "--counterpart", "--ledger-ref", "--since"],
+        required: &["--branch"],
+    },
+    Subcommand { name: "validate", options: &["--entry-file"], required: &["--entry-file"] },
+    Subcommand { name: "append", options: &["--repo", "--entry-file"], required: &["--entry-file"] },
+    Subcommand { name: "merge", options: &["--repo", "--from-ref"], required: &["--from-ref"] },
+    Subcommand { name: "emit-skeleton", options: &["--repo", "--branch", "--counterpart"], required: &["--branch"] },
+    Subcommand { name: "entry-id", options: &["--entry-file"], required: &["--entry-file"] },
+    Subcommand { name: "evidence-rels", options: &["--repo", "--cwd", "--manifest"], required: &["--cwd", "--manifest"] },
+    Subcommand { name: "utc-to-kst", options: &["--entry-file"], required: &["--entry-file"] },
+];
+
+/// The one option that may be given more than once (every value is kept, in order); any other option keeps its last value.
+const REPEATABLE_OPTION: &str = "--ledger-ref";
+
+const HELP_TAIL: &str = "\
+options:
+  -h, --help     show this help message and exit
+  --self-test    run the built-in self-test and exit
+
+-h and --self-test go before the subcommand. Each subcommand option takes one value (--opt VALUE or --opt=VALUE).
+--repo defaults to the current directory. --ledger-ref may be given more than once; any other option given twice
+keeps its last value. Output is JSON on stdout; entry-id, utc-to-kst and evidence-rels print plain lines.
+exit status: 0 done; 2 usage error, or an error reported as {\"status\": \"error\"}; 5 diverged (divergence) or
+rejected (validate, append); 1 a failure of entry-id, utc-to-kst or evidence-rels, or a failed self-test.
+";
+
+fn subcommand(name: &str) -> Option<&'static Subcommand> {
+    SUBCOMMANDS.iter().find(|c| c.name == name)
+}
+
+fn usage_line() -> String {
+    let names: Vec<&str> = SUBCOMMANDS.iter().map(|c| c.name).collect();
+    format!("usage: layer_ledger.sh [-h] [--self-test] {{{}}} ...", names.join(","))
+}
+
+/// `--entry-file` -> `ENTRY_FILE`.
+fn metavar(option: &str) -> String {
+    option.trim_start_matches('-').replace('-', "_").to_uppercase()
+}
+
+/// The `-h` text: the usage line, then each subcommand with its required options first and the optional ones in brackets.
+fn help_text() -> String {
+    let width = SUBCOMMANDS.iter().map(|c| c.name.len()).max().unwrap_or(0);
+    let mut text = usage_line();
+    text.push_str("\n\nThe branch-layer classification ledger and the common-layer sync point / divergence judge.\n\nsubcommands:\n");
+    for c in &SUBCOMMANDS {
+        let mut words: Vec<String> = c.required.iter().map(|o| format!("{o} {}", metavar(o))).collect();
+        for o in c.options.iter().filter(|o| !c.required.contains(o)) {
+            let repeat = if *o == REPEATABLE_OPTION { "..." } else { "" };
+            words.push(format!("[{o} {}]{repeat}", metavar(o)));
+        }
+        text.push_str(format!("  {:<width$}  {}", c.name, words.join(" ")).trim_end());
+        text.push('\n');
+    }
+    text.push('\n');
+    text.push_str(HELP_TAIL);
+    text
+}
+
 fn usage_err(msg: &str) -> i32 {
-    eprintln!("usage: layer_ledger.sh [-h] [--self-test] {{common-layer,sync-point,divergence,validate,append,merge,emit-skeleton,entry-id,evidence-rels,utc-to-kst}} ...");
+    eprintln!("{}", usage_line());
     eprintln!("layer_ledger.sh: error: {msg}");
     2
 }
@@ -1348,7 +1423,7 @@ pub fn run(args: &[String]) -> i32 {
                 return selftest::self_test();
             }
             "-h" | "--help" => {
-                eprintln!("layer_ledger.sh: see the Python docstring (common-layer · sync-point · divergence · validate · append · merge · emit-skeleton · entry-id · evidence-rels · utc-to-kst)");
+                eprint!("{}", help_text());
                 return 0;
             }
             other if other.starts_with('-') => return usage_err(&format!("unrecognized arguments: {other}")),
@@ -1360,27 +1435,11 @@ pub fn run(args: &[String]) -> i32 {
         }
     }
     let Some(cmd) = cmd else {
-        eprintln!("usage: layer_ledger.sh [-h] [--self-test] {{common-layer,sync-point,divergence,validate,append,merge}} ...");
+        eprintln!("{}", usage_line());
         return 2;
     };
-    let known = [
-        "common-layer", "sync-point", "divergence", "validate", "append", "merge", "emit-skeleton", "entry-id", "evidence-rels",
-        "utc-to-kst",
-    ];
-    if !known.contains(&cmd.as_str()) {
+    let Some(spec) = subcommand(&cmd) else {
         return usage_err(&format!("argument cmd: invalid choice: '{cmd}'"));
-    }
-    let allowed: &[&str] = match cmd.as_str() {
-        "common-layer" => &["--repo"],
-        "sync-point" => &["--repo", "--branch", "--counterpart", "--ledger-ref"],
-        "divergence" => &["--repo", "--branch", "--counterpart", "--ledger-ref", "--since"],
-        "validate" => &["--entry-file"],
-        "append" => &["--repo", "--entry-file"],
-        "merge" => &["--repo", "--from-ref"],
-        "emit-skeleton" => &["--repo", "--branch", "--counterpart"],
-        "entry-id" => &["--entry-file"],
-        "evidence-rels" => &["--repo", "--cwd", "--manifest"],
-        _ => &["--entry-file"],
     };
     let mut opts: HashMap<String, String> = HashMap::new();
     let mut ledger_refs: Vec<String> = Vec::new();
@@ -1390,7 +1449,7 @@ pub fn run(args: &[String]) -> i32 {
             Some((k, v)) if k.starts_with("--") => (k.to_string(), Some(v.to_string())),
             _ => (a.clone(), None),
         };
-        if !allowed.contains(&name.as_str()) {
+        if !spec.options.contains(&name.as_str()) {
             return usage_err(&format!("unrecognized arguments: {a}"));
         }
         let value = match inline {
@@ -1403,7 +1462,7 @@ pub fn run(args: &[String]) -> i32 {
                 }
             }
         };
-        if name == "--ledger-ref" {
+        if name == REPEATABLE_OPTION {
             ledger_refs.push(value);
         } else {
             opts.insert(name, value);
@@ -1414,14 +1473,7 @@ pub fn run(args: &[String]) -> i32 {
         let miss: Vec<&str> = names.iter().copied().filter(|k| !opts.contains_key(*k)).collect();
         if miss.is_empty() { None } else { Some(format!("the following arguments are required: {}", miss.join(", "))) }
     };
-    let required: &[&str] = match cmd.as_str() {
-        "sync-point" | "divergence" | "emit-skeleton" => &["--branch"],
-        "validate" | "append" | "entry-id" | "utc-to-kst" => &["--entry-file"],
-        "merge" => &["--from-ref"],
-        "evidence-rels" => &["--cwd", "--manifest"],
-        _ => &[],
-    };
-    if let Some(m) = need(required) {
+    if let Some(m) = need(spec.required) {
         return usage_err(&m);
     }
     let get = |k: &str| opts.get(k).cloned();
@@ -1544,5 +1596,74 @@ pub fn run(args: &[String]) -> i32 {
                 0
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod command_line_tests {
+    use super::*;
+
+    fn args(words: &[&str]) -> Vec<String> {
+        words.iter().map(|w| w.to_string()).collect()
+    }
+
+    /// Tripwire: the options each subcommand accepts and requires, as the parser's own tables held them before they moved
+    /// into `SUBCOMMANDS`. A change here is a change of the command line, not of the help.
+    #[test]
+    fn the_subcommand_table_keeps_the_accepted_and_required_options() {
+        let want: [(&str, &[&str], &[&str]); 10] = [
+            ("common-layer", &["--repo"], &[]),
+            ("sync-point", &["--repo", "--branch", "--counterpart", "--ledger-ref"], &["--branch"]),
+            ("divergence", &["--repo", "--branch", "--counterpart", "--ledger-ref", "--since"], &["--branch"]),
+            ("validate", &["--entry-file"], &["--entry-file"]),
+            ("append", &["--repo", "--entry-file"], &["--entry-file"]),
+            ("merge", &["--repo", "--from-ref"], &["--from-ref"]),
+            ("emit-skeleton", &["--repo", "--branch", "--counterpart"], &["--branch"]),
+            ("entry-id", &["--entry-file"], &["--entry-file"]),
+            ("evidence-rels", &["--repo", "--cwd", "--manifest"], &["--cwd", "--manifest"]),
+            ("utc-to-kst", &["--entry-file"], &["--entry-file"]),
+        ];
+        let got: Vec<(&str, &[&str], &[&str])> = SUBCOMMANDS.iter().map(|c| (c.name, c.options, c.required)).collect();
+        assert_eq!(got, want.to_vec());
+        assert_eq!(
+            usage_line(),
+            "usage: layer_ledger.sh [-h] [--self-test] {common-layer,sync-point,divergence,validate,append,merge,emit-skeleton,entry-id,evidence-rels,utc-to-kst} ..."
+        );
+    }
+
+    #[test]
+    fn the_help_lists_every_subcommand_with_its_options() {
+        let help = help_text();
+        assert!(help.starts_with(&format!("{}\n", usage_line())));
+        assert!(!help.contains("Python"), "{help}");
+        for c in &SUBCOMMANDS {
+            let prefix = format!("  {} ", c.name);
+            let line = help.lines().find(|l| l.starts_with(&prefix)).unwrap_or_else(|| panic!("no help line for {}", c.name));
+            for o in c.options {
+                let word = format!("{o} {}", metavar(o));
+                if c.required.contains(o) {
+                    assert!(line.contains(&format!(" {word}")) && !line.contains(&format!("[{word}]")), "{line}");
+                } else {
+                    assert!(line.contains(&format!("[{word}]")), "{line}");
+                }
+            }
+        }
+        assert!(help.contains("[--ledger-ref LEDGER_REF]..."), "{help}");
+        assert_eq!(metavar("--entry-file"), "ENTRY_FILE");
+    }
+
+    #[test]
+    fn the_parser_accepts_and_requires_what_the_table_says() {
+        assert_eq!(run(&args(&["-h"])), 0);
+        assert_eq!(run(&args(&["--help"])), 0);
+        assert_eq!(run(&args(&[])), 2, "no subcommand");
+        assert_eq!(run(&args(&["bogus"])), 2, "unknown subcommand");
+        assert_eq!(run(&args(&["--bogus"])), 2, "unknown global option");
+        assert_eq!(run(&args(&["validate"])), 2, "missing --entry-file");
+        assert_eq!(run(&args(&["evidence-rels", "--cwd", "."])), 2, "missing --manifest");
+        assert_eq!(run(&args(&["common-layer", "--branch", "x"])), 2, "option of another subcommand");
+        assert_eq!(run(&args(&["merge", "--repo=."])), 2, "missing --from-ref after an inline value");
+        assert_eq!(run(&args(&["sync-point", "--branch"])), 2, "option without its value");
+        assert_eq!(run(&args(&["sync-point", "-h"])), 2, "-h goes before the subcommand");
     }
 }
