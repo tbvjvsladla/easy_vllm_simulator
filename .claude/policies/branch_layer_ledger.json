@@ -25447,6 +25447,197 @@
       "utc": "2026-11-17T11:00:29Z",
       "departure": "single-node",
       "approved_by": "AhnSangHun: ì í ì¹ì¸ íì \"ì¹ì¸\" (2026-11-17T11:00:05Z)"
+    },
+    {
+      "entry_id": "sync-202611180815-single-to-multi-rs-scan-docs",
+      "utc": "2026-11-18T08:15:40Z",
+      "departure": "single-node",
+      "departure_commit": "d2141d8beea6804a5cb062e4fd8d4845405e930a",
+      "approved_by": "AhnSangHun: 중계 답 원문 \"① 이대로 승인 (워커 권고)\" (질문 n-s1-classification · val_agent 오케스트레이터 중계 · source=user · 2026-11-18T08:24:05.671Z)",
+      "approved_utc": "2026-11-18T08:24:05Z",
+      "_reach": "multi-node vs HEAD 트리차이 · 동기 지점 544600a85062(departure-landed)",
+      "classification": [
+        {
+          "file": ".claude/rust/policy-audit/README.md",
+          "verdict": "common_promote",
+          "reason": "c6b76323: crate README 가 지워진 하네스 .py 대신 Rust 런처·소유 crate 를 가리키게 정정(request 26111719 B). policy-audit crate 는 양 토폴로지 공용이고 토폴로지 특화 문장이 없다. 원장의 이 파일 과거 판정도 common_promote",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-gate/checks/data/dn/dn-h-extra.out",
+          "verdict": "common_promote",
+          "reason": "54a53a12: doc_naming 도움말 설명 줄을 'Rust launcher that reads the naming SSOTs …' 로 고친 데 따른 dn 골든 재기준선(hitl h2). 골든은 공통 crate policy-gate 의 검사 입력이며 토폴로지 중립. 과거 판정 common_promote",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-gate/checks/data/dn/dn-help.out",
+          "verdict": "common_promote",
+          "reason": "54a53a12: dn 골든 재기준선(hitl h2). doc_naming.rs 와 같은 바이트로 움직여야 검사가 초록이다. 공통 crate 검사 데이터이고 과거 판정 common_promote",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-gate/checks/data/dn/dn-noargs.err",
+          "verdict": "common_promote",
+          "reason": "54a53a12: dn 골든 재기준선(hitl h2). 공통 crate 검사 데이터이고 과거 판정 common_promote",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-gate/src/doc_naming.rs",
+          "verdict": "common_promote",
+          "reason": "54a53a12: doc_naming 도움말 설명 줄 정정(hitl h2). 명명 SSOT 런처는 docs.md(공통층) 계약의 실행체이며 토폴로지 분기가 없다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/py-boundary-guard/Cargo.lock",
+          "verdict": "common_promote",
+          "reason": "8a146f72: .rs 모드 구현 의존 syn 3.0.9·proc-macro2 1.0.107·quote 1.0.47·unicode-ident 1.0.27 고정(사용자 승인 h3). py-boundary-guard 는 pre-commit 훅이 양 브랜치에서 기동하는 공통 가드라 lock 도 같은 바이트여야 한다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/py-boundary-guard/Cargo.toml",
+          "verdict": "common_promote",
+          "reason": "8a146f72: syn 의존 선언·.rs 모드 검사 타깃 추가. 공통 가드 crate 의 빌드 입력이며 토폴로지 분기 없음",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/py-boundary-guard/checks/rs_scan_checks.rs",
+          "verdict": "common_promote",
+          "reason": "8a146f72·72ff9bc4: .rs 모드 단위 검사(신규) · 전체 통과 때만 요약 줄. 공통 가드 crate 의 검사이며 토폴로지 중립",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/py-boundary-guard/rs_python_allowlist.tsv",
+          "verdict": "common_promote",
+          "reason": "8a146f72: 추적 .rs 의 인터프리터 기동 임시 허용목록(신규 · 21행). 헌법 py 경계(공통층 불변식)의 집행 입력이며, 같은 Rust 소스가 양 브랜치에 있으므로 허용목록도 같아야 한다. 갈라지면 한쪽 커밋이 RS-VIOLATION/RS-STALE 로 막힌다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/py-boundary-guard/src/inline_python_scan.rs",
+          "verdict": "common_promote",
+          "reason": "8a146f72·72ff9bc4: inline_python_scan check 에 .rs 모드를 붙이고, 통과 때만 '.rs mode: …' 요약 줄을 낸다(hitl h1). 공통 가드 본체이고 토폴로지 분기 없음",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/py-boundary-guard/src/rs_scan.rs",
+          "verdict": "common_promote",
+          "reason": "8a146f72·72ff9bc4: .rs 스캔 진입 모듈(신규). 공통 가드 crate 소스",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/py-boundary-guard/src/rs_scan/finder.rs",
+          "verdict": "common_promote",
+          "reason": "8a146f72: syn AST 로 인터프리터 기동 지점을 찾는 모듈(신규). 공통 가드 crate 소스",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/py-boundary-guard/src/rs_scan/names.rs",
+          "verdict": "common_promote",
+          "reason": "8a146f72·c229149e: 인터프리터 이름 판정(신규) · 단위 검사가 인자 벡터를 텍스트로 쓴다. 공통 가드 crate 소스",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/py-boundary-guard/src/rs_scan/tokens.rs",
+          "verdict": "common_promote",
+          "reason": "8a146f72: 토큰 보조 모듈(신규). 공통 가드 crate 소스",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/references/lite-and-publication.md",
+          "verdict": "common_promote",
+          "reason": "c6b76323: 지워진 .py 대신 Rust 런처·crate 를 가리키게 정정(request 26111719 B). 벤치 스킬 reference 는 양 토폴로지 공용이고 특화 문장이 없다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/SKILL.md",
+          "verdict": "common_promote",
+          "reason": "c6b76323: 단일 진입 설명을 'Rust crate rust/ · 명령은 지워진 원본 hint.py 와 같다' 로 정정. 스킬 문서 공통층 · 토폴로지 중립",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/SKILL.md",
+          "verdict": "common_promote",
+          "reason": "c6b76323: 순서 의존·런처 표를 Rust ELF 기준으로 정정(manifest_contract.sh 전 형태 네이티브 · check_sub_hint_equip.py 삭제 표기 등). 라우터 SKILL.md 는 공통층이며(특화층은 references/orchestration.topology.md 로 따로 있고 이 행에 없다) single 언급은 양 토폴로지가 함께 읽는 비교 서술이다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/references/install/onboarding.md",
+          "verdict": "common_promote",
+          "reason": "c6b76323: 훅 배선·스캔 순서를 Rust 실행파일(runtime_selftest · py_boundary_guard · scan_node ELF) 기준으로 정정. 온보딩 reference 는 토폴로지 중립 공통층",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/references/install/rust_runtime.md",
+          "verdict": "common_promote",
+          "reason": "c6b76323: Rust 런타임 설치·명령 순서·ELF 의존 서술을 현재 정체로 정정(Python 호환 경로 없음). 양 토폴로지 노드가 같은 절차로 Rust 를 준비하므로 공통층",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/references/orchestration/topology_identity.md",
+          "verdict": "common_promote",
+          "reason": "c6b76323: resolve_rank 권위를 role-contract crate 로 · node_role_contract 메모의 YAML 로더 서술을 정정. 이 파일은 두 토폴로지를 비교하는 공통 reference(헌법 불변식 A '왜 둘이 다른가' 의 소유 자리)이며 특화층(*.topology.md)이 아니다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/SKILL.md",
+          "verdict": "common_promote",
+          "reason": "c6b76323·d2141d8b: 결정론 명령 목록을 Rust 런처 기준으로 정정(regen_requirements --use-installed · 블랙박스 세션 도구는 bash 로 blackbox_session.sh). 스킬 문서 공통층 · 멀티 명령 언급은 양 브랜치가 함께 싣는 목록",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/references/resolve-and-render.md",
+          "verdict": "common_promote",
+          "reason": "c6b76323: 해소·렌더 절차의 지워진 .py 지칭을 Rust 런처로 정정. 공통 reference",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/references/source-build.md",
+          "verdict": "common_promote",
+          "reason": "c6b76323: 가드 3출구 표의 구현 위치를 render_template.rs 의 patch_guard 로 정정. 공통 reference",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/rust/runtime/src/layer_ledger.rs",
+          "verdict": "common_promote",
+          "reason": "54a53a12: layer_ledger -h 25줄 사용법·인자 없음 usage 10 하위명령(hitl h4·h5). 원장 판정기는 closing_sequence ⑤가 반대 브랜치 워크트리로 당겨 쓰는 파일이라 양 브랜치가 같은 바이트여야 한다(갈라지면 LEDGER_JUDGE_STALE)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/SKILL.md",
+          "verdict": "common_promote",
+          "reason": "c6b76323: 결정론 스크립트가 Rust 런처로 돈다(호스트 python3·PyYAML ✗) · whichllm 값은 quant_table.rs 에 벤더링으로 정정. 스킬 문서 공통층",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/references/kv-clamp.md",
+          "verdict": "common_promote",
+          "reason": "c6b76323·d2141d8b: C2 술어 정본 위치를 claims_recipe.rs 로 · 술어가 부분문자열 두 조건만 본다는 사실로 정정(리뷰 1회차). KV 절대클램프 이식성(공통 정책)의 reference",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/wiki-desk/reference/references.md",
+          "verdict": "common_promote",
+          "reason": "c6b76323: resolve_target_gpu_budget 위치를 recipe_cmd.rs 로 정정. 외부 레퍼런스 1차 진입점(헌법 지정)이며 공통층",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": "README.md",
+          "verdict": "common_promote",
+          "reason": "c6b76323: 실행 문법 발행처 표를 provider_claude_code.rs·provider_codex_cli.rs 로 정정. 배포 README 는 양 브랜치 공용 서사이고 과거 판정 common_promote(4회)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": "campaigns/README.md",
+          "verdict": "common_promote",
+          "reason": "c6b76323: hint 승인 판정 소유를 campaign_validator.rs·e4.rs 로 정정. 캠페인 뼈대(추적 · branch sync 대상 — docs.md 보관·전파 matrix)이고 과거 판정 common_promote(5회)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": "hints/HINT_ISSUANCE_CONTRACT.md",
+          "verdict": "common_promote",
+          "reason": "c6b76323: hint 발행 계약의 지워진 .py 지칭을 Rust crate 로 정정. 발행 계약은 양 토폴로지 공통이며(브랜치별 특화는 HINTS.md 쪽) 과거 판정 common_promote(3회)",
+          "provenance": "agent-judged"
+        }
+      ]
     }
   ]
 }
