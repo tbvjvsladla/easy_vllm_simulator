@@ -56,7 +56,7 @@
 > 여부를 조회 → **HITL 확인** → 아래에 해당 `gpu_model` 섹션 신설·입고(§0 "자기증식 루프"의 GPU-스펙 축).
 > 조회는 획득모드와 무관하게 항상 허용·의무(모델획득 격리와 별개 평면 — CLAUDE.md §모델 획득 모드 따름정리).
 > **소비 배선(γ, `plan_26070809_47_07`)**: 각 GPU 섹션에 `per-card VRAM (GiB): <num>` 라인이 있으면
-> `recipe.py resolve_target_gpu_budget()`(`_lookup_gpu_spec`)이 역룩업으로 읽어 타겟 예산에 대입한다
+> `.claude/skills/vllm-recipe-explorer/rust/runtime/src/recipe_cmd.rs` 의 `resolve_target_gpu_budget()`(`lookup_gpu_spec`)이 역룩업으로 읽어 타겟 예산에 대입한다
 > (값 채우기·웹취득 규율 자체는 위 α 소관 — γ 는 소비만). 미등재 시 `config.target_gpu.per_card_vram_gib`
 > 명시로 우회(quick-win). 헤더에 "통합메모리" 포함 시 `target_gmu≤0.90` 하드클램프 자동 적용.
 

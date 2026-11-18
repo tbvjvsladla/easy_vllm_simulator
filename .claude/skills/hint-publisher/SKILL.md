@@ -6,7 +6,7 @@ description: 검증된 서빙 지식을 **셀 1개 = 태그 1개**로 `hint/<vll
 # hint-publisher — 한 셀의 여정을 수신자가 다시 걷지 않게
 
 > 정본 계약: `hints/HINT_ISSUANCE_CONTRACT.md`(v7 — 규칙과 그 이유 · 차단 code 표 · 페이로드 형식) ·
-> 단일 진입: `scripts/hint.sh`(Rust · 원본 `scripts/hint.py` 와 같은 명령 · 명령별 인자 = `hint.sh <명령> --help` · 불변식 = 원본 모듈 docstring · 이행 기록 `rust/PORTING.md`) ·
+> 단일 진입: `scripts/hint.sh`(Rust crate `rust/` · 명령은 지워진 원본 `scripts/hint.py` 와 같다 · 명령별 인자 = `hint.sh <명령> --help` · 규칙과 그 이유 = 위 계약 · 이행 기록 `rust/PORTING.md`) ·
 > 설계: `docs/plan/plan_26092908`(v7 · §3 결정 · §4 계약) ← `docs/plan/plan_26092119`(v6) · 발동 게이트: `policy:HINT_TAG_ACTIVATION_GATE`
 > 새 동작의 정본은 **코드**다 — 이 문서와 계약이 코드와 어긋나면 문서를 고친다.
 > 이 문서는 **언제 · 무엇을 · 어떤 순서로** 만 적는다. 규칙의 세부는 계약 절 번호로 가리킨다.
@@ -54,7 +54,7 @@ OBSERVATION-ONLY)의 기계 표면 · footer v2 ④ 페이로드 커밋의 부�
 ## 2. 한 셀 발행 — publish → 저작 → 독립 사실 검증 → continue
 
 ```bash
-H=.claude/skills/hint-publisher/scripts/hint.sh   # Rust 단일 CLI(원본 hint.py 대체 · 빌드: bash .claude/skills/hint-publisher/scripts/build_rust.sh)
+H=.claude/skills/hint-publisher/scripts/hint.sh   # Rust 단일 CLI(빌드: bash .claude/skills/hint-publisher/scripts/build_rust.sh)
 bash $H name     --campaign <id> --cell <cell>                        # (선택) 기본 이름 · 축별 출처 · 꼬리 후보 미리보기 · 읽기 전용
 bash $H publish  --campaign <id> --cell <cell> --generated-utc <UTC>  # 증거 → 이미지 탐침(기본) → 기본 이름으로 스캐폴드 → **정지**
 #   ── 저작: draft 의 `<<AGENT:` 줄을 PROMPT 지시대로 산문 · hint-event · 원문 발췌로 바꾼다 · 00 §0.9 이름 꼬리 → inputs/tail.json ──

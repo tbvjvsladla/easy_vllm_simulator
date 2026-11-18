@@ -56,7 +56,7 @@
 
 ## 3.1 가드 3출구 — 상속(inherit) · 시도-빌드(attempt) · 발견(discovery)
 
-*(plan_26082112 §5.2 · P4. `render_dockerfile.py::_patch_guard` 의 세 분기가 이 표다. 가드 스탠자가 지시하는 주소가 여기다.)*
+*(plan_26082112 §5.2 · P4. `.claude/skills/upstream-version-watch/rust/runtime/src/render_template.rs` 의 `patch_guard`(본체 `patch_guard_with`) 세 분기가 이 표다. 가드 스탠자가 지시하는 주소가 여기다.)*
 
 미인식 (NGC베이스 × vLLM버전) 키의 출구는 **하나가 아니다**. 하나뿐이면 델타가 진짜 ∅ 인 경우와
 델타가 큰 경우가 같은 버튼(`--allow-unvalidated`)을 쓰게 되고, 그 버튼은 고무도장이 된다.

@@ -29,7 +29,7 @@
 bash .claude/skills/hint-publisher/scripts/hint.sh match --vllm <V> --model <M> [--arch <A>] [--include-other] [--json]
 ```
 
-- git 없이 `hints/index.json` 만 읽습니다(배포 아카이브에서도 동작합니다).
+- git 없이 `hints/index.json` 만 읽습니다(배포 아카이브에서도 git 은 필요 없습니다). 다만 `hint.sh` 는 그 노드에서 빌드한 Rust 실행파일을 기동하므로 처음 한 번 빌드가 필요합니다: `bash .claude/skills/terraforming_node/scripts/rust_bootstrap.sh install` → `bash .claude/skills/terraforming_node/scripts/rust_bootstrap.sh check` → `bash .claude/skills/hint-publisher/scripts/build_rust.sh`(첫 빌드는 Cargo 의존성을 내려받습니다). 빌드 전에는 `hint.sh` 가 종료 상태 2 와 빌드 안내를 냅니다.
 - 모델 비교는 **정규화 슬러그 동치**(대소문자·구두점 무시 — `gemma-4-E2B-it` = `gemma-4-e2b-it`, `Org/Name` 으로
   물어도 됩니다)와 **기반 모델 관계**(페이로드의 `base_model`)로 합니다. 같은 기반 모델의 양자화 변종·원본을 함께 찾습니다.
 - 관계없는 모델은 기본으로 숨깁니다(`--include-other` 로 봅니다). vLLM·arch 가 다르면 무엇을 다시 확인해야 하는지

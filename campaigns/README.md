@@ -173,8 +173,9 @@ campaigns writer(`--phase-set`·`--cell-set`·`--evidence-add`)는 **no-op** 이
   (`self_role=sub`)에는 적지 않는다 — 승인을 적는 자리는 메인 선언 하나다. single 서브 셀이면 메인에서 `--node <그 서브>`
   로 적고, 파생 선언(`--emit-slice <그 서브>`)이 그 노드 몫 항목만 승인째 운반한다(메인·다른 노드 몫은 잘린다 ·
   멀티 Ray 워커 서브는 운반 ✗ · 판정 = `node_role_contract.sub_self_publishes` · 2026-10-11 plan_26101104).
-- **판정의 단일 소유자**: `campaign_template_validator.py` 의 `hint_target_reasons`(검증) · `hint_approval_for`
-  (읽기)다. 셀은 배정의 부분집합(배정의 노드가 승인의 노드) · 세 승인 필드 모두 비-빈 · `<<FILL>>` 금지 · 시각은
+- **판정**: 검증 `hint_target_reasons` 는 `.claude/skills/adversarial-benchmark/rust/src/campaign_validator.rs`(검증기 `campaign_template_validator.sh`)이고,
+  읽기는 hint 발행기 `.claude/skills/hint-publisher/rust/src/evidence/e4.rs` 의 `approval_for` 가 같은 판정의 사본(`v_hint_target_reasons`·옛 `hint_approval_for` 의
+  사본 `v_hint_approval_for` — 같은 이름의 함수는 검증기 crate 에 없다)으로 한다. 셀은 배정의 부분집합(배정의 노드가 승인의 노드) · 세 승인 필드 모두 비-빈 · `<<FILL>>` 금지 · 시각은
   주입 모양. writer 는 쓰기 전에 같은 판정을 부르므로 검증기가 거부할 선언을 만들지 않는다.
 - **읽는 눈**: hint 발행기 `continue` 가 봉인·push **전에** 이 셀의 승인을 찾는다. 없으면 멈추고(사람 Y/N 을 받아
   전사하라), 있으면 그 전사를 봉인 페이로드에 복사한다. 결함이 하나라도 있으면 어떤 승인도 읽지 않는다(fail-closed).

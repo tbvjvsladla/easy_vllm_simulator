@@ -45,9 +45,11 @@ bash scripts/resolve_ngc_tag.sh <torch_prefix> --start <ngc_probe_start>   # --a
 bash scripts/resolve_wheel.sh "$V" --arch "$ARCH"          # cuda 미지정 시 자동
 # ④ requirements 재생성 — wheel METADATA(Requires-Dist) 기준 (권위 소스, requirements/*.txt 아님)
 bash scripts/regen_requirements.sh --from-wheel-url <wheel URL> -o requirements.txt   # 빌드 전(호스트)
-# (컨테이너 내부 정합: python3 scripts/regen_requirements.py --use-installed -o requirements.txt — 컨테이너 안 평면 · 하네스 호출자 없음)
-# 일반 컨테이너/venv의 설치 검색은 기존 Python 진입점을 사용한다.
-# Rust --use-installed는 선언된 PYTHONPATH와 CPython 3.12의 격리 검색 프로필 범위다.
+# ④′ 컨테이너 내부 정합(**미검증** — 컨테이너 실행 확인 전): 런처·ELF 는 호스트, 읽을 대상은 컨테이너의 vLLM 설치 메타데이터.
+#    Rust --use-installed 는 선언된 PYTHONPATH(절대 경로)와 CPython 3.12 의 격리 검색 프로필 범위다 — 컨테이너의 dist-info 를 꺼내 선언한다.
+D="$(mktemp -d)"
+docker exec <컨테이너> sh -c 'cd /usr/local/lib/python3.12/dist-packages && tar -cf - vllm-*.dist-info' | tar -xf - -C "$D"
+PYTHONPATH="$D" bash scripts/regen_requirements.sh --use-installed -o requirements.txt
 # ⑤ no-download NAS 체크 (스모크 전): 모델 부재면 비0+중단·보고. --topology 필수(산출물 통로 output/<topology>/)
 bash scripts/check_smoke_model.sh <config_name> --topology <single|multi> --repo .
 # ⑥ 실패 분류 (빌드/스모크 실패 시): requirements-fixable(0)/source-build-class(1)/unknown(2)

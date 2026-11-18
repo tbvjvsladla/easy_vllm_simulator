@@ -74,7 +74,7 @@ description: >-
 
 - **모델 자체 다운로드 금지.** NAS 경로에 없으면 비0 종료 + 명확한 중단·보고. 런타임 다운로드 없음.
 - **ephemeral 다운로드 승인 요청 시 이** 사전추정 결과(대략 GiB)를 사용자에게 함께 제시할 것.
-- 호스트 `python3`(3.12, PyYAML 6) 단독 실행. **whichllm 패키지를 import 하지 말 것**(값은 벤더링).
+- 결정론 스크립트는 Rust 런처(`scripts/*.sh` → `rust/runtime` 의 노드 빌드 ELF)로 돈다 — 호스트 `python3`·PyYAML 을 쓰지 않는다. **whichllm 패키지를 쓰지 말 것**(값은 Rust 소스에 벤더링 — `rust/runtime/src/quant_table.rs`).
 - stdlib + yaml만 사용. **(b) 소비자 파서(quant_table/estimate_vram)는 로컬 config 파싱만 하는 순수 stdlib — 모델획득 평면 격리이지 환경 offline 이 아니다**(대조적으로 upstream 의 resolver 는 GitHub API·레지스트리를 라이브 조회 = 환경 online 전제). **단 이는 *스크립트* 제약이지 *에이전트 전략수립* 제약이 아니다** — 서빙전략의 외부 교차검증(HF 모델카드·vLLM GitHub)은 허용·의무(헌법 §모델 획득 모드 따름정리 · escalation = `plan_26063009_19_14` B부). **모델획득 격리 한정**이지 외부접속 전반 차단 ✗.
 - 결정/게이트/랭킹/분류는 결정론 스크립트가 책임진다(LLM은 후보 탐색·인터뷰만).
 - **Phase 2 teardown(필수)**: 트라이얼은 끝날 때마다 `docker rm -f` 로 컨테이너를 제거한다(통합메모리 잔류 OOM 방지 — `run_trial` 의 `finally` 가 보장).
