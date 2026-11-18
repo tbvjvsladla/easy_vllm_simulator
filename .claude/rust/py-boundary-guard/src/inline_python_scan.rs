@@ -232,11 +232,12 @@ fn run(repo: &Path, allow: Option<PathBuf>, rs_allow: Option<PathBuf>) -> Result
     for e in entries.iter().filter(|e| e.used.get() == 0) {
         eprintln!("[inline_python_scan] STALE allowlist entry (no matching line here): {}\t{}", e.path, e.needle);
     }
-    rs.print();
     if violations.is_empty() && rs.passed() {
+        rs.print_summary();
         println!("[inline_python_scan] PASS scanned {scanned} files · {in_image} Dockerfile lines (in-image) · {allowed} lines within allowlist ({} entries)", entries.len());
         return Ok(true);
     }
+    rs.print_findings();
     if violations.is_empty() {
         println!("[inline_python_scan] non-.rs surfaces clean: scanned {scanned} files · {in_image} Dockerfile lines (in-image) · {allowed} lines within allowlist ({} entries)", entries.len());
     } else {

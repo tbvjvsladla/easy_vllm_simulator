@@ -4,6 +4,7 @@
 //! - `mutation_*`: one launch variant written into a `checks/*.rs` of a clean tree makes the check fail.
 //! - `stale_*` / `beyond_*` / `listed_*`: the allowlist is exact (path + call text + count; no per-file permission).
 //! - `not_a_launch_*`: Python mentions that start nothing (request A-1 "실행이 아닌" list) are no findings.
+//! - `rs_summary_*`: the `.rs` summary line is printed only when the whole check passes (divergence d1).
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -339,6 +340,47 @@ fn listed_launches_pass_with_the_exact_count() {
     assert!(
         out.lines().last().unwrap_or("").contains("] PASS scanned"),
         "{out}"
+    );
+}
+
+/// Approved divergence d1 (`rs-mode-output`): the `.rs` summary line belongs to a pass of the whole check and stands
+/// right before the PASS line. When the `.rs` mode passes but a non-`.rs` surface fails, the output is the base one:
+/// the VIOLATION line on stdout, the FAIL line on stderr and exit 1, with no `.rs` line.
+#[test]
+fn rs_summary_line_only_on_a_whole_pass() {
+    let r = repo("summary");
+    write(&r.0, MUTANT_REL, TWO_LAUNCHES);
+    write(
+        &r.0,
+        RS_ALLOW_REL,
+        &format!("{MUTANT_REL}\tCommand::new(\"python3\")\t2\tc34-recipe-runtime\toracle\n"),
+    );
+    let (code, out, err) = run(&r.0);
+    assert_eq!(code, 0, "{out}{err}");
+    let lines: Vec<&str> = out.lines().collect();
+    assert_eq!(lines.len(), 2, "{out}");
+    assert!(
+        lines[0].starts_with(
+            "[inline_python_scan] .rs mode: scanned 1 files · 2 interpreter launches within rs_python_allowlist.tsv (1 rows)"
+        ),
+        "{out}"
+    );
+    assert!(
+        lines[1].starts_with("[inline_python_scan] PASS scanned 0 files"),
+        "{out}"
+    );
+
+    write(&r.0, "a/host.sh", "python3 -c 'print(1)'\n");
+    let (code, out, err) = run(&r.0);
+    assert_eq!(code, 1, "{out}{err}");
+    assert_eq!(out, "VIOLATION a/host.sh:1: python3 -c 'print(1)'\n");
+    assert!(!err.contains(".rs mode"), "{err}");
+    assert_eq!(err.lines().count(), 1, "{err}");
+    assert!(
+        err.starts_with(
+            "[inline_python_scan] FAIL 1 line(s) start Python on the host/sub outside the allowlist."
+        ),
+        "{err}"
     );
 }
 

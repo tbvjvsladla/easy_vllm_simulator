@@ -97,15 +97,17 @@ impl RsReport {
         self.violations.is_empty() && self.stale.is_empty()
     }
 
-    /// Findings on stdout; on a pass one summary line.
-    pub fn print(&self) {
-        if self.passed() {
-            println!(
-                "[inline_python_scan] .rs mode: scanned {} files · {} interpreter launches within rs_python_allowlist.tsv ({} rows)",
-                self.scanned, self.allowed, self.rows
-            );
-            return;
-        }
+    /// The summary line, printed only when the whole check passes (the `.rs` mode and the non-`.rs` surfaces), right
+    /// before the PASS line.
+    pub fn print_summary(&self) {
+        println!(
+            "[inline_python_scan] .rs mode: scanned {} files · {} interpreter launches within rs_python_allowlist.tsv ({} rows)",
+            self.scanned, self.allowed, self.rows
+        );
+    }
+
+    /// The findings on stdout (none when the `.rs` mode passed).
+    pub fn print_findings(&self) {
         for violation in &self.violations {
             println!("RS-VIOLATION {violation}");
         }
