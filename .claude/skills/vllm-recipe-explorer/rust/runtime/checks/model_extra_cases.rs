@@ -1071,6 +1071,7 @@ mod subject_hash {
     const COUNTRY: [u8; 5] = [0x06, 0x03, 0x55, 0x04, 0x06];
     const ORGANIZATION: [u8; 5] = [0x06, 0x03, 0x55, 0x04, 0x0A];
     const UNIT: [u8; 5] = [0x06, 0x03, 0x55, 0x04, 0x0B];
+    /// An attribute type OpenSSL's string table does not know: OpenSSL accepts any string type for it.
     const UNKNOWN: [u8; 5] = [0x06, 0x03, 0x2A, 0x03, 0x04];
     const EMAIL: [u8; 11] = [
         0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x09, 0x01,
@@ -1156,6 +1157,8 @@ mod subject_hash {
         tlv(0x30, &[object.to_vec(), tlv(0x04, value)].concat())
     }
 
+    /// `openssl verify` accepts a certificate as its own only trusted certificate exactly when OpenSSL holds it self-signed
+    /// (the signature is not checked by default).
     fn openssl_accepts_as_own_anchor(directory: &Path, der: &[u8]) -> bool {
         let path = directory.join("anchor.pem");
         std::fs::write(&path, pem(der)).expect("write a certificate");
@@ -1170,6 +1173,8 @@ mod subject_hash {
             .success()
     }
 
+    /// OpenSSL 3.0.13 `EXFLAG_SS`: same names, an authority key identifier that agrees with the certificate's own, and a
+    /// signature algorithm that suits its key.
     #[test]
     fn the_self_signed_rule_equals_what_openssl_verify_does_with_a_certificate_that_is_its_own_anchor(
     ) {
@@ -1522,6 +1527,7 @@ mod subject_hash {
         if tag == 0xA0 {
             rest = after;
         }
+        // TBSCertificate: serial, signature, issuer, validity, subject, then the key info
         for _ in 0..5 {
             let (_, _, after, _) = read(rest);
             rest = after;
