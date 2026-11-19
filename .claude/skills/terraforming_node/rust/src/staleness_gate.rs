@@ -784,4 +784,16 @@ mod tests {
     fn self_test_passes() {
         assert_eq!(run(&["--self-test"]), EXIT_OK);
     }
+
+    #[test]
+    fn a_stamp_date_is_a_calendar_day_or_a_day_and_hour() {
+        for good in ["2026-07-20", "2024-02-29", "2026-12-31", "2026072000", "2026072023"] {
+            assert!(is_stamp_date(Some(&crate::py::s(good))), "{good}");
+        }
+        for bad in ["2026-02-30", "2025-02-29", "2026-13-01", "2026-00-10", "2026072024", "2026130100", "2026-7-20", "20260720"] {
+            assert!(!is_stamp_date(Some(&crate::py::s(bad))), "{bad}");
+        }
+        assert!(!is_stamp_date(None));
+        assert!(!is_stamp_date(Some(&PyValue::int(2026))));
+    }
 }
