@@ -161,8 +161,6 @@
 .claude/skills/terraforming_node/rust/src/render_sub_env/selftest.rs	std::time::Instant::now()	1	runtime-fact	CK-438 Instant::now + elapsed()>=timeout
 .claude/skills/terraforming_node/rust/src/render_sub_env/selftest.rs	.elapsed()	1	runtime-fact	CK-438 Instant::now + elapsed()>=timeout
 .claude/skills/terraforming_node/rust/src/selftests/mod.rs	std::time::SystemTime::now()	1	record-only	CK-442 SystemTime::now→nanos seed
-.claude/skills/terraforming_node/rust/src/staleness_gate.rs	const DEFAULT_MAX_AGE_DAYS	1	transitional	CK-444 c24 단계 B 과도기 — terraforming commit (staleness_gate ③ 나이 축 삭제, h21 Q1)에서 지운다
-.claude/skills/terraforming_node/rust/src/staleness_gate.rs	let age_days	1	transitional	CK-444,CK-445,CK-446 c24 단계 B 과도기 — terraforming commit (staleness_gate ③ 나이 축 삭제, h21 Q1)에서 지운다
 .claude/skills/terraforming_node/rust/src/stress.rs	Instant::now()	4	runtime-fact	CK-447 Instant::now·elapsed() 지속·보고 주기·join deadline
 .claude/skills/terraforming_node/rust/src/stress.rs	.elapsed()	3	runtime-fact	CK-447 Instant::now·elapsed() 지속·보고 주기·join deadline
 .claude/skills/terraforming_node/scripts/host_safety/host/vllm-drop-caches.sh	date -u +%FT%TZ	1	record-only	CK-351 date -u +%FT%TZ

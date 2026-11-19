@@ -1,6 +1,6 @@
-//! Port of `staleness_gate.py` — the deterministic trigger of the terraforming conditional preflight (manifest · HW · age
-//! axes). Same command line, exit codes (0 FRESH · 4 preflight required · 2 usage/observed invalid), JSON output
-//! (`sort_keys=True, indent=2`) and self-test lines as the original. The wall clock is never read (`--now` is injected).
+//! Port of `staleness_gate.py` without its attestation age axis — the deterministic trigger of the terraforming
+//! conditional preflight on two axes: manifest · Flag presence and HW drift. Exit codes 0 FRESH · 4 preflight required ·
+//! 2 usage/observed invalid; JSON output `sort_keys=True, indent=2`.
 
 use crate::argp::{self, flag, store, Outcome, Spec, HELP};
 use agent_runtime_support::pyjson;
@@ -16,7 +16,6 @@ pub const EXIT_PREFLIGHT_REQUIRED: i32 = 4;
 pub const REASON_MANIFEST_ABSENT: &str = "MANIFEST_ABSENT";
 pub const REASON_FLAG_ABSENT: &str = "FLAG_ABSENT";
 pub const REASON_HW_DRIFT: &str = "HW_DRIFT";
-pub const REASON_ATTESTATION_STALE: &str = "ATTESTATION_STALE";
 pub const REASON_MANIFEST_INVALID: &str = "MANIFEST_INVALID";
 pub const REASON_OBSERVED_INVALID: &str = "OBSERVED_INVALID";
 pub const REASON_FRESH: &str = "FRESH";
@@ -26,11 +25,8 @@ const INTERCONNECT_FIELDS: [&str; 6] =
     ["type", "hca_devices", "gid_index", "socket_iface", "bandwidth_gbps", "platform_preset"];
 const NODE_FIELDS: [&str; 2] = ["role", "host"];
 const NODE_COMPARE_FIELDS: [&str; 3] = ["role", "host", "driver_version"];
-pub const DEFAULT_MAX_AGE_DAYS: i64 = 90;
 const IC_NOTE: &str =
     "single-node: interconnect 6필드는 HW 비교 대상 제외(분산서빙 미사용 · scan_node.evaluate_gate 와 동일 의미론)";
-
-// ── small Python-semantics helpers ───────────────────────────────────────────────────────────
 
 fn get<'a>(d: &'a PyValue, k: &str) -> Option<&'a PyValue> {
     match d.peel() {
@@ -47,7 +43,6 @@ fn as_str(v: Option<&PyValue>) -> Option<String> {
         _ => None,
     }
 }
-/// `isinstance(v, int) and not isinstance(v, bool)` → its sign/magnitude as i128 (saturating for huge values).
 fn plain_int(v: Option<&PyValue>) -> Option<i128> {
     match v.map(|x| x.peel()) {
         Some(PyValue::Int(n)) => {
@@ -88,7 +83,6 @@ fn label_ok(s: &str) -> bool {
     }
 }
 
-/// `ipaddress.ip_address(value)` succeeds (IPv4 dotted quad without leading zeros, IPv6 with an optional `%scope`).
 fn ip_ok(s: &str) -> bool {
     if s.parse::<std::net::Ipv4Addr>().is_ok() {
         return true;
@@ -116,9 +110,6 @@ pub fn valid_host(v: &PyValue) -> bool {
     body.split('.').all(label_ok)
 }
 
-/// A date as (year, month, day).
-pub type Date = (i64, u32, u32);
-
 fn days_in_month(y: i64, m: u32) -> u32 {
     match m {
         1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
@@ -133,19 +124,7 @@ fn days_in_month(y: i64, m: u32) -> u32 {
     }
 }
 
-fn ordinal(d: Date) -> i64 {
-    // days since 0001-01-01 (proleptic Gregorian), like `date.toordinal()` minus one
-    let (y, m, day) = d;
-    let yy = y - 1;
-    let mut n = yy * 365 + yy / 4 - yy / 100 + yy / 400;
-    for mm in 1..m {
-        n += days_in_month(y, mm) as i64;
-    }
-    n + day as i64 - 1
-}
-
-/// `parse_stamp(raw)`: exact `YYYYMMDDHH` or `YYYY-MM-DD` (Unicode decimal digits, as Python `\d`) → date, else None.
-pub fn parse_stamp(raw: Option<&PyValue>) -> Option<Date> {
+fn stamp_date(raw: Option<&PyValue>) -> Option<(i64, u32, u32)> {
     let PyValue::Str(s) = raw?.peel() else { return None };
     let pts = s.code_points();
     let digits = |r: std::ops::Range<usize>| -> Option<i64> {
@@ -172,8 +151,6 @@ pub fn parse_stamp(raw: Option<&PyValue>) -> Option<Date> {
     }
     Some((y, m as u32, d as u32))
 }
-
-// ── validation ───────────────────────────────────────────────────────────────────────────────
 
 pub fn validate_document(doc: &PyValue, kind: &str, expected_topology: Option<&str>) -> Vec<String> {
     if !matches!(doc.peel(), PyValue::Dict(_)) {
@@ -214,7 +191,7 @@ pub fn validate_document(doc: &PyValue, kind: &str, expected_topology: Option<&s
     if kind == "manifest" {
         match get(doc, "terraforming") {
             Some(t @ PyValue::Dict(_)) => {
-                if parse_stamp(get(t, "scanned_at")).is_none() {
+                if stamp_date(get(t, "scanned_at")).is_none() {
                     inv.push("terraforming.scanned_at".into());
                 }
             }
@@ -346,16 +323,12 @@ fn strs(v: &[String]) -> PyValue {
     PyValue::List(v.iter().map(|s| PyValue::str(s)).collect())
 }
 
-/// The output dict (keys already in `sort_keys` order).
 struct Out {
     preflight_required: bool,
     reasons: Vec<String>,
     manifest_path: String,
     hw_check: String,
     drift_fields: Vec<String>,
-    age_check: String,
-    age_days: Option<i64>,
-    max_age_days: i64,
     invalid_fields: Option<Vec<String>>,
     notes: Vec<String>,
 }
@@ -363,15 +336,12 @@ struct Out {
 impl Out {
     fn value(&self) -> PyValue {
         let mut d = PyDict::new();
-        d.set("age_check", PyValue::str(&self.age_check));
-        d.set("age_days", self.age_days.map_or(PyValue::None, PyValue::int));
         d.set("drift_fields", strs(&self.drift_fields));
         d.set("hw_check", PyValue::str(&self.hw_check));
         if let Some(i) = &self.invalid_fields {
             d.set("invalid_fields", strs(i));
         }
         d.set("manifest_path", PyValue::str(&self.manifest_path));
-        d.set("max_age_days", PyValue::int(self.max_age_days));
         d.set("notes", strs(&self.notes));
         d.set("preflight_required", PyValue::Bool(self.preflight_required));
         d.set("reasons", strs(&self.reasons));
@@ -382,7 +352,7 @@ impl Out {
     }
 }
 
-fn invalid_result(reason: &str, mut fields: Vec<String>, path: &str, max_age_days: i64) -> Out {
+fn invalid_result(reason: &str, mut fields: Vec<String>, path: &str) -> Out {
     fields.sort();
     Out {
         preflight_required: true,
@@ -390,15 +360,10 @@ fn invalid_result(reason: &str, mut fields: Vec<String>, path: &str, max_age_day
         manifest_path: path.into(),
         hw_check: "blocked:invalid-input".into(),
         drift_fields: vec![],
-        age_check: "blocked:invalid-input".into(),
-        age_days: None,
-        max_age_days,
         invalid_fields: Some(fields),
         notes: vec![],
     }
 }
-
-// ── canonical HW facts / comparison ──────────────────────────────────────────────────────────
 
 #[derive(Clone)]
 enum Canon {
@@ -418,7 +383,6 @@ impl PartialEq for Canon {
     }
 }
 
-/// `_scalar(value)`.
 fn scalar(v: Option<&PyValue>) -> String {
     match v.map(|x| x.peel()) {
         None | Some(PyValue::None) => String::new(),
@@ -512,51 +476,32 @@ fn diff_fields(a: &Facts, o: &Facts) -> Vec<String> {
     out
 }
 
-// ── verdict ──────────────────────────────────────────────────────────────────────────────────
-
 fn evaluate(
     manifest: Option<&PyValue>,
     observed: Option<&PyValue>,
-    now: Option<Date>,
-    max_age_days: i64,
     manifest_path: &str,
     expected_topology: Option<&str>,
 ) -> Out {
     if let Some(m) = manifest {
         let inv = validate_document(m, "manifest", expected_topology);
         if !inv.is_empty() {
-            return invalid_result(REASON_MANIFEST_INVALID, inv, manifest_path, max_age_days);
+            return invalid_result(REASON_MANIFEST_INVALID, inv, manifest_path);
         }
     }
     if let Some(o) = observed {
         let inv = validate_document(o, "observed", None);
         if !inv.is_empty() {
-            return invalid_result(REASON_OBSERVED_INVALID, inv, manifest_path, max_age_days);
-        }
-    }
-    let terra = |m: &PyValue| get(m, "terraforming").filter(|x| x.is_truthy()).cloned();
-    if let (Some(m), Some(n)) = (manifest, now) {
-        if let Some(s) = parse_stamp(terra(m).as_ref().and_then(|t| get(t, "scanned_at"))) {
-            if ordinal(s) > ordinal(n) {
-                return invalid_result(
-                    REASON_MANIFEST_INVALID,
-                    vec!["terraforming.scanned_at.future".into()],
-                    manifest_path,
-                    max_age_days,
-                );
-            }
+            return invalid_result(REASON_OBSERVED_INVALID, inv, manifest_path);
         }
     }
     let mut reasons: Vec<String> = vec![];
     let mut notes: Vec<String> = vec![];
     let mut drift = vec![];
-    let mut age_days = None;
-    let mut age_check = "skipped:no-manifest".to_string();
     let mut hw_check = "skipped:no-manifest".to_string();
     match manifest {
         None => reasons.push(REASON_MANIFEST_ABSENT.into()),
         Some(m) => {
-            let t = terra(m).unwrap_or(PyValue::Dict(PyDict::new()));
+            let t = get(m, "terraforming").filter(|x| x.is_truthy()).cloned().unwrap_or(PyValue::Dict(PyDict::new()));
             let is_true = |k: &str| matches!(get(&t, k), Some(PyValue::Bool(true)));
             if !is_true("complete") || !is_true("branch_verified") {
                 reasons.push(REASON_FLAG_ABSENT.into());
@@ -575,24 +520,6 @@ fn evaluate(
                     }
                 }
             }
-            let scanned = parse_stamp(get(&t, "scanned_at"));
-            match (now, scanned) {
-                (None, _) => age_check = "skipped:no-now".into(),
-                (Some(_), None) => {
-                    age_check = "skipped:unparsable-scanned-at".into();
-                    notes.push("terraforming.scanned_at 해석 불가 — age 축 미평가(값 날조 ✗)".into());
-                }
-                (Some(n), Some(s)) => {
-                    let d = ordinal(n) - ordinal(s);
-                    age_days = Some(d);
-                    age_check = "evaluated".into();
-                    if d < 0 {
-                        notes.push("scanned_at 이 --now 보다 미래 — age 축 미적용".into());
-                    } else if d > max_age_days {
-                        reasons.push(REASON_ATTESTATION_STALE.into());
-                    }
-                }
-            }
         }
     }
     if reasons.is_empty() {
@@ -604,15 +531,10 @@ fn evaluate(
         manifest_path: manifest_path.into(),
         hw_check,
         drift_fields: drift,
-        age_check,
-        age_days,
-        max_age_days,
         invalid_fields: None,
         notes,
     }
 }
-
-// ── self-test (same cases and lines as the original) ─────────────────────────────────────────
 
 fn j(t: &str) -> PyValue {
     pyjson::loads(t).expect("fixture json")
@@ -638,8 +560,8 @@ fn without(base: &PyValue, key: &str) -> PyValue {
 fn plist(v: &[String]) -> String {
     format!("[{}]", v.iter().map(|s| PyStr::new(s).repr()).collect::<Vec<_>>().join(", "))
 }
-fn ev(m: Option<&PyValue>, o: Option<&PyValue>, n: Option<Date>) -> Out {
-    evaluate(m, o, n, DEFAULT_MAX_AGE_DAYS, "", None)
+fn ev(m: Option<&PyValue>, o: Option<&PyValue>) -> Out {
+    evaluate(m, o, "", None)
 }
 fn json_sorted(o: &Out) -> String {
     crate::py::dumps_unicode(&o.value())
@@ -657,35 +579,31 @@ fn self_test() -> i32 {
         od.set(k, get(&base, k).unwrap().clone());
     }
     let observed = PyValue::Dict(od);
-    let refd: Date = (2026, 7, 25);
-    let r = Some(refd);
-    let fresh = ev(Some(&base), Some(&observed), r);
+    let fresh = ev(Some(&base), Some(&observed));
     chk("fresh → preflight 불요", fresh.reasons == [REASON_FRESH] && !fresh.preflight_required, plist(&fresh.reasons));
-    chk("manifest 부재 → MANIFEST_ABSENT", ev(None, Some(&observed), r).reasons == [REASON_MANIFEST_ABSENT], String::new());
+    chk("manifest 부재 → MANIFEST_ABSENT", ev(None, Some(&observed)).reasons == [REASON_MANIFEST_ABSENT], String::new());
     let no_flag = with(&base, &[("terraforming", j(r#"{"complete": false, "branch_verified": true, "scanned_at": "2026072000"}"#))]);
-    chk("Flag 미발급 → FLAG_ABSENT", ev(Some(&no_flag), Some(&observed), r).has_reason(REASON_FLAG_ABSENT), String::new());
-    let drifted = ev(Some(&base), Some(&with(&observed, &[("gpus_per_node", PyValue::int(2))])), r);
+    chk("Flag 미발급 → FLAG_ABSENT", ev(Some(&no_flag), Some(&observed)).has_reason(REASON_FLAG_ABSENT), String::new());
+    let drifted = ev(Some(&base), Some(&with(&observed, &[("gpus_per_node", PyValue::int(2))])));
     chk("HW 드리프트 → HW_DRIFT + 필드명 보고",
         drifted.has_reason(REASON_HW_DRIFT) && drifted.drift_fields == ["gpus_per_node"], plist(&drifted.drift_fields));
     let roce = j(r#"{"type": "RoCE v2", "hca_devices": ["roceP2p1s0f1", "rocep1s0f1"], "gid_index": 3,
         "socket_iface": "enp1s0f1np1", "bandwidth_gbps": null, "platform_preset": null}"#);
-    let single_ic = ev(Some(&base), Some(&with(&observed, &[("interconnect", roce.clone())])), r);
+    let single_ic = ev(Some(&base), Some(&with(&observed, &[("interconnect", roce.clone())])));
     chk("single + interconnect 발산(미사용 선언 ↔ 실측 RoCE) → HW_DRIFT 미발생",
         single_ic.reasons == [REASON_FRESH] && single_ic.drift_fields.is_empty() && single_ic.hw_check == "evaluated"
             && single_ic.notes.iter().any(|n| n.contains("interconnect")),
         format!("{} drift={} notes={}", plist(&single_ic.reasons), plist(&single_ic.drift_fields), plist(&single_ic.notes)));
-    let plus = ev(Some(&base), Some(&with(&observed, &[("interconnect", roce.clone()), ("gpus_per_node", PyValue::int(2))])), r);
+    let plus = ev(Some(&base), Some(&with(&observed, &[("interconnect", roce.clone()), ("gpus_per_node", PyValue::int(2))])));
     chk("single interconnect 제외가 다른 HW 축을 가리지 않음",
         plus.has_reason(REASON_HW_DRIFT) && plus.drift_fields == ["gpus_per_node"], plist(&plus.drift_fields));
-    let m = ev(Some(&base), Some(&observed), r);
+    let m = ev(Some(&base), Some(&observed));
     chk("single + interconnect 일치 → 제외 note 는 그대로 표기(침묵 아님)",
         m.notes.iter().any(|n| n.contains("interconnect")), plist(&m.notes));
-    chk("attestation 만료 → ATTESTATION_STALE",
-        ev(Some(&base), Some(&observed), Some((2027, 7, 25))).has_reason(REASON_ATTESTATION_STALE), String::new());
-    let sk = ev(Some(&base), None, None);
-    chk("축 생략은 음성정직 표기", sk.hw_check == "skipped:no-observed" && sk.age_check == "skipped:no-now", String::new());
+    let sk = ev(Some(&base), None);
+    chk("축 생략은 음성정직 표기", sk.hw_check == "skipped:no-observed", String::new());
     let unk = ev(Some(&with(&base, &[("terraforming", j(r#"{"complete": true, "branch_verified": true, "scanned_at": "언젠가"}"#))])),
-        Some(&observed), r);
+        Some(&observed));
     chk("불명 scanned_at 은 fail-closed",
         unk.reasons == [REASON_MANIFEST_INVALID] && unk.preflight_required
             && unk.invalid_fields.as_ref().is_some_and(|f| f.iter().any(|x| x == "terraforming.scanned_at")),
@@ -694,31 +612,31 @@ fn self_test() -> i32 {
     let obs_nn = without(&observed, "nodes");
     let inv_of = |o: &Out| o.invalid_fields.clone().unwrap_or_default();
     let inv_disp = |o: &Out| o.invalid_fields.as_ref().map_or("None".to_string(), |f| plist(f));
-    let active = ev(Some(&with(&base, &[("nodes", roster.clone())])), Some(&obs_nn), r);
-    chk("single + sub-control 로스터 → 유효(HW·age 축 도달)",
-        active.reasons == [REASON_FRESH] && active.age_check == "evaluated" && active.hw_check == "evaluated",
-        format!("{} hw={} age={}", plist(&active.reasons), active.hw_check, active.age_check));
-    chk("single dormant(nodes:[]) → 여전히 유효", ev(Some(&base), Some(&observed), r).reasons == [REASON_FRESH], String::new());
-    let main_only = ev(Some(&with(&base, &[("nodes", j(r#"[{"role": "main", "host": "192.0.2.10"}]"#))])), Some(&obs_nn), r);
-    chk("★single main 단독 로스터(서브 미등록) → 유효 · HW·age 축 도달",
-        main_only.reasons == [REASON_FRESH] && main_only.hw_check == "evaluated" && main_only.age_check == "evaluated",
-        format!("{} hw={} age={} inv={}", plist(&main_only.reasons), main_only.hw_check, main_only.age_check, inv_disp(&main_only)));
-    let no_main = ev(Some(&with(&base, &[("nodes", j(r#"[{"role": "sub", "host": "192.0.2.11"}]"#))])), Some(&obs_nn), r);
+    let active = ev(Some(&with(&base, &[("nodes", roster.clone())])), Some(&obs_nn));
+    chk("single + sub-control 로스터 → 유효(HW 축 도달)",
+        active.reasons == [REASON_FRESH] && active.hw_check == "evaluated",
+        format!("{} hw={}", plist(&active.reasons), active.hw_check));
+    chk("single dormant(nodes:[]) → 여전히 유효", ev(Some(&base), Some(&observed)).reasons == [REASON_FRESH], String::new());
+    let main_only = ev(Some(&with(&base, &[("nodes", j(r#"[{"role": "main", "host": "192.0.2.10"}]"#))])), Some(&obs_nn));
+    chk("★single main 단독 로스터(서브 미등록) → 유효 · HW 축 도달",
+        main_only.reasons == [REASON_FRESH] && main_only.hw_check == "evaluated",
+        format!("{} hw={} inv={}", plist(&main_only.reasons), main_only.hw_check, inv_disp(&main_only)));
+    let no_main = ev(Some(&with(&base, &[("nodes", j(r#"[{"role": "sub", "host": "192.0.2.11"}]"#))])), Some(&obs_nn));
     chk("single 로스터에 main 부재 → nodes.roster fail-closed",
         no_main.reasons == [REASON_MANIFEST_INVALID] && inv_of(&no_main).iter().any(|x| x == "nodes.roster"),
         inv_disp(&no_main));
     let two = ev(Some(&with(&base, &[("nodes", j(r#"[{"role": "main", "host": "192.0.2.10"}, {"role": "main", "host": "192.0.2.11"}]"#))])),
-        Some(&obs_nn), r);
+        Some(&obs_nn));
     chk("single 로스터 main 중복 → nodes.roster fail-closed", inv_of(&two).iter().any(|x| x == "nodes.roster"), inv_disp(&two));
-    let multi_ok = ev(Some(&with(&base, &[("topology", PyValue::str("multi")), ("nodes", roster.clone())])), None, r);
+    let multi_ok = ev(Some(&with(&base, &[("topology", PyValue::str("multi")), ("nodes", roster.clone())])), None);
     chk("multi 정상 로스터 → 유효(규칙 불변)", multi_ok.reasons == [REASON_FRESH], plist(&multi_ok.reasons));
     let multi_no_sub = ev(Some(&with(&base, &[("topology", PyValue::str("multi")),
-        ("nodes", j(r#"[{"role": "main", "host": "192.0.2.10"}]"#))])), None, r);
+        ("nodes", j(r#"[{"role": "main", "host": "192.0.2.10"}]"#))])), None);
     chk("multi 로스터에 sub 부재 → fail-closed(완화되지 않음)",
         inv_of(&multi_no_sub).iter().any(|x| x == "nodes.roster"), inv_disp(&multi_no_sub));
     let ma = with(&base, &[("topology", PyValue::str("multi")), ("nodes", roster.clone())]);
     let mo = with(&obs_nn, &[("topology", PyValue::str("multi"))]);
-    let mic = ev(Some(&ma), Some(&with(&mo, &[("interconnect", roce.clone())])), r);
+    let mic = ev(Some(&ma), Some(&with(&mo, &[("interconnect", roce.clone())])));
     let mut want = vec!["interconnect.gid_index", "interconnect.hca_devices", "interconnect.socket_iface", "interconnect.type"];
     want.sort();
     let mut got: Vec<&str> = mic.drift_fields.iter().map(|s| s.as_str()).collect();
@@ -727,34 +645,30 @@ fn self_test() -> i32 {
     chk("multi + interconnect 발산 → 여전히 HW_DRIFT(4필드 보고)",
         mic.has_reason(REASON_HW_DRIFT) && got == want && !mic.notes.iter().any(|n| n.contains("interconnect")),
         format!("{} notes={}", plist(&mic.drift_fields), plist(&mic.notes)));
-    chk("multi + interconnect 일치 → FRESH", ev(Some(&ma), Some(&mo), r).reasons == [REASON_FRESH], String::new());
-    let mixed = ev(Some(&base), Some(&with(&observed, &[("topology", PyValue::str("multi")), ("interconnect", roce.clone())])), r);
+    chk("multi + interconnect 일치 → FRESH", ev(Some(&ma), Some(&mo)).reasons == [REASON_FRESH], String::new());
+    let mixed = ev(Some(&base), Some(&with(&observed, &[("topology", PyValue::str("multi")), ("interconnect", roce.clone())])));
     chk("topology 갈림(single 선언 ↔ multi 관측) → 제외 미적용·fail-closed",
         mixed.has_reason(REASON_HW_DRIFT) && mixed.drift_fields.iter().any(|x| x == "topology")
             && mixed.drift_fields.iter().any(|x| x == "interconnect.type"),
         plist(&mixed.drift_fields));
     let drv_att = with(&base, &[("driver_version", PyValue::str("580.159.03"))]);
-    let drv_top = ev(Some(&drv_att), Some(&with(&observed, &[("driver_version", PyValue::str("580.173.02"))])), r);
+    let drv_top = ev(Some(&drv_att), Some(&with(&observed, &[("driver_version", PyValue::str("580.173.02"))])));
     chk("top-level driver bump → HW_DRIFT + 필드명 보고",
         drv_top.has_reason(REASON_HW_DRIFT) && drv_top.drift_fields == ["driver_version"], plist(&drv_top.drift_fields));
-    let drv_same = ev(Some(&drv_att), Some(&with(&observed, &[("driver_version", PyValue::str("580.159.03"))])), r);
+    let drv_same = ev(Some(&drv_att), Some(&with(&observed, &[("driver_version", PyValue::str("580.159.03"))])));
     chk("driver 일치 → 드리프트 아님(비교가 실제로 물린다의 음성 대조)", drv_same.reasons == [REASON_FRESH], plist(&drv_same.reasons));
     let rdrv = j(r#"[{"role": "main", "host": "192.0.2.10", "driver_version": "580.159.03"},
         {"role": "sub", "host": "192.0.2.11", "driver_version": "580.159.03"}]"#);
     let rbump = j(r#"[{"role": "main", "host": "192.0.2.10", "driver_version": "580.159.03"},
         {"role": "sub", "host": "192.0.2.11", "driver_version": "580.173.02"}]"#);
-    let nd = ev(Some(&with(&base, &[("nodes", rdrv.clone())])), Some(&with(&observed, &[("nodes", rbump)])), r);
+    let nd = ev(Some(&with(&base, &[("nodes", rdrv.clone())])), Some(&with(&observed, &[("nodes", rbump)])));
     chk("서브 driver bump → nodes[1].driver_version HW_DRIFT",
         nd.has_reason(REASON_HW_DRIFT) && nd.drift_fields == ["nodes[1].driver_version"], plist(&nd.drift_fields));
-    let one = ev(Some(&with(&base, &[("nodes", rdrv)])), Some(&with(&observed, &[("nodes", roster)])), r);
+    let one = ev(Some(&with(&base, &[("nodes", rdrv)])), Some(&with(&observed, &[("nodes", roster)])));
     chk("한쪽만 driver_version 보유 → 무드리프트가 아니라 드리프트(침묵 폴드 금지)",
         one.drift_fields == ["nodes[0].driver_version", "nodes[1].driver_version"], plist(&one.drift_fields));
-    let twice: Vec<String> = (0..2).map(|_| json_sorted(&ev(Some(&base), Some(&observed), r))).collect();
+    let twice: Vec<String> = (0..2).map(|_| json_sorted(&ev(Some(&base), Some(&observed)))).collect();
     chk("결정론(동일 입력 → 동일 출력)", twice[0] == twice[1], String::new());
-    let fut = ev(Some(&base), Some(&observed), Some((2026, 1, 1)));
-    chk("미래 scanned_at 은 fail-closed",
-        fut.reasons == [REASON_MANIFEST_INVALID] && inv_of(&fut).iter().any(|x| x == "terraforming.scanned_at.future"),
-        String::new());
     let failed = cases.iter().filter(|c| !c.1).count();
     for (name, ok, detail) in &cases {
         let tail = if detail.is_empty() { String::new() } else { format!(" — {detail}") };
@@ -763,8 +677,6 @@ fn self_test() -> i32 {
     println!("--- {}/{} PASS", cases.len() - failed, cases.len());
     if failed == 0 { EXIT_OK } else { 1 }
 }
-
-// ── CLI ──────────────────────────────────────────────────────────────────────────────────────
 
 pub static SPEC: Spec = Spec {
     prog: "staleness_gate.sh",
@@ -775,15 +687,12 @@ pub static SPEC: Spec = Spec {
         store(&["--topology"]).choices(&["single", "multi"]),
         store(&["--repo"]),
         store(&["--observed"]),
-        store(&["--now"]),
-        store(&["--max-age-days"]).int(),
         flag(&["--json"]),
         flag(&["--self-test"]),
     ],
     subs: None,
 };
 
-/// `os.path.join(a, b)` for a relative `b`.
 fn pjoin(a: &str, b: &str) -> String {
     if a.is_empty() || a.ends_with('/') {
         format!("{a}{b}")
@@ -801,22 +710,13 @@ pub fn main(args: &[String]) -> i32 {
         Outcome::Ok(p) => p,
         Outcome::Exit(c) => return c,
     };
-    if a.flag(7) {
+    if a.flag(5) {
         return self_test();
     }
     let Some(topology) = a.text(1) else {
         eprintln!("usage: --topology single|multi 필요(브랜치 추론 ✗ — 토폴로지는 manifest 통로 선택자)");
         return EXIT_USAGE;
     };
-    let max_age = a.int(5).unwrap_or(DEFAULT_MAX_AGE_DAYS);
-    let mut refd = None;
-    if let Some(now) = a.text(4).filter(|s| !s.is_empty()) {
-        refd = parse_stamp(Some(&PyValue::str(now)));
-        if refd.is_none() {
-            eprintln!("usage: --now 는 YYYY-MM-DD 또는 YYYYMMDDHH");
-            return EXIT_USAGE;
-        }
-    }
     let repo = a.text(2).unwrap_or(".");
     let path = pjoin(&pjoin(&pjoin(repo, "output"), topology), "manifest.yaml");
     let mut manifest: Option<PyValue> = None;
@@ -837,7 +737,7 @@ pub fn main(args: &[String]) -> i32 {
     let mut observed: Option<PyValue> = None;
     if let Some(op) = a.text(3).filter(|s| !s.is_empty()) {
         if !std::path::Path::new(op).is_file() {
-            let mut r = invalid_result(REASON_OBSERVED_INVALID, vec!["$".into()], &path, max_age);
+            let mut r = invalid_result(REASON_OBSERVED_INVALID, vec!["$".into()], &path);
             r.notes = vec![format!("observed 경로가 regular file이 아님: {op}")];
             print_json(&r);
             return EXIT_USAGE;
@@ -850,14 +750,14 @@ pub fn main(args: &[String]) -> i32 {
             Ok(PyValue::None) => observed = Some(PyValue::List(vec![])),
             Ok(v) => observed = Some(v),
             Err(m) => {
-                let mut r = invalid_result(REASON_OBSERVED_INVALID, vec!["$".into()], &path, max_age);
+                let mut r = invalid_result(REASON_OBSERVED_INVALID, vec!["$".into()], &path);
                 r.notes = vec![format!("observed JSON 판독 실패: {m}")];
                 print_json(&r);
                 return EXIT_USAGE;
             }
         }
     }
-    let r = evaluate(manifest.as_ref(), observed.as_ref(), refd, max_age, &path, Some(topology));
+    let r = evaluate(manifest.as_ref(), observed.as_ref(), &path, Some(topology));
     print_json(&r);
     if r.has_reason(REASON_OBSERVED_INVALID) {
         return EXIT_USAGE;
@@ -866,5 +766,26 @@ pub fn main(args: &[String]) -> i32 {
         EXIT_PREFLIGHT_REQUIRED
     } else {
         EXIT_OK
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn run(args: &[&str]) -> i32 {
+        main(&args.iter().map(|a| a.to_string()).collect::<Vec<_>>())
+    }
+
+    #[test]
+    fn retired_age_options_are_usage_errors() {
+        assert_eq!(run(&["--topology", "single", "--now", "2026-07-25"]), EXIT_USAGE);
+        assert_eq!(run(&["--topology", "single", "--max-age-days", "30"]), EXIT_USAGE);
+        assert_eq!(run(&["--topology", "single", "--now=2026-07-25"]), EXIT_USAGE);
+    }
+
+    #[test]
+    fn self_test_passes() {
+        assert_eq!(run(&["--self-test"]), EXIT_OK);
     }
 }

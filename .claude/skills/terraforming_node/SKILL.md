@@ -45,7 +45,7 @@ when_to_use: >-
 
 필수 순서다 — 앞 단계의 증거 없이 뒤 단계로 가지 않는다(무단 스캔·무증거 기입 차단이 이 순서에서 나온다).
 
-1. **staleness 판정(조건부 preflight 진입)** — `bash .claude/skills/terraforming_node/scripts/staleness_gate.sh --topology <single|multi> --repo . --now <YYYY-MM-DD> [--observed <scan.json>]`. exit 0(`FRESH`)이면 HW 온보딩 재진입은 불요하다. 하네스/provider·권한·프로젝트 신뢰·실행환경 변경은 별도 축이므로 §2.5.2를 수행하고, 두 축 모두 변경이 없을 때 끝낸다. exit 4 면 reason code(`MANIFEST_ABSENT`/`FLAG_ABSENT`/`HW_DRIFT`/`ATTESTATION_STALE`)가 아래 단계의 착수 근거다.
+1. **staleness 판정(조건부 preflight 진입)** — `bash .claude/skills/terraforming_node/scripts/staleness_gate.sh --topology <single|multi> --repo . [--observed <scan.json>]`. exit 0(`FRESH`)이면 HW 온보딩 재진입은 불요하다. 하네스/provider·권한·프로젝트 신뢰·실행환경 변경은 별도 축이므로 §2.5.2를 수행하고, 두 축 모두 변경이 없을 때 끝낸다. exit 4 면 reason code(`MANIFEST_ABSENT`/`FLAG_ABSENT`/`HW_DRIFT`)가 아래 단계의 착수 근거다.
 2. **토폴로지 인터뷰**(§0.5.2) — 스캔보다 먼저. 미선언 시 emit fail-closed(§0.5.3), 브랜치 불일치 시 HITL 브랜치 전환(§0.5.4).
 3. **모델 획득 모드 인터뷰**(§0.5.7) → **0차 init-plan 발행 + 자기-HITL 승인**(§0.5.8).
 4. **스캔**(single=§1S · multi=§1.1 5-전제조건 인터뷰 → §1.2 사용자 승인 → §1.3 스캔 → §1.4 성능 게이트).
