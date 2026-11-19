@@ -35,7 +35,7 @@ e=$(date -ud now +%s)	date -ud now +%s
 f=$(date -d "$created + 90 days" +%s)	date -d "$created + 90 days" +%s
 g=$(date -d "@$ts" +%F)
 [ "$(date -u -d "$ets" +%s 2>/dev/null || echo 0)" -ge "$t0" ]
-date -f dates.txt +%F
+date -f dates.txt +%F	date -f dates.txt +%F
 if [[ "$(date -d "$last + 90 days" +%F)" < "$(date -d today +%F)" ]]; then	date -d "$last + 90 days" +%F	date -d today +%F
 git log --since="2 weeks ago" --oneline	git --since
 git log --after='1 month ago'	git --after
@@ -55,3 +55,97 @@ if (( SECONDS > 30 )); then exit 1; fi	$SECONDS
 age=$(( EPOCHSECONDS - t0 ))	$EPOCHSECONDS
 age=$(( $EPOCHSECONDS - t0 ))	$EPOCHSECONDS
 n=$(( SECONDS_LEFT + 1 ))
+h=$(date -u +%s)	date -u +%s
+git log --since='3 days ago' --oneline	git --since
+git log --since="yesterday" --oneline	git --since
+git log --since=2.weeks --oneline	git --since
+git log --after="1 month ago"	git --after
+t0=0
+age2=$(( $EPOCHSECONDS - t0 ))	$EPOCHSECONDS
+n=$(git log --since=2.weeks --oneline | wc -l)	git --since
+n=$(git log --since="2 weeks ago" --oneline | wc -l)	git --since
+git log --since="2 weeks ago" --oneline | wc -l	git --since
+x=$(git log --since "2 weeks ago")	git --since
+if git log --since=2.weeks | grep -q .; then :; fi	git --since
+n=`git log --since="2 weeks ago"`	git --since
+n=$(git rev-list --count --since=yesterday HEAD)	git --since
+[ "$(git log -1 --until=now --format=%H)" = x ]	git --until
+n=$(git log --since='3 days ago')	git --since
+n=$(date -d "+90 days" +%F)	date -d "+90 days" +%F
+v=$(stat -c %Y "$f")	stat %Y
+v=$(find . -mmin -5)	find -mmin
+v=$( [ a -nt b ] && echo y)	test -nt
+v=$(bash -c 'date +%s')	date +%s
+a=$(date --date "next friday" +%F)	date --date "next friday" +%F
+b=$(date -d"+1 day" +%F)	date -d"+1 day" +%F
+c=$(date -d '1 week' +%s)	date -d '1 week' +%s
+d=$(TZ=UTC date -d tomorrow +%s)	date -d tomorrow +%s
+e=$(date -d "${base} +1 week" +%s)	date -d "${base} +1 week" +%s
+f=$(echo now | date -f - +%s)	date -f - +%s
+g=$(date --date=@"$t" +%F)
+h=$(date -d "$t" +%s)
+i=$(date -d "2026-01-01 + 90 days" +%F)	date -d "2026-01-01 + 90 days" +%F
+j=$(date -u --date="$x" +%s)
+k="$(git log --since=2.weeks)"	git --since
+l=$(git log --before="$(date -d yesterday +%F)")	date -d yesterday +%F
+m=$(timeout 5 bash -c 'date +%s')	date +%s
+n=$(sudo bash -c 'date +%s')	date +%s
+o=$(ssh -t host 'date +%s')	date +%s
+p=$(bash -lc "date +%s")	date +%s
+q=$(sh -ec 'date +%s')	date +%s
+r=$(env bash -c 'date +%s')	date +%s
+s=$(xargs -I{} bash -c 'date +%s' <<< x)	date +%s
+x=$(sudo date +%s)	date +%s
+x=$(env TZ=UTC date +%s)	date +%s
+x=$(nice date +%s)	date +%s
+if (( $(date +%s) - t0 > 30 )); then :; fi	date +%s
+sudo bash -c 'date +%s'	date +%s
+x=$(sudo bash -c 'date +%s')	date +%s
+x=$( sudo bash -c 'date +%s')	date +%s
+x=$( sudo date +%s)	date +%s
+x=$(command date +%s)	date +%s
+x=$(exec date +%s)	date +%s
+x=$(LC_ALL=C date +%s)	date +%s
+n=$(git log --since=2.weeks | wc -l)	git --since
+git log --since "2 weeks ago"	git --since
+y=`git log --since=2.weeks`	git --since
+if [ "$(git log --since=2.weeks | wc -l)" -gt 0 ]; then :; fi	git --since
+git log --since="$(cat "$d/last-sync")"
+git log --since=2026-01-01
+date -u -f "$d/last-run.txt" +%s	date -u -f "$d/last-run.txt" +%s
+date -f days.txt	date -f days.txt
+date -f - <<<now	date -f -
+echo now | date -f -	date -f -
+date --file=week.list +%F	date --file=week.list +%F
+date -d "$(cat "$state/last-run")" +%s
+date -d "$(jq -r .review.last "$f")" +%s
+date -d "$ts" +%s
+date -d "@$(cat "$state/epoch")" +%s
+date -d "$(cat stamp)" +%s
+date -d yesterday +%F	date -d yesterday +%F
+x=$(ssh h date)	date
+t=$(bash -c 'date')	date
+x=$(date)	date
+r=$(ssh h date +%s)	date +%s
+t=$(sudo bash -c 'date +%s')	date +%s
+t=$(env bash -c 'date +%s')	date +%s
+timeout 5 bash -c 'date +%s'	date +%s
+x=$(sudo date)	date
+ssh h date | tee f	date
+bash -c 'date' > f	date
+ssh h 'date' > f	date
+x=$(env date +%s)	date +%s
+x=`sudo date +%s`	date +%s
+sudo date +%s > f	date +%s
+last=$(jq -r .last_reviewed_at registry.json)
+if [[ "$(date -d "$last + 90 days" +%F)" < "$(date -d today +%F)" ]]; then echo overdue; exit 1; fi	date -d "$last + 90 days" +%F	date -d today +%F
+t=$(date -u +%Y)	date -u +%Y
+t=$(zsh -c 'date +%s')	date +%s
+t=$(dash -c 'date +%s')	date +%s
+t=$(ksh -c 'date +%s')	date +%s
+date --file dates.txt +%F	date --file dates.txt +%F
+x=$(command -v date)
+ssh h date
+bash -c 'date'
+ssh h date 2>/dev/null
+ssh h date || true

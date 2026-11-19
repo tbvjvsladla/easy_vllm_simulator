@@ -50,3 +50,91 @@ planted.ts	9	new Date()
 planted.ts	10	Date.now
 planted.ts	11	new Date()
 planted.ts	12	process.hrtime
+regression_lock.rs	7	Instant::now()
+regression_lock.rs	8	Instant::now
+regression_lock.rs	10	Instant::now
+regression_lock.rs	13	std::time::SystemTime::now
+regression_lock.rs	14	UtcInstant::now
+regression_lock.rs	15	std::time::SystemTime::now
+regression_lock.rs	16	<Instant as Clock>::now()
+regression_lock.rs	16	<std::time::SystemTime>::now()
+regression_lock.rs	17	std::time::Instant::now
+regression_lock.rs	17	std::time::Instant::now()
+regression_lock.rs	21	.modified()
+regression_lock.rs	24	.atime()
+regression_lock.rs	24	.ctime()
+regression_lock.rs	24	.ctime_nsec()
+regression_lock.rs	24	.mtime()
+regression_lock.rs	24	.mtime_nsec()
+regression_lock.rs	25	.atime_nsec()
+regression_lock.rs	26	.mtime()
+regression_lock.rs	30	date +%s
+regression_lock.rs	30	date -u +%s
+regression_lock.rs	32	stat %Y
+regression_lock.rs	33	find -mmin
+regression_lock.rs	34	git --since
+regression_lock.rs	35	date +%s
+regression_lock.rs	36	Command::new("date")
+regression_lock.rs	37	Command::new("date")
+regression_lock.rs	42	stat %Y
+regression_lock.rs	43	git --since
+regression_lock.rs	44	git --until
+regression_lock.rs	45	find -newer
+regression_lock.rs	46	date +%s
+regression_lock.rs	47	git --since
+regression_lock.rs	48	git --since
+regression_lock.rs	50	stat %Y
+regression_lock.rs	52	stat %Z
+regression_lock.rs	57	git --since
+regression_lock.rs	58	git --since
+regression_lock.rs	59	git --since
+regression_lock.rs	60	git --since
+regression_lock.rs	66	git --since
+regression_lock.rs	67	git --since
+regression_lock.rs	68	git --since
+regression_lock.rs	74	Command::new("date")
+regression_lock.rs	75	Command::new("date")
+regression_lock.rs	76	date -d yesterday +%s
+regression_lock.rs	83	date
+regression_lock.rs	84	date
+regression_lock.rs	85	date +%s
+regression_lock.rs	86	date +%s
+regression_lock.rs	87	date +%s
+regression_lock.rs	88	date
+regression_lock.rs	89	date
+regression_lock.rs	90	date
+regression_lock.rs	92	date
+regression_lock.rs	98	date -d "$last + 90 days" +%F
+regression_lock.rs	98	date -d today +%F
+regression_lock.rs	99	UtcInstant::now()
+regression_lock.rs	100	.mtime()
+regression_lock.rs	105	Clock::now(…)
+regression_lock.rs	106	openssl verify
+regression_lock.rs	115	SystemTime::now()
+regression_lock.rs	120	UtcInstant::now
+regression_lock.sh	3	date -d "yesterday" +%F
+regression_lock.sh	5	date -d "+90 days" +%s
+regression_lock.sh	7	date -d
+regression_lock.sh	8	date --date
+regression_lock.sh	9	git --since
+regression_lock.sh	11	date -d "" +%s
+regression_lock.sh	12	date --date= +%s
+regression_lock.sh	16	openssl verify
+regression_lock.sh	19	openssl verify
+regression_lock.sh	20	openssl verify
+regression_lock.ts	3	Date.now()
+regression_lock.ts	4	Date()
+regression_lock.ts	5	new Date()
+regression_lock.ts	6	Date.now
+regression_lock.ts	7	new Date()
+regression_lock.ts	8	Date.now()
+regression_lock.ts	10	Date.now()
+regression_lock.ts	11	new Date()
+regression_lock.ts	12	Date.now()
+regression_lock.ts	13	Date.now()
+regression_lock.ts	17	Date.now()
+regression_lock.ts	18	new Date()
+regression_lock.ts	21	Date.now()
+regression_lock.ts	23	Date.now()
+regression_lock.ts	26	Date.now()
+regression_lock.ts	35	Date.now()

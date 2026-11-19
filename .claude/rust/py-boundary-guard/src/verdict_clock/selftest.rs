@@ -6,10 +6,13 @@ use super::{find, Finding, Surface};
 
 type Fixture<'a> = (&'a str, Surface, &'a str);
 
-const FIXTURES: [Fixture<'static>; 3] = [
+const FIXTURES: [Fixture<'static>; 6] = [
     ("planted.rs", Surface::Rust, include_str!("../../checks/data/verdict_clock/planted.rs")),
     ("planted.sh", Surface::Shell, include_str!("../../checks/data/verdict_clock/planted.sh")),
     ("planted.ts", Surface::TypeScript, include_str!("../../checks/data/verdict_clock/planted.ts")),
+    ("regression_lock.rs", Surface::Rust, include_str!("../../checks/data/verdict_clock/regression_lock.rs")),
+    ("regression_lock.sh", Surface::Shell, include_str!("../../checks/data/verdict_clock/regression_lock.sh")),
+    ("regression_lock.ts", Surface::TypeScript, include_str!("../../checks/data/verdict_clock/regression_lock.ts")),
 ];
 const EXPECTED: &str = include_str!("../../checks/data/verdict_clock/expected.tsv");
 
@@ -80,7 +83,7 @@ fn run_on(fixtures: &[Fixture], expected: &str) -> Result<usize, Vec<String>> {
 mod tests {
     use super::{run, run_on, Surface};
 
-    const PLANTED_READS: usize = 52;
+    const PLANTED_READS: usize = 140;
 
     #[test]
     fn planted_fixtures_give_the_expected_reads() {
@@ -91,9 +94,15 @@ mod tests {
     fn an_empty_or_unknown_fixture_fails() {
         let one = [("a.ts", Surface::TypeScript, "Date.now();\n")];
         assert_eq!(run_on(&one, "a.ts\t1\tDate.now()\n"), Ok(1));
-        assert!(run_on(&one, "").is_err());
-        assert!(run_on(&one, "a.ts\t1\tDate.now()\nb.ts\t1\tDate.now()\n").is_err());
+        assert_eq!(run_on(&one, ""), Err(vec!["a.ts: no expected read in expected.tsv".to_string()]));
+        assert_eq!(
+            run_on(&one, "a.ts\t1\tDate.now()\nb.ts\t1\tDate.now()\n"),
+            Err(vec!["expected.tsv: unknown fixture \"b.ts\": \"b.ts\\t1\\tDate.now()\"".to_string()])
+        );
         let two = [("a.ts", Surface::TypeScript, "Date.now();\n"), ("b.ts", Surface::TypeScript, "f();\n")];
-        assert!(run_on(&two, "a.ts\t1\tDate.now()\n").is_err());
+        assert_eq!(run_on(&two, "a.ts\t1\tDate.now()\n"), Err(vec!["b.ts: no expected read in expected.tsv".to_string()]));
+        let got = run_on(&one, "a.ts\t2\tDate.now()\n").expect_err("a wrong line");
+        assert!(got.len() == 1 && got[0].starts_with("a.ts: want [Finding { line: 2"), "{got:?}");
+        assert_eq!(run_on(&one, "a.ts\tx\tDate.now()\n"), Err(vec!["expected.tsv: bad line number in \"a.ts\\tx\\tDate.now()\"".to_string()]));
     }
 }

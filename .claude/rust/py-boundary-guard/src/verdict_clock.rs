@@ -45,6 +45,16 @@ pub enum Surface {
     TypeScript,
 }
 
+impl Surface {
+    pub fn reader_name(self) -> &'static str {
+        match self {
+            Surface::Rust => "Rust tokens",
+            Surface::Shell => "shell",
+            Surface::TypeScript => "TypeScript",
+        }
+    }
+}
+
 pub fn in_data_plane(path: &str) -> bool {
     DATA_PLANES.iter().any(|plane| path.starts_with(plane))
 }
@@ -88,15 +98,10 @@ pub fn is_shell_script(head: &[u8]) -> bool {
 pub fn find(surface: Surface, source: &str) -> Result<Vec<Finding>, String> {
     match surface {
         Surface::Rust => rust_reads::find(source),
-        Surface::TypeScript => Ok(ts_reads::find(source)),
-        Surface::Shell => Ok(source
-            .lines()
-            .enumerate()
-            .flat_map(|(index, line)| {
-                shell_reads::line_reads(line)
-                    .into_iter()
-                    .map(move |text| Finding { line: index + 1, text })
-            })
+        Surface::TypeScript => ts_reads::find(source),
+        Surface::Shell => Ok(shell_reads::source_reads(source)
+            .into_iter()
+            .map(|(index, text)| Finding { line: index + 1, text })
             .collect()),
     }
 }

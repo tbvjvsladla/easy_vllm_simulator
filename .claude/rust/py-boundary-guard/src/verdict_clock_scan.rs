@@ -9,16 +9,19 @@
 //!   verdict_clock_scan check [--repo DIR] [--allowlist FILE]
 //!   verdict_clock_scan --self-test
 //!
-//! exit: 0 pass · 1 a read outside the allowlist or a stale row · 2 usage or input error (fail-closed): the allowlist
-//! cannot be read (the default one missing included), a tracked source cannot be read, or there is no source to scan.
-//! A tracked file deleted from the work tree is skipped and counted; gitlinks and symlinks are not files to read.
+//! exit: 0 pass · 1 a read outside the allowlist, a stale row, or a `--self-test` mismatch · 2 usage or input error
+//! (fail-closed): the allowlist cannot be read (the default one missing included) or has a malformed row, `git
+//! ls-files` fails, a tracked path is not UTF-8, a tracked file cannot be read, a reader cannot read a source (Rust
+//! tokens, an unclosed TypeScript comment or literal) or panics on it (the file is named), or there is no `.rs`, shell
+//! or `.ts` source to scan. A tracked file deleted from the work tree is skipped, named on a `DELETED-FROM-WORK-TREE`
+//! line and counted; gitlinks and symlinks are not files to read.
 
 mod verdict_clock;
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
 
-use verdict_clock::{Found, Surface};
+use verdict_clock::{Finding, Found, Surface};
 
 const USAGE: &str = "Usage: verdict_clock_scan check [--repo DIR] [--allowlist FILE]\n\
      \x20      verdict_clock_scan --self-test\n\
@@ -41,7 +44,10 @@ fn tracked_regular_files(repo: &Path) -> Result<Vec<String>, String> {
     }
     let mut files = Vec::new();
     for entry in out.stdout.split(|b| *b == 0).filter(|s| !s.is_empty()) {
-        let entry = String::from_utf8_lossy(entry);
+        let entry = std::str::from_utf8(entry).map_err(|_| {
+            let path = entry.splitn(2, |b| *b == b'\t').nth(1).unwrap_or(entry);
+            format!("a tracked path is not UTF-8: {}", String::from_utf8_lossy(path))
+        })?;
         let Some((stage, path)) = entry.split_once('\t') else {
             return Err(format!("git ls-files -s: unexpected entry {entry:?}"));
         };
@@ -57,7 +63,7 @@ fn tracked_regular_files(repo: &Path) -> Result<Vec<String>, String> {
 struct Scanned {
     found: Found,
     counts: [usize; 3],
-    deleted: usize,
+    deleted: Vec<String>,
 }
 
 enum TrackedFile {
@@ -93,14 +99,28 @@ fn read_tracked(repo: &Path, rel: &str) -> Result<TrackedFile, String> {
     Ok(TrackedFile::Source(surface, bytes))
 }
 
+fn read_guarded(rel: &str, surface: Surface, reader: impl FnOnce() -> Result<Vec<Finding>, String>) -> Result<Vec<Finding>, String> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(reader)) {
+        Ok(read) => read.map_err(|e| format!("cannot read {rel} as {} ({e})", surface.reader_name())),
+        Err(panic) => {
+            let message = panic
+                .downcast_ref::<&str>()
+                .map(|m| m.to_string())
+                .or_else(|| panic.downcast_ref::<String>().cloned())
+                .unwrap_or_default();
+            Err(format!("the {} reader panicked on {rel}: {message}", surface.reader_name()))
+        }
+    }
+}
+
 fn scan(repo: &Path) -> Result<Scanned, String> {
-    let mut scanned = Scanned { found: Found::new(), counts: [0; 3], deleted: 0 };
+    let mut scanned = Scanned { found: Found::new(), counts: [0; 3], deleted: Vec::new() };
     for rel in tracked_regular_files(repo)? {
         let (surface, bytes) = match read_tracked(repo, &rel)? {
             TrackedFile::Source(surface, bytes) => (surface, bytes),
             TrackedFile::Other => continue,
             TrackedFile::Deleted => {
-                scanned.deleted += 1;
+                scanned.deleted.push(rel);
                 continue;
             }
         };
@@ -109,7 +129,7 @@ fn scan(repo: &Path) -> Result<Scanned, String> {
             _ => String::from_utf8_lossy(&bytes).into_owned(),
         };
         scanned.counts[surface as usize] += 1;
-        let reads = verdict_clock::find(surface, &text).map_err(|e| format!("cannot read {rel} as Rust tokens ({e})"))?;
+        let reads = read_guarded(&rel, surface, || verdict_clock::find(surface, &text))?;
         for read in reads {
             scanned.found.entry((rel.clone(), read.text)).or_default().push(read.line);
         }
@@ -135,7 +155,10 @@ fn check(repo: &Path, allowlist: Option<PathBuf>) -> Result<bool, String> {
         return Err(format!("no tracked .rs, shell or .ts source to scan in {}", repo.display()));
     }
     let verdict = verdict_clock::judge(&scanned.found, &rows);
-    let coverage = format!("scanned {rs} .rs, {sh} shell, {ts} .ts · {} deleted from the work tree", scanned.deleted);
+    for deleted in &scanned.deleted {
+        println!("DELETED-FROM-WORK-TREE {deleted}");
+    }
+    let coverage = format!("scanned {rs} .rs, {sh} shell, {ts} .ts · {} deleted from the work tree", scanned.deleted.len());
     if verdict.passed() {
         println!(
             "[verdict_clock_scan] PASS {} clock reads within verdict_clock_allowlist.tsv ({} rows) · {coverage}",
@@ -207,5 +230,18 @@ fn main() -> ExitCode {
             eprintln!("[verdict_clock_scan] ERROR {e}");
             ExitCode::from(2)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{read_guarded, Surface};
+
+    #[test]
+    fn a_reader_panic_names_the_file() {
+        let error = read_guarded("a/x.ts", Surface::TypeScript, || panic!("boom")).expect_err("a panic");
+        assert_eq!(error, "the TypeScript reader panicked on a/x.ts: boom");
+        let error = read_guarded("a/x.rs", Surface::Rust, || Err("line 3: unexpected `)`".to_string())).expect_err("an error");
+        assert_eq!(error, "cannot read a/x.rs as Rust tokens (line 3: unexpected `)`)");
     }
 }

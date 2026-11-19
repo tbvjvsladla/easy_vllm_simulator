@@ -5,8 +5,12 @@
 //! - `process.hrtime`;
 //! - the file-time properties `.mtime`/`.atime`/`.ctime`/`.birthtime` (and their `…Ms`).
 //!
-//! `globalThis.Date` and `window.Date` are `Date`. `//` and `/* … */` comments are skipped; text inside quotes is not
-//! code, but a `${…}` inside a template literal is.
+//! `globalThis.Date` and `window.Date` are `Date`. `//` and `/* … */` comments are skipped; text inside quotes, template
+//! literals and regular expression literals is not code, but a `${…}` inside a template literal is. A `/` starts a
+//! regular expression where an operand is expected: at the start of a line, after `=>`, after `return`, `typeof` or
+//! `case`, and after one of `( , = : [ ! & | ? { } ; ~ + - * %`; it runs to the next `/` outside a `[…]` class on the
+//! same line, then its flags. A comment, string or template literal still open at the end of the file is an input
+//! error.
 
 use super::Finding;
 
@@ -15,17 +19,19 @@ const GLOBAL_OBJECTS: [&str; 2] = ["globalThis.", "window."];
 const FILE_TIME_PROPERTIES: [&str; 8] = [
     ".mtime", ".atime", ".ctime", ".birthtime", ".mtimeMs", ".atimeMs", ".ctimeMs", ".birthtimeMs",
 ];
+const OPERATORS_BEFORE_AN_OPERAND: &str = "(,=:[!&|?{};~+-*%";
+const KEYWORDS_BEFORE_AN_OPERAND: [&str; 3] = ["return", "typeof", "case"];
 
-pub fn find(source: &str) -> Vec<Finding> {
+pub fn find(source: &str) -> Result<Vec<Finding>, String> {
     let mut found = Vec::new();
-    for (index, code) in code_only_lines(source).iter().enumerate() {
+    for (index, code) in code_only_lines(source)?.iter().enumerate() {
         let line = index + 1;
         let code = without_global_objects(code);
         for text in line_reads(&code) {
             found.push(Finding { line, text });
         }
     }
-    found
+    Ok(found)
 }
 
 fn is_ident_char(c: char) -> bool {
@@ -96,86 +102,175 @@ enum Mode {
     BlockComment,
 }
 
-fn code_only_lines(source: &str) -> Vec<String> {
+impl Mode {
+    fn name(&self) -> &'static str {
+        match self {
+            Mode::Code { .. } => "`${…}` of a template literal",
+            Mode::Quoted(_) => "string literal",
+            Mode::Template => "template literal",
+            Mode::BlockComment => "block comment",
+        }
+    }
+}
+
+enum Before {
+    LineStart,
+    Operator { char: char, after_equals: bool },
+    Word(String),
+    Operand,
+}
+
+impl Before {
+    fn expects_an_operand(&self) -> bool {
+        match self {
+            Before::LineStart => true,
+            Before::Operator { char: '>', after_equals } => *after_equals,
+            Before::Operator { char, .. } => OPERATORS_BEFORE_AN_OPERAND.contains(*char),
+            Before::Word(word) => KEYWORDS_BEFORE_AN_OPERAND.contains(&word.as_str()),
+            Before::Operand => false,
+        }
+    }
+
+    fn then(self, c: char, previous: Option<char>) -> Before {
+        match self {
+            Before::Word(mut word) if is_ident_char(c) && previous.is_some_and(is_ident_char) => {
+                word.push(c);
+                Before::Word(word)
+            }
+            _ if is_ident_char(c) => Before::Word(c.to_string()),
+            _ => Before::Operator { char: c, after_equals: previous == Some('=') },
+        }
+    }
+}
+
+fn regex_literal_end(chars: &[char], slash: usize) -> Option<usize> {
+    let mut at = slash + 1;
+    let mut in_class = false;
+    while let Some(&c) = chars.get(at) {
+        match c {
+            '\n' => return None,
+            '\\' => at += 1,
+            '[' => in_class = true,
+            ']' => in_class = false,
+            '/' if !in_class => {
+                at += 1;
+                while chars.get(at).is_some_and(|c| c.is_ascii_alphabetic()) {
+                    at += 1;
+                }
+                return Some(at);
+            }
+            _ => {}
+        }
+        at += 1;
+    }
+    None
+}
+
+fn code_only_lines(source: &str) -> Result<Vec<String>, String> {
+    let chars: Vec<char> = source.chars().collect();
     let mut lines = vec![String::new()];
-    let mut modes = vec![Mode::Code { open_braces_in_template: None }];
-    let mut chars = source.chars().peekable();
-    while let Some(c) = chars.next() {
+    let mut modes = vec![(Mode::Code { open_braces_in_template: None }, 1)];
+    let mut before = Before::LineStart;
+    let mut previous: Option<char> = None;
+    let mut at = 0;
+    while at < chars.len() {
+        let c = chars[at];
+        let next = chars.get(at + 1).copied();
+        at += 1;
         if c == '\n' {
             lines.push(String::new());
-            if matches!(modes.last(), Some(Mode::Quoted(_))) {
+            if matches!(modes.last(), Some((Mode::Quoted(_), _))) {
                 modes.pop();
             }
+            if matches!(modes.last(), Some((Mode::Code { .. }, _))) {
+                before = Before::LineStart;
+            }
+            previous = None;
             continue;
         }
+        let line = lines.len();
         let code = lines.last_mut().expect("one line at least");
-        match modes.last_mut().expect("the code mode at the bottom") {
+        let (mode, _) = modes.last_mut().expect("the code mode at the bottom");
+        match mode {
             Mode::BlockComment => {
-                if c == '*' && chars.peek() == Some(&'/') {
-                    chars.next();
+                if c == '*' && next == Some('/') {
+                    at += 1;
                     modes.pop();
                 }
             }
             Mode::Quoted(q) => {
                 if c == '\\' {
-                    chars.next_if(|n| *n != '\n');
+                    at += usize::from(next.is_some_and(|n| n != '\n'));
                 } else if c == *q {
                     code.push(c);
                     modes.pop();
+                    before = Before::Operand;
                 }
             }
             Mode::Template => match c {
-                '\\' => {
-                    chars.next_if(|n| *n != '\n');
-                }
+                '\\' => at += usize::from(next.is_some_and(|n| n != '\n')),
                 '`' => {
                     code.push(c);
                     modes.pop();
+                    before = Before::Operand;
                 }
-                '$' if chars.peek() == Some(&'{') => {
-                    chars.next();
+                '$' if next == Some('{') => {
+                    at += 1;
                     code.push(' ');
-                    modes.push(Mode::Code { open_braces_in_template: Some(0) });
+                    modes.push((Mode::Code { open_braces_in_template: Some(0) }, line));
+                    before = Before::Operator { char: '{', after_equals: false };
                 }
                 _ => {}
             },
             Mode::Code { open_braces_in_template } => match c {
-                '/' if chars.peek() == Some(&'/') => {
-                    while chars.next_if(|n| *n != '\n').is_some() {}
+                '/' if next == Some('/') => {
+                    while chars.get(at).is_some_and(|n| *n != '\n') {
+                        at += 1;
+                    }
                 }
-                '/' if chars.peek() == Some(&'*') => {
-                    chars.next();
-                    modes.push(Mode::BlockComment);
+                '/' if next == Some('*') => {
+                    at += 1;
+                    modes.push((Mode::BlockComment, line));
+                }
+                '/' if before.expects_an_operand() && regex_literal_end(&chars, at - 1).is_some() => {
+                    at = regex_literal_end(&chars, at - 1).expect("checked");
+                    code.push(' ');
+                    before = Before::Operand;
                 }
                 '\'' | '"' => {
                     code.push(c);
-                    modes.push(Mode::Quoted(c));
+                    modes.push((Mode::Quoted(c), line));
                 }
                 '`' => {
                     code.push(c);
-                    modes.push(Mode::Template);
-                }
-                '{' => {
-                    if let Some(depth) = open_braces_in_template {
-                        *depth += 1;
-                    }
-                    code.push(c);
+                    modes.push((Mode::Template, line));
                 }
                 '}' if *open_braces_in_template == Some(0) => {
                     code.push(' ');
                     modes.pop();
                 }
-                '}' => {
-                    if let Some(depth) = open_braces_in_template {
-                        *depth -= 1;
+                _ => {
+                    match (c, open_braces_in_template.as_mut()) {
+                        ('{', Some(depth)) => *depth += 1,
+                        ('}', Some(depth)) => *depth -= 1,
+                        _ => {}
                     }
                     code.push(c);
+                    if !c.is_whitespace() {
+                        before = std::mem::replace(&mut before, Before::LineStart).then(c, previous);
+                    }
+                    previous = Some(c);
+                    continue;
                 }
-                _ => code.push(c),
             },
         }
+        previous = None;
     }
-    lines
+    match &modes[..] {
+        [(Mode::Code { open_braces_in_template: None }, _)] => Ok(lines),
+        [.., (mode, line)] => Err(format!("line {line}: a {} is not closed at the end of the file", mode.name())),
+        [] => unreachable!("the code mode at the bottom is never popped"),
+    }
 }
 
 #[cfg(test)]
@@ -183,7 +278,7 @@ mod tests {
     use super::find;
 
     fn texts(source: &str) -> Vec<String> {
-        find(source).into_iter().map(|f| f.text).collect()
+        find(source).expect("a closed source").into_iter().map(|f| f.text).collect()
     }
 
     #[test]
@@ -207,5 +302,37 @@ mod tests {
         assert_eq!(texts("const e = new globalThis.Date();\n"), ["new Date()"]);
         assert_eq!(texts("const f = window.Date.now();\n"), ["Date.now()"]);
         assert_eq!(texts("const g = `a\n${process.hrtime.bigint()}\n`;\n"), ["process.hrtime"]);
+    }
+
+    #[test]
+    fn a_regular_expression_literal_is_not_code() {
+        assert_eq!(texts("const FENCE = /^ {0,3}(`{3,}|~{3,})/;\nconst t = Date.now();\n"), ["Date.now()"]);
+        assert_eq!(texts("if (/^[\\[\\]{}#&*!|>%@`,?]/.test(s)) return null;\nx = Date.now();\n"), ["Date.now()"]);
+        assert_eq!(texts("const esc = (s) => s.replace(/`/g, \"\\\\`\");\nexport const t = new Date();\n"), ["new Date()"]);
+        assert_eq!(texts("const r = /'/.test(s); const d = Date.now();\n"), ["Date.now()"]);
+        assert!(texts("const r = /Date.now()/;\nconst q = /[/]new Date()/i;\n").is_empty());
+        assert_eq!(texts("function f(x) { return /`/.test(x) && Date.now(); }\n"), ["Date.now()"]);
+        assert_eq!(texts("switch (k) { case /`/.source: t = Date.now(); }\n"), ["Date.now()"]);
+        assert_eq!(texts("const f = (s) => /`/.test(s);\nconst g = Date.now();\n"), ["Date.now()"]);
+    }
+
+    #[test]
+    fn a_slash_after_an_operand_is_division() {
+        assert_eq!(texts("const h = total / 2; const t = Date.now() / 1000;\n"), ["Date.now()"]);
+        assert_eq!(texts("const a = (x) / 2 / `${Date.now()}`;\n"), ["Date.now()"]);
+        assert_eq!(texts("const b = n / m; // Date.now()\nconst c = new Date;\n"), ["new Date()"]);
+    }
+
+    #[test]
+    fn a_comment_or_literal_open_at_the_end_is_an_input_error() {
+        for (source, what) in [
+            ("const a = 1;\n/* Date.now()\n", "line 2: a block comment"),
+            ("const a = `x\n${b}\n", "line 1: a template literal"),
+            ("const a = `${ f(\n", "line 1: a `${…}` of a template literal"),
+            ("const s = 'abc", "line 1: a string literal"),
+        ] {
+            let error = find(source).expect_err(source);
+            assert!(error.starts_with(what), "{source:?}: {error}");
+        }
     }
 }

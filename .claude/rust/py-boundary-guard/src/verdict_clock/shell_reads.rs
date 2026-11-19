@@ -1,31 +1,45 @@
-//! One line of shell → its clock reads. Used for tracked shell files, for the lines of Rust string literals
-//! (remote command lines, unit texts, fixture scripts) and for the argv of a Rust `Command` chain.
+//! Shell text → its clock reads. Used for tracked shell files, for the lines of Rust string literals (remote command
+//! lines, unit texts, fixture scripts) and for the argv of a Rust `Command` chain. A line that ends in an unquoted `\`
+//! goes on in the next line: the joined command is read and its reads are reported at the line where it starts.
 //!
 //! A read is
-//! - `date` in command position that prints the clock: with options, in `$(…)`/backticks, or piped/redirected;
-//!   `date -d`/`--date`/`-f`/`--file` convert a given time and are reads only when that value is relative to now
-//!   (`now`, `yesterday`, `+90 days`, `"$t + 90 days"`); `@epoch` and a lone variable are given times. `date -r FILE`
-//!   reads a mtime and is one;
+//! - `date` in command position that prints the clock: with options, or with its output taken (inside `$(…)` or
+//!   backticks, piped or redirected). `date -d`/`--date` converts a given time and is a read when that value is
+//!   missing, empty or relative to now (`now`, `yesterday`, `+90 days`, `"$t + 90 days"`); `@epoch` and a value made of
+//!   expansions only (`"$t"`, `"$(cat stamp)"`) are given times. `date -f`/`--file` (times from a file this lint cannot
+//!   see) and `date -r FILE` (a mtime) always are reads;
 //! - `$EPOCHSECONDS`, `$EPOCHREALTIME`, `$SECONDS`, and those names bare inside `(( … ))`/`$(( … ))`;
 //! - `printf '%(…)T'`;
 //! - `stat` with a `%X`/`%Y`/`%Z`/`%W` (or lowercase) format;
 //! - `find -mtime/-mmin/-ctime/-cmin/-atime/-amin/-newer…`;
 //! - `-nt`/`-ot` file tests;
 //! - `git … --since/--until/--before/--after` with a date relative to now (`2.weeks`, `"2 weeks ago"`);
+//! - `openssl verify` without `-attime`/`-no_check_time` (it checks certificate validity against the clock);
 //! - an assignment to a calendar-period name (`…_DAYS=`, `…_WEEKS=`, `…_MONTHS=`);
-//! - any of these inside the command text of `bash -c`/`sh -c`, `ssh <host>` or `eval`, which is read again as shell.
+//! - any of these inside a command substitution (`$(…)` or backticks, outside single quotes) or inside the command text
+//!   of `bash -c`/`sh -c`, `ssh <host>` or `eval`, which are read again as shell. The output of a wrapped command is
+//!   taken when the wrapper's is: inside a substitution, piped, or redirected.
+//!
+//! A command word is in command position at the start of a command, after `;`, `|`, `&`, `(`, `{`, `!` or a backtick,
+//! after `then`/`do`/`else`/`elif`/`if`/`while`/`until`, after assignments, and after the prefix commands `exec`,
+//! `env`, `command`, `builtin`, `nice`, `nohup`, `sudo`, `time`, `timeout <duration>` and `xargs` (with their options;
+//! `command` without options).
 //!
 //! A line whose first word starts with `#` is a comment, and so is a `#` after whitespace outside quotes.
 
+use std::ops::Range;
+
 use super::is_period_name;
 
-const COMMAND_PREFIX_WORDS: [&str; 15] = [
-    "then", "do", "else", "elif", "if", "while", "until", "exec", "env", "command", "builtin", "nice", "nohup", "sudo",
-    "time",
+const COMMAND_KEYWORDS: [&str; 8] = ["then", "do", "else", "elif", "if", "while", "until", "!"];
+const COMMAND_PREFIXES: [&str; 10] = [
+    "exec", "env", "command", "builtin", "nice", "nohup", "sudo", "time", "timeout", "xargs",
 ];
 const EPOCH_VARIABLES: [&str; 3] = ["EPOCHSECONDS", "EPOCHREALTIME", "SECONDS"];
 const FIND_TIME_PREDICATES: [&str; 6] = ["-mtime", "-mmin", "-ctime", "-cmin", "-atime", "-amin"];
 const GIT_TIME_FILTERS: [&str; 4] = ["--since", "--until", "--before", "--after"];
+const OPENSSL_GIVEN_TIME_OPTIONS: [&str; 2] = ["attime", "no_check_time"];
+const OPENSSL_VERIFY: &str = "verify";
 const RELATIVE_DATE_WORDS: &[&str] = &[
     "ago", "now", "today", "tomorrow", "yesterday", "midnight", "noon", "tea", "this", "last", "next", "sec", "secs",
     "second", "seconds", "min", "mins", "minute", "minutes", "hour", "hours", "day", "days", "week", "weeks",
@@ -36,16 +50,61 @@ const SHELLS: [&str; 7] = ["sh", "bash", "dash", "zsh", "ksh", "mksh", "ash"];
 const SSH_OPTIONS_WITH_VALUE: &str = "BbcDEeFIiJLlmOoPpQRSWw";
 const UNQUOTED_ARGUMENT: &str = "%+-./:=@_,";
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Output {
+    Shown,
+    Taken,
+}
+
 pub fn line_reads(line: &str) -> Vec<String> {
+    reads_in(line, Output::Shown)
+}
+
+pub fn source_reads(source: &str) -> Vec<(usize, String)> {
+    let mut reads = Vec::new();
+    let mut lines = source.lines().enumerate();
+    while let Some((first, line)) = lines.next() {
+        let mut command = line.to_string();
+        while continues_on_next_line(&command) {
+            command.pop();
+            let Some((_, next)) = lines.next() else { break };
+            command.push_str(next);
+        }
+        reads.extend(line_reads(&command).into_iter().map(|read| (first, read)));
+    }
+    reads
+}
+
+pub fn argv_reads(program: &str, args: &[Option<&str>], output: Output) -> Vec<String> {
+    let mut line = quote(program);
+    for arg in args {
+        line.push(' ');
+        line.push_str(&arg.map_or_else(|| "_".to_string(), quote));
+    }
+    reads_in(&line, output)
+}
+
+fn continues_on_next_line(line: &str) -> bool {
+    if line.trim_start().starts_with('#') || strip_trailing_comment(line).len() != line.len() {
+        return false;
+    }
+    line.chars().rev().take_while(|c| *c == '\\').count() % 2 == 1
+}
+
+fn reads_in(line: &str, output: Output) -> Vec<String> {
     if line.trim_start().starts_with('#') {
         return Vec::new();
     }
     let code = strip_trailing_comment(line);
-    let bodies = wrapped_commands(code);
-    let mut reads: Vec<String> = bodies.iter().flat_map(|body| text_reads(&body.text)).collect();
-    let code = blank(code, &bodies);
+    let substitutions = substitution_bodies(code);
+    let mut reads: Vec<String> =
+        substitutions.iter().flat_map(|body| reads_in(&code[body.clone()], Output::Taken)).collect();
+    let code = blank(code, &substitutions);
+    let wrapped = wrapped_commands(&code, output);
+    reads.extend(wrapped.iter().flat_map(|command| reads_in(&command.text, command.output)));
+    let code = blank(&code, &wrapped.iter().map(|command| command.span.clone()).collect::<Vec<_>>());
     let code = code.as_str();
-    date_reads(code, &mut reads);
+    date_reads(code, output, &mut reads);
     epoch_reads(code, &mut reads);
     arithmetic_reads(code, &mut reads);
     let words: Vec<&str> = code.split_whitespace().collect();
@@ -72,21 +131,11 @@ pub fn line_reads(line: &str) -> Vec<String> {
     if has_word(code, "git") {
         git_reads(code, &mut reads);
     }
+    if has_word(code, "openssl") {
+        openssl_reads(code, &mut reads);
+    }
     period_assignments(code, &mut reads);
     reads
-}
-
-pub fn text_reads(text: &str) -> Vec<String> {
-    text.lines().flat_map(line_reads).collect()
-}
-
-pub fn argv_reads(program: &str, args: &[Option<&str>]) -> Vec<String> {
-    let mut line = quote(program);
-    for arg in args {
-        line.push(' ');
-        line.push_str(&arg.map_or_else(|| "_".to_string(), quote));
-    }
-    line_reads(&line)
 }
 
 fn quote(word: &str) -> String {
@@ -99,41 +148,136 @@ fn quote(word: &str) -> String {
 
 pub fn is_relative_to_now(value: &str) -> bool {
     let value = value.trim();
-    if value.starts_with('@') || is_lone_variable(value) {
+    if value.starts_with('@') {
         return false;
     }
-    let lowered = without_variables(value).to_ascii_lowercase();
-    lowered
+    without_expansions(value)
+        .to_ascii_lowercase()
         .split(|c: char| !(c.is_ascii_alphabetic() || c == '_'))
         .any(|word| RELATIVE_DATE_WORDS.contains(&word))
 }
 
-fn is_lone_variable(value: &str) -> bool {
-    let Some(name) = value.strip_prefix('$') else { return false };
-    let name = name.strip_prefix('{').and_then(|n| n.strip_suffix('}')).unwrap_or(name);
-    !name.is_empty() && name.chars().all(is_name_char) && !name.starts_with(|c: char| c.is_ascii_digit())
+type Chars = [(usize, char)];
+
+fn char_at(chars: &Chars, at: usize) -> Option<char> {
+    chars.get(at).map(|(_, c)| *c)
 }
 
-fn without_variables(value: &str) -> String {
+fn single_quote_close(chars: &Chars, from: usize) -> Option<usize> {
+    (from..chars.len()).find(|&at| chars[at].1 == '\'')
+}
+
+fn backtick_close(chars: &Chars, mut at: usize) -> Option<usize> {
+    while at < chars.len() {
+        match chars[at].1 {
+            '\\' => at += 1,
+            '`' => return Some(at),
+            _ => {}
+        }
+        at += 1;
+    }
+    None
+}
+
+fn double_quote_close(chars: &Chars, mut at: usize) -> Option<usize> {
+    while at < chars.len() {
+        match chars[at].1 {
+            '\\' => at += 1,
+            '"' => return Some(at),
+            '`' => at = backtick_close(chars, at + 1)?,
+            '$' if char_at(chars, at + 1) == Some('(') => at = substitution_close(chars, at + 2)?,
+            _ => {}
+        }
+        at += 1;
+    }
+    None
+}
+
+fn substitution_close(chars: &Chars, mut at: usize) -> Option<usize> {
+    let mut depth = 0usize;
+    while at < chars.len() {
+        match chars[at].1 {
+            '\\' => at += 1,
+            '\'' => at = single_quote_close(chars, at + 1)?,
+            '"' => at = double_quote_close(chars, at + 1)?,
+            '`' => at = backtick_close(chars, at + 1)?,
+            '$' if char_at(chars, at + 1) == Some('(') => at = substitution_close(chars, at + 2)?,
+            '(' => depth += 1,
+            ')' if depth == 0 => return Some(at),
+            ')' => depth -= 1,
+            _ => {}
+        }
+        at += 1;
+    }
+    None
+}
+
+fn brace_close(chars: &Chars, mut at: usize) -> Option<usize> {
+    let mut depth = 0usize;
+    while at < chars.len() {
+        match chars[at].1 {
+            '{' => depth += 1,
+            '}' if depth == 0 => return Some(at),
+            '}' => depth -= 1,
+            _ => {}
+        }
+        at += 1;
+    }
+    None
+}
+
+fn substitution_bodies(code: &str) -> Vec<Range<usize>> {
+    let chars: Vec<(usize, char)> = code.char_indices().collect();
+    let byte = |at: usize| chars.get(at).map_or(code.len(), |(offset, _)| *offset);
+    let mut bodies = Vec::new();
+    let mut double = false;
+    let mut at = 0;
+    while at < chars.len() {
+        match chars[at].1 {
+            '\\' => at += 1,
+            '\'' if !double => at = single_quote_close(&chars, at + 1).unwrap_or(chars.len()),
+            '"' => double = !double,
+            '$' if char_at(&chars, at + 1) == Some('(') && char_at(&chars, at + 2) == Some('(') => at += 2,
+            '$' if char_at(&chars, at + 1) == Some('(') => {
+                let close = substitution_close(&chars, at + 2).unwrap_or(chars.len());
+                bodies.push(byte(at + 2)..byte(close));
+                at = close;
+            }
+            '`' => {
+                let close = backtick_close(&chars, at + 1).unwrap_or(chars.len());
+                bodies.push(byte(at + 1)..byte(close));
+                at = close;
+            }
+            _ => {}
+        }
+        at += 1;
+    }
+    bodies
+}
+
+fn without_expansions(value: &str) -> String {
+    let chars: Vec<(usize, char)> = value.char_indices().collect();
     let mut out = String::new();
-    let mut chars = value.chars().peekable();
-    while let Some(c) = chars.next() {
-        if c != '$' {
-            out.push(c);
-            continue;
-        }
-        if chars.peek() == Some(&'{') {
-            for c in chars.by_ref() {
-                if c == '}' {
-                    break;
-                }
+    let mut at = 0;
+    while at < chars.len() {
+        let c = chars[at].1;
+        let next = char_at(&chars, at + 1);
+        let resume = match (c, next) {
+            ('$', Some('(')) => substitution_close(&chars, at + 2),
+            ('$', Some('{')) => brace_close(&chars, at + 2),
+            ('`', _) => backtick_close(&chars, at + 1),
+            ('$', Some(n)) if is_name_char(n) => {
+                Some((at + 1..chars.len()).take_while(|&k| is_name_char(chars[k].1)).last().unwrap_or(at + 1))
             }
-        } else {
-            while chars.peek().is_some_and(|c| is_name_char(*c)) {
-                chars.next();
+            ('$', Some(n)) if "@*#?$!-".contains(n) => Some(at + 1),
+            _ => {
+                out.push(c);
+                at += 1;
+                continue;
             }
-        }
+        };
         out.push(' ');
+        at = resume.map_or(chars.len(), |end| end + 1);
     }
     out
 }
@@ -188,19 +332,39 @@ fn opens_substitution(left: &str) -> bool {
     left.ends_with("$(") || left.ends_with('`')
 }
 
+fn is_duration(word: &str) -> bool {
+    let number = word.strip_suffix(['s', 'm', 'h', 'd']).unwrap_or(word);
+    !number.is_empty() && number.chars().all(|c| c.is_ascii_digit() || c == '.')
+}
+
 fn is_command_position(left: &str) -> bool {
-    if left.is_empty() || opens_substitution(left) || left.ends_with([';', '|', '&', '(', '{', '!']) {
+    if left.trim_end().ends_with(['{', '!']) {
         return true;
     }
-    let last = left.rsplit(char::is_whitespace).next().unwrap_or(left);
-    COMMAND_PREFIX_WORDS.contains(&last)
+    let segment = &left[after_last(left, |c| ";|&(`".contains(c))..];
+    let mut words = segment.split_whitespace().peekable();
+    while let Some(word) = words.next() {
+        if is_assignment(word) || word == "{" || COMMAND_KEYWORDS.contains(&word) {
+            continue;
+        }
+        if !COMMAND_PREFIXES.contains(&word) {
+            return false;
+        }
+        if word == "command" {
+            continue;
+        }
+        while words.next_if(|w| w.len() > 1 && w.starts_with('-')).is_some() {}
+        if word == "timeout" {
+            words.next_if(|w| is_duration(w));
+        }
+    }
+    true
 }
 
 fn positioned_command_start(code: &str, start: usize) -> Option<usize> {
     let command_start = after_last(&code[..start], |c| c != '/' && !is_name_char(c) && c != '.');
     let path = &code[command_start..start];
-    let positioned = (path.is_empty() || path.starts_with('/'))
-        && is_command_position(before_assignments(&code[..command_start]));
+    let positioned = (path.is_empty() || path.starts_with('/')) && is_command_position(&code[..command_start]);
     positioned.then_some(command_start)
 }
 
@@ -211,7 +375,7 @@ struct Word {
 }
 
 fn is_separator(c: char) -> bool {
-    ";|&)<>`\n(".contains(c)
+    ";|&)<>\n(".contains(c)
 }
 
 fn words(code: &str, from: usize, stop_at_separator: bool) -> Vec<Word> {
@@ -261,6 +425,17 @@ fn words(code: &str, from: usize, stop_at_separator: bool) -> Vec<Word> {
                     }
                     i += 1;
                 }
+                '`' => {
+                    value.push('`');
+                    while i < chars.len() && chars[i].1 != '`' {
+                        value.push(chars[i].1);
+                        i += 1;
+                    }
+                    if i < chars.len() {
+                        value.push('`');
+                    }
+                    i += 1;
+                }
                 '\\' => {
                     if let Some((_, next)) = chars.get(i) {
                         value.push(*next);
@@ -290,12 +465,12 @@ fn words(code: &str, from: usize, stop_at_separator: bool) -> Vec<Word> {
 }
 
 struct WrappedCommand {
-    start: usize,
-    end: usize,
+    span: Range<usize>,
     text: String,
+    output: Output,
 }
 
-fn wrapped_commands(code: &str) -> Vec<WrappedCommand> {
+fn wrapped_commands(code: &str, output: Output) -> Vec<WrappedCommand> {
     let mut candidates: Vec<(usize, usize, &str)> = SHELLS
         .iter()
         .chain(["eval", "ssh"].iter())
@@ -304,7 +479,7 @@ fn wrapped_commands(code: &str) -> Vec<WrappedCommand> {
     candidates.sort();
     let mut bodies: Vec<WrappedCommand> = Vec::new();
     for (start, end, name) in candidates {
-        if bodies.iter().any(|b| start >= b.start && start < b.end) || positioned_command_start(code, start).is_none() {
+        if bodies.iter().any(|b| b.span.contains(&start)) || positioned_command_start(code, start).is_none() {
             continue;
         }
         let after = words(code, end, true);
@@ -314,11 +489,22 @@ fn wrapped_commands(code: &str) -> Vec<WrappedCommand> {
             _ => shell_command_string(&after),
         };
         if let Some(body @ [first, ..]) = body {
+            let body_end = body[body.len() - 1].end;
             let text = body.iter().map(|w| w.value.as_str()).collect::<Vec<_>>().join(" ");
-            bodies.push(WrappedCommand { start: first.start, end: body[body.len() - 1].end, text });
+            let taken = output == Output::Taken || output_is_taken(&code[body_end..]);
+            let output = if taken { Output::Taken } else { Output::Shown };
+            bodies.push(WrappedCommand { span: first.start..body_end, text, output });
         }
     }
     bodies
+}
+
+fn output_is_taken(rest_of_command: &str) -> bool {
+    let (arguments, separator) = argument_text(rest_of_command);
+    let piped = separator.starts_with('|') && !separator.starts_with("||");
+    let redirected = (separator.starts_with('>') && !arguments.ends_with(|c: char| c.is_ascii_digit() && c != '1'))
+        || separator.starts_with("&>");
+    piped || redirected
 }
 
 fn shell_command_string(after: &[Word]) -> Option<&[Word]> {
@@ -355,66 +541,92 @@ fn ssh_command(after: &[Word]) -> Option<&[Word]> {
     (!command.is_empty()).then_some(command)
 }
 
-fn blank(code: &str, bodies: &[WrappedCommand]) -> String {
+fn blank(code: &str, spans: &[Range<usize>]) -> String {
     code.char_indices()
-        .map(|(at, c)| if bodies.iter().any(|b| at >= b.start && at < b.end) { ' ' } else { c })
+        .map(|(at, c)| {
+            if spans.iter().any(|span| span.contains(&at)) {
+                " ".repeat(c.len_utf8())
+            } else {
+                c.to_string()
+            }
+        })
         .collect()
 }
 
 fn argument_text(rest: &str) -> (&str, &str) {
+    let chars: Vec<(usize, char)> = rest.char_indices().collect();
     let (mut single, mut double) = (false, false);
-    for (at, c) in rest.char_indices() {
-        match c {
+    let mut at = 0;
+    while at < chars.len() {
+        match chars[at].1 {
             '\'' if !double => single = !single,
             '"' if !single => double = !double,
-            ')' | '`' | ';' | '|' | '&' | '<' | '>' if !single && !double => return (&rest[..at], &rest[at..]),
+            '$' if !single && char_at(&chars, at + 1) == Some('(') => {
+                at = substitution_close(&chars, at + 2).unwrap_or(chars.len());
+            }
+            '`' if !single && !double => at = backtick_close(&chars, at + 1).unwrap_or(chars.len()),
+            ')' | '`' | ';' | '|' | '&' | '<' | '>' if !single && !double => {
+                let offset = chars[at].0;
+                return (&rest[..offset], &rest[offset..]);
+            }
             _ => {}
         }
+        at += 1;
     }
     (rest, "")
 }
 
-fn date_input_value(arguments: &str) -> Option<String> {
+enum DateInput {
+    Clock,
+    File,
+    Given(String),
+}
+
+fn date_input(arguments: &str) -> DateInput {
     let words = words(arguments, 0, true);
     let value_after = |at: usize| words.get(at + 1).map_or_else(String::new, |w| w.value.clone());
     for (at, word) in words.iter().enumerate() {
         if let Some(long) = word.value.strip_prefix("--") {
             let (name, attached) = long.split_once('=').map_or((long, None), |(n, v)| (n, Some(v)));
-            if name == "date" || name == "file" {
-                return Some(attached.map_or_else(|| value_after(at), str::to_string));
+            match name {
+                "date" => return DateInput::Given(attached.map_or_else(|| value_after(at), str::to_string)),
+                "file" => return DateInput::File,
+                _ => continue,
             }
-            continue;
         }
         let Some(cluster) = word.value.strip_prefix('-') else { continue };
         for (k, flag) in cluster.char_indices() {
             match flag {
-                'd' | 'f' => {
+                'd' => {
                     let attached = &cluster[k + 1..];
-                    return Some(if attached.is_empty() { value_after(at) } else { attached.to_string() });
+                    return DateInput::Given(if attached.is_empty() { value_after(at) } else { attached.to_string() });
                 }
+                'f' => return DateInput::File,
                 c if c.is_ascii_alphabetic() && c != 'I' => continue,
                 _ => break,
             }
         }
     }
-    None
+    DateInput::Clock
 }
 
-fn date_reads(code: &str, reads: &mut Vec<String>) {
+fn date_reads(code: &str, output: Output, reads: &mut Vec<String>) {
     for (start, end) in word_spans(code, "date") {
         let Some(command_start) = positioned_command_start(code, start) else { continue };
         let left = before_assignments(&code[..command_start]);
         let (arguments, after) = argument_text(&code[end..]);
         let arguments = arguments.split_whitespace().collect::<Vec<_>>().join(" ");
         if arguments.is_empty() {
-            if !opens_substitution(left) && after.is_empty() {
+            if output == Output::Shown && !opens_substitution(left) && after.is_empty() {
                 continue;
             }
         } else if !arguments.trim_start_matches(['\'', '"']).starts_with(['-', '+']) {
             continue;
         }
-        if date_input_value(&arguments).is_some_and(|value| !is_relative_to_now(&value)) {
-            continue;
+        if let DateInput::Given(value) = date_input(&arguments) {
+            if !value.trim().is_empty() && !is_relative_to_now(&value) {
+                continue;
+            }
         }
         reads.push(if arguments.is_empty() { "date".to_string() } else { format!("date {arguments}") });
     }
@@ -482,6 +694,26 @@ fn git_reads(code: &str, reads: &mut Vec<String>) {
     }
 }
 
+fn openssl_reads(code: &str, reads: &mut Vec<String>) {
+    for (start, end) in word_spans(code, "openssl") {
+        if positioned_command_start(code, start).is_none() {
+            continue;
+        }
+        let (arguments, _) = argument_text(&code[end..]);
+        let arguments = words(arguments, 0, true);
+        if arguments.first().map(|w| w.value.as_str()) != Some(OPENSSL_VERIFY) {
+            continue;
+        }
+        let given_time = arguments.iter().any(|w| {
+            let option = w.value.trim_start_matches('-');
+            w.value.starts_with('-') && OPENSSL_GIVEN_TIME_OPTIONS.contains(&option)
+        });
+        if !given_time {
+            reads.push(format!("openssl {OPENSSL_VERIFY}"));
+        }
+    }
+}
+
 fn stat_time_format(code: &str) -> Option<char> {
     let mut chars = code.chars().peekable();
     while let Some(c) = chars.next() {
@@ -533,6 +765,7 @@ mod tests {
     use super::{is_relative_to_now, line_reads};
 
     const CASES: &str = include_str!("../../checks/data/verdict_clock/shell_lines.tsv");
+    const CASE_ROWS: usize = 151;
 
     #[test]
     fn shell_lines_give_their_reads() {
@@ -544,7 +777,7 @@ mod tests {
             assert_eq!(line_reads(line), want, "{line:?}");
             checked += 1;
         }
-        assert!(checked > 50, "{checked}");
+        assert_eq!(checked, CASE_ROWS);
     }
 
     #[test]
@@ -552,7 +785,18 @@ mod tests {
         for relative in ["now", "yesterday", "+90 days", "1 day ago", "$created + 90 days", "2.weeks", "last friday"] {
             assert!(is_relative_to_now(relative), "{relative}");
         }
-        for given in ["@1700000000", "@$ts", "$ets", "${ets}", "2026-01-01T19:30:00Z", "{created_s}", "$start_day 00:00"] {
+        for given in [
+            "@1700000000",
+            "@$ts",
+            "$ets",
+            "${ets}",
+            "2026-01-01T19:30:00Z",
+            "{created_s}",
+            "$start_day 00:00",
+            "$(cat \"$state/last-run\")",
+            "`cat last`",
+            "${last_week}",
+        ] {
             assert!(!is_relative_to_now(given), "{given}");
         }
     }

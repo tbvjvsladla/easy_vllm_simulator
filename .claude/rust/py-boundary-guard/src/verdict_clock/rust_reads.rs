@@ -11,7 +11,9 @@
 //!   `libc::` call of one;
 //! - `Command::new("date")` (or an alias of `Command`);
 //! - the argv of any other `Command::new("<program>")`: the string literals of its `.arg(…)`/`.args([…])` in the same
-//!   expression, read as one shell command line (`stat -c %Y`, `find -mmin`, `git --since=…`, `ssh <host> date`);
+//!   expression, read as one shell command line (`stat -c %Y`, `find -mmin`, `git --since=…`, `ssh <host> date +%s`,
+//!   `openssl verify`); its output is taken when the same expression calls `.output()` or `.stdout(…)`, and then a
+//!   bare `date` run through `ssh <host>` or `sh -c` is a read too;
 //! - a calendar period: a `const`, `static` or `let` named `…_DAYS`/`…_WEEKS`/`…_MONTHS`, a `.add_days(…)` or
 //!   `.days_since(…)` call;
 //! - a shell clock read inside a string literal (`shell_reads`); doc attributes (`///`, `//!`) are skipped.
@@ -20,7 +22,8 @@ use std::collections::{BTreeMap, HashSet};
 
 use proc_macro2::{Delimiter, Spacing, TokenStream, TokenTree};
 
-use super::{is_period_name, shell_reads, Finding};
+use super::shell_reads::{self, Output};
+use super::{is_period_name, Finding};
 
 const ZERO_ARGUMENT_CLOCK_METHODS: [&str; 10] = [
     "elapsed", "modified", "accessed", "created", "mtime", "mtime_nsec", "atime", "atime_nsec", "ctime", "ctime_nsec",
@@ -200,8 +203,9 @@ fn argv_word(tokens: &[TokenTree]) -> ArgvWord {
     }
 }
 
-fn argv_of_method_chain(tokens: &[TokenTree], mut from: usize) -> Vec<ArgvWord> {
+fn argv_of_method_chain(tokens: &[TokenTree], mut from: usize) -> (Vec<ArgvWord>, Output) {
     let mut arguments = Vec::new();
+    let mut output = Output::Shown;
     loop {
         if is_punct(tokens.get(from), '?') {
             from += 1;
@@ -212,9 +216,11 @@ fn argv_of_method_chain(tokens: &[TokenTree], mut from: usize) -> Vec<ArgvWord> 
             ident(tokens.get(from + 1)),
             group(tokens.get(from + 2), Delimiter::Parenthesis),
         ) else {
-            return arguments;
+            return (arguments, output);
         };
         match method.as_str() {
+            "output" if call.is_empty() => output = Output::Taken,
+            "stdout" => output = Output::Taken,
             "arg" => arguments.push(argv_word(&call.into_iter().collect::<Vec<_>>())),
             "args" => {
                 let inner: Vec<TokenTree> = call.into_iter().filter(|t| !is_punct(Some(t), '&')).collect();
@@ -328,7 +334,7 @@ impl Walker {
             self.push(here, format!("{}::new(\"date\")", tokens[at]));
             return;
         }
-        let argv = argv_of_method_chain(tokens, at + 5);
+        let (argv, output) = argv_of_method_chain(tokens, at + 5);
         let mut found_in_single_literals: Vec<String> = Vec::new();
         for word in &argv {
             if let ArgvWord::OneLineLiteral(literal, _) = word {
@@ -347,7 +353,7 @@ impl Walker {
                 ArgvWord::Opaque => None,
             })
             .collect();
-        for text in missing_from(&found_in_single_literals, shell_reads::argv_reads(&program, &words)) {
+        for text in missing_from(&found_in_single_literals, shell_reads::argv_reads(&program, &words, output)) {
             self.push(here, text);
         }
     }
@@ -367,10 +373,8 @@ impl Walker {
         let span = literal.span();
         let start = span.start().line;
         let spans_lines = span.end().line > start;
-        for (offset, source_line) in text.lines().enumerate() {
-            for read in shell_reads::line_reads(source_line) {
-                reads.push(Finding { line: if spans_lines { start + offset } else { start }, text: read });
-            }
+        for (offset, read) in shell_reads::source_reads(&text) {
+            reads.push(Finding { line: if spans_lines { start + offset } else { start }, text: read });
         }
         reads
     }
