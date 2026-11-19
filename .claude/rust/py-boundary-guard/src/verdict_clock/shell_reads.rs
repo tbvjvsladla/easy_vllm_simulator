@@ -10,7 +10,7 @@
 //!   see) and `date -r FILE` (a mtime) always are reads;
 //! - `$EPOCHSECONDS`, `$EPOCHREALTIME`, `$SECONDS`, and those names bare in an arithmetic context: inside
 //!   `(( … ))`/`$(( … ))`, in an operand of `-eq`/`-ne`/`-lt`/`-le`/`-gt`/`-ge` inside `[[ … ]]`, and in an argument of
-//!   `let` (quoted or not);
+//!   `let` (quoted or not), the `[[` or `let` standing in command position outside quotes;
 //! - `printf '%(…)T'`;
 //! - `stat` with a `%X`/`%Y`/`%Z`/`%W` (or lowercase) format;
 //! - `find -mtime/-mmin/-ctime/-cmin/-atime/-amin/-newer…`;
@@ -693,7 +693,7 @@ fn conditional_arithmetic_reads(code: &str, reads: &mut Vec<String>) {
     while let Some(open) = code[from..].find("[[").map(|at| at + from) {
         let body_start = open + 2;
         let body_end = code[body_start..].find("]]").map_or(code.len(), |at| at + body_start);
-        if is_command_position(&code[..open]) {
+        if !is_quoted_at(code, open) && is_command_position(&code[..open]) {
             let operands = words(&code[body_start..body_end], 0, false);
             for (at, word) in operands.iter().enumerate() {
                 if !ARITHMETIC_COMPARISONS.contains(&word.value.as_str()) {
@@ -708,9 +708,25 @@ fn conditional_arithmetic_reads(code: &str, reads: &mut Vec<String>) {
     }
 }
 
+fn is_quoted_at(code: &str, at: usize) -> bool {
+    let (mut single, mut double, mut escaped) = (false, false, false);
+    for c in code[..at].chars() {
+        if std::mem::take(&mut escaped) {
+            continue;
+        }
+        match c {
+            '\\' if !single => escaped = true,
+            '\'' if !double => single = !single,
+            '"' if !single => double = !double,
+            _ => {}
+        }
+    }
+    single || double
+}
+
 fn let_reads(code: &str, reads: &mut Vec<String>) {
     for (start, end) in word_spans(code, "let") {
-        if positioned_command_start(code, start).is_none() {
+        if is_quoted_at(code, start) || positioned_command_start(code, start).is_none() {
             continue;
         }
         let (arguments, _) = argument_text(&code[end..]);
@@ -805,7 +821,7 @@ mod tests {
     use super::{is_relative_to_now, line_reads};
 
     const CASES: &str = include_str!("../../checks/data/verdict_clock/shell_lines.tsv");
-    const CASE_ROWS: usize = 170;
+    const CASE_ROWS: usize = 173;
 
     #[test]
     fn shell_lines_give_their_reads() {

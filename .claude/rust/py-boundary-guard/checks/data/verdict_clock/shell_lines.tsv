@@ -168,3 +168,6 @@ echo "[[ SECONDS -gt 30 ]]"
 echo let SECONDS
 echo "let x = EPOCHSECONDS"
 # [[ SECONDS -gt 30 ]]
+echo "x && let y=EPOCHSECONDS"
+echo "a; [[ SECONDS -gt 30 ]]"
+echo "[[ SECONDS -gt 30 ]] && let x=EPOCHSECONDS"
