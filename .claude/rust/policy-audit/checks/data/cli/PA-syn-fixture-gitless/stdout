@@ -1,0 +1,21 @@
+{
+  "exit_code": 1,
+  "schema_version": 2,
+  "violation_count": 2,
+  "violations": [
+    {
+      "clause_id": null,
+      "message": "remove_when is not substantive",
+      "path": "$.policies[TEST_A].remove_when",
+      "policy_id": "TEST_A",
+      "reason_code": "LAZY_REMOVE_WHEN"
+    },
+    {
+      "clause_id": null,
+      "message": "'ev.sh': git_unavailable",
+      "path": "ev.sh",
+      "policy_id": "TEST_A",
+      "reason_code": "EVIDENCE_GIT_UNAVAILABLE"
+    }
+  ]
+}
