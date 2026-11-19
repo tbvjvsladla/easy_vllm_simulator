@@ -293,13 +293,17 @@ fn a_deleted_tracked_file_is_skipped_and_counted() {
     write(&r.0, ALLOW_REL, NO_ROWS);
     write(&r.0, ".claude/rust/x/src/clean.rs", "fn f() {}\n");
     write(&r.0, ".claude/rust/x/src/gone.rs", "fn g() { let _ = std::time::Instant::now(); }\n");
+    write(&r.0, ".claude/x/scripts/sparse.sh", "echo sparse\n");
     git(&r.0, &["add", "-A"]);
+    git(&r.0, &["update-index", "--skip-worktree", ".claude/x/scripts/sparse.sh"]);
     std::fs::remove_file(r.0.join(".claude/rust/x/src/gone.rs")).unwrap();
+    std::fs::remove_file(r.0.join(".claude/x/scripts/sparse.sh")).unwrap();
     let out = Command::new(bin()).args(["check", "--repo"]).arg(&r.0).output().unwrap();
     let stdout = String::from_utf8_lossy(&out.stdout);
     assert_eq!(out.status.code(), Some(0), "{stdout}");
-    assert!(stdout.contains("scanned 1 .rs, 0 shell, 0 .ts · 1 deleted from the work tree"), "{stdout}");
+    assert!(stdout.contains("scanned 1 .rs, 0 shell, 0 .ts · 2 deleted from the work tree"), "{stdout}");
     assert!(stdout.contains("DELETED-FROM-WORK-TREE .claude/rust/x/src/gone.rs\n"), "{stdout}");
+    assert!(stdout.contains("DELETED-FROM-WORK-TREE .claude/x/scripts/sparse.sh\n"), "{stdout}");
 }
 
 #[test]
@@ -310,6 +314,7 @@ fn a_symlink_is_not_read() {
     let target = std::env::temp_dir().join(format!("vcscan-link-target-{}.rs", std::process::id()));
     std::fs::write(&target, TWO_READS).unwrap();
     std::os::unix::fs::symlink(&target, r.0.join(".claude/rust/x/src/link.rs")).unwrap();
+    std::os::unix::fs::symlink("/nonexistent/target.rs", r.0.join(".claude/rust/x/src/broken.rs")).unwrap();
     let (code, out, err) = check(&r.0);
     let _ = std::fs::remove_file(&target);
     assert_eq!(code, 0, "{out}{err}");
