@@ -3,7 +3,7 @@ use agent_runtime_support::pyvalue::{float_repr, PyValue};
 use policy_distribution::checks::{verify_with, Hooks};
 use policy_distribution::{dict, list_ints, ordered_between_detail, shell_array, shipped_python_paths};
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
 
 fn crate_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -429,6 +429,32 @@ fn the_retired_policy_as_of_option_is_a_usage_error() {
         let mut argv = vec!["verify_distribution.sh".to_string()];
         argv.extend(args.iter().map(|a| a.to_string()));
         assert_eq!(policy_distribution::cli::main_with(argv), 2, "{args:?}");
+    }
+}
+
+#[test]
+fn launcher_help_and_usage_errors_match_goldens() {
+    let launcher = repo().join(".claude/policies/runtime/verify_distribution.sh");
+    let cases = items(&golden("cli.json"));
+    assert!(!cases.is_empty());
+    for case in cases {
+        let id = st(get(&case, "id"));
+        let args: Vec<String> = items(get(&case, "args")).iter().map(st).collect();
+        let out = Command::new("bash")
+            .arg(&launcher)
+            .args(&args)
+            .env("VERIFY_DISTRIBUTION_BIN", env!("CARGO_BIN_EXE_verify_distribution"))
+            .env_remove("COLUMNS")
+            .stdin(Stdio::null())
+            .output()
+            .unwrap();
+        let exit_code = match get(&case, "exit_code").peel() {
+            PyValue::Int(n) => n.to_string().parse::<i32>().unwrap(),
+            other => panic!("{id}: exit_code is not an int: {}", other.repr()),
+        };
+        assert_eq!(String::from_utf8_lossy(&out.stdout), st(get(&case, "stdout")), "{id}: stdout");
+        assert_eq!(String::from_utf8_lossy(&out.stderr), st(get(&case, "stderr")), "{id}: stderr");
+        assert_eq!(out.status.code(), Some(exit_code), "{id}: exit code");
     }
 }
 
