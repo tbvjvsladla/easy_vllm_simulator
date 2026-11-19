@@ -1,7 +1,6 @@
 # shellcheck shell=bash
-# tree mismatch reveals the computed contract digest
 PROG_KIND=policy_registry
-ARGS=(check-removal --as-of 2026-01-15 --registry "$ROOT/r/reg.json" --schema "$ROOT/r/.claude/schemas/policy-registry.schema.json" --repo-root "$ROOT/r" --policy-id TEST_RET)
+ARGS=(check-removal --registry "$ROOT/r/reg.json" --schema "$ROOT/r/.claude/schemas/policy-registry.schema.json" --repo-root "$ROOT/r" --policy-id TEST_RET)
 setup() {
 . "$SDIR/fixture_lib.sh"
 fx_synth || return 1

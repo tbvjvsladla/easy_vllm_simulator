@@ -5,7 +5,7 @@
   "violations": [
     {
       "clause_id": null,
-      "message": "invalid command-line invocation: argument --as-of: expected one argument",
+      "message": "invalid command-line invocation: unrecognized arguments: --as-of",
       "path": null,
       "policy_id": null,
       "reason_code": "CLI_USAGE_ERROR"

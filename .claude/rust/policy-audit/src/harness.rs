@@ -1,4 +1,4 @@
-//! `harness_verify.py`: observe the reference date once, then run (1) the policy registry audit, (2) the runtime
+//! `harness_verify.py`: run (1) the policy registry audit, (2) the runtime
 //! regression probe, (3) the production predicate suite, stopping at the first failure. Each stage is the Rust launcher
 //! of its owner (no Python): `.claude/policies/runtime/policy_registry.sh verify`, `.claude/policies/runtime/runtime_selftest.sh`,
 //! `.claude/policies/predicates/claim_predicates.sh`, then the companion launchers `.claude/policies/predicates/*_predicate.sh`
@@ -8,7 +8,6 @@
 //! CPython block-buffers `print`) the harness lines are written when the process ends, after the children's output.
 
 use crate::argparse::{Exit, Opt, Parser};
-use crate::pydate::Date;
 use std::io::{IsTerminal, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -17,34 +16,6 @@ pub const DOC: &str = include_str!("harness_verify_doc.txt");
 
 pub const PREDICATE_LAUNCHERS: &[&str] = &["companion_predicate.sh", "runtime_patch_predicate.sh"];
 
-pub struct Reference {
-    pub as_of: String,
-    pub source: &'static str,
-    pub observed_utc: Option<String>,
-}
-
-/// `observe_as_of(explicit)`; `Err(())` = the original's ValueError (malformed explicit input).
-pub fn observe_as_of(explicit: Option<&str>) -> Result<Reference, ()> {
-    if let Some(x) = explicit {
-        let chars: Vec<char> = x.chars().collect();
-        let shape = chars.len() == 10
-            && chars.iter().enumerate().all(|(i, c)| if i == 4 || i == 7 { *c == '-' } else { c.is_ascii_digit() });
-        if !shape || Date::fromisoformat(x).is_none() {
-            return Err(());
-        }
-        return Ok(Reference { as_of: x.to_string(), source: "explicit-caller-input", observed_utc: None });
-    }
-    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default();
-    let secs = now.as_secs() as i64;
-    let micros = now.subsec_micros();
-    let days = secs.div_euclid(86400);
-    let rem = secs.rem_euclid(86400);
-    let date = Date::new(1970, 1, 1).unwrap().add_days(days).unwrap();
-    let (h, m, s) = (rem / 3600, (rem % 3600) / 60, rem % 60);
-    let time = if micros > 0 { format!("{h:02}:{m:02}:{s:02}.{micros:06}") } else { format!("{h:02}:{m:02}:{s:02}") };
-    Ok(Reference { as_of: date.isoformat(), source: "observed-utc-clock", observed_utc: Some(format!("{}T{time}+00:00", date.isoformat())) })
-}
-
 pub fn parser(prog: &str) -> Parser {
     Parser {
         prog: prog.to_string(),
@@ -52,12 +23,6 @@ pub fn parser(prog: &str) -> Parser {
         raw_description: true,
         options: vec![
             Opt::help_flag(),
-            Opt::value(
-                "--as-of",
-                "as_of",
-                false,
-                Some("YYYY-MM-DD explicit caller input for a deterministic reproduction; default = the live UTC date observed once per run and recorded -- passed straight through to policy_registry.sh verify (the validator itself reads no clock)"),
-            ),
             Opt::value("--registry", "registry", false, Some("passthrough to policy_registry.sh verify --registry")),
             Opt::value("--schema", "schema", false, Some("passthrough to policy_registry.sh verify --schema")),
             Opt::value("--claim-bindings", "claim_bindings", false, Some("passthrough to policy_registry.sh verify --claim-bindings")),
@@ -140,24 +105,9 @@ pub fn main_with(args: &[String], repo: &Path, prog: &str) -> i32 {
             return 2;
         }
     };
-    let explicit = parsed.value("as_of");
-    let reference = match observe_as_of(explicit) {
-        Ok(r) => r,
-        Err(()) => {
-            err_line(&format!("[harness_verify] usage error: --as-of {} is not a valid ISO-8601 date", crate::value::r(explicit.unwrap_or(""))));
-            return 2;
-        }
-    };
     let mut out = Out::new();
-    out.line(&format!(
-        "[harness_verify] reference date: as_of={} source={} observed_utc={} repro: --as-of {}",
-        reference.as_of,
-        reference.source,
-        reference.observed_utc.as_deref().unwrap_or("None"),
-        reference.as_of
-    ));
-    out.line(&format!("[harness_verify] stage 1/3: policy_registry.sh verify --as-of {}", reference.as_of));
-    let mut audit_args: Vec<String> = vec!["verify".into(), "--as-of".into(), reference.as_of.clone()];
+    out.line("[harness_verify] stage 1/3: policy_registry.sh verify");
+    let mut audit_args: Vec<String> = vec!["verify".into()];
     for (flag, dest) in [("--registry", "registry"), ("--schema", "schema"), ("--claim-bindings", "claim_bindings"), ("--repo-root", "repo_root")] {
         if let Some(v) = parsed.value(dest).filter(|v| !v.is_empty()) {
             audit_args.push(flag.into());

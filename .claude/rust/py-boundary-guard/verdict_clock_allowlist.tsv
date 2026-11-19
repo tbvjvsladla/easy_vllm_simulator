@@ -7,18 +7,9 @@
 #   | not-time(이름이나 실행하지 않는 문자열이 규칙에 걸린 것).
 # 사유 = c24 분류표(clock_inventory.tsv) 행 id 와 근거. 표에 없던 읽기는 not-in-inventory 로 시작한다. 행 추가는 개정 plan + HITL 로만 한다.
 .claude/rust/parity/src/main.rs	std::time::SystemTime::now()	1	record-only	CK-093 SystemTime::now→nanos
-.claude/rust/policy-audit/src/harness.rs	std::time::SystemTime::now()	1	transitional	CK-015 c24 단계 B 과도기 — policy-audit commit (harness_verify --as-of·observe_as_of 삭제)에서 지운다
-.claude/rust/policy-audit/src/harness.rs	.add_days()	1	transitional	CK-015,CK-016,CK-017 c24 단계 B 과도기 — policy-audit commit (harness_verify --as-of·observe_as_of 삭제)에서 지운다
-.claude/rust/policy-audit/src/pydate.rs	.add_days()	1	transitional	CK-012 c24 단계 B 과도기 — policy-audit commit (pydate 본문 비움)에서 지운다
-.claude/rust/policy-audit/src/pydate.rs	.days_since()	1	transitional	CK-012 c24 단계 B 과도기 — policy-audit commit (pydate 본문 비움)에서 지운다
-.claude/rust/policy-audit/src/registry.rs	const REVIEW_PERIOD_DAYS	1	transitional	CK-001 c24 단계 B 과도기 — policy-audit commit (검토 주기·날짜 규칙 삭제)에서 지운다
-.claude/rust/policy-audit/src/registry.rs	const OVERDUE_GRACE_DAYS	1	transitional	CK-001 c24 단계 B 과도기 — policy-audit commit (검토 주기·날짜 규칙 삭제)에서 지운다
-.claude/rust/policy-audit/src/registry.rs	.add_days()	2	transitional	CK-003,CK-006 c24 단계 B 과도기 — policy-audit commit (검토 주기·날짜 규칙 삭제)에서 지운다
-.claude/rust/policy-audit/src/registry.rs	.days_since()	1	transitional	CK-005 c24 단계 B 과도기 — policy-audit commit (검토 주기·날짜 규칙 삭제)에서 지운다
 .claude/rust/policy-audit/src/selftest.rs	std::time::SystemTime::now()	1	record-only	CK-014 SystemTime::now→subsec_nanos
 .claude/rust/policy-distribution/checks/pure_goldens.rs	std::time::SystemTime::now()	1	record-only	CK-046 SystemTime::now→nanos
 .claude/rust/policy-distribution/src/checks.rs	std::time::SystemTime::now()	1	record-only	CK-039 SystemTime::now→nanos
-.claude/rust/policy-distribution/src/clock.rs	SystemTime::now()	1	transitional	CK-033 c24 단계 B 과도기 — policy-distribution commit (clock.rs 본문 비움)에서 지운다
 .claude/rust/policy-distribution/src/runner.rs	Instant::now()	2	runtime-fact	CK-042 Instant::now + 180 s child timeout
 .claude/rust/policy-gate/checks/golden_checks.rs	std::time::SystemTime::now()	1	record-only	CK-060 SystemTime::now→nanos
 .claude/rust/policy-gate/src/completion_gate.rs	std::time::Instant::now()	2	runtime-fact	CK-059 Instant::now + timeout_s deadline
@@ -37,7 +28,6 @@
 .claude/rust/policy-selftest/checks/golden_checks.rs	std::time::SystemTime::now()	1	record-only	CK-058 SystemTime::now→nanos
 .claude/rust/policy-selftest/checks/hint_suite_cases.rs	std::time::SystemTime::now()	1	record-only	CK-057 SystemTime::now→nanos
 .claude/rust/policy-selftest/src/hint_suite.rs	std::time::SystemTime::now()	1	record-only	CK-056 SystemTime::now→nanos
-.claude/rust/policy-selftest/src/suite.rs	UtcInstant::now()	2	transitional	CK-053 c24 단계 B 과도기 — policy-selftest commit (operating_date_observed 삭제)에서 지운다
 .claude/rust/policy-selftest/src/tempdir.rs	std::time::SystemTime::now()	1	record-only	CK-055 SystemTime::now→nanos
 .claude/rust/py-boundary-guard/src/bin/py_exec_trap.rs	std::time::SystemTime::now()	1	record-only	CK-088 SystemTime::now→UTC timestamp
 .claude/rust/role-contract/src/topology.rs	Instant::now()	2	runtime-fact	CK-073 Instant::now + GIT_TIMEOUT

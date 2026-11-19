@@ -1,5 +1,4 @@
 # shellcheck shell=bash
-# golden case
 PROG_KIND=policy_registry
-ARGS=(verify)
+ARGS=(verify --registry "$ROOT/none.json")
 ENVS=(COLUMNS=80)

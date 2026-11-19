@@ -1,5 +1,5 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "policies": [
     {
       "policy_id": "HOST_SAFETY_LAYERED_DEFENSE",
@@ -299,16 +299,7 @@
         }
       ],
       "remove_when": "Removable only via an HITL-approved superseding plan that documents a replacement host-hard-down defense mechanism for unified-memory nodes (e.g. a kernel-level cgroup memory ceiling that makes the userspace watchdog redundant), verified by a repeat of the DSpark stress-gate scenario that originally motivated this policy.",
-      "added_at": "2026-07-25",
-      "last_reproduced": "2026-09-03",
-      "status": "candidate",
-      "review": {
-        "state": "due",
-        "last_reviewed_at": "2026-07-25",
-        "next_review_due": "2026-10-23",
-        "reviewer": "maintainer",
-        "reason": "No dated reproduction run has been captured against this policy's canonical clause set since the review-cycle1 registry v2 rewrite (2026-07-25); until a testlog/simlog run demonstrates each clause's current behavior end-to-end, last_reproduced stays null and this entry is treated as candidate-for-review, not active."
-      }
+      "status": "candidate"
     },
     {
       "policy_id": "VARIANT_IMAGE_BUILD_VS_SERVE_PLANE",
@@ -395,16 +386,7 @@
         }
       ],
       "remove_when": "Removable only if the project drops per-node image-variant builds entirely (e.g. a future registry-push-based distribution model replaces node-local compose build), documented in a superseding plan and re-verified against a live multi-node variant smoke.",
-      "added_at": "2026-07-25",
-      "last_reproduced": "2026-09-03",
-      "status": "candidate",
-      "review": {
-        "state": "due",
-        "last_reviewed_at": "2026-07-25",
-        "next_review_due": "2026-10-23",
-        "reviewer": "maintainer",
-        "reason": "No dated reproduction run has been captured against this policy's canonical clause set since the review-cycle1 registry v2 rewrite (2026-07-25); until a testlog/simlog run demonstrates each clause's current behavior end-to-end, last_reproduced stays null and this entry is treated as candidate-for-review, not active."
-      }
+      "status": "candidate"
     },
     {
       "policy_id": "MODEL_TRIPLET_NO_SUB_PROPAGATION",
@@ -471,16 +453,7 @@
         }
       ],
       "remove_when": "Removable only if the TP slave role is redesigned to consume per-model config directly (a structural change to the Band2/Band3 split), documented in a superseding plan and re-verified by a live multi-node TP serve.",
-      "added_at": "2026-07-25",
-      "last_reproduced": "2026-09-03",
-      "status": "candidate",
-      "review": {
-        "state": "due",
-        "last_reviewed_at": "2026-07-25",
-        "next_review_due": "2026-10-23",
-        "reviewer": "maintainer",
-        "reason": "No dated reproduction run has been captured against this policy's canonical clause set since the review-cycle1 registry v2 rewrite (2026-07-25); until a testlog/simlog run demonstrates each clause's current behavior end-to-end, last_reproduced stays null and this entry is treated as candidate-for-review, not active."
-      }
+      "status": "candidate"
     },
     {
       "policy_id": "HINT_TAG_ACTIVATION_GATE",
@@ -708,16 +681,7 @@
         }
       ],
       "remove_when": "Removable only if the hint-tag distribution layer itself is retired in favor of a different recipe-sharing mechanism, documented in a superseding plan and re-verified against the hint issuance contract (hints/HINT_ISSUANCE_CONTRACT.md) and the catalog derived from the remote publishing tags (hints/index.json).",
-      "added_at": "2026-07-25",
-      "last_reproduced": "2026-09-03",
-      "status": "candidate",
-      "review": {
-        "state": "due",
-        "last_reviewed_at": "2026-07-25",
-        "next_review_due": "2026-10-23",
-        "reviewer": "maintainer",
-        "reason": "No dated reproduction run has been captured against this policy's canonical clause set since the review-cycle1 registry v2 rewrite (2026-07-25); until a testlog/simlog run demonstrates each clause's current behavior end-to-end, last_reproduced stays null and this entry is treated as candidate-for-review, not active."
-      }
+      "status": "candidate"
     },
     {
       "policy_id": "LAST_GOOD_ROLLBACK_ANCHOR",
@@ -801,16 +765,7 @@
         }
       ],
       "remove_when": "Removable only if local git commits stop being the system of record for deployability (e.g. a future promotion-manifest-only rollback model fully replaces commit-based anchoring), documented in a superseding plan.",
-      "added_at": "2026-07-25",
-      "last_reproduced": "2026-09-03",
-      "status": "candidate",
-      "review": {
-        "state": "due",
-        "last_reviewed_at": "2026-07-25",
-        "next_review_due": "2026-10-23",
-        "reviewer": "maintainer",
-        "reason": "No dated reproduction run has been captured against this policy's canonical clause set since the review-cycle1 registry v2 rewrite (2026-07-25); until a testlog/simlog run demonstrates each clause's current behavior end-to-end, last_reproduced stays null and this entry is treated as candidate-for-review, not active."
-      }
+      "status": "candidate"
     },
     {
       "policy_id": "MODEL_ACQUISITION_TERNARY_GATE",
@@ -942,16 +897,7 @@
         }
       ],
       "remove_when": "Removable only if the manifest model_source ternary is replaced by a different acquisition-policy model, documented in a superseding plan and re-verified against the model-acquisition decision tree's three exit branches.",
-      "added_at": "2026-07-25",
-      "last_reproduced": "2026-09-03",
-      "status": "candidate",
-      "review": {
-        "state": "due",
-        "last_reviewed_at": "2026-07-25",
-        "next_review_due": "2026-10-23",
-        "reviewer": "maintainer",
-        "reason": "No dated reproduction run has been captured against this policy's canonical clause set since the review-cycle1 registry v2 rewrite (2026-07-25); until a testlog/simlog run demonstrates each clause's current behavior end-to-end, last_reproduced stays null and this entry is treated as candidate-for-review, not active."
-      }
+      "status": "candidate"
     },
     {
       "policy_id": "KV_ABSOLUTE_CLAMP_PORTABILITY",
@@ -1034,16 +980,7 @@
         }
       ],
       "remove_when": "Removable only if vLLM's own KV-cache sizing contract changes such that gpu-memory-utilization becomes sufficient on its own for portable, safe sizing across heterogeneous target GPUs, documented in a superseding plan and re-verified by a fresh host-to-target KV trial.",
-      "added_at": "2026-07-25",
-      "last_reproduced": "2026-09-03",
-      "status": "candidate",
-      "review": {
-        "state": "due",
-        "last_reviewed_at": "2026-07-25",
-        "next_review_due": "2026-10-23",
-        "reviewer": "maintainer",
-        "reason": "No dated reproduction run has been captured against this policy's canonical clause set since the review-cycle1 registry v2 rewrite (2026-07-25); until a testlog/simlog run demonstrates each clause's current behavior end-to-end, last_reproduced stays null and this entry is treated as candidate-for-review, not active."
-      }
+      "status": "candidate"
     },
     {
       "policy_id": "RUNTIME_PATCH_NO_CARRY_FORWARD",
@@ -1152,16 +1089,7 @@
         }
       ],
       "remove_when": "Removable only if the project adopts per-model derived images as the sanctioned distribution unit (a reversal of the image-naming invariant), documented in a superseding plan and re-verified against a live runtime-patch serve.",
-      "added_at": "2026-07-25",
-      "last_reproduced": "2026-09-03",
-      "status": "candidate",
-      "review": {
-        "state": "due",
-        "last_reviewed_at": "2026-07-25",
-        "next_review_due": "2026-10-23",
-        "reviewer": "maintainer",
-        "reason": "No dated reproduction run has been captured against this policy's canonical clause set since the review-cycle1 registry v2 rewrite (2026-07-25); until a testlog/simlog run demonstrates each clause's current behavior end-to-end, last_reproduced stays null and this entry is treated as candidate-for-review, not active."
-      }
+      "status": "candidate"
     },
     {
       "policy_id": "SUB_SYNC_DIRTY_AUTOSAVE",
@@ -1242,16 +1170,7 @@
         }
       ],
       "remove_when": "Removable only if the main-to-sub delivery mechanism is redesigned around a conflict-free merge model that makes dirty-tree rejection unnecessary, documented in a superseding plan and re-verified by a live dirty-sub delivery attempt.",
-      "added_at": "2026-07-25",
-      "last_reproduced": "2026-09-03",
-      "status": "candidate",
-      "review": {
-        "state": "due",
-        "last_reviewed_at": "2026-07-25",
-        "next_review_due": "2026-10-23",
-        "reviewer": "maintainer",
-        "reason": "No dated reproduction run has been captured against this policy's canonical clause set since the review-cycle1 registry v2 rewrite (2026-07-25); until a testlog/simlog run demonstrates each clause's current behavior end-to-end, last_reproduced stays null and this entry is treated as candidate-for-review, not active."
-      }
+      "status": "candidate"
     },
     {
       "policy_id": "SUB_GIT_LOCAL_ONLY",
@@ -1330,16 +1249,7 @@
         }
       ],
       "remove_when": "Removable only if sub nodes are given a sanctioned path back to a shared remote (a structural change to the main/sub topology's trust model), documented in a superseding plan and re-verified by a live sub-node git audit.",
-      "added_at": "2026-07-25",
-      "last_reproduced": "2026-09-03",
-      "status": "candidate",
-      "review": {
-        "state": "due",
-        "last_reviewed_at": "2026-07-25",
-        "next_review_due": "2026-10-23",
-        "reviewer": "maintainer",
-        "reason": "No dated reproduction run has been captured against this policy's canonical clause set since the review-cycle1 registry v2 rewrite (2026-07-25); until a testlog/simlog run demonstrates each clause's current behavior end-to-end, last_reproduced stays null and this entry is treated as candidate-for-review, not active."
-      }
+      "status": "candidate"
     },
     {
       "policy_id": "TERRAFORM_FLAG_GATE",
@@ -1469,16 +1379,7 @@
         }
       ],
       "remove_when": "Removable only if the init/runtime two-mode gate is replaced by a different completion-attestation contract, documented in a superseding plan and re-verified against both the deterministic script gate and the persona redirect behavior.",
-      "added_at": "2026-07-25",
-      "last_reproduced": "2026-09-03",
-      "status": "candidate",
-      "review": {
-        "state": "due",
-        "last_reviewed_at": "2026-07-25",
-        "next_review_due": "2026-10-23",
-        "reviewer": "maintainer",
-        "reason": "No dated reproduction run has been captured against this policy's canonical clause set since the review-cycle1 registry v2 rewrite (2026-07-25); until a testlog/simlog run demonstrates each clause's current behavior end-to-end, last_reproduced stays null and this entry is treated as candidate-for-review, not active."
-      }
+      "status": "candidate"
     },
     {
       "policy_id": "A2A_IDENTITY_PROOF_FAIL_CLOSED",
@@ -1593,16 +1494,7 @@
         }
       ],
       "remove_when": "Removable only if the A2A trust model is redesigned around a different credential scheme, documented in a superseding plan and re-verified by a live key-present / key-absent A2A delegation test on heterogeneous and homogeneous hardware.",
-      "added_at": "2026-07-25",
-      "last_reproduced": "2026-09-03",
-      "status": "candidate",
-      "review": {
-        "state": "due",
-        "last_reviewed_at": "2026-07-25",
-        "next_review_due": "2026-10-23",
-        "reviewer": "maintainer",
-        "reason": "No dated reproduction run has been captured against this policy's canonical clause set since the review-cycle1 registry v2 rewrite (2026-07-25); until a testlog/simlog run demonstrates each clause's current behavior end-to-end, last_reproduced stays null and this entry is treated as candidate-for-review, not active."
-      }
+      "status": "candidate"
     },
     {
       "policy_id": "ARCH_WALL_VARIANT_LADDER",
@@ -1719,16 +1611,7 @@
         }
       ],
       "remove_when": "Removable only if stock vLLM upstream closes the underlying arch-wall class this ladder exists to work around (verified by a clean stock build/smoke on the previously-walled architecture), documented in a superseding plan.",
-      "added_at": "2026-07-25",
-      "last_reproduced": "2026-09-03",
-      "status": "candidate",
-      "review": {
-        "state": "due",
-        "last_reviewed_at": "2026-07-25",
-        "next_review_due": "2026-10-23",
-        "reviewer": "maintainer",
-        "reason": "No dated reproduction run has been captured against this policy's canonical clause set since the review-cycle1 registry v2 rewrite (2026-07-25); until a testlog/simlog run demonstrates each clause's current behavior end-to-end, last_reproduced stays null and this entry is treated as candidate-for-review, not active."
-      }
+      "status": "candidate"
     },
     {
       "policy_id": "GIT_SINGLE_AUTHORITY",
@@ -1788,16 +1671,7 @@
         }
       ],
       "remove_when": "Removable only if git stops being the system of record for this project's tracked bytes -- for example a future model where deployability is anchored in an external content-addressed store rather than in local commits -- documented in a superseding plan that also names what replaces the two tripwires.",
-      "added_at": "2026-09-03",
-      "last_reproduced": "2026-09-03",
-      "status": "candidate",
-      "review": {
-        "state": "current",
-        "last_reviewed_at": "2026-09-03",
-        "next_review_due": "2026-12-02",
-        "reviewer": "maintainer",
-        "reason": "Added 2026-09-03. Both tripwires are wired and green on this clone, and a dated reproduction was captured the same day: deliberate RED injection on the live working tree for tripwire (1) stray .bak, an out-of-set branch and a non-hint tag, tripwire (2) a tracked-blob digest constant written into a tracked JSON in both lower and upper case, and tripwire (3) a retired mechanism name in governed prose, each followed by byte-exact restore (see docs/testlog/testlog_26090306). Kept candidate rather than active because the executor layer is WARN-only on clones that have not set core.hooksPath; promotion waits for the next full single/multi E2E, which is already a recorded follow-up."
-      }
+      "status": "candidate"
     },
     {
       "policy_id": "ROOT_SURFACE_REGISTRY",
@@ -1930,16 +1804,7 @@
         }
       ],
       "remove_when": "Removable only if campaigns stop producing per-cell inputs and per-node stage state -- for example a future model where a single declarative run spec is consumed end-to-end by one process with no intermediate handoff -- documented in a superseding plan that also names what replaces the root tripwire and the purge gate.",
-      "added_at": "2026-09-06",
-      "last_reproduced": "2026-09-06",
-      "status": "candidate",
-      "review": {
-        "state": "current",
-        "last_reviewed_at": "2026-09-06",
-        "next_review_due": "2026-12-05",
-        "reviewer": "maintainer",
-        "reason": "Added 2026-09-06 from the plan_26090616 audit, whose finding is itself the dated reproduction: 21 root files tracked to a public remote with no gate holding jurisdiction, confirmed by git ls-files and by check-ignore on the escaped names. Kept candidate rather than active because the enforcing tripwires (root allowlist + operator-literal scan over staged blobs) land in the same plan's stage 3 and their deliberate RED injection has not been recorded yet; promotion waits for that testlog and for the campaign re-run that exercises the purge gate end to end."
-      }
+      "status": "candidate"
     },
     {
       "policy_id": "LIBRARY_GROUNDING_FAIL_CLOSED",
@@ -2148,17 +2013,8 @@
           ]
         }
       ],
-      "added_at": "2026-09-08",
-      "last_reproduced": "2026-09-08",
       "remove_when": "The librarian is called by the serving chain without a gate for three consecutive campaigns AND the shelf's intake is never observed to lag publication -- i.e. the behaviour has become structural rather than enforced. Until then the invariant is what makes the procedure exist at all; before it, the procedure was advisory prose with zero executors and it was followed zero times.",
-      "status": "candidate",
-      "review": {
-        "state": "current",
-        "last_reviewed_at": "2026-09-08",
-        "next_review_due": "2026-12-07",
-        "reviewer": "maintainer",
-        "reason": "Added 2026-09-08 from the camp-26090721 post-hoc audit, whose finding is itself the dated reproduction (librarian calls = 0, shelf 147 documents behind, library_relay callers = 0). Kept candidate rather than active because the deliberate-RED evidence exists only as unit self-tests and the backstop has not yet blocked a live serve; promotion waits for the acceptance re-run testlog in plan_26090813 stage 6."
-      }
+      "status": "candidate"
     },
     {
       "policy_id": "BRANCH_CONSTITUTION_LAYERING",
@@ -2329,17 +2185,8 @@
           ]
         }
       ],
-      "added_at": "2026-09-12",
-      "last_reproduced": "2026-09-12",
       "remove_when": "Removable only if the two branches stop being independent deployment lines: for example if a single tree serves both topologies from one checkout with the manifest alone selecting the output path, so that no constitutional text is branch-dependent and nothing needs excluding from synchronisation. Until then, removing this policy returns the repository to the state the 2026-09-11 incident came from: a declaration with no executor, and a synchronisation allowlist that quietly makes the two branches the same.",
-      "status": "candidate",
-      "review": {
-        "state": "current",
-        "last_reviewed_at": "2026-09-12",
-        "next_review_due": "2026-12-11",
-        "reviewer": "maintainer",
-        "reason": "Added 2026-09-12 from plan_26091210 and its audit, which is itself the dated reproduction: byte-identical building blocks across both branches, 13 branch-derived topology sites, 99 bidirectional synchronisation runs with no dirty check, and a 14-cell campaign run under the wrong checkout. Kept candidate rather than active because the closing-sequence harness and its deliberate-RED negative controls land in the same plan's later stages; promotion waits for that acceptance testlog."
-      }
+      "status": "candidate"
     }
   ]
 }

@@ -7,15 +7,13 @@ pub mod argparse;
 pub mod cli;
 pub mod harness;
 pub mod pathutil;
-pub mod pydate;
 pub mod pyids;
 pub mod registry;
 pub mod selftest;
 pub mod value;
 
-pub use pydate::Date;
 pub use registry::{
-    as_of_state_violations, check_removal_eligibility, check_removal_full, citation_violations, claim_binding_violations,
+    check_removal_eligibility, check_removal_full, citation_violations, claim_binding_violations,
     clause_executable_evidence_violations, compute_contract_tree_sha256, evaluate_lifecycle, evidence_structural_violations,
     git_available, resolve_evidence_path, safe_load_json_object, scan_policy_citations, schema_meta_violations, schema_violations,
     Violation,

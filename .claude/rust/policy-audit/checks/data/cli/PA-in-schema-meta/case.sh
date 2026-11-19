@@ -1,7 +1,6 @@
 # shellcheck shell=bash
-# golden case
 PROG_KIND=policy_registry
-ARGS=(verify --as-of 2026-01-15 --registry "$ROOT/r/reg.json" --schema "$ROOT/s.json" --repo-root "$ROOT/r")
+ARGS=(verify --registry "$ROOT/r/reg.json" --schema "$ROOT/s.json" --repo-root "$ROOT/r")
 setup() {
 . "$SDIR/fixture_lib.sh"
 fx_synth || return 1

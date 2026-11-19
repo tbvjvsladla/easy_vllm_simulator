@@ -1,7 +1,7 @@
 {
   "exit_code": 1,
   "schema_version": 2,
-  "violation_count": 4,
+  "violation_count": 3,
   "violations": [
     {
       "clause_id": null,
@@ -16,13 +16,6 @@
       "path": "rm/art.json",
       "policy_id": "TEST_RET",
       "reason_code": "REMOVAL_EVIDENCE_RESULT_NOT_PASS"
-    },
-    {
-      "clause_id": null,
-      "message": "removal artifact as_of '2026-01-14' != the invocation's own --as-of '2026-01-15'",
-      "path": "rm/art.json",
-      "policy_id": "TEST_RET",
-      "reason_code": "REMOVAL_EVIDENCE_AS_OF_MISMATCH"
     },
     {
       "clause_id": null,

@@ -6,7 +6,7 @@ Rust port of `.claude/policies/runtime/policy_registry.py` (the registry validat
 | Original | Binary | Launcher |
 |---|---|---|
 | `policy_registry.py verify / check-removal / --self-test` | `policy_registry` | `.claude/policies/runtime/policy_registry.sh` |
-| `harness_verify.py [--as-of ...]` | `harness_verify` | `.claude/policies/runtime/harness_verify.sh` |
+| `harness_verify.py` | `harness_verify` | `.claude/policies/runtime/harness_verify.sh` |
 
 The launchers start the node-built release binary directly (`exec -a <same dir>/<name>.sh`: the argparse `prog` text names the
 launcher and the repository root is derived from the same directory); a missing binary is exit 2 with the build command
@@ -17,15 +17,16 @@ launcher and the repository root is derived from the same directory); a missing 
 
 `policy_audit::` re-exports, with the original's names and messages:
 
-- `Violation` (`reason_code`, `message`, `policy_id`, `clause_id`, `path`; `to_dict()`), `Date` (`datetime.date` incl.
-  CPython 3.12 `fromisoformat`)
+- `Violation` (`reason_code`, `message`, `policy_id`, `clause_id`, `path`; `to_dict()`)
 - `scan_policy_citations(text) -> Vec<(line, token)>`, `citation_violations(text, registry_doc, source_label)`
-- `as_of_state_violations(policies, as_of)`, `evaluate_lifecycle(doc, as_of, repo_root, Option<claim_bindings>)`,
+- `evaluate_lifecycle(doc, repo_root, Option<claim_bindings>)`,
   `claim_binding_violations(policies, claim_bindings)`, `evidence_structural_violations`, `clause_executable_evidence_violations`
 - `arch_variant_contract_violations(repo_root)`, `git_available(repo_root)` (`_git_available`), `resolve_evidence_path`
 - `schema_meta_violations`, `schema_violations`, `safe_load_json_object`, `compute_contract_tree_sha256`,
   `check_removal_eligibility`, `check_removal_full`, `extract_assertion_ids`
 - `self_test(repo_root)` (`policy_registry._self_test`)
+- No date rule and no clock (h20, 2026-11-19): the review-cycle state machine, the 90-day rules, the date-chronology rules and
+  `--as-of` are gone; the registry fields they read (`added_at`, `last_reproduced`, `review`) left the schema (v3).
 - `registry::policies_of(doc)` = `[p for p in doc["policies"] if isinstance(p, dict)]`
 
 ## Behaviour notes

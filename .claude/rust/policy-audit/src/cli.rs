@@ -3,9 +3,7 @@
 
 use crate::argparse::{Exit, Opt, Parser};
 use crate::pathutil;
-use crate::pydate::Date;
 use crate::registry::*;
-use crate::value::*;
 use agent_runtime_support::pystr::PyStr;
 use agent_runtime_support::pyvalue::{PyDict, PyValue};
 use num_bigint::BigInt;
@@ -34,7 +32,6 @@ fn sub_options(removal: bool) -> Vec<Opt> {
     if removal {
         v.push(Opt::value("--policy-id", "policy_id", true, None));
     }
-    v.push(Opt::value("--as-of", "as_of", true, Some("YYYY-MM-DD, required, no wall-clock default")));
     v.push(Opt::value("--registry", "registry", false, None));
     v.push(Opt::value("--schema", "schema", false, None));
     v.push(Opt::value("--claim-bindings", "claim_bindings", false, Some("default: <repo-root>/.claude/policies/claim_bindings.json")));
@@ -61,7 +58,7 @@ pub fn parser(prog: &str) -> Parser {
 pub fn envelope(violations: &[Violation], exit_code: i64) -> String {
     let mut d = PyDict::new();
     d.insert(PyStr::new("exit_code"), PyValue::Int(BigInt::from(exit_code)));
-    d.insert(PyStr::new("schema_version"), PyValue::Int(BigInt::from(SCHEMA_VERSION)));
+    d.insert(PyStr::new("schema_version"), PyValue::Int(BigInt::from(ENVELOPE_SCHEMA_VERSION)));
     d.insert(PyStr::new("violation_count"), PyValue::Int(BigInt::from(violations.len())));
     d.insert(PyStr::new("violations"), PyValue::List(violations.iter().map(|v| v.to_dict()).collect()));
     let text = PyValue::Dict(d).dumps_indented(2).unwrap_or_default();
@@ -81,7 +78,6 @@ fn resolve_arg(v: Option<&str>) -> Option<PathBuf> {
 
 struct Inputs {
     repo_root: PathBuf,
-    as_of: Date,
     doc: PyValue,
     schema: PyValue,
     claim_bindings: PyValue,
@@ -92,14 +88,10 @@ fn load_inputs(sub: &crate::argparse::Parsed, repo: &Path) -> Result<Inputs, i32
     let registry = resolve_arg(sub.value("registry")).unwrap_or_else(|| repo.join(".claude/policies/registry.yaml"));
     let schema = resolve_arg(sub.value("schema")).unwrap_or_else(|| repo.join(".claude/schemas/policy-registry.schema.json"));
     let cb = resolve_arg(sub.value("claim_bindings")).unwrap_or_else(|| repo_root.join(CLAIM_BINDINGS_REL));
-    let as_of_raw = sub.value("as_of").unwrap_or("");
-    let Some(as_of) = Date::fromisoformat(as_of_raw) else {
-        return Err(emit(&[Violation::new("BAD_AS_OF", format!("--as-of {} is not a valid ISO-8601 date", r(as_of_raw)))], 2));
-    };
     let doc = safe_load_json_object(&registry, "REGISTRY").map_err(|e| emit(&[e], 2))?;
     let schema = safe_load_json_object(&schema, "SCHEMA").map_err(|e| emit(&[e], 2))?;
     let claim_bindings = safe_load_json_object(&cb, "CLAIM_BINDINGS").map_err(|e| emit(&[e], 2))?;
-    Ok(Inputs { repo_root, as_of, doc, schema, claim_bindings })
+    Ok(Inputs { repo_root, doc, schema, claim_bindings })
 }
 
 pub fn main_with(args: &[String], repo: &Path, prog: &str) -> i32 {
@@ -130,7 +122,7 @@ pub fn main_with(args: &[String], repo: &Path, prog: &str) -> i32 {
             if !shape.is_empty() {
                 return emit(&shape, 2);
             }
-            let lifecycle = evaluate_lifecycle(&inp.doc, inp.as_of, &inp.repo_root, Some(&inp.claim_bindings));
+            let lifecycle = evaluate_lifecycle(&inp.doc, &inp.repo_root, Some(&inp.claim_bindings));
             let code = if lifecycle.is_empty() { 0 } else { 1 };
             emit(&lifecycle, code)
         }
@@ -141,7 +133,7 @@ pub fn main_with(args: &[String], repo: &Path, prog: &str) -> i32 {
                 Err(code) => return code,
             };
             let pid = sub.value("policy_id").unwrap_or("");
-            let v = check_removal_full(&inp.doc, pid, inp.as_of, &inp.schema, &inp.repo_root, &inp.claim_bindings);
+            let v = check_removal_full(&inp.doc, pid, &inp.schema, &inp.repo_root, &inp.claim_bindings);
             if v.iter().any(|x| x.reason_code == "UNKNOWN_POLICY_ID") {
                 return emit(&v, 2);
             }

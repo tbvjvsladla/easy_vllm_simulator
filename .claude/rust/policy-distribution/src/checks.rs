@@ -1,5 +1,4 @@
 //! `verify()` of verify_distribution.py: the static contract checks and the named child runs, in the original order.
-use crate::clock::{observe_as_of, AsOfRecord, UtcInstant};
 use crate::fsglob::{glob, glob_child_literal, rglob};
 use crate::pyassert::assert_lines;
 use crate::pytext::{
@@ -490,8 +489,8 @@ fn codex_discovery_selftest(repo: &Path) -> PyValue {
     }
 }
 
-/// `_policy_registry_check(policy_runner, record)` with the `_run` used (injectable so a self-test can capture argv).
-pub fn policy_registry_check_with<F>(policy_runner: &Path, repo: &Path, record: &AsOfRecord, runner: F) -> PyValue
+/// `_policy_registry_check(policy_runner)` with the `_run` used (injectable so a self-test can capture argv).
+pub fn policy_registry_check_with<F>(policy_runner: &Path, repo: &Path, runner: F) -> PyValue
 where
     F: FnOnce(&str, &[String], &[i64]) -> PyValue,
 {
@@ -499,24 +498,15 @@ where
         "bash".to_string(),
         policy_runner.to_string_lossy().into_owned(),
         "verify".into(),
-        "--as-of".into(),
-        record.as_of.clone(),
         "--repo-root".into(),
         repo.to_string_lossy().into_owned(),
     ];
-    let mut check = runner("policy_registry_verify", &argv, &[0]);
-    update(&mut check, vec![
-        ("as_of", s(&record.as_of)),
-        ("as_of_source", s(record.as_of_source)),
-        ("observed_utc", opt_str(&record.observed_utc)),
-        ("repro_as_of", s(&record.repro_as_of)),
-    ]);
-    check
+    runner("policy_registry_verify", &argv, &[0])
 }
 
 /// `_policy_registry_check` with the real `_run` (cwd = the repository).
-pub fn policy_registry_check(policy_runner: &Path, repo: &Path, record: &AsOfRecord) -> PyValue {
-    policy_registry_check_with(policy_runner, repo, record, |name, argv, expected| run(name, argv, expected, repo, &[]))
+pub fn policy_registry_check(policy_runner: &Path, repo: &Path) -> PyValue {
+    policy_registry_check_with(policy_runner, repo, |name, argv, expected| run(name, argv, expected, repo, &[]))
 }
 
 fn copytree_skipping(src: &Path, dst: &Path, skip: &[&Path]) -> Result<(), PyError> {
@@ -782,16 +772,14 @@ pub struct Hooks<'a> {
     pub flag_issued: &'a dyn Fn(&Path) -> bool,
 }
 
-/// `verify(policy_as_of, now_utc)`. Err(ValueError message) for a malformed reference date (exit 2), Uncaught for an
-/// exception the original does not catch (its traceback ends the run with exit 1).
-pub fn verify(repo: &Path, policy_as_of: Option<&str>, now_utc: Option<UtcInstant>) -> Result<Result<PyValue, Uncaught>, String> {
-    let record = observe_as_of(policy_as_of, now_utc)?;
+/// `verify()`. Uncaught for an exception the original does not catch (its traceback ends the run with exit 1).
+pub fn verify(repo: &Path) -> Result<PyValue, Uncaught> {
     let hooks = Hooks { run: &run, gitless: &gitless_hint_match_checks, flag_issued: &terraform_flag_issued };
-    Ok(verify_with(repo, record, &hooks))
+    verify_with(repo, &hooks)
 }
 
-/// `verify()` after the reference-date observation, with explicit seams.
-pub fn verify_with(repo: &Path, record: AsOfRecord, hooks: &Hooks) -> Result<PyValue, Uncaught> {
+/// `verify()` with explicit seams.
+pub fn verify_with(repo: &Path, hooks: &Hooks) -> Result<PyValue, Uncaught> {
     let run = |name: &str, argv: &[String], expected: &[i64], cwd: &Path, env: &[(&str, &str)]| (hooks.run)(name, argv, expected, cwd, env);
     let rr = |name: &str, argv: &[&str], expected: &[i64]| run(name, &args(argv), expected, repo, &[]);
     let mut checks: Vec<PyValue> = Vec::new();
@@ -1137,7 +1125,7 @@ pub fn verify_with(repo: &Path, record: AsOfRecord, hooks: &Hooks) -> Result<PyV
 
     let policy_runner = repo.join(POLICY_REGISTRY_LAUNCHER);
     if policy_runner.is_file() {
-        checks.push(policy_registry_check_with(&policy_runner, repo, &record, |n, a, e| run(n, a, e, repo, &[])));
+        checks.push(policy_registry_check_with(&policy_runner, repo, |n, a, e| run(n, a, e, repo, &[])));
     } else {
         checks.push(dict(vec![("name", s("policy_registry_verify")), ("ok", b(false)),
                               ("error", s(&format!("missing {POLICY_REGISTRY_LAUNCHER}")))]));
@@ -1171,12 +1159,9 @@ pub fn verify_with(repo: &Path, record: AsOfRecord, hooks: &Hooks) -> Result<PyV
     }
 
     let all_ok = checks.iter().all(check_ok);
-    let record_v = dict(vec![("as_of", s(&record.as_of)), ("as_of_source", s(record.as_of_source)),
-                             ("observed_utc", opt_str(&record.observed_utc)), ("repro_as_of", s(&record.repro_as_of))]);
     Ok(dict(vec![
         ("schema_version", PyValue::int(1)),
         ("repo", s(&repo.to_string_lossy())),
-        ("policy_as_of", record_v),
         ("verdict", s(if all_ok { "PASS" } else { "FAIL" })),
         ("checks", PyValue::List(checks)),
     ]))

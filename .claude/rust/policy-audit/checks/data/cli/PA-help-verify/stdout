@@ -1,11 +1,9 @@
-usage: policy_registry.sh verify [-h] --as-of AS_OF [--registry REGISTRY]
-                                 [--schema SCHEMA]
+usage: policy_registry.sh verify [-h] [--registry REGISTRY] [--schema SCHEMA]
                                  [--claim-bindings CLAIM_BINDINGS]
                                  [--repo-root REPO_ROOT]
 
 options:
   -h, --help            show this help message and exit
-  --as-of AS_OF         YYYY-MM-DD, required, no wall-clock default
   --registry REGISTRY
   --schema SCHEMA
   --claim-bindings CLAIM_BINDINGS

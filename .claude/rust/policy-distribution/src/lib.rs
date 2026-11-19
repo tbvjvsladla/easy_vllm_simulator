@@ -4,7 +4,6 @@
 //! `.py` programs now run their Rust launchers (see README.md); every other bundle's program runs unchanged.
 pub mod checks;
 pub mod cli;
-pub mod clock;
 pub mod fsglob;
 pub mod pyassert;
 pub mod pytext;
@@ -17,13 +16,7 @@ pub use checks::{
     policy_registry_check_with, shell_array, shipped_python_paths, tracked_scratch_paths, verify, verify_with, walk_strings,
     Hooks,
 };
-pub use clock::{observe_as_of, AsOfRecord, UtcInstant};
 pub use runner::run;
-
-/// `observe_policy_as_of` (`_observe_policy_as_of` of the original).
-pub fn observe_policy_as_of(explicit: Option<&str>, now_utc: Option<UtcInstant>) -> Result<AsOfRecord, String> {
-    clock::observe_as_of(explicit, now_utc)
-}
 
 /// A Python dict literal in insertion order.
 pub fn dict(items: Vec<(&str, PyValue)>) -> PyValue {

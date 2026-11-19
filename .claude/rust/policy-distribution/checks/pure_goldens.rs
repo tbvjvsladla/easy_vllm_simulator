@@ -3,7 +3,7 @@
 use agent_runtime_support::pyjson;
 use agent_runtime_support::pyvalue::{float_repr, PyValue};
 use policy_distribution::checks::{verify_with, Hooks};
-use policy_distribution::{dict, list_ints, observe_policy_as_of, ordered_between_detail, shell_array, shipped_python_paths, UtcInstant};
+use policy_distribution::{dict, list_ints, ordered_between_detail, shell_array, shipped_python_paths};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -237,9 +237,8 @@ fn stub_report(tree: &Path, py: &str) -> PyValue {
         ]
     };
     let flag = |_: &Path| false;
-    let record = observe_policy_as_of(Some("2026-11-16"), None).unwrap();
     let hooks = Hooks { run: &run, gitless: &gitless, flag_issued: &flag };
-    let report = verify_with(tree, record, &hooks).expect("no uncaught exception");
+    let report = verify_with(tree, &hooks).expect("no uncaught exception");
     norm(&report, tree, py)
 }
 
@@ -270,7 +269,7 @@ fn compare_reports(golden_name: &str, mutate: bool) {
     let py = "/usr/bin/python3-golden-stub";
     let got = stub_report(&tree.0, py);
     let want = get(&g, "report");
-    for key in ["schema_version", "repo", "policy_as_of", "verdict"] {
+    for key in ["schema_version", "repo", "verdict"] {
         assert_eq!(dumps(get(&got, key)), dumps(get(want, key)), "{golden_name}: top-level {key}");
     }
     let gc: Vec<PyValue> = items(get(&got, "checks")).into_iter().filter(|c| !ADDED_CHECKS.contains(&st(get(c, "name")).as_str())).collect();
@@ -450,35 +449,11 @@ fn shell_arrays_and_order_detail_match() {
 }
 
 #[test]
-fn reference_date_observation_matches() {
-    for case in items(&golden("clock.json")) {
-        let got = match policy_distribution::get(&case, "explicit") {
-            Some(e) => observe_policy_as_of(Some(&st(e)), None),
-            None => {
-                let secs = match get(&case, "unix").peel() {
-                    PyValue::Int(n) => n.to_string().parse::<i64>().unwrap(),
-                    _ => panic!(),
-                };
-                let micros = match get(&case, "micros").peel() {
-                    PyValue::Int(n) => n.to_string().parse::<u32>().unwrap(),
-                    _ => panic!(),
-                };
-                observe_policy_as_of(None, Some(UtcInstant::from_unix(secs, micros)))
-            }
-        };
-        match policy_distribution::get(&case, "error") {
-            Some(e) => assert_eq!(got.unwrap_err(), st(e)),
-            None => {
-                let r = got.unwrap();
-                let v = dict(vec![
-                    ("as_of", PyValue::str(&r.as_of)),
-                    ("as_of_source", PyValue::str(r.as_of_source)),
-                    ("observed_utc", policy_distribution::opt_str(&r.observed_utc)),
-                    ("repro_as_of", PyValue::str(&r.repro_as_of)),
-                ]);
-                assert_eq!(dumps(&v), dumps(get(&case, "value")));
-            }
-        }
+fn the_retired_policy_as_of_option_is_a_usage_error() {
+    for args in [&["--policy-as-of", "2026-11-16"][..], &["--policy-as-of=2026-11-16"][..], &["--pol", "2026-11-16"][..]] {
+        let mut argv = vec!["verify_distribution.sh".to_string()];
+        argv.extend(args.iter().map(|a| a.to_string()));
+        assert_eq!(policy_distribution::cli::main_with(argv), 2, "{args:?}");
     }
 }
 

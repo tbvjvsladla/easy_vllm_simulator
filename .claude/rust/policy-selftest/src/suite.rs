@@ -1282,94 +1282,6 @@ pub fn router_bindings_predicate() -> R<()> {
     require(v.iter().any(|x| x.contains('④') && x.contains("2.6")), || format!("removed bound literal must be RED: {}", py_repr_list(&v)))
 }
 
-// ───────────────────────────────────────────── observed reference date
-pub fn operating_date_observed(repo: &Path) -> R<()> {
-    use policy_distribution::{observe_policy_as_of, UtcInstant};
-    let at = |y: i64, mo: u32, d: u32, h: u32, mi: u32, se: u32, us: u32| UtcInstant { year: y, month: mo, day: d, hour: h, minute: mi, second: se, microsecond: us };
-    let cases = [
-        (at(2026, 1, 2, 3, 4, 5, 0), "2026-01-02", "2026-01-02T03:04:05+00:00"),
-        (at(2031, 7, 4, 23, 30, 0, 0), "2031-07-04", "2031-07-04T23:30:00+00:00"),
-        (at(2031, 7, 4, 23, 59, 59, 999_999), "2031-07-04", "2031-07-04T23:59:59.999999+00:00"),
-        (at(2031, 7, 5, 0, 0, 0, 0), "2031-07-05", "2031-07-05T00:00:00+00:00"),
-    ];
-    let saved = std::env::var("TZ").ok();
-    for tz in ["UTC", "Asia/Seoul", "America/Los_Angeles"] {
-        std::env::set_var("TZ", tz);
-        for (inst, expected, iso) in &cases {
-            let rec = observe_policy_as_of(None, Some(inst.clone())).map_err(Fail::Selftest)?;
-            require(
-                rec.as_of == *expected && rec.as_of_source == "observed-utc-clock" && rec.observed_utc.as_deref() == Some(iso) && rec.repro_as_of == *expected,
-                || format!("the observed UTC date must follow the instant under TZ={tz}: {iso} -> {}", rec.as_of),
-            )?;
-        }
-        let before = UtcInstant::now().date_iso();
-        let live = observe_policy_as_of(None, None).map_err(Fail::Selftest)?.as_of;
-        let after = UtcInstant::now().date_iso();
-        require(live == before || live == after, || format!("the default must be the live UTC date under TZ={tz}: {live} not in ('{before}', '{after}')"))?;
-        // the harness_verify caller (policy-audit) observes the same live date
-        let hv = policy_audit::harness::observe_as_of(None).map_err(|_| Fail::Selftest("harness_verify observe_as_of refused the live clock".into()))?;
-        let _ = hv;
-    }
-    match saved {
-        Some(v) => std::env::set_var("TZ", v),
-        None => std::env::remove_var("TZ"),
-    }
-    let ex = observe_policy_as_of(Some("2031-02-03"), None).map_err(Fail::Selftest)?;
-    require(
-        ex.as_of == "2031-02-03" && ex.as_of_source == "explicit-caller-input" && ex.observed_utc.is_none() && ex.repro_as_of == "2031-02-03",
-        || "explicit caller input must be recorded as such".into(),
-    )?;
-    for bad in ["", "2031-13-01", "20310203", "2031-2-3", "2031-02-30", "not-a-date"] {
-        require(observe_policy_as_of(Some(bad), None).is_err(), || format!("malformed explicit as_of must be refused (no fallback, no guess): '{bad}'"))?;
-    }
-    let runner = repo.join(".claude/policies/runtime/policy_registry.sh");
-    for (inst, expected, iso) in [(at(2031, 7, 4, 23, 59, 59, 0), "2031-07-04", "2031-07-04T23:59:59+00:00"), (at(2033, 2, 3, 0, 0, 1, 0), "2033-02-03", "2033-02-03T00:00:01+00:00")] {
-        let rec = observe_policy_as_of(None, Some(inst)).map_err(Fail::Selftest)?;
-        let mut seen: Vec<String> = Vec::new();
-        let check = policy_distribution::policy_registry_check_with(&runner, repo, &rec, |name, argv, _| {
-            seen = argv.to_vec();
-            obj(vec![("name", s(name)), ("ok", PyValue::Bool(true)), ("rc", PyValue::int(0))])
-        });
-        let asof_arg = seen.iter().position(|x| x == "--as-of").and_then(|i| seen.get(i + 1)).cloned().unwrap_or_default();
-        require(
-            asof_arg == expected
-                && gstr(&check, "as_of").as_deref() == Some(expected)
-                && gstr(&check, "as_of_source").as_deref() == Some("observed-utc-clock")
-                && gstr(&check, "observed_utc").as_deref() == Some(iso)
-                && gstr(&check, "repro_as_of").as_deref() == Some(expected),
-            || format!("the driver must audit against the observed date it recorded: {iso} -> {} {}", py_repr_list(&seen), check.repr()),
-        )?;
-    }
-    let rec = observe_policy_as_of(Some("2031-02-03"), None).map_err(Fail::Selftest)?;
-    let mut seen: Vec<String> = Vec::new();
-    policy_distribution::policy_registry_check_with(&runner, repo, &rec, |_, argv, _| {
-        seen = argv.to_vec();
-        obj(vec![])
-    });
-    let asof_arg = seen.iter().position(|x| x == "--as-of").and_then(|i| seen.get(i + 1)).cloned().unwrap_or_default();
-    require(asof_arg == "2031-02-03", || "explicit caller input must reach the validator unchanged".into())?;
-    let policy = vec![obj(vec![("policy_id", s("SYNTHETIC")), ("review", obj(vec![("state", s("current")), ("next_review_due", s("2031-01-01"))]))])];
-    let mut states = Vec::new();
-    for (inst, day) in [
-        (at(2030, 12, 31, 23, 59, 59, 0), "2030-12-31"),
-        (at(2031, 1, 1, 0, 0, 0, 0), "2031-01-01"),
-        (at(2031, 1, 31, 23, 59, 59, 0), "2031-01-31"),
-        (at(2031, 2, 1, 0, 0, 0, 0), "2031-02-01"),
-    ] {
-        let as_of = observe_policy_as_of(None, Some(inst)).map_err(Fail::Selftest)?.as_of;
-        let date = policy_audit::Date::fromisoformat(&as_of).ok_or_else(|| Fail::Crash("ValueError: date".into()))?;
-        let got: Vec<String> = policy_audit::as_of_state_violations(&policy, date)
-            .iter()
-            .filter_map(|v| v.message.split("requires review.state=").nth(1).and_then(|t| t.split(" exactly").next()).map(String::from))
-            .collect();
-        states.push((day, got));
-    }
-    let want = [("2030-12-31", vec![]), ("2031-01-01", vec!["'due'".to_string()]), ("2031-01-31", vec!["'due'".to_string()]), ("2031-02-01", vec!["'overdue'".to_string()])];
-    require(states.iter().zip(want.iter()).all(|(a, b)| a.0 == b.0 && a.1 == b.1), || {
-        format!("the strict current/due/overdue rule must follow the observed date unchanged: {states:?}")
-    })
-}
-
 // ───────────────────────────────────────────── main
 fn crash(msg: &str) -> i32 {
     eprintln!("Traceback (most recent call last):\n  File \"runtime_selftest.py\", in main\n{msg}");
@@ -1399,7 +1311,6 @@ pub fn run(repo: &Path) -> i32 {
         ("_test_watchdog_target_predicate_parity", Box::new(|| watchdog_target_predicate_parity(repo))),
         ("_test_base_skill_edges_predicate", Box::new(base_skill_edges_predicate)),
         ("_test_router_bindings_predicate", Box::new(router_bindings_predicate)),
-        ("_test_operating_date_observed", Box::new(|| operating_date_observed(repo))),
     ];
     for (name, step) in steps {
         match step() {

@@ -5,10 +5,10 @@
   "violations": [
     {
       "clause_id": null,
-      "message": "--as-of 'today' is not a valid ISO-8601 date",
+      "message": "invalid command-line invocation: unrecognized arguments: --as-of today",
       "path": null,
       "policy_id": null,
-      "reason_code": "BAD_AS_OF"
+      "reason_code": "CLI_USAGE_ERROR"
     }
   ]
 }

@@ -1,5 +1,4 @@
 # shellcheck shell=bash
-# golden case
 PROG_KIND=policy_registry
-ARGS=(check-removal --as-of nope)
+ARGS=(check-removal)
 ENVS=(COLUMNS=80)
