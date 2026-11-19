@@ -1,0 +1,10 @@
+{
+  "drift_fields": [],
+  "hw_check": "skipped:no-observed",
+  "manifest_path": "./output/single/manifest.yaml",
+  "notes": [],
+  "preflight_required": false,
+  "reasons": [
+    "FRESH"
+  ]
+}

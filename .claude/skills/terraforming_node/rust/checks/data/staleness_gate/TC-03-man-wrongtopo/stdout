@@ -1,0 +1,13 @@
+{
+  "drift_fields": [],
+  "hw_check": "blocked:invalid-input",
+  "invalid_fields": [
+    "topology"
+  ],
+  "manifest_path": "./output/multi/manifest.yaml",
+  "notes": [],
+  "preflight_required": true,
+  "reasons": [
+    "MANIFEST_INVALID"
+  ]
+}

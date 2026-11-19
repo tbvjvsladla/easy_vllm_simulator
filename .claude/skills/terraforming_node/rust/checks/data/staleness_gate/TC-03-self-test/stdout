@@ -1,0 +1,25 @@
+PASS fresh → preflight 불요 — ['FRESH']
+PASS manifest 부재 → MANIFEST_ABSENT
+PASS Flag 미발급 → FLAG_ABSENT
+PASS HW 드리프트 → HW_DRIFT + 필드명 보고 — ['gpus_per_node']
+PASS single + interconnect 발산(미사용 선언 ↔ 실측 RoCE) → HW_DRIFT 미발생 — ['FRESH'] drift=[] notes=['single-node: interconnect 6필드는 HW 비교 대상 제외(분산서빙 미사용 · scan_node.evaluate_gate 와 동일 의미론)']
+PASS single interconnect 제외가 다른 HW 축을 가리지 않음 — ['gpus_per_node']
+PASS single + interconnect 일치 → 제외 note 는 그대로 표기(침묵 아님) — ['single-node: interconnect 6필드는 HW 비교 대상 제외(분산서빙 미사용 · scan_node.evaluate_gate 와 동일 의미론)']
+PASS 축 생략은 음성정직 표기
+PASS 불명 scanned_at 은 fail-closed
+PASS single + sub-control 로스터 → 유효(HW 축 도달) — ['FRESH'] hw=evaluated
+PASS single dormant(nodes:[]) → 여전히 유효
+PASS ★single main 단독 로스터(서브 미등록) → 유효 · HW 축 도달 — ['FRESH'] hw=evaluated inv=None
+PASS single 로스터에 main 부재 → nodes.roster fail-closed — ['nodes.roster']
+PASS single 로스터 main 중복 → nodes.roster fail-closed — ['nodes.roster']
+PASS multi 정상 로스터 → 유효(규칙 불변) — ['FRESH']
+PASS multi 로스터에 sub 부재 → fail-closed(완화되지 않음) — ['nodes.roster']
+PASS multi + interconnect 발산 → 여전히 HW_DRIFT(4필드 보고) — ['interconnect.gid_index', 'interconnect.hca_devices', 'interconnect.socket_iface', 'interconnect.type'] notes=[]
+PASS multi + interconnect 일치 → FRESH
+PASS topology 갈림(single 선언 ↔ multi 관측) → 제외 미적용·fail-closed — ['interconnect.gid_index', 'interconnect.hca_devices', 'interconnect.socket_iface', 'interconnect.type', 'topology']
+PASS top-level driver bump → HW_DRIFT + 필드명 보고 — ['driver_version']
+PASS driver 일치 → 드리프트 아님(비교가 실제로 물린다의 음성 대조) — ['FRESH']
+PASS 서브 driver bump → nodes[1].driver_version HW_DRIFT — ['nodes[1].driver_version']
+PASS 한쪽만 driver_version 보유 → 무드리프트가 아니라 드리프트(침묵 폴드 금지) — ['nodes[0].driver_version', 'nodes[1].driver_version']
+PASS 결정론(동일 입력 → 동일 출력)
+--- 24/24 PASS

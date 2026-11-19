@@ -1,0 +1,13 @@
+{
+  "drift_fields": [],
+  "hw_check": "blocked:invalid-input",
+  "invalid_fields": [
+    "$"
+  ],
+  "manifest_path": "./output/single/manifest.yaml",
+  "notes": [],
+  "preflight_required": true,
+  "reasons": [
+    "OBSERVED_INVALID"
+  ]
+}
