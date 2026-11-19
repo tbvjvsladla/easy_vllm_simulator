@@ -49,7 +49,6 @@ pub fn in_data_plane(path: &str) -> bool {
     DATA_PLANES.iter().any(|plane| path.starts_with(plane))
 }
 
-/// The surface a tracked path has by its name alone; `None` leaves the shebang to decide.
 pub fn surface_by_name(path: &str) -> Option<Surface> {
     let name = path.rsplit('/').next().unwrap_or(path);
     if name.ends_with(".rs") {
@@ -63,8 +62,6 @@ pub fn surface_by_name(path: &str) -> Option<Surface> {
     }
 }
 
-/// The first line is `#!<interpreter> …` and the interpreter (through `env`, its options and assignments skipped)
-/// is a shell (its name ends in `sh`).
 pub fn is_shell_script(head: &[u8]) -> bool {
     let Some(first) = head.split(|b| *b == b'\n').next().and_then(|l| l.strip_prefix(b"#!")) else { return false };
     let first = String::from_utf8_lossy(first.strip_suffix(b"\r").unwrap_or(first)).into_owned();

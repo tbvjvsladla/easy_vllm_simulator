@@ -80,8 +80,6 @@ pub fn text_reads(text: &str) -> Vec<String> {
     text.lines().flat_map(line_reads).collect()
 }
 
-/// The reads of one program started with an argv (a Rust `Command` chain): `None` stands for an argument that is not
-/// a string literal. The argv is quoted back into one shell line, so a `bash -c`/`ssh` body is read again.
 pub fn argv_reads(program: &str, args: &[Option<&str>]) -> Vec<String> {
     let mut line = quote(program);
     for arg in args {
@@ -99,7 +97,6 @@ fn quote(word: &str) -> String {
     }
 }
 
-/// True when a date value names a time relative to now; `@epoch` and a lone variable (`$t`, `${t}`) are given times.
 pub fn is_relative_to_now(value: &str) -> bool {
     let value = value.trim();
     if value.starts_with('@') || is_lone_variable(value) {
