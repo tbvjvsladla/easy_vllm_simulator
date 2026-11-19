@@ -57,8 +57,6 @@ fn with_path(mut head: Vec<OsString>, path: &Path, tail: &[&str]) -> Vec<OsStrin
     head
 }
 
-/// The arguments of `broad_search.sh cell` up to the options that differ: state, cell key, config, citation, intent
-/// and budget.
 fn cell_head(state: &Path, key: &str, config: &str) -> Vec<OsString> {
     let mut words = arguments(&["cell", "--state"]);
     words.push(state.as_os_str().to_os_string());
@@ -77,7 +75,6 @@ fn cell_head(state: &Path, key: &str, config: &str) -> Vec<OsString> {
     words
 }
 
-/// The options of a measuring cell: backend, shape reasons, one level, clock, topology and the risk confirmation.
 fn measuring_tail(extra: &[OsString]) -> Vec<OsString> {
     let mut words = arguments(&["--backend", "openai"]);
     words.extend(KNOB_REASONS.map(OsString::from));
@@ -122,8 +119,6 @@ fn init_command(sweep_id: &str, state: &Path, cells: &str, topology: &str) -> Ve
     words
 }
 
-/// The bytes and modification time (ns) of every regular file under a directory, by relative path
-/// (`{str(p.relative_to(path)): (p.read_bytes(), p.stat().st_mtime_ns) for p in path.rglob("*") if p.is_file()}`).
 fn tree_bytes(root: &Path) -> Result<BTreeMap<String, (Vec<u8>, i128)>, Raised> {
     let mut files = BTreeMap::new();
     collect_files(root, root, &mut files)?;
@@ -179,7 +174,6 @@ impl Program<'_, '_> {
         self.sb.run(command, plan)
     }
 
-    /// `cell(key, cfg, plan_, *extra)`: a measuring cell on the state file `bs.json`.
     fn cell(
         &self,
         key: &str,
@@ -193,7 +187,6 @@ impl Program<'_, '_> {
         self.broad(words, Some(plan))
     }
 
-    /// `record(key, path)`: the last cell record of that key in a state file, `{}` when there is none.
     fn record(&self, key: &str, path: &Path) -> Result<PyValue, Raised> {
         let document = load_object(path);
         let cells = or_default(get(&document, "cells")?, PyValue::List(Vec::new()));
@@ -206,7 +199,6 @@ impl Program<'_, '_> {
         Ok(found)
     }
 
-    /// B1 init, B6, B1 cell and B2.
     pub(crate) fn broad_search_wiring(&mut self) -> Outcome {
         self.sb.clear_events();
         let state = self.bs_state();
@@ -304,7 +296,6 @@ impl Program<'_, '_> {
         )
     }
 
-    /// B6: the cross-node tolerance pair is checked before the cell starts (measuring and `--serve-failed`).
     fn tolerance_pair_before_load(&mut self, state: &Path) -> Outcome {
         self.sb.reset_calls()?;
         self.sb.config("cfg-ba", "single")?;
@@ -367,7 +358,6 @@ impl Program<'_, '_> {
         )
     }
 
-    /// O1–O6: an explicit new sweep path keeps the earlier measurement's bytes and paths.
     pub(crate) fn new_output_paths(&mut self) -> Outcome {
         let old_dir = self.sb.sweep_dir("cfg-ba", "single");
         let old_tree = tree_bytes(&old_dir)?;
@@ -451,7 +441,6 @@ impl Program<'_, '_> {
         self.concurrent_claim(&old_dir, &old_tree, &fresh)
     }
 
-    /// O3, O4 and O5: an existing explicit path, escapes, a symlink; and a reassembly of the new path.
     fn explicit_path_rejections(
         &mut self,
         old_dir: &Path,
@@ -549,7 +538,6 @@ impl Program<'_, '_> {
         )
     }
 
-    /// O6: two calls claim the same new path at once; `mkdir` lets exactly one through.
     fn concurrent_claim(
         &mut self,
         old_dir: &Path,
@@ -593,7 +581,6 @@ impl Program<'_, '_> {
         )
     }
 
-    /// B3, B8, B4, B5 and B7: the cell records after the output-path group.
     pub(crate) fn broad_cells_and_legacy_state(&mut self) -> Outcome {
         let state = self.bs_state();
         let kill = dict_of(vec![("fail", dict_of(vec![("1:2", st("kill"))]))]);
@@ -620,7 +607,6 @@ impl Program<'_, '_> {
         self.serve_failed_main_node(&state)
     }
 
-    /// B8: a lite ② cell loads nothing from the earlier sweep that sits in the directory.
     fn lite_server_failed_cell(&mut self, state: &Path) -> Outcome {
         let b8 = self.sb.campaign_dir().join("sweeps").join("b8.json");
         let mut document = match crate::sweep_repeats_fixture::Sandbox::load(state) {
@@ -693,7 +679,6 @@ impl Program<'_, '_> {
         )
     }
 
-    /// B4 and B5: a state file without a declared repeat count stops a new cell and not the read paths.
     fn legacy_state_without_repeats(&mut self, state: &Path) -> Outcome {
         let legacy = self.sb.campaign_dir().join("sweeps").join("legacy.json");
         let mut document = Sandbox::load(state)
@@ -761,7 +746,6 @@ impl Program<'_, '_> {
         )
     }
 
-    /// B7: a `--serve-failed` cell names this node by the owner rule (a manifest without `self_role`).
     fn serve_failed_main_node(&mut self, state: &Path) -> Outcome {
         self.sb.clear_events();
         let serve_started = utc_after_run_start(-60)?;
@@ -806,7 +790,6 @@ impl Program<'_, '_> {
         )
     }
 
-    /// M1 and M2: the multi-node wiring from `sweep_bench` to the decision owner, and the cell closing.
     pub(crate) fn multi_node(&mut self) -> Outcome {
         self.sb.clear_events();
         write_str(
@@ -964,7 +947,6 @@ impl Program<'_, '_> {
         self.serve_failed_multi(&mirror)
     }
 
-    /// M2: a multi-node `--serve-failed` cell hands the declared tolerance to the closing classification.
     fn serve_failed_multi(&mut self, mirror: &Path) -> Outcome {
         self.sb.clear_events();
         let _ = std::fs::remove_dir_all(self.sb.root().join("sync_staging"));
@@ -1042,7 +1024,6 @@ impl Program<'_, '_> {
         )
     }
 
-    /// `campaign_init.sh --cell-set KEY --outcome OUTCOME --sweep-state STATE --utc <injected now>` in the sandbox.
     fn cell_set(&self, key: &str, outcome: &str, state: &Path) -> Result<TextRun, Raised> {
         let mut command = vec![
             OsString::from("bash"),
@@ -1057,9 +1038,6 @@ impl Program<'_, '_> {
         self.sb.run(command, None)
     }
 
-    /// C1–C4 (plan_26111708 B L12): a standalone `sweep_bench.sh --campaign-cell` run leaves, in the campaign's `sweeps/`
-    /// (derived from `campaigns/ACTIVE`), the cell record `campaign_init --cell-set --sweep-state` reads — on both
-    /// topologies; outside a campaign it writes nothing; a failed measurement is recorded as the classifier closes it.
     pub(crate) fn campaign_cell_records(&mut self) -> Outcome {
         self.sb.declare(Some(3))?;
         self.sb.clear_events();
@@ -1173,7 +1151,6 @@ impl Program<'_, '_> {
     }
 }
 
-/// `{"tpot": {"1": [..]}}`: the shim plan that sets the first level's per-run TPOT.
 fn tpot_plan(values: &[f64]) -> PyValue {
     dict_of(vec![(
         "tpot",
@@ -1191,7 +1168,6 @@ fn relative_text(root: &Path, path: &Path) -> String {
         .into_owned()
 }
 
-/// `{k: record.get(k) for k in keys}`.
 fn pick(record: &PyValue, keys: &[&str]) -> Result<PyValue, Raised> {
     let mut picked = PyDict::new();
     for key in keys {
@@ -1200,7 +1176,6 @@ fn pick(record: &PyValue, keys: &[&str]) -> Result<PyValue, Raised> {
     Ok(PyValue::Dict(picked))
 }
 
-/// `document.update(key=value, ...)`: existing keys keep their place, new ones are appended.
 fn update_keys(document: &mut PyValue, entries: Vec<(&str, PyValue)>) -> Result<(), Raised> {
     match document {
         PyValue::Dict(map) => {
@@ -1216,7 +1191,6 @@ fn update_keys(document: &mut PyValue, entries: Vec<(&str, PyValue)>) -> Result<
     }
 }
 
-/// `document["declared_budget"].pop(key)` for each key: a missing key is a `KeyError`.
 fn remove_from_declared_budget(document: &mut PyValue, keys: &[&str]) -> Result<(), Raised> {
     let PyValue::Dict(map) = document else {
         return Err(Raised::new(
@@ -1233,8 +1207,6 @@ fn remove_from_declared_budget(document: &mut PyValue, keys: &[&str]) -> Result<
     Ok(())
 }
 
-/// `dict.pop(key)` on a loaded object: the object without that key (the order of the rest kept); a missing key is
-/// a `KeyError`, a value that is no dict has no `pop`.
 fn pop_required(value: &PyValue, key: &str) -> Result<PyValue, Raised> {
     match value.peel() {
         PyValue::Dict(map) if map.contains_key(key) => {
@@ -1251,7 +1223,6 @@ fn pop_required(value: &PyValue, key: &str) -> Result<PyValue, Raised> {
     }
 }
 
-/// The entry of a node in `events_scan.nodes`: `next((e for e in ... if e.get("node") == node), {})`.
 fn node_entry(record: &PyValue, node: &str) -> Result<PyValue, Raised> {
     let nodes = or_default(
         get(&get_obj(record, "events_scan")?, "nodes")?,
@@ -1265,7 +1236,6 @@ fn node_entry(record: &PyValue, node: &str) -> Result<PyValue, Raised> {
     Ok(empty_object())
 }
 
-/// `mstatus(record, node)`-style lookup: the field of the node's entry, `None` when the node is not listed.
 fn node_field(record: &PyValue, node: &str, field: &str) -> Result<PyValue, Raised> {
     let nodes = or_default(
         get(&get_obj(record, "events_scan")?, "nodes")?,

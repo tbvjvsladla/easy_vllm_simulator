@@ -19,7 +19,6 @@ use std::collections::BTreeMap;
 pub const DEFAULT_ALLOWLIST: &str = ".claude/rust/py-boundary-guard/verdict_clock_allowlist.tsv";
 pub const CLASSES: [&str; 4] = ["runtime-fact", "record-only", "not-time", "transitional"];
 
-/// Frozen data planes: recorded outputs and fixtures, never the harness itself.
 const DATA_PLANES: [&str; 2] = ["/checks/data/", ".claude/rust/parity/data/"];
 const PERIOD_UNITS: [&str; 3] = ["DAYS", "WEEKS", "MONTHS"];
 
@@ -29,7 +28,6 @@ pub struct Finding {
     pub text: String,
 }
 
-/// `…_DAYS`, `…_WEEKS`, `…_MONTHS` in any case; the bare unit (`days`) is a quantity, not a named period.
 pub fn is_period_name(name: &str) -> bool {
     let upper = name.to_ascii_uppercase();
     PERIOD_UNITS.iter().any(|unit| upper.ends_with(&format!("_{unit}")) && upper.len() > unit.len() + 1)
@@ -48,7 +46,6 @@ fn in_data_plane(path: &str) -> bool {
         .any(|plane| path.contains(plane) || path.starts_with(plane.trim_start_matches('/')))
 }
 
-/// Which reader a tracked file goes to (`head` = its first bytes, for the shebang of an extensionless script).
 pub fn surface(path: &str, head: &[u8]) -> Option<Surface> {
     if in_data_plane(path) {
         return None;
@@ -122,7 +119,6 @@ pub fn parse_allowlist(text: &str) -> Result<Vec<Row>, String> {
     Ok(rows)
 }
 
-/// Reads by (path, text): their lines, in file order.
 pub type Found = BTreeMap<(String, String), Vec<usize>>;
 
 pub struct Verdict {

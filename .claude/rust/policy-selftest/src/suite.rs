@@ -86,7 +86,6 @@ fn expect_fail(r: R<()>) -> R<Option<String>> {
     }
 }
 
-// ───────────────────────────────────────────── bare asserts
 pub fn assert_offenders(root: &Path) -> R<Vec<String>> {
     let mut out = Vec::new();
     for path in tw::walk_governing_files(root, "*.py") {
@@ -108,7 +107,6 @@ pub fn no_production_asserts(root: &Path) -> R<()> {
     require(off.is_empty(), || format!("bare assert is optimization-unsafe: {}", py_repr_list(&off)))
 }
 
-// ───────────────────────────────────────────── nested worktree isolation
 pub fn nested_worktree_isolation() -> R<()> {
     let td = TempDir::new();
     let root = std::fs::canonicalize(td.path()).unwrap();
@@ -234,7 +232,6 @@ pub fn nested_worktree_isolation() -> R<()> {
     body
 }
 
-// ───────────────────────────────────────────── completion gate
 fn schema_dir(repo: &Path) -> PathBuf {
     repo.join(".claude/schemas")
 }
@@ -273,7 +270,6 @@ pub fn completion_gate(repo: &Path) -> R<()> {
             py_repr_list(&side_enum)
         )
     })?;
-    // a non-local $ref is refused by the one schema engine
     let refschema = obj(vec![("$ref", s("https://invalid.example/ref"))]);
     let out = agent_runtime_support::schema::validate_against_schema(&PyValue::None, &refschema);
     require(matches!(&out, Err(e) if e.class == "ValueError"), || "completion gate accepted a non-local $ref".into())?;
@@ -301,7 +297,6 @@ fn libc_o_dir() -> i32 {
     libc::O_RDONLY | libc::O_DIRECTORY
 }
 
-// ───────────────────────────────────────────── promotion fixtures
 const PROMO_CERTIFICATE: &str = "schema_version: 1
 record_type: benchmark_certificate
 verdict: PASS
@@ -463,7 +458,6 @@ fn gate_launcher(repo: &Path) -> PathBuf {
     repo.join(".claude/policies/runtime/completion_gate.sh")
 }
 
-/// `completion_gate verify --manifest M --repo-root ROOT` through the launcher: parsed stdout + `_returncode`.
 fn gate_verify(repo: &Path, root: &Path, manifest: &Path, strict: bool) -> R<PyValue> {
     let o = gitx::run("bash", &[&ps(&gate_launcher(repo)), "verify", "--manifest", &ps(manifest), "--repo-root", &ps(root)], Some(root), None);
     match agent_runtime_support::pyjson::loads(&o.text()) {
@@ -718,7 +712,6 @@ pub fn certificate_waiver_by_authority(repo: &Path) -> R<()> {
     })?;
     let dup = bench_report_with_verdict_table("PASS", "explore").replace("| 루브릭 권한 | explore |", "| 루브릭 권한 | explore |\n| verdict | REFUTE |");
     require(g::bench_report_verdict_table(Some(&dup)).1.starts_with("unparseable"), || "duplicate verdict row not rejected".into())?;
-    // U4: the installed writer's actual output fed to its consumer
     let writer = repo.join(".claude/skills/adversarial-benchmark/scripts/bench_reporting_api.sh");
     let payload = "{\"id\": \"writer-contract\", \"operation\": \"render_report.build_md\", \"arguments\": {\"index\": {\"meta\": {}, \"levels\": []}, \"verdict\": {\"verdict\": \"PASS\", \"rubric\": {\"authority\": \"explore\"}}, \"roofline\": null}}\n";
     let o = gitx::run("bash", &[&ps(&writer), "evaluate-jsonl"], None, Some(payload.as_bytes()));
@@ -834,7 +827,6 @@ pub fn hint_map_only_promotion(repo: &Path) -> R<()> {
     require(!has(&out, "EVIDENCE_SIMLOG_RUN_UNTERMINATED"), || format!("a bench-genre vault was blocked by a trial-genre rule: {}", out.repr()))
 }
 
-// ───────────────────────────────────────────── policy registry · evidence publisher · agent control
 pub fn policy_and_evidence_lifecycle(repo: &Path) -> R<()> {
     require(policy_audit::scan_policy_citations("policy:SELFTEST_OK") == vec![(1, "SELFTEST_OK".to_string())], || {
         "policy citation broad scanner failed its canonical positive".into()
@@ -842,7 +834,6 @@ pub fn policy_and_evidence_lifecycle(repo: &Path) -> R<()> {
     require(policy_audit::scan_policy_citations("xpolicy:NOT_A_CITATION").is_empty(), || {
         "policy citation scanner accepted an embedded token".into()
     })?;
-    // the original redirected their stdout; both are run as the owners expose them
     let o = gitx::run("bash", &[&ps(&repo.join(".claude/policies/runtime/policy_registry.sh")), "--self-test"], None, None);
     require(o.code == 0, || "policy registry self-test did not return 0".into())?;
     let o = gitx::run("bash", &[&ps(&repo.join(".claude/policies/runtime/evidence_publisher.sh")), "--self-test"], None, None);
@@ -858,7 +849,6 @@ pub const AGENT_CONTROL_REL: &str = ".claude/skills/terraforming_node/scripts/ag
 pub fn agent_control_owner_selftest(repo: &Path) -> R<()> {
     let script = repo.join(AGENT_CONTROL_REL);
     require(script.is_file(), || format!("agent_control owner script missing: {}", ps(&script)))?;
-    // another bundle's program, through its launcher (no interpreter)
     let script_s = ps(&script);
     let refs: Vec<&str> = vec![script_s.as_str(), "--self-test"];
     let o = gitx::run("bash", &refs, None, None);
@@ -1045,7 +1035,6 @@ pub fn execution_approval_authorization(repo: &Path) -> R<()> {
     })
 }
 
-// ───────────────────────────────────────────── tripwire kernels (hermetic)
 pub fn duplicate_certificate_predicate() -> R<()> {
     let base = "schema_version: 1\nrecord_type: benchmark_certificate\nverdict: PASS\nmodel: m\ngpu_model: \"NVIDIA GB10\"\nvllm_version: 0.18.0\nquantization: mxfp4\ntopology: single\ntensor_parallel_size: 1\n";
     let a = format!("{base}measured_utc: \"2026-09-03T12:00:00Z\"\n");
@@ -1242,7 +1231,6 @@ pub fn base_skill_edges_predicate() -> R<()> {
     write(&a, &format!("P = \".claude/{sk}/s1/scripts/x.py\"\n"));
     let v = tw::base_skill_edge_violations(&r)?;
     require(v.iter().any(|x| x.contains("phase/reason")), || format!("reasonless row must be RED: {}", py_repr_list(&v)))?;
-    // plan_26111615 pass 3: the edge plane is the launchers + the Rust policy sources; a harness .py is not a caller.
     write(&r.join(tw::BASE_SKILL_EDGES_REL), &ledger("fixture"));
     write(&r.join(".claude/policies/runtime/old.py"), &format!("P = \".claude/{sk}/s3/scripts/z.py\"\n"));
     write(&r.join(".claude/rust/policy-x/src/new.rs"), &format!("const P: &str = \".claude/{sk}/s4/src/w.rs\";\n"));
@@ -1282,7 +1270,6 @@ pub fn router_bindings_predicate() -> R<()> {
     require(v.iter().any(|x| x.contains('④') && x.contains("2.6")), || format!("removed bound literal must be RED: {}", py_repr_list(&v)))
 }
 
-// ───────────────────────────────────────────── main
 fn crash(msg: &str) -> i32 {
     eprintln!("Traceback (most recent call last):\n  File \"runtime_selftest.py\", in main\n{msg}");
     1

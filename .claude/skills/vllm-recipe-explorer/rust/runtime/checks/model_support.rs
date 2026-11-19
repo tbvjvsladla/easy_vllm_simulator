@@ -221,7 +221,6 @@ pub struct Fixture {
 /// Answers added to the capture's: a path and the body it gets (status 200).
 pub type Route = (String, Vec<u8>);
 
-/// What the capture's handler answered for a path: status, body.
 fn canned(path: &str, extra: &[Route]) -> (u16, Vec<u8>) {
     if let Some((_, body)) = extra.iter().find(|(route, _)| route == path) {
         return (200, body.clone());
@@ -242,7 +241,6 @@ fn canned(path: &str, extra: &[Route]) -> (u16, Vec<u8>) {
     (status, body)
 }
 
-/// Reads one request head from a stream and answers it as the capture's handler did (over plain TCP or TLS).
 fn serve_stream<S: Read + Write>(mut stream: S, requests: &Mutex<Vec<Seen>>, extra: &[Route]) {
     let mut head: Vec<u8> = Vec::new();
     let mut byte = [0u8; 1];
@@ -305,7 +303,6 @@ fn serve_stream<S: Read + Write>(mut stream: S, requests: &Mutex<Vec<Seen>>, ext
     }
 }
 
-/// How a connection is wrapped before it is served.
 type Wrap = dyn Fn(TcpStream, &Mutex<Vec<Seen>>, &[Route]) + Send + Sync;
 
 fn run_listener(
@@ -779,7 +776,6 @@ fn base64_value(byte: u8) -> Option<u32> {
     }
 }
 
-/// The DER bytes of the first PEM block of the given kind in a file.
 fn pem_block(path: &Path, label: &str) -> Vec<u8> {
     let text = std::fs::read_to_string(path).expect("a PEM file");
     let begin = format!("-----BEGIN {label}-----");

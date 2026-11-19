@@ -72,8 +72,6 @@ pub fn line_reads(line: &str) -> Vec<String> {
     reads
 }
 
-/// A git date that git resolves against the current time (`2.weeks`, `3 days ago`, `yesterday`); an absolute stamp or an
-/// interpolated value is a given time.
 fn is_relative_to_now(value: &str) -> bool {
     let value = value.to_ascii_lowercase();
     RELATIVE_DATE_WORDS.iter().any(|word| value.contains(word))
@@ -83,7 +81,6 @@ fn is_name_char(c: char) -> bool {
     c.is_ascii_alphanumeric() || c == '_'
 }
 
-/// The byte index just after the last character of `text` that matches `pred` (0 when none does).
 fn after_last(text: &str, pred: impl Fn(char) -> bool) -> usize {
     text.char_indices()
         .rev()
@@ -91,7 +88,6 @@ fn after_last(text: &str, pred: impl Fn(char) -> bool) -> usize {
         .map_or(0, |(at, c)| at + c.len_utf8())
 }
 
-/// The byte ranges of `word` in `code` bounded by non-name characters (and not by `-` or `.`).
 fn word_spans<'a>(code: &'a str, word: &'a str) -> impl Iterator<Item = (usize, usize)> + 'a {
     code.match_indices(word).filter_map(move |(at, _)| {
         let before = code[..at].chars().next_back();
@@ -114,7 +110,6 @@ fn is_assignment(word: &str) -> bool {
     }
 }
 
-/// The text before a command word with leading assignments (`TZ=UTC LC_ALL=C date`) removed.
 fn before_assignments(left: &str) -> &str {
     let mut rest = left.trim_end();
     loop {
@@ -140,7 +135,6 @@ fn is_command_position(left: &str) -> bool {
     COMMAND_PREFIX_WORDS.contains(&last)
 }
 
-/// The arguments of a command: the text up to the first unquoted `)`, backtick, `;`, `|`, `&`, `<` or `>`.
 fn argument_text(rest: &str) -> (&str, &str) {
     let (mut single, mut double) = (false, false);
     for (at, c) in rest.char_indices() {
@@ -154,7 +148,6 @@ fn argument_text(rest: &str) -> (&str, &str) {
     (rest, "")
 }
 
-/// `date -d`, `--date`, `-f`, `--file` (short clusters too, `-ud`) convert a given time instead of reading the clock.
 fn converts_given_time(arguments: &str) -> bool {
     arguments.split_whitespace().any(|word| {
         let word = word.trim_start_matches(['\'', '"']);
@@ -245,7 +238,6 @@ fn period_assignments(code: &str, reads: &mut Vec<String>) {
     }
 }
 
-/// The line without a trailing shell comment: a `#` after whitespace, outside single/double quotes.
 fn strip_trailing_comment(line: &str) -> &str {
     let (mut single, mut double, mut after_space, mut escaped) = (false, false, true, false);
     for (at, c) in line.char_indices() {
@@ -270,8 +262,6 @@ fn strip_trailing_comment(line: &str) -> &str {
 mod tests {
     use super::line_reads;
 
-    /// One case per row: a shell line, then the reads it must give (none = no read). The cases live in the data plane
-    /// so that this source holds no shell clock read of its own.
     const CASES: &str = include_str!("../../checks/data/verdict_clock/shell_lines.tsv");
 
     #[test]

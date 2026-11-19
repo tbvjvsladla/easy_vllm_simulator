@@ -66,7 +66,6 @@ fn err_line(text: &str) {
 /// Run a launcher with bash in `repo` (stdio inherited); the returncode as Python reports it (negative = signal).
 fn run_stage(repo: &Path, launcher: &Path, args: &[String], out: &mut Out) -> i32 {
     if !launcher.is_file() {
-        // keep stdout order as the original (its prints are still pending in the buffer)
         err_line(&format!("[harness_verify] ERROR stage launcher is missing (no Python fallback): {}", launcher.display()));
         return 2;
     }

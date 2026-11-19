@@ -80,9 +80,6 @@ impl Violation {
     }
 }
 
-// ── regex-equivalents ─────────────────────────────────────────────────────────────────────────
-
-/// `re.match(r"^...$")` semantics: `$` also matches before one trailing newline.
 fn strip_one_nl(s: &str) -> &str {
     s.strip_suffix('\n').unwrap_or(s)
 }
@@ -139,7 +136,6 @@ pub fn scan_policy_citations(text: &str) -> Vec<(usize, String)> {
     out
 }
 
-/// `(?<=[A-Za-z0-9_가-힣])policy:([A-Z][A-Z0-9_]*)(?![A-Za-z0-9_-])` (backtracking: the id may shorten to satisfy the lookahead).
 fn embedded_policy_citations(text: &str) -> Vec<(usize, String)> {
     let chars: Vec<char> = text.chars().collect();
     let lit: Vec<char> = "policy:".chars().collect();
@@ -153,7 +149,6 @@ fn embedded_policy_citations(text: &str) -> Vec<(usize, String)> {
                 while j < chars.len() && (chars[j].is_ascii_uppercase() || chars[j].is_ascii_digit() || chars[j] == '_') {
                     j += 1;
                 }
-                // greedy, then backtrack until the lookahead holds
                 let mut end = j;
                 loop {
                     let next = chars.get(end).copied();
@@ -248,8 +243,6 @@ pub fn citation_violations(text: &str, registry_doc: &PyValue, source_label: Opt
     out
 }
 
-// ── safe loading ──────────────────────────────────────────────────────────────────────────────
-
 fn py_type_name(v: &PyValue) -> &'static str {
     v.type_name()
 }
@@ -277,7 +270,6 @@ pub fn safe_load_json_object(path: &Path, label: &str) -> Result<PyValue, Violat
                 other => other.to_string(),
             };
             if matches!(e, pyjson::LoadError::IntegerTooLong { .. }) {
-                // ValueError other than JSONDecodeError escapes the original's handler; reported the same way here.
             }
             return Err(Violation::new(format!("{label}_INVALID_JSON"), format!("{shown} is not valid JSON: {msg}")));
         }
@@ -290,8 +282,6 @@ pub fn safe_load_json_object(path: &Path, label: &str) -> Result<PyValue, Violat
     }
     Ok(doc)
 }
-
-// ── schema ────────────────────────────────────────────────────────────────────────────────────
 
 const SUPPORTED_TYPES: &[&str] = &["object", "array", "string", "integer", "number", "boolean", "null"];
 const UNSUPPORTED_KEYWORDS: &[&str] = &["oneOf", "anyOf", "not", "patternProperties", "pattern", "additionalItems"];
@@ -432,8 +422,6 @@ pub fn schema_violations(doc: &PyValue, schema: &PyValue) -> Vec<Violation> {
     }
 }
 
-// ── per-policy checks ─────────────────────────────────────────────────────────────────────────
-
 fn pol_path(pid: &PyValue, tail: &str) -> String {
     format!("$.policies[{}]{tail}", py_str(pid))
 }
@@ -512,7 +500,6 @@ pub fn is_substantive(v: &PyValue) -> bool {
     if stripped.chars().count() < MIN_SUBSTANTIVE_LEN {
         return false;
     }
-    // re.findall(r"[A-Za-z0-9가-힣]+")
     let mut words = 0;
     let mut in_word = false;
     for c in stripped.chars() {
@@ -612,8 +599,6 @@ pub fn retirement_metadata_closure_violations(policies: &[PyValue]) -> Vec<Viola
     }
     out
 }
-
-// ── git-native evidence resolution ───────────────────────────────────────────────────────────
 
 /// `_git_available(repo_root)`
 pub fn git_available(repo_root: &Path) -> bool {
@@ -1001,10 +986,6 @@ pub fn claim_binding_violations(policies: &[PyValue], claim_bindings: &PyValue) 
                 continue;
             }
             if !cid_s.starts_with("TEST_") {
-                // The dedicated predicate is the Rust `predicate_<cid>` fn of the claim predicates port
-                // (`.claude/rust/policy-predicates/src/claims*.rs`; the original required the retired
-                // `claim_predicates.py`). Which `claims*.rs` file is free; that the id really is a line-start fn of
-                // that file is the ordinary evidence check (EVIDENCE_ASSERTION_ID_NOT_FOUND / path resolution).
                 let want_id = format!("predicate_{}", cid_s.replace('.', "_"));
                 let found = act.iter().any(|(p, a)| {
                     as_str(a).as_deref() == Some(want_id.as_str()) && as_str(p).as_deref().map_or(false, is_claim_predicate_source)
@@ -1024,8 +1005,6 @@ pub fn claim_binding_violations(policies: &[PyValue], claim_bindings: &PyValue) 
     }
     out
 }
-
-// ── lifecycle ─────────────────────────────────────────────────────────────────────────────────
 
 pub fn policies_of(doc: &PyValue) -> Vec<PyValue> {
     or_items(get(doc, "policies")).into_iter().filter(is_dict).collect()
@@ -1050,8 +1029,6 @@ pub fn evaluate_lifecycle(doc: &PyValue, repo_root: &Path, claim_bindings: Optio
     }
     out
 }
-
-// ── removal ───────────────────────────────────────────────────────────────────────────────────
 
 fn sha256_hex(bytes: &[u8]) -> String {
     let mut h = Sha256::new();
@@ -1192,8 +1169,6 @@ pub fn check_removal_full(doc: &PyValue, policy_id: &str, schema: &PyValue, repo
     let expected = compute_contract_tree_sha256(doc, schema, claim_bindings, repo_root, artifact.as_deref());
     check_removal_eligibility(policy, repo_root, Some(&expected))
 }
-
-// ── misc used by the arch contract ────────────────────────────────────────────────────────────
 
 pub fn read_text(path: &Path) -> Result<String, String> {
     match std::fs::read(path) {

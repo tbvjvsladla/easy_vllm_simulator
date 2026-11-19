@@ -14,7 +14,6 @@ use std::path::{Path, PathBuf};
 
 pub const EXPECTED_SKILLS: [&str; 6] = [
     "adversarial-benchmark",
-    // hint 발행 sidecar(2026-08-20 · plan_26082009).
     "hint-publisher",
     "terraforming_node",
     "upstream-version-watch",
@@ -226,8 +225,6 @@ fn git_out(repo: &Path, a: &[&str]) -> Option<std::process::Output> {
     std::process::Command::new("git").arg("-C").arg(repo).args(a).output().ok()
 }
 
-/// `_terraform_flag_issued()` — the Flag reader is the terraforming bundle's program (its native launcher
-/// `manifest_contract.sh`; the retired `manifest_contract.py` is no longer run).
 fn terraform_flag_issued(repo: &Path) -> bool {
     let mc = repo.join(".claude/skills/terraforming_node/scripts/manifest_contract.sh");
     if !mc.is_file() {
@@ -540,8 +537,6 @@ fn gitless_hint_match_checks(repo: &Path) -> Vec<PyValue> {
     };
     let root = td.0.clone();
     let prepared = (|| -> Result<PyValue, PyError> {
-        // The skill tree minus its node-local cargo `target/` (build outputs, not the skill), then the one release
-        // executable the match runs (the delivered program of hint.sh).
         copytree_skipping(&repo.join(skill), &root.join(skill), &[&repo.join(skill).join("rust/target")])?;
         let bin_rel = format!("{skill}/rust/target/release/hint");
         fs::create_dir_all(root.join(&bin_rel).parent().unwrap()).map_err(|e| os_error(&e, &bin_rel))?;
@@ -586,8 +581,6 @@ fn gitless_hint_match_checks(repo: &Path) -> Vec<PyValue> {
         }
     };
     let (pv, pm, pa, pt) = (field(probe, "vllm").unwrap(), field(probe, "model").unwrap(), field(probe, "arch").unwrap(), field(probe, "tag").unwrap());
-    // The single hint CLI is the Rust `hint` (hint.sh = `HINT_SKILL_DIR=<skill> exec <skill>/rust/target/release/hint`).
-    // It is started directly because the launcher itself needs `dirname` from PATH, and PATH is cut on purpose here.
     let skill_dir = root.join(skill).to_string_lossy().into_owned();
     let gitless = [("PATH", "/nonexistent"), ("HINT_SKILL_DIR", skill_dir.as_str())];
     let cli = vec![root.join(format!("{skill}/rust/target/release/hint")).to_string_lossy().into_owned(), "match".into(), "--vllm".into(), pv.clone(), "--model".into(), pm.clone()];
@@ -883,7 +876,6 @@ pub fn verify_with(repo: &Path, hooks: &Hooks) -> Result<PyValue, Uncaught> {
                           ("paths", list_strs(&build_assets.iter().map(|p| rel(p, repo)).collect::<Vec<_>>()))]));
 
     let node_identity_keys = ["MASTER_HOST_IP", "SLAVE_HOST_IP", "SSH_USER"];
-    // The four generic deploy patterns are the canonical ones (docs.md §PII 정본 = hint-publisher `pii`; plan_26111708 A5).
     let pii = hintlib::pii::GENERIC_PII();
     let mut content_defects: Vec<String> = Vec::new();
     let content = (|| -> Result<(), PyError> {
@@ -1005,14 +997,11 @@ pub fn verify_with(repo: &Path, hooks: &Hooks) -> Result<PyValue, Uncaught> {
         ("ok", b(!skeleton_text.contains("`scripts/doc_naming.py`") && skeleton_text.contains(".claude/policies/runtime/doc_naming.sh")))]));
 
     let tn = ".claude/skills/terraforming_node/scripts";
-    // hint-publisher: its Rust launchers (was `python3 hint.py --self-test` / `render_bench_section.py --selftest`); the
-    // image-git-release unittest module is the hint crate's `artifacts_cases::image_git_release` check (plan_26111615).
     checks.push(rr("hint_selftest", &["bash", HINT_LAUNCHER, "--self-test"], &[0]));
     checks.push(rr("hint_image_git_release_selftest", &["bash", ".claude/skills/terraforming_node/scripts/rust_bootstrap.sh", "exec", "--",
                     "cargo", "test", "--offline", "--locked", "--release", "--manifest-path", ".claude/skills/hint-publisher/rust/Cargo.toml",
                     "--target-dir", ".claude/skills/hint-publisher/rust/target", "--test", "artifacts_cases", "image_git_release"], &[0]));
     checks.push(rr("hint_bench_section_selftest", &["bash", ".claude/skills/hint-publisher/scripts/render_bench_section.sh", "--selftest"], &[0]));
-    // terraforming core contracts: their Rust launchers (was `python3 <x>.py --self-test`; pass 2 of plan_26111615).
     checks.push(rr("terraform_scan_selftest_legacy", &["bash", &format!("{tn}/scan_node.sh"), "--self-test"], &[0]));
     checks.push(rr("terraform_scan_p1_native_selfcheck", &["bash", &format!("{tn}/scan_node.sh"), "--p1-self-check"], &[0]));
     checks.push(rr("terraform_render_selftest", &["bash", &format!("{tn}/render_sub_env.sh"), "--self-test"], &[0]));
@@ -1020,7 +1009,6 @@ pub fn verify_with(repo: &Path, hooks: &Hooks) -> Result<PyValue, Uncaught> {
     checks.push(rr("terraform_library_access_selftest", &["bash", &format!("{tn}/library_access.sh"), "--self-test"], &[0]));
     checks.push(rr("terraform_staleness_gate_selftest", &["bash", &format!("{tn}/staleness_gate.sh"), "--self-test"], &[0]));
     checks.push(rr("terraform_manifest_contract_selftest", &["bash", &format!("{tn}/manifest_contract.sh"), "--self-test"], &[0]));
-    // policy programs: their Rust launchers (was `python3 <x>.py --self-test`).
     checks.push(rr("antipattern_scan_selftest", &["bash", ANTIPATTERN_SCAN_LAUNCHER, "--self-test"], &[0]));
     checks.push(rr("constitution_lint_selftest", &["bash", CONSTITUTION_LINT_LAUNCHER, "--self-test"], &[0]));
     checks.push(rr("agent_control_selftest", &["bash", &format!("{tn}/agent_control.sh"), "--self-test"], &[0]));
@@ -1043,7 +1031,6 @@ pub fn verify_with(repo: &Path, hooks: &Hooks) -> Result<PyValue, Uncaught> {
     checks.push(rr("verdict_clock_scan_selftest", &["bash", VERDICT_CLOCK_SCAN_LAUNCHER, "--self-test"], &[0]));
     checks.extend((hooks.gitless)(repo));
     let uw = ".claude/skills/upstream-version-watch/scripts";
-    // upstream-version-watch 진입점은 Rust 런처(.sh → 노드 빌드 ELF)다 — .py 원본을 부르지 않는다(plan_26111615).
     checks.push(rr("upstream_slave_forward_selftest", &["bash", &format!("{uw}/slave_forward.sh"), "--self-test"], &[0]));
     checks.push(rr("upstream_render_dockerfile_selftest", &["bash", &format!("{uw}/render_dockerfile.sh"), "--self-test"], &[0]));
     for filename in ["resolve_torch_pin.sh", "resolve_ngc_tag.sh", "resolve_build_track.sh", "resolve_wheel.sh", "render_dockerfile.sh",
@@ -1118,7 +1105,6 @@ pub fn verify_with(repo: &Path, hooks: &Hooks) -> Result<PyValue, Uncaught> {
 
     let wd = ".claude/skills/wiki-desk";
     checks.push(run("wiki_node_test", &args(&["node", "--test"]), &[0], &repo.join(wd), &[]));
-    // 승격된 frontmatter 검사(plan_26111707) — 추적물이라 fresh clone 에서도 돈다 · YAML 1.1 오라클은 Rust(`wiki-desk/rust`).
     checks.push(run("wiki_frontmatter_check", &args(&["node", "--test", "checks/frontmatter.check.ts"]), &[0], &repo.join(wd), &[]));
     checks.push(rr("wiki_doc_naming_selftest", &["node", &format!("{wd}/src/doc_naming.ts"), "--self-test"], &[0]));
     checks.push(rr("doc_naming_shim_selftest", &["bash", DOC_NAMING_LAUNCHER, "--self-test"], &[0]));
@@ -1136,8 +1122,6 @@ pub fn verify_with(repo: &Path, hooks: &Hooks) -> Result<PyValue, Uncaught> {
         Ok(t) => {
             checks.push(order_check("single_up_grounding_before_any_state", &t,
                 "echo \"$TAG 1/7 통로·전제      : DONE", "echo \"$TAG 3/7 예산 선언       : DONE\"",
-                // single_serve_up.sh now names the Rust launchers directly (`$_CI` = campaign_init.sh · `$SESSION_SH` =
-                // blackbox_session.sh); the order contract is unchanged: grounding, then the RAM gate, then the budget declaration.
                 &["bash \"$_CI\" --grounding-check", "check_smoke_model.sh\" \"$CONFIG\"", "bash \"$SESSION_SH\" \"${DECL_ARGS[@]}\""]));
             checks.push(order_check("single_up_engine_log_saved_before_rollback", &t,
                 "echo \"$TAG 7/7 health 대기     : FAIL — 컨테이너가 종료됐다\"", "rollback; exit 5",
@@ -1166,4 +1150,3 @@ pub fn verify_with(repo: &Path, hooks: &Hooks) -> Result<PyValue, Uncaught> {
         ("checks", PyValue::List(checks)),
     ]))
 }
-

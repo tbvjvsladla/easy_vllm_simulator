@@ -70,7 +70,6 @@ fn line(token: &TokenTree) -> usize {
     token.span().start().line
 }
 
-/// `use std::process::Command as Cmd;` anywhere in the file makes `Cmd` a name of `Command`.
 fn command_aliases(tokens: &[TokenTree]) -> Vec<String> {
     let mut names = vec!["Command".to_string()];
     collect_aliases(tokens, &mut names);
@@ -90,7 +89,6 @@ fn collect_aliases(tokens: &[TokenTree], names: &mut Vec<String>) {
     }
 }
 
-/// `#[doc = …]` / `#![doc = …]` (what `///` and `//!` become): the length to skip at `at`, or 0.
 fn doc_attribute_len(tokens: &[TokenTree], at: usize) -> usize {
     if !is_punct(tokens.get(at), '#') {
         return 0;
@@ -105,7 +103,6 @@ fn doc_attribute_len(tokens: &[TokenTree], at: usize) -> usize {
     }
 }
 
-/// The path that ends at `at` (`std::time::SystemTime` for the `SystemTime` ident), joined with `::`.
 fn path_ending_at(tokens: &[TokenTree], at: usize) -> String {
     let mut segments = vec![tokens[at].to_string()];
     let mut end = at;
@@ -149,7 +146,6 @@ impl Walker {
         }
     }
 
-    /// `extern "C" {` / `extern {` / `unsafe extern "C" {`: the brace group at `at` is a foreign block.
     fn opens_extern_block(&self, tokens: &[TokenTree], at: usize) -> bool {
         match at.checked_sub(1).map(|i| &tokens[i]) {
             Some(TokenTree::Ident(i)) => i == "extern",
@@ -189,7 +185,6 @@ impl Walker {
         }
     }
 
-    /// `Command::new("date")`: `name` at `at` is `Command` or an alias of it.
     fn command_new_date(&mut self, tokens: &[TokenTree], at: usize, here: usize) {
         if !(is_path_separator(tokens, at + 2) && ident(tokens.get(at + 3)).as_deref() == Some("new")) {
             return;
@@ -215,7 +210,6 @@ impl Walker {
     }
 }
 
-/// The value of a string or byte-string literal (`"…"`, `r#"…"#`, `b"…"`); other literals have none.
 fn literal_text(literal: &proc_macro2::Literal) -> Option<String> {
     let stream = TokenStream::from(TokenTree::Literal(literal.clone()));
     if let Ok(text) = syn::parse2::<syn::LitStr>(stream.clone()) {

@@ -24,7 +24,6 @@ fn expected_of(fixture: &str) -> Result<Vec<Finding>, String> {
         .collect()
 }
 
-/// The number of reads checked, or the mismatches.
 pub fn run() -> Result<usize, Vec<String>> {
     let mut failures = Vec::new();
     let mut checked = 0;

@@ -10,8 +10,6 @@ autotests = false
 name = "py_boundary_guard"
 path = "src/main.rs"
 
-# Tracked non-.py executable surfaces must not start Python outside the container allow-list (plan_26111615 pass 3),
-# and tracked .rs sources must not launch an interpreter outside rs_python_allowlist.tsv (.rs mode).
 [[bin]]
 name = "inline_python_scan"
 path = "src/inline_python_scan.rs"
@@ -37,10 +35,6 @@ name = "verdict_clock_checks"
 path = "checks/verdict_clock_checks.rs"
 
 [dependencies]
-# The .rs mode of inline_python_scan parses tracked Rust sources. syn and its dependencies (proc-macro2, quote,
-# unicode-ident) were approved in advance for this guard; py_boundary_guard and py_exec_trap use none of them.
-# proc-macro2 is named for `span-locations` (the line numbers of the findings) and quote for `ToTokens` (the
-# normalized call text that keys rs_python_allowlist.tsv).
 syn = { version = "3.0.9", default-features = false, features = ["clone-impls", "full", "parsing", "printing", "visit"] }
 proc-macro2 = { version = "1.0.107", default-features = false, features = ["span-locations"] }
 quote = { version = "1.0.47", default-features = false }

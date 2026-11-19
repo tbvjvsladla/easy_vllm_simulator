@@ -4,7 +4,6 @@ version = "0.1.0"
 edition = "2021"
 description = "Rust port of .claude/policies/runtime/verify_distribution.py: the fail-closed acceptance of the five-skill self-contained distribution (static contract checks + the named self-test runs + the policy audit), same JSON report"
 publish = false
-# `tests/` is a scratch name in this repository; integration checks live in `checks/`.
 autotests = false
 
 [lib]
@@ -20,9 +19,6 @@ name = "pure_goldens"
 path = "checks/pure_goldens.rs"
 
 [dependencies]
-# Python-compatible values and json.dumps(indent=2, ensure_ascii=False) of the report (path dependency, read-only).
 agent-runtime-support = { path = "../runtime-support" }
-# Python `re` patterns of the original (lookbehind in the retirement-consumer scan, lazy DOTALL shell-array capture).
 fancy-regex = "=0.19.2"
-# The canonical generic PII patterns (docs.md §PII 정본 = hint-publisher `pii`; plan_26111708 A5 — no second copy here).
 hint-publisher = { path = "../../skills/hint-publisher/rust" }

@@ -1,6 +1,3 @@
-//! verdict_clock_scan: temporary git repositories, the real binary, the verdict (0/1/2) and the finding lines. The
-//! planted reads live in `checks/data/verdict_clock/` (a data plane the scan does not read), with their expected
-//! lines in `expected.tsv`.
 use std::path::{Path, PathBuf};
 use std::process::Command;
 

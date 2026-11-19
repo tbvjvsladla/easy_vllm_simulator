@@ -42,7 +42,6 @@ pub fn find(source: &str) -> Vec<Finding> {
     found
 }
 
-/// The code of one line: comments removed and quoted text blanked, carrying `/* … */` across lines.
 fn code_of(line: &str, in_block_comment: &mut bool) -> String {
     let mut code = String::new();
     let mut quote: Option<char> = None;

@@ -1,5 +1,3 @@
-//! Goldens captured from the ORIGINAL verify_distribution.py by checks/capture_goldens.sh [retired with the originals · frozen · plan_26111717] (frozen inputs: the tree of
-//! the golden's `rev` + literal fixtures). Nothing here runs Python: the Rust port is compared against those files.
 use agent_runtime_support::pyjson;
 use agent_runtime_support::pyvalue::{float_repr, PyValue};
 use policy_distribution::checks::{verify_with, Hooks};
@@ -15,8 +13,6 @@ fn repo() -> PathBuf {
 }
 fn golden(name: &str) -> PyValue {
     let text = std::fs::read_to_string(crate_dir().join("checks/data").join(name)).unwrap();
-    // Tracked golden data spells the skill-script prefix as `@TFN_SCRIPTS@/` so that it is not read as an external call of
-    // a non-public terraforming_node script by the public-surface tripwire (antipattern_scan); decoded here.
     let text = text.replace("@TFN_SCRIPTS@/", concat!("terraforming", "_node/scripts/"));
     pyjson::loads(&text).unwrap()
 }
@@ -38,7 +34,6 @@ fn items(v: &PyValue) -> Vec<PyValue> {
 fn dumps(v: &PyValue) -> String {
     v.dumps_pretty().unwrap().to_utf8().unwrap()
 }
-/// Key-order-insensitive canonical text (for values whose dict order is not part of the contract).
 fn canon(v: &PyValue) -> String {
     match v.peel() {
         PyValue::Dict(d) => {
@@ -77,7 +72,6 @@ impl Drop for Tree {
         let _ = std::fs::remove_dir_all(&self.0);
     }
 }
-/// The frozen input tree: `git archive <rev>` + a fresh index on branch single-node (as capture_goldens.sh [retired with the originals · frozen · plan_26111717] builds it).
 fn frozen_tree(rev: &str, tag: &str) -> Tree {
     let n = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
     let dir = std::env::temp_dir().join(format!("vd-golden-rs-{tag}-{}-{n}", std::process::id()));
@@ -88,8 +82,6 @@ fn frozen_tree(rev: &str, tag: &str) -> Tree {
     Tree(dir)
 }
 
-/// The delivered tree carries the policy launcher the driver probes (`policy_runner.is_file()`; the original probed the
-/// `.py`, which the frozen tree has). Content is irrelevant: children are stubbed. Untracked, like a node build output.
 fn with_launcher(tree: &Path) {
     std::fs::write(tree.join(".claude/policies/runtime/policy_registry.sh"), "#!/bin/bash\n").unwrap();
 }
@@ -112,7 +104,6 @@ fn norm(v: &PyValue, tree: &Path, py: &str) -> PyValue {
     }
 }
 
-/// The documented argv changes: checks that started a policy `.py` now start its Rust launcher.
 fn expected_argv(name: &str, golden_argv: &[String]) -> Vec<String> {
     let to_sh = |a: &str| a.replace(".py", ".sh");
     match name {
@@ -133,8 +124,6 @@ fn expected_argv(name: &str, golden_argv: &[String]) -> Vec<String> {
             "bash".into(),
             golden_argv[5].clone(),
         ],
-        // plan_26111615 pass 3: hint-publisher's programs are its Rust launchers; the image-git-release unittest module
-        // is the hint crate's cargo check (run from the repository, not from scripts/).
         "hint_selftest" => vec!["bash".into(), ".claude/skills/hint-publisher/scripts/hint.sh".into(), "--self-test".into()],
         "hint_bench_section_selftest" => vec!["bash".into(), ".claude/skills/hint-publisher/scripts/render_bench_section.sh".into(), "--selftest".into()],
         "hint_image_git_release_selftest" => [
@@ -143,8 +132,6 @@ fn expected_argv(name: &str, golden_argv: &[String]) -> Vec<String> {
             ".claude/skills/hint-publisher/rust/target", "--test", "artifacts_cases", "image_git_release",
         ].iter().map(|s| s.to_string()).collect(),
         n if LAUNCHER_SWITCHED.contains(&n) || n.starts_with("upstream_help:") => {
-            // plan_26111615: upstream/recipe 진입점이 Rust 런처(.sh)로 바뀌었다 — golden 은 b1f3563e 의 `<PY> x.py ...`.
-            // The interpreter flag `-B` of the retired `<PY> -B selftest_*.py` rows has no launcher counterpart.
             let rest: Vec<&String> = golden_argv[1..].iter().skip_while(|a| a.as_str() == "-B").collect();
             let script = if n == "recipe_info_only_gate" {
                 ".claude/skills/vllm-recipe-explorer/scripts/recipe.sh".to_string()
@@ -159,7 +146,6 @@ fn expected_argv(name: &str, golden_argv: &[String]) -> Vec<String> {
     }
 }
 
-/// Checks whose `<PY> x.py` argv became `bash x.sh` when their owners were ported (closed list · tripwire).
 const LAUNCHER_SWITCHED: &[&str] = &[
     "upstream_slave_forward_selftest",
     "upstream_render_dockerfile_selftest",
@@ -178,16 +164,13 @@ const LAUNCHER_SWITCHED: &[&str] = &[
     "recipe_gmu_roles_batch_selftest",
     "terraform_agent_guard_selftest",
     "blackbox_session_selftest",
-    // terraforming_node A2A control plane (relay · agent_control · render_sub_env · canary · gates).
     "terraform_render_selftest",
     "terraform_staleness_gate_selftest",
     "agent_control_selftest",
     "terraform_relay_selftest",
     "terraform_bootstrap_canary_selftest",
     "terraform_check_sub_hint_equip_selftest",
-    // terraforming first pass (library_access ported in 3de7a246; its row was switched at the core-contracts merge).
     "terraform_library_access_selftest",
-    // terraforming pass 3: the five unittest suites `selftest_*.py` became Rust self-test bins behind `selftest_*.sh`.
     "harness_switch_integration_selftest",
     "claude_native_events_selftest",
     "terraform_bootstrap_permissions_selftest",
@@ -195,16 +178,12 @@ const LAUNCHER_SWITCHED: &[&str] = &[
     "campaign_lifecycle_selftest",
 ];
 
-/// Checks added after the golden capture (closed list · tripwire): absent from the original's report, present exactly once.
 const ADDED_CHECKS: &[&str] = &[
-    // plan_26111615 pass 3: tracked non-.py executable surfaces start no Python on the host/sub.
     "inline_python_scan",
-    // h20: harness verdicts read no wall clock (verdict_clock_scan and its planted-read self-test).
     "verdict_clock_scan",
     "verdict_clock_scan_selftest",
 ];
 
-/// Golden check names that were renamed with their launcher (`upstream_help:x.py` → `upstream_help:x.sh`).
 fn renamed(name: &str) -> String {
     match name.strip_prefix("upstream_help:") {
         Some(f) => format!("upstream_help:{}", f.replace(".py", ".sh")),
@@ -242,10 +221,6 @@ fn stub_report(tree: &Path, py: &str) -> PyValue {
     norm(&report, tree, py)
 }
 
-/// The frozen golden tree (b1f3563e) predates the port: its single_serve_up.sh still spelled the grounding check and the
-/// budget declaration as `bash "${_CI%.py}.sh"` / `python3 "$SESSION_PY"`. The Rust check now requires the launcher forms
-/// the live script uses (plan_26111615) and must not accept the Python form, so the fixture gets the same two call-site
-/// renames the real script got — nothing else in the frozen tree changes.
 fn port_single_up_calls(tree: &Path) {
     let p = tree.join(".claude/skills/upstream-version-watch/scripts/single_serve_up.sh");
     let Ok(t) = std::fs::read_to_string(&p) else { return };

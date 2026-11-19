@@ -1,9 +1,3 @@
-//! Stage ordering and exit-code mapping of the Rust harness_verify with fake stage launchers in a temporary tree (the
-//! program is started with argv0 = <tree>/.claude/policies/runtime/harness_verify.sh, as its launcher does). Stage 2/3
-//! could not be golden-captured from the original without running the real suites; these checks pin the contract the
-//! original states (stop at the first failing stage; 1/2 propagate, runtime -> 4, predicates -> 3; the companion suite
-//! runs every companion even after one fails, as `unittest discover` does). No Python runs here.
-
 use std::os::unix::process::CommandExt;
 use std::path::PathBuf;
 use std::process::Command;
