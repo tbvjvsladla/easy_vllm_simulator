@@ -83,7 +83,7 @@ fn run_on(fixtures: &[Fixture], expected: &str) -> Result<usize, Vec<String>> {
 mod tests {
     use super::{run, run_on, Surface};
 
-    const PLANTED_READS: usize = 140;
+    const PLANTED_READS: usize = 143;
 
     #[test]
     fn planted_fixtures_give_the_expected_reads() {

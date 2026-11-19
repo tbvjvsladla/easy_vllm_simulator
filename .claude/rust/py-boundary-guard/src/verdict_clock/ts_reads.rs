@@ -1,5 +1,6 @@
 //! One TypeScript source → its clock reads:
-//! - `Date.now()` and `performance.now()`, and the same functions taken as values (`Date.now`, `performance.now`);
+//! - `Date.now()` and `performance.now()`, and the same functions taken as values (`Date.now`, `performance.now`;
+//!   `now` destructured from `Date`, as in `const { now } = Date` or `{ now: n } = Date`, is the value `Date.now`);
 //! - `new Date()` with no argument, also written `new Date`;
 //! - `Date(…)` called without `new` (the current time as a string, whatever the arguments);
 //! - `process.hrtime`;
@@ -23,15 +24,67 @@ const OPERATORS_BEFORE_AN_OPERAND: &str = "(,=:[!&|?{};~+-*%";
 const KEYWORDS_BEFORE_AN_OPERAND: [&str; 3] = ["return", "typeof", "case"];
 
 pub fn find(source: &str) -> Result<Vec<Finding>, String> {
+    let lines: Vec<String> = code_only_lines(source)?.iter().map(|code| without_global_objects(code)).collect();
     let mut found = Vec::new();
-    for (index, code) in code_only_lines(source)?.iter().enumerate() {
-        let line = index + 1;
-        let code = without_global_objects(code);
-        for text in line_reads(&code) {
-            found.push(Finding { line, text });
+    for (index, code) in lines.iter().enumerate() {
+        for text in line_reads(code) {
+            found.push(Finding { line: index + 1, text });
         }
     }
+    found.extend(now_destructured_from_date(&lines.join("\n")));
     Ok(found)
+}
+
+fn now_destructured_from_date(code: &str) -> Vec<Finding> {
+    let mut found = Vec::new();
+    for at in whole_name_offsets(code, "Date") {
+        if code[at + "Date".len()..].trim_start().starts_with(['.', '(', '[']) {
+            continue;
+        }
+        let Some(left) = code[..at].trim_end().strip_suffix('=') else { continue };
+        if left.ends_with(['=', '!', '<', '>']) {
+            continue;
+        }
+        let Some(pattern) = left.trim_end().strip_suffix('}') else { continue };
+        let Some(open) = matching_open_brace(pattern) else { continue };
+        if names_now(&pattern[open + 1..]) {
+            found.push(Finding { line: code[..at].matches('\n').count() + 1, text: "Date.now".to_string() });
+        }
+    }
+    found
+}
+
+fn matching_open_brace(text: &str) -> Option<usize> {
+    let mut depth = 0usize;
+    for (at, c) in text.char_indices().rev() {
+        match c {
+            '}' => depth += 1,
+            '{' if depth == 0 => return Some(at),
+            '{' => depth -= 1,
+            _ => {}
+        }
+    }
+    None
+}
+
+fn names_now(object_pattern: &str) -> bool {
+    let mut depth = 0usize;
+    let mut property = String::new();
+    let mut properties = Vec::new();
+    for c in object_pattern.chars() {
+        match c {
+            '{' | '[' | '(' => depth += 1,
+            '}' | ']' | ')' => depth = depth.saturating_sub(1),
+            ',' if depth == 0 => {
+                properties.push(std::mem::take(&mut property));
+                continue;
+            }
+            _ => {}
+        }
+        property.push(c);
+    }
+    properties.push(property);
+    properties.iter().any(|property| property.split([':', '=']).next().map(str::trim) == Some("now"))
 }
 
 fn is_ident_char(c: char) -> bool {
@@ -314,6 +367,32 @@ mod tests {
         assert_eq!(texts("function f(x) { return /`/.test(x) && Date.now(); }\n"), ["Date.now()"]);
         assert_eq!(texts("switch (k) { case /`/.source: t = Date.now(); }\n"), ["Date.now()"]);
         assert_eq!(texts("const f = (s) => /`/.test(s);\nconst g = Date.now();\n"), ["Date.now()"]);
+    }
+
+    #[test]
+    fn now_destructured_from_date_is_the_value_date_now() {
+        for source in [
+            "const { now } = Date;\n",
+            "const { now: n } = Date;\n",
+            "let { parse, now } = globalThis.Date;\n",
+            "var { now = f } = Date\n",
+            "({ now } = Date);\n",
+        ] {
+            assert_eq!(texts(source), ["Date.now"], "{source:?}");
+        }
+        assert_eq!(find("const {\n  now,\n} = Date;\n").expect("closed").into_iter().map(|f| (f.line, f.text)).collect::<Vec<_>>(), [(3, "Date.now".to_string())]);
+        for source in [
+            "const { now } = clock;\n",
+            "const { parse } = Date;\n",
+            "const { now } = myDate;\n",
+            "const { a: { now } } = Date;\n",
+            "if ({ now } == Date) {}\n",
+            "const s = \"const { now } = Date\";\n",
+            "// const { now } = Date;\n",
+            "const { now } = Date.prototype;\n",
+        ] {
+            assert!(texts(source).is_empty(), "{source:?}");
+        }
     }
 
     #[test]

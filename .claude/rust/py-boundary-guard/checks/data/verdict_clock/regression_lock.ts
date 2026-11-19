@@ -33,3 +33,10 @@ function checkBodyStart(lines: string[], bodyStartLine: number): void {
 function level2Headings(body: string): string[] { return []; }
 // division is not a regular expression
 const half = total / 2; const ms = Date.now() / 1000;
+// h33: `now` destructured from `Date` (r2 fix l4more w/x.ts:6), then look-alikes that read no clock
+const { now } = Date;
+const { now: n4 } = Date;
+let { parse, now: later } = globalThis.Date;
+const { now: n5 } = clock;
+const { parse: p6 } = Date;
+const label = "const { now } = Date";

@@ -8,7 +8,9 @@
 //!   missing, empty or relative to now (`now`, `yesterday`, `+90 days`, `"$t + 90 days"`); `@epoch` and a value made of
 //!   expansions only (`"$t"`, `"$(cat stamp)"`) are given times. `date -f`/`--file` (times from a file this lint cannot
 //!   see) and `date -r FILE` (a mtime) always are reads;
-//! - `$EPOCHSECONDS`, `$EPOCHREALTIME`, `$SECONDS`, and those names bare inside `(( … ))`/`$(( … ))`;
+//! - `$EPOCHSECONDS`, `$EPOCHREALTIME`, `$SECONDS`, and those names bare in an arithmetic context: inside
+//!   `(( … ))`/`$(( … ))`, in an operand of `-eq`/`-ne`/`-lt`/`-le`/`-gt`/`-ge` inside `[[ … ]]`, and in an argument of
+//!   `let` (quoted or not);
 //! - `printf '%(…)T'`;
 //! - `stat` with a `%X`/`%Y`/`%Z`/`%W` (or lowercase) format;
 //! - `find -mtime/-mmin/-ctime/-cmin/-atime/-amin/-newer…`;
@@ -35,6 +37,7 @@ const COMMAND_KEYWORDS: [&str; 8] = ["then", "do", "else", "elif", "if", "while"
 const COMMAND_PREFIXES: [&str; 10] = [
     "exec", "env", "command", "builtin", "nice", "nohup", "sudo", "time", "timeout", "xargs",
 ];
+const ARITHMETIC_COMPARISONS: [&str; 6] = ["-eq", "-ne", "-lt", "-le", "-gt", "-ge"];
 const EPOCH_VARIABLES: [&str; 3] = ["EPOCHSECONDS", "EPOCHREALTIME", "SECONDS"];
 const FIND_TIME_PREDICATES: [&str; 6] = ["-mtime", "-mmin", "-ctime", "-cmin", "-atime", "-amin"];
 const GIT_TIME_FILTERS: [&str; 4] = ["--since", "--until", "--before", "--after"];
@@ -107,6 +110,8 @@ fn reads_in(line: &str, output: Output) -> Vec<String> {
     date_reads(code, output, &mut reads);
     epoch_reads(code, &mut reads);
     arithmetic_reads(code, &mut reads);
+    conditional_arithmetic_reads(code, &mut reads);
+    let_reads(code, &mut reads);
     let words: Vec<&str> = code.split_whitespace().collect();
     if has_word(code, "printf") && code.find("%(").is_some_and(|at| code[at..].contains(")T")) {
         reads.push(format!("printf {}", "%(…)T"));
@@ -665,18 +670,53 @@ fn arithmetic_reads(code: &str, reads: &mut Vec<String>) {
             }
             at += 1;
         }
-        let body = &code[body_start..body_end];
-        for variable in EPOCH_VARIABLES {
-            for (at, _) in body.match_indices(variable) {
-                let before = body[..at].chars().next_back();
-                let after = body[at + variable.len()..].chars().next();
-                let bare = before.is_none_or(|c| !(is_name_char(c) || c == '$' || c == '{'));
-                if bare && after.is_none_or(|c| !is_name_char(c)) {
-                    reads.push(format!("${variable}"));
+        bare_epoch_names(&code[body_start..body_end], reads);
+        from = (body_end + 2).min(code.len()).max(body_start);
+    }
+}
+
+fn bare_epoch_names(expression: &str, reads: &mut Vec<String>) {
+    for variable in EPOCH_VARIABLES {
+        for (at, _) in expression.match_indices(variable) {
+            let before = expression[..at].chars().next_back();
+            let after = expression[at + variable.len()..].chars().next();
+            let bare = before.is_none_or(|c| !(is_name_char(c) || c == '$' || c == '{'));
+            if bare && after.is_none_or(|c| !is_name_char(c)) {
+                reads.push(format!("${variable}"));
+            }
+        }
+    }
+}
+
+fn conditional_arithmetic_reads(code: &str, reads: &mut Vec<String>) {
+    let mut from = 0;
+    while let Some(open) = code[from..].find("[[").map(|at| at + from) {
+        let body_start = open + 2;
+        let body_end = code[body_start..].find("]]").map_or(code.len(), |at| at + body_start);
+        if is_command_position(&code[..open]) {
+            let operands = words(&code[body_start..body_end], 0, false);
+            for (at, word) in operands.iter().enumerate() {
+                if !ARITHMETIC_COMPARISONS.contains(&word.value.as_str()) {
+                    continue;
+                }
+                for side in [at.checked_sub(1), Some(at + 1)].into_iter().flatten().filter_map(|k| operands.get(k)) {
+                    bare_epoch_names(&side.value, reads);
                 }
             }
         }
-        from = (body_end + 2).min(code.len()).max(body_start);
+        from = (body_end + 2).min(code.len());
+    }
+}
+
+fn let_reads(code: &str, reads: &mut Vec<String>) {
+    for (start, end) in word_spans(code, "let") {
+        if positioned_command_start(code, start).is_none() {
+            continue;
+        }
+        let (arguments, _) = argument_text(&code[end..]);
+        for expression in words(arguments, 0, true) {
+            bare_epoch_names(&expression.value, reads);
+        }
     }
 }
 
@@ -765,7 +805,7 @@ mod tests {
     use super::{is_relative_to_now, line_reads};
 
     const CASES: &str = include_str!("../../checks/data/verdict_clock/shell_lines.tsv");
-    const CASE_ROWS: usize = 151;
+    const CASE_ROWS: usize = 170;
 
     #[test]
     fn shell_lines_give_their_reads() {

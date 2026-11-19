@@ -173,7 +173,7 @@ fn usage_errors_are_exit_2() {
 fn self_test_passes() {
     let out = Command::new(bin()).arg("--self-test").output().unwrap();
     assert_eq!(out.status.code(), Some(0), "{}", String::from_utf8_lossy(&out.stdout));
-    assert!(String::from_utf8_lossy(&out.stdout).contains("--self-test PASS 140 planted reads"));
+    assert!(String::from_utf8_lossy(&out.stdout).contains("--self-test PASS 143 planted reads"));
 }
 
 #[test]

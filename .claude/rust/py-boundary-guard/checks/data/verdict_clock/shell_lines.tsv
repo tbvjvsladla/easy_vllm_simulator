@@ -149,3 +149,22 @@ ssh h date
 bash -c 'date'
 ssh h date 2>/dev/null
 ssh h date || true
+[[ SECONDS -gt 30 ]] && exit 1	$SECONDS
+let "age = EPOCHSECONDS - t0"	$EPOCHSECONDS
+if [[ $n -lt 3 && SECONDS -ge 30 ]]; then exit 1; fi	$SECONDS
+[[ EPOCHREALTIME -gt t0 ]]	$EPOCHREALTIME
+let age=EPOCHSECONDS-t0	$EPOCHSECONDS
+let a=1 'b = SECONDS * 2'	$SECONDS
+x=$( [[ SECONDS -gt 30 ]] && echo late )	$SECONDS
+while [[ SECONDS -lt 60 ]]; do sleep 1; done	$SECONDS
+[[ $SECONDS -gt 30 ]]	$SECONDS
+let x=$EPOCHSECONDS	$EPOCHSECONDS
+[[ $x -gt 30 ]]
+let "n = n + 1"
+[[ SECONDS_LEFT -gt 30 ]]
+[[ "$m" == SECONDS ]]
+[ SECONDS -gt 30 ]
+echo "[[ SECONDS -gt 30 ]]"
+echo let SECONDS
+echo "let x = EPOCHSECONDS"
+# [[ SECONDS -gt 30 ]]
