@@ -2,7 +2,7 @@
 name = "policy-distribution"
 version = "0.1.0"
 edition = "2021"
-description = "Rust port of .claude/policies/runtime/verify_distribution.py: the fail-closed acceptance of the five-skill self-contained distribution (static contract checks + the named self-test runs + the policy audit), same JSON report"
+description = "Rust port of .claude/policies/runtime/verify_distribution.py: the fail-closed acceptance of the five-skill self-contained distribution (static contract checks + the named self-test runs + the clock scan + the policy audit), the original's JSON report with the differences listed in README.md"
 publish = false
 autotests = false
 

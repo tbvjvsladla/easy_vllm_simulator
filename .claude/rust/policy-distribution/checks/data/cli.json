@@ -45,5 +45,15 @@
   "exit_code": 2,
   "stdout": "",
   "stderr": "usage: verify_distribution.sh [-h] [--json-out JSON_OUT]\nverify_distribution.sh: error: unrecognized arguments: -- a\n"
+ },
+ {
+  "id": "PD-json-out-value-looks-like-option",
+  "args": [
+   "--json-out",
+   "--bogus"
+  ],
+  "exit_code": 2,
+  "stdout": "",
+  "stderr": "usage: verify_distribution.sh [-h] [--json-out JSON_OUT]\nverify_distribution.sh: error: argument --json-out: expected one argument\n"
  }
 ]

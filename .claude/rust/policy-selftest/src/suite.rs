@@ -843,7 +843,7 @@ pub fn policy_and_evidence_lifecycle(repo: &Path) -> R<()> {
     Ok(())
 }
 
-/// The agent_control owner program, by its Rust launcher (terraforming_node/rust `agent_control`; was `agent_control.py`).
+/// The agent_control owner program, by its Rust launcher (terraforming_node/rust `agent_control`).
 pub const AGENT_CONTROL_REL: &str = ".claude/skills/terraforming_node/scripts/agent_control.sh";
 
 pub fn agent_control_owner_selftest(repo: &Path) -> R<()> {

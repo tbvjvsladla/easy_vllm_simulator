@@ -1,7 +1,7 @@
 //! `policy-distribution`: Rust port of `.claude/policies/runtime/verify_distribution.py` (fail-closed acceptance of the
-//! five-skill self-contained distribution). Same check names, same JSON report (`json.dumps(indent=2,
-//! ensure_ascii=False)` key order), same exit codes (0 PASS · 1 FAIL · 2 usage). Checks that ran one of the policy
-//! `.py` programs now run their Rust launchers (see README.md); every other bundle's program runs unchanged.
+//! five-skill self-contained distribution). Check names, the JSON report (`json.dumps(indent=2, ensure_ascii=False)`
+//! key order) and exit codes (0 PASS · 1 FAIL · 2 usage) follow the original; README.md lists the differences (the
+//! clock-scan checks, no `policy_as_of`, every program started through its Rust launcher).
 pub mod checks;
 pub mod cli;
 pub mod fsglob;
@@ -12,9 +12,8 @@ pub mod toml;
 
 pub use agent_runtime_support::pyvalue::{PyDict, PyValue};
 pub use checks::{
-    active_retirement_consumers, codex_discovery_checks, ordered_between_detail, policy_registry_check,
-    policy_registry_check_with, shell_array, shipped_python_paths, tracked_scratch_paths, verify, verify_with, walk_strings,
-    Hooks,
+    active_retirement_consumers, codex_discovery_checks, ordered_between_detail, policy_registry_check, shell_array,
+    shipped_python_paths, tracked_scratch_paths, verify, verify_with, walk_strings, Hooks,
 };
 pub use runner::run;
 

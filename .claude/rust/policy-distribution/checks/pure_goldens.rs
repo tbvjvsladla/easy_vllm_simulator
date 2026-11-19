@@ -426,10 +426,42 @@ fn shell_arrays_and_order_detail_match() {
 #[test]
 fn the_retired_policy_as_of_option_is_a_usage_error() {
     for args in [&["--policy-as-of", "2026-11-16"][..], &["--policy-as-of=2026-11-16"][..], &["--pol", "2026-11-16"][..]] {
-        let mut argv = vec!["verify_distribution.sh".to_string()];
-        argv.extend(args.iter().map(|a| a.to_string()));
-        assert_eq!(policy_distribution::cli::main_with(argv), 2, "{args:?}");
+        let out = Command::new(env!("CARGO_BIN_EXE_verify_distribution"))
+            .args(args)
+            .env_remove("COLUMNS")
+            .stdin(Stdio::null())
+            .output()
+            .unwrap();
+        let stderr = String::from_utf8_lossy(&out.stderr);
+        assert_eq!(out.status.code(), Some(2), "{args:?}: {stderr}");
+        assert!(stderr.ends_with(&format!(": error: unrecognized arguments: {}\n", args.join(" "))), "{args:?}: {stderr}");
+        assert!(out.stdout.is_empty(), "{args:?}");
     }
+}
+
+#[test]
+fn the_clock_scan_and_the_policy_audit_are_wired_as_documented() {
+    let tree = frozen_tree("b1f3563e", "wiring");
+    with_launcher(&tree.0);
+    let report = stub_report(&tree.0, "/usr/bin/python3-golden-stub");
+    let checks = items(get(&report, "checks"));
+    let names: Vec<String> = checks.iter().map(|c| st(get(c, "name"))).collect();
+    let scan = names.iter().position(|n| n == "inline_python_scan").expect("inline_python_scan");
+    assert_eq!(names[scan + 1..scan + 3], ["verdict_clock_scan", "verdict_clock_scan_selftest"], "{names:?}");
+    let check = |name: &str| checks.iter().find(|c| st(get(c, "name")) == name).unwrap_or_else(|| panic!("{name}"));
+    let argv = |name: &str| items(get(check(name), "argv")).iter().map(st).collect::<Vec<_>>();
+    let expected_rc = |name: &str| dumps(get(check(name), "expected_rc"));
+    let launcher = ".claude/policies/runtime/verdict_clock_scan.sh";
+    assert_eq!(argv("verdict_clock_scan"), ["bash", launcher, "check", "--repo", "."]);
+    assert_eq!(argv("verdict_clock_scan_selftest"), ["bash", launcher, "--self-test"]);
+    assert_eq!(argv("policy_registry_verify"), ["bash", "<REPO>/.claude/policies/runtime/policy_registry.sh", "verify", "--repo-root", "<REPO>"]);
+    for name in ["verdict_clock_scan", "verdict_clock_scan_selftest", "policy_registry_verify"] {
+        assert_eq!(expected_rc(name), dumps(&list_ints(&[0])), "{name}");
+    }
+    let PyValue::Dict(row) = check("policy_registry_verify").peel() else { panic!("a check row is an object") };
+    assert!(row.iter().all(|(k, _)| !k.to_utf8().unwrap_or_default().starts_with("as_of")), "{}", dumps(check("policy_registry_verify")));
+    let PyValue::Dict(top) = report.peel() else { panic!("the report is an object") };
+    assert!(top.iter().all(|(k, _)| k.to_utf8().unwrap_or_default() != "policy_as_of"), "{}", dumps(&report));
 }
 
 #[test]

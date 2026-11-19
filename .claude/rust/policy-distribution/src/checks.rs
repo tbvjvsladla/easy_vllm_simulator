@@ -31,9 +31,8 @@ pub const LOCAL_TOMBSTONES: [&str; 17] = [
     "scripts/systemd/easy-vllm-memwatch.service",
     "scripts/templates/hint_recipe.template.md",
 ];
-/// The exact `ROOT_RELOCATION_REPLACEMENTS` of sync_branches.sh (a tripwire list: it names where the old root
-/// `scripts/` files went). Since the Rust port the owner of each moved program is its Rust launcher (`.sh`) or, for the
-/// provider adapter without a launcher, its Rust source — never a `.py` (plan_26111615 D4: the `.py` are deleted).
+/// The exact `ROOT_RELOCATION_REPLACEMENTS` of sync_branches.sh (a tripwire list: where the old root `scripts/` files
+/// went). Each owner is a Rust launcher (`.sh`) or, for the provider adapter without one, its Rust source.
 pub const LOCAL_REPLACEMENTS: [&str; 17] = [
     ".claude/skills/terraforming_node/scripts/agent_control.sh",
     ".claude/skills/vllm-recipe-explorer/scripts/cleanup_docker.sh",
@@ -71,10 +70,10 @@ pub const SUB_RETIREMENT_TOMBSTONES: [&str; 3] = [
 ];
 pub const SCRATCH_DIR_NAMES: [&str; 4] = ["temp", "tmp", "test", "tests"];
 
-/// The Rust launchers that replace the policy `.py` programs this driver used to start (repo-relative).
+/// The Rust launchers of the policy programs this driver starts (repo-relative).
 pub const POLICY_REGISTRY_LAUNCHER: &str = ".claude/policies/runtime/policy_registry.sh";
 pub const RUNTIME_SELFTEST_LAUNCHER: &str = ".claude/policies/runtime/runtime_selftest.sh";
-/// plan_26111615 pass 3: tracked non-.py executable surfaces start no Python on the host/sub (container lines allow-listed with a reason).
+/// Tracked non-.py executable surfaces start no Python on the host/sub (container lines allow-listed with a reason).
 pub const INLINE_PYTHON_SCAN_LAUNCHER: &str = ".claude/rust/py-boundary-guard/inline_python_scan.sh";
 pub const VERDICT_CLOCK_SCAN_LAUNCHER: &str = ".claude/policies/runtime/verdict_clock_scan.sh";
 pub const ANTIPATTERN_SCAN_LAUNCHER: &str = ".claude/policies/runtime/antipattern_scan.sh";
@@ -486,8 +485,8 @@ fn codex_discovery_selftest(repo: &Path) -> PyValue {
     }
 }
 
-/// `_policy_registry_check(policy_runner)` with the `_run` used (injectable so a self-test can capture argv).
-pub fn policy_registry_check_with<F>(policy_runner: &Path, repo: &Path, runner: F) -> PyValue
+/// `_policy_registry_check(policy_runner)`: `policy_registry.sh verify --repo-root <repo>` through `runner` (`_run`).
+pub fn policy_registry_check<F>(policy_runner: &Path, repo: &Path, runner: F) -> PyValue
 where
     F: FnOnce(&str, &[String], &[i64]) -> PyValue,
 {
@@ -499,11 +498,6 @@ where
         repo.to_string_lossy().into_owned(),
     ];
     runner("policy_registry_verify", &argv, &[0])
-}
-
-/// `_policy_registry_check` with the real `_run` (cwd = the repository).
-pub fn policy_registry_check(policy_runner: &Path, repo: &Path) -> PyValue {
-    policy_registry_check_with(policy_runner, repo, |name, argv, expected| run(name, argv, expected, repo, &[]))
 }
 
 fn copytree_skipping(src: &Path, dst: &Path, skip: &[&Path]) -> Result<(), PyError> {
@@ -1111,7 +1105,7 @@ pub fn verify_with(repo: &Path, hooks: &Hooks) -> Result<PyValue, Uncaught> {
 
     let policy_runner = repo.join(POLICY_REGISTRY_LAUNCHER);
     if policy_runner.is_file() {
-        checks.push(policy_registry_check_with(&policy_runner, repo, |n, a, e| run(n, a, e, repo, &[])));
+        checks.push(policy_registry_check(&policy_runner, repo, |n, a, e| run(n, a, e, repo, &[])));
     } else {
         checks.push(dict(vec![("name", s("policy_registry_verify")), ("ok", b(false)),
                               ("error", s(&format!("missing {POLICY_REGISTRY_LAUNCHER}")))]));
