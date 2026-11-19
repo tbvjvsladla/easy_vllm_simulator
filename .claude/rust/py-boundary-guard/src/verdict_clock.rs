@@ -55,13 +55,15 @@ pub fn surface(path: &str, head: &[u8]) -> Option<Surface> {
         Some(Surface::Rust)
     } else if name.ends_with(".ts") {
         Some(Surface::TypeScript)
-    } else if name.ends_with(".sh") || name.ends_with(".bash") {
-        Some(Surface::Shell)
-    } else if !name.contains('.') && head.starts_with(b"#!") && head.split(|b| *b == b'\n').next().is_some_and(|l| l.ends_with(b"sh")) {
+    } else if name.ends_with(".sh") || name.ends_with(".bash") || is_shell_script(name, head) {
         Some(Surface::Shell)
     } else {
         None
     }
+}
+
+fn is_shell_script(name: &str, head: &[u8]) -> bool {
+    !name.contains('.') && head.starts_with(b"#!") && head.split(|b| *b == b'\n').next().is_some_and(|l| l.ends_with(b"sh"))
 }
 
 pub fn find(surface: Surface, source: &str) -> Result<Vec<Finding>, String> {

@@ -269,8 +269,6 @@ pub fn safe_load_json_object(path: &Path, label: &str) -> Result<PyValue, Violat
                 }
                 other => other.to_string(),
             };
-            if matches!(e, pyjson::LoadError::IntegerTooLong { .. }) {
-            }
             return Err(Violation::new(format!("{label}_INVALID_JSON"), format!("{shown} is not valid JSON: {msg}")));
         }
     };

@@ -160,9 +160,10 @@ impl Walker {
         let after_path = at >= 3 && is_path_separator(tokens, at - 1) && ident(tokens.get(at - 3)).is_some();
         if name == "now" && after_path && is_empty_call(tokens.get(at + 1)) {
             self.push(here, format!("{}()", path_ending_at(tokens, at)));
-        } else if after_dot && ZERO_ARGUMENT_CLOCK_METHODS.contains(&name) && is_empty_call(tokens.get(at + 1)) {
-            self.push(here, format!(".{name}()"));
-        } else if after_dot && PERIOD_METHODS.contains(&name) && group(tokens.get(at + 1), Delimiter::Parenthesis).is_some() {
+        } else if after_dot
+            && ((ZERO_ARGUMENT_CLOCK_METHODS.contains(&name) && is_empty_call(tokens.get(at + 1)))
+                || (PERIOD_METHODS.contains(&name) && group(tokens.get(at + 1), Delimiter::Parenthesis).is_some()))
+        {
             self.push(here, format!(".{name}()"));
         } else if FOREIGN_CLOCKS.contains(&name) && after_path && ident(tokens.get(at - 3)).as_deref() == Some("libc") {
             self.push(here, format!("libc::{name}"));
