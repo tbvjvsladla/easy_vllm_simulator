@@ -124,8 +124,8 @@ fn days_in_month(y: i64, m: u32) -> u32 {
     }
 }
 
-fn stamp_date(raw: Option<&PyValue>) -> Option<(i64, u32, u32)> {
-    let PyValue::Str(s) = raw?.peel() else { return None };
+fn is_stamp_date(raw: Option<&PyValue>) -> bool {
+    let Some(PyValue::Str(s)) = raw.map(|v| v.peel()) else { return false };
     let pts = s.code_points();
     let digits = |r: std::ops::Range<usize>| -> Option<i64> {
         let mut n = 0i64;
@@ -134,22 +134,18 @@ fn stamp_date(raw: Option<&PyValue>) -> Option<(i64, u32, u32)> {
         }
         Some(n)
     };
-    let (y, m, d) = if pts.len() == 10 && pts[4] == '-' as u32 && pts[7] == '-' as u32 {
-        (digits(0..4)?, digits(5..7)?, digits(8..10)?)
+    let ymd = if pts.len() == 10 && pts[4] == '-' as u32 && pts[7] == '-' as u32 {
+        (digits(0..4), digits(5..7), digits(8..10))
     } else if pts.len() == 10 {
-        let h = digits(8..10)?;
-        let v = (digits(0..4)?, digits(4..6)?, digits(6..8)?);
-        if h > 23 {
-            return None;
+        if !digits(8..10).is_some_and(|h| h <= 23) {
+            return false;
         }
-        v
+        (digits(0..4), digits(4..6), digits(6..8))
     } else {
-        return None;
+        return false;
     };
-    if !(1..=9999).contains(&y) || !(1..=12).contains(&m) || d < 1 || d > days_in_month(y, m as u32) as i64 {
-        return None;
-    }
-    Some((y, m as u32, d as u32))
+    let (Some(y), Some(m), Some(d)) = ymd else { return false };
+    (1..=9999).contains(&y) && (1..=12).contains(&m) && d >= 1 && d <= days_in_month(y, m as u32) as i64
 }
 
 pub fn validate_document(doc: &PyValue, kind: &str, expected_topology: Option<&str>) -> Vec<String> {
@@ -191,7 +187,7 @@ pub fn validate_document(doc: &PyValue, kind: &str, expected_topology: Option<&s
     if kind == "manifest" {
         match get(doc, "terraforming") {
             Some(t @ PyValue::Dict(_)) => {
-                if stamp_date(get(t, "scanned_at")).is_none() {
+                if !is_stamp_date(get(t, "scanned_at")) {
                     inv.push("terraforming.scanned_at".into());
                 }
             }

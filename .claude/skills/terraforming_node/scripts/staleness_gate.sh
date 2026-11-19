@@ -1,6 +1,6 @@
 #!/bin/bash
 # `staleness_gate.py` through the node-local Rust executable (`terraforming_node/rust`, binary `staleness_gate`). The original's
-# command line, exit codes, text and files without its attestation age axis (`--now`, `--max-age-days`: removed, h21). Installation and build are explicit operations (`build_rust_packages.sh`); a missing
+# command line, exit codes, text and files without its attestation age axis. Installation and build are explicit operations (`build_rust_packages.sh`); a missing
 # or non-executable binary is an explicit error (status 2 + build guidance) before anything else happens. There is no Python
 # route and no silent start of another program.
 set -euo pipefail

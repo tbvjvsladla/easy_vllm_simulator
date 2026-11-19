@@ -65,3 +65,20 @@ fn staleness_gate_command_lines_match_goldens() {
     let _ = std::fs::remove_dir_all(&scratch);
     assert!(bad.is_empty(), "staleness_gate golden mismatches:\n{}", bad.join("\n"));
 }
+
+#[test]
+fn retired_age_options_are_refused_by_name() {
+    for args in [&["--now", "2026-07-25"][..], &["--max-age-days", "30"][..], &["--now=2026-07-25"][..]] {
+        let o = Command::new(env!("CARGO_BIN_EXE_staleness_gate"))
+            .args(["--topology", "single"])
+            .args(args)
+            .env_remove("COLUMNS")
+            .stdin(Stdio::null())
+            .output()
+            .unwrap();
+        let stderr = String::from_utf8_lossy(&o.stderr);
+        assert_eq!(o.status.code(), Some(2), "{args:?}: {stderr}");
+        assert!(stderr.ends_with(&format!("staleness_gate.sh: error: unrecognized arguments: {}\n", args.join(" "))), "{args:?}: {stderr}");
+        assert!(o.stdout.is_empty(), "{args:?}");
+    }
+}
