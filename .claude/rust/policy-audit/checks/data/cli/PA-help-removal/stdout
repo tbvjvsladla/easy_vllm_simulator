@@ -1,5 +1,5 @@
-usage: policy_registry.sh check-removal [-h] --policy-id POLICY_ID --as-of
-                                        AS_OF [--registry REGISTRY]
+usage: policy_registry.sh check-removal [-h] --policy-id POLICY_ID
+                                        [--registry REGISTRY]
                                         [--schema SCHEMA]
                                         [--claim-bindings CLAIM_BINDINGS]
                                         [--repo-root REPO_ROOT]
@@ -7,7 +7,6 @@ usage: policy_registry.sh check-removal [-h] --policy-id POLICY_ID --as-of
 options:
   -h, --help            show this help message and exit
   --policy-id POLICY_ID
-  --as-of AS_OF         YYYY-MM-DD, required, no wall-clock default
   --registry REGISTRY
   --schema SCHEMA
   --claim-bindings CLAIM_BINDINGS

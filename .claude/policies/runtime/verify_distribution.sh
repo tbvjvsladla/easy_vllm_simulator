@@ -1,8 +1,8 @@
 #!/bin/bash
-# `verify_distribution.py [--json-out PATH] [--policy-as-of YYYY-MM-DD]` through the node-local Rust executable
+# `verify_distribution.py [--json-out PATH]` through the node-local Rust executable
 # (.claude/rust/policy-distribution). Installation and build are explicit operations: a missing executable is an explicit
-# exit 2 with guidance, never a Python start. argv[0] is the public .py path so usage/prog text and the repository root
-# (`Path(__file__).resolve().parents[3]`) are the original's.
+# exit 2 with guidance, never a Python start. argv[0] is this launcher's path (`exec -a`): usage/prog text names it and
+# the repository root is its fourth ancestor.
 set -euo pipefail
 SELF="${BASH_SOURCE[0]}"
 case "$SELF" in */*) SDIR_RAW="${SELF%/*}"; [ -n "$SDIR_RAW" ] || SDIR_RAW=/ ;; *) SDIR_RAW=. ;; esac

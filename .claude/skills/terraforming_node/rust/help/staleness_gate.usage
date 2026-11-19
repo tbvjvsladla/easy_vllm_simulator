@@ -1,3 +1,2 @@
 usage: staleness_gate.sh [-h] [--topology {single,multi}] [--repo REPO]
-                         [--observed OBSERVED] [--now NOW]
-                         [--max-age-days MAX_AGE_DAYS] [--json] [--self-test]
+                         [--observed OBSERVED] [--json] [--self-test]

@@ -1,1 +1,4 @@
-[harness_verify] usage error: --as-of '2026-02-30' is not a valid ISO-8601 date
+usage: harness_verify.sh [-h] [--registry REGISTRY] [--schema SCHEMA]
+                         [--claim-bindings CLAIM_BINDINGS]
+                         [--repo-root REPO_ROOT]
+harness_verify.sh: error: unrecognized arguments: --as-of 2026-02-30

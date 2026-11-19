@@ -1,0 +1,15 @@
+{
+  "drift_fields": [],
+  "hw_check": "blocked:invalid-input",
+  "invalid_fields": [
+    "$"
+  ],
+  "manifest_path": "./output/single/manifest.yaml",
+  "notes": [
+    "observed 경로가 regular file이 아님: nope.json"
+  ],
+  "preflight_required": true,
+  "reasons": [
+    "OBSERVED_INVALID"
+  ]
+}

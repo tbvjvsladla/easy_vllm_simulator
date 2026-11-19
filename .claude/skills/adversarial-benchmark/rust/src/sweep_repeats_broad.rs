@@ -10,7 +10,7 @@ use crate::selftest_sweep_repeats::{
     contained_in_or_empty, empty_object, get_default, get_obj, is_int_at, is_none_at, is_text_at,
     json_line, level_calls, load_object, status, str_at_starts, tl, tup, Outcome, Program,
 };
-use crate::sweep_repeats_clock::strptime;
+use crate::sweep_repeats_clock::{strptime, WholeSecondTime};
 use crate::sweep_repeats_fixture::{Sandbox, CAMPAIGN, KNOB_REASONS, LEVEL_REASON};
 use crate::verify_fixture::{
     contains, exists, get, is_file, or_default, read_bytes, read_text, write_str, TextRun,
@@ -19,9 +19,32 @@ use std::collections::BTreeMap;
 use std::ffi::OsString;
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
+use std::time::{SystemTime, UNIX_EPOCH};
 
-/// The injected clock of every broad search call.
-const NOW: &str = "2026-01-01T00:00:00Z";
+fn run_start() -> WholeSecondTime {
+    static STARTED: OnceLock<WholeSecondTime> = OnceLock::new();
+    *STARTED.get_or_init(|| {
+        let seconds = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("a clock after the epoch")
+            .as_secs();
+        let seconds = i64::try_from(seconds).expect("seconds since the epoch fit i64");
+        strptime(&st("1970-01-01T00:00:00Z"))
+            .and_then(|epoch| epoch.plus_seconds(seconds))
+            .expect("the clock reads a year between 1 and 9999")
+    })
+}
+
+fn utc_after_run_start(seconds: i64) -> Result<String, Raised> {
+    Ok(run_start().plus_seconds(seconds)?.format())
+}
+
+fn injected_now_utc() -> &'static str {
+    static NOW: OnceLock<String> = OnceLock::new();
+    NOW.get_or_init(|| utc_after_run_start(-3600).expect("an hour before the run is a valid time"))
+}
+
 const FIRST_EVENTS: &str = "docs/logs/main/events/2026-09.jsonl";
 
 fn arguments(items: &[&str]) -> Vec<OsString> {
@@ -34,8 +57,6 @@ fn with_path(mut head: Vec<OsString>, path: &Path, tail: &[&str]) -> Vec<OsStrin
     head
 }
 
-/// The arguments of `broad_search.sh cell` up to the options that differ: state, cell key, config, citation, intent
-/// and budget.
 fn cell_head(state: &Path, key: &str, config: &str) -> Vec<OsString> {
     let mut words = arguments(&["cell", "--state"]);
     words.push(state.as_os_str().to_os_string());
@@ -54,7 +75,6 @@ fn cell_head(state: &Path, key: &str, config: &str) -> Vec<OsString> {
     words
 }
 
-/// The options of a measuring cell: backend, shape reasons, one level, clock, topology and the risk confirmation.
 fn measuring_tail(extra: &[OsString]) -> Vec<OsString> {
     let mut words = arguments(&["--backend", "openai"]);
     words.extend(KNOB_REASONS.map(OsString::from));
@@ -62,7 +82,7 @@ fn measuring_tail(extra: &[OsString]) -> Vec<OsString> {
     words.extend(LEVEL_REASON.map(OsString::from));
     words.extend(arguments(&[
         "--now-utc",
-        NOW,
+        injected_now_utc(),
         "--topology",
         "single",
         "--confirm-risk",
@@ -92,15 +112,13 @@ fn init_command(sweep_id: &str, state: &Path, cells: &str, topology: &str) -> Ve
         "--authority",
         "explore",
         "--now-utc",
-        NOW,
+        injected_now_utc(),
         "--topology",
         topology,
     ]));
     words
 }
 
-/// The bytes and modification time (ns) of every regular file under a directory, by relative path
-/// (`{str(p.relative_to(path)): (p.read_bytes(), p.stat().st_mtime_ns) for p in path.rglob("*") if p.is_file()}`).
 fn tree_bytes(root: &Path) -> Result<BTreeMap<String, (Vec<u8>, i128)>, Raised> {
     let mut files = BTreeMap::new();
     collect_files(root, root, &mut files)?;
@@ -156,7 +174,6 @@ impl Program<'_, '_> {
         self.sb.run(command, plan)
     }
 
-    /// `cell(key, cfg, plan_, *extra)`: a measuring cell on the state file `bs.json`.
     fn cell(
         &self,
         key: &str,
@@ -170,7 +187,6 @@ impl Program<'_, '_> {
         self.broad(words, Some(plan))
     }
 
-    /// `record(key, path)`: the last cell record of that key in a state file, `{}` when there is none.
     fn record(&self, key: &str, path: &Path) -> Result<PyValue, Raised> {
         let document = load_object(path);
         let cells = or_default(get(&document, "cells")?, PyValue::List(Vec::new()));
@@ -183,7 +199,6 @@ impl Program<'_, '_> {
         Ok(found)
     }
 
-    /// B1 init, B6, B1 cell and B2.
     pub(crate) fn broad_search_wiring(&mut self) -> Outcome {
         self.sb.clear_events();
         let state = self.bs_state();
@@ -281,7 +296,6 @@ impl Program<'_, '_> {
         )
     }
 
-    /// B6: the cross-node tolerance pair is checked before the cell starts (measuring and `--serve-failed`).
     fn tolerance_pair_before_load(&mut self, state: &Path) -> Outcome {
         self.sb.reset_calls()?;
         self.sb.config("cfg-ba", "single")?;
@@ -295,13 +309,13 @@ impl Program<'_, '_> {
         let mut source_only = serve_failed_head.clone();
         source_only.extend(arguments(&[
             "--now-utc",
-            NOW,
+            injected_now_utc(),
             "--topology",
             "single",
             "--serve-failed",
             "fixture",
             "--serve-started-utc",
-            NOW,
+            injected_now_utc(),
             "--cross-node-tolerance-source",
             "only-source",
         ]));
@@ -309,13 +323,13 @@ impl Program<'_, '_> {
         let mut not_a_number = serve_failed_head;
         not_a_number.extend(arguments(&[
             "--now-utc",
-            NOW,
+            injected_now_utc(),
             "--topology",
             "single",
             "--serve-failed",
             "fixture",
             "--serve-started-utc",
-            NOW,
+            injected_now_utc(),
             "--cross-node-tolerance-s",
             "x",
             "--cross-node-tolerance-source",
@@ -344,7 +358,6 @@ impl Program<'_, '_> {
         )
     }
 
-    /// O1–O6: an explicit new sweep path keeps the earlier measurement's bytes and paths.
     pub(crate) fn new_output_paths(&mut self) -> Outcome {
         let old_dir = self.sb.sweep_dir("cfg-ba", "single");
         let old_tree = tree_bytes(&old_dir)?;
@@ -428,7 +441,6 @@ impl Program<'_, '_> {
         self.concurrent_claim(&old_dir, &old_tree, &fresh)
     }
 
-    /// O3, O4 and O5: an existing explicit path, escapes, a symlink; and a reassembly of the new path.
     fn explicit_path_rejections(
         &mut self,
         old_dir: &Path,
@@ -526,7 +538,6 @@ impl Program<'_, '_> {
         )
     }
 
-    /// O6: two calls claim the same new path at once; `mkdir` lets exactly one through.
     fn concurrent_claim(
         &mut self,
         old_dir: &Path,
@@ -570,7 +581,6 @@ impl Program<'_, '_> {
         )
     }
 
-    /// B3, B8, B4, B5 and B7: the cell records after the output-path group.
     pub(crate) fn broad_cells_and_legacy_state(&mut self) -> Outcome {
         let state = self.bs_state();
         let kill = dict_of(vec![("fail", dict_of(vec![("1:2", st("kill"))]))]);
@@ -597,7 +607,6 @@ impl Program<'_, '_> {
         self.serve_failed_main_node(&state)
     }
 
-    /// B8: a lite ② cell loads nothing from the earlier sweep that sits in the directory.
     fn lite_server_failed_cell(&mut self, state: &Path) -> Outcome {
         let b8 = self.sb.campaign_dir().join("sweeps").join("b8.json");
         let mut document = match crate::sweep_repeats_fixture::Sandbox::load(state) {
@@ -670,7 +679,6 @@ impl Program<'_, '_> {
         )
     }
 
-    /// B4 and B5: a state file without a declared repeat count stops a new cell and not the read paths.
     fn legacy_state_without_repeats(&mut self, state: &Path) -> Outcome {
         let legacy = self.sb.campaign_dir().join("sweeps").join("legacy.json");
         let mut document = Sandbox::load(state)
@@ -701,7 +709,7 @@ impl Program<'_, '_> {
             with_path(
                 arguments(&["status", "--state"]),
                 &legacy,
-                &["--now-utc", NOW],
+                &["--now-utc", injected_now_utc()],
             ),
             None,
         )?;
@@ -710,7 +718,7 @@ impl Program<'_, '_> {
         let mut map_words = with_path(
             arguments(&["map", "--state"]),
             &legacy,
-            &["--now-utc", NOW, "--out-md"],
+            &["--now-utc", injected_now_utc(), "--out-md"],
         );
         map_words.push(out_md.as_os_str().to_os_string());
         let map_run = self.broad(map_words, None)?;
@@ -738,11 +746,11 @@ impl Program<'_, '_> {
         )
     }
 
-    /// B7: a `--serve-failed` cell names this node by the owner rule (a manifest without `self_role`).
     fn serve_failed_main_node(&mut self, state: &Path) -> Outcome {
         self.sb.clear_events();
+        let serve_started = utc_after_run_start(-60)?;
         let event = dict_of(vec![
-            ("ts", st("2026-09-01T00:00:30Z")),
+            ("ts", st(&utc_after_run_start(-30)?)),
             ("kind", st("watchdog_kill_ack")),
             ("source", st("fixture")),
             ("mode", st("armed")),
@@ -754,13 +762,13 @@ impl Program<'_, '_> {
         let mut words = cell_head(state, "cell-sf", "cfg-sf");
         words.extend(arguments(&[
             "--now-utc",
-            NOW,
+            injected_now_utc(),
             "--topology",
             "single",
             "--serve-failed",
             "materialize-fixture",
             "--serve-started-utc",
-            "2026-09-01T00:00:00Z",
+            &serve_started,
         ]));
         let run = self.broad(words, None)?;
         let record = self.record("cell-sf", state)?;
@@ -782,7 +790,6 @@ impl Program<'_, '_> {
         )
     }
 
-    /// M1 and M2: the multi-node wiring from `sweep_bench` to the decision owner, and the cell closing.
     pub(crate) fn multi_node(&mut self) -> Outcome {
         self.sb.clear_events();
         write_str(
@@ -940,12 +947,12 @@ impl Program<'_, '_> {
         self.serve_failed_multi(&mirror)
     }
 
-    /// M2: a multi-node `--serve-failed` cell hands the declared tolerance to the closing classification.
     fn serve_failed_multi(&mut self, mirror: &Path) -> Outcome {
         self.sb.clear_events();
         let _ = std::fs::remove_dir_all(self.sb.root().join("sync_staging"));
+        let serve_started = utc_after_run_start(-50)?;
         let kill = dict_of(vec![
-            ("ts", st("2026-09-01T00:00:00Z")),
+            ("ts", st(&utc_after_run_start(-60)?)),
             ("kind", st("watchdog_kill_ack")),
             ("source", st("fixture")),
             ("mode", st("armed")),
@@ -960,13 +967,13 @@ impl Program<'_, '_> {
             let mut words = cell_head(&state, key, "cfg-mf");
             words.extend(arguments(&[
                 "--now-utc",
-                NOW,
+                injected_now_utc(),
                 "--topology",
                 "multi",
                 "--serve-failed",
                 "materialize-fixture",
                 "--serve-started-utc",
-                "2026-09-01T00:00:10Z",
+                &serve_started,
             ]));
             words.extend(arguments(extra));
             words
@@ -1017,7 +1024,6 @@ impl Program<'_, '_> {
         )
     }
 
-    /// `campaign_init.sh --cell-set KEY --outcome OUTCOME --sweep-state STATE --utc NOW` in the sandbox.
     fn cell_set(&self, key: &str, outcome: &str, state: &Path) -> Result<TextRun, Raised> {
         let mut command = vec![
             OsString::from("bash"),
@@ -1028,13 +1034,10 @@ impl Program<'_, '_> {
         ];
         command.extend(arguments(&["--cell-set", key, "--outcome", outcome, "--sweep-state"]));
         command.push(state.as_os_str().to_os_string());
-        command.extend(arguments(&["--utc", NOW]));
+        command.extend(arguments(&["--utc", injected_now_utc()]));
         self.sb.run(command, None)
     }
 
-    /// C1–C4 (plan_26111708 B L12): a standalone `sweep_bench.sh --campaign-cell` run leaves, in the campaign's `sweeps/`
-    /// (derived from `campaigns/ACTIVE`), the cell record `campaign_init --cell-set --sweep-state` reads — on both
-    /// topologies; outside a campaign it writes nothing; a failed measurement is recorded as the classifier closes it.
     pub(crate) fn campaign_cell_records(&mut self) -> Outcome {
         self.sb.declare(Some(3))?;
         self.sb.clear_events();
@@ -1101,7 +1104,6 @@ impl Program<'_, '_> {
             cond,
             &tup(vec![status(&run), pick(&record, &["cell_outcome", "void_reason", "sweep_dir"])?, tl(&run.stderr, 400)]),
         )?;
-        // the multi topology: the same record, derived from the same declaration, read for a cell of a multi node
         let declaration = self.sb.campaign_dir().join("campaign.yaml");
         write_str(&declaration, &read_text(&declaration)?.replace("\"single\"", "\"multi\""))?;
         self.sb.config("cell-b", "multi")?;
@@ -1149,7 +1151,6 @@ impl Program<'_, '_> {
     }
 }
 
-/// `{"tpot": {"1": [..]}}`: the shim plan that sets the first level's per-run TPOT.
 fn tpot_plan(values: &[f64]) -> PyValue {
     dict_of(vec![(
         "tpot",
@@ -1167,7 +1168,6 @@ fn relative_text(root: &Path, path: &Path) -> String {
         .into_owned()
 }
 
-/// `{k: record.get(k) for k in keys}`.
 fn pick(record: &PyValue, keys: &[&str]) -> Result<PyValue, Raised> {
     let mut picked = PyDict::new();
     for key in keys {
@@ -1176,7 +1176,6 @@ fn pick(record: &PyValue, keys: &[&str]) -> Result<PyValue, Raised> {
     Ok(PyValue::Dict(picked))
 }
 
-/// `document.update(key=value, ...)`: existing keys keep their place, new ones are appended.
 fn update_keys(document: &mut PyValue, entries: Vec<(&str, PyValue)>) -> Result<(), Raised> {
     match document {
         PyValue::Dict(map) => {
@@ -1192,7 +1191,6 @@ fn update_keys(document: &mut PyValue, entries: Vec<(&str, PyValue)>) -> Result<
     }
 }
 
-/// `document["declared_budget"].pop(key)` for each key: a missing key is a `KeyError`.
 fn remove_from_declared_budget(document: &mut PyValue, keys: &[&str]) -> Result<(), Raised> {
     let PyValue::Dict(map) = document else {
         return Err(Raised::new(
@@ -1209,8 +1207,6 @@ fn remove_from_declared_budget(document: &mut PyValue, keys: &[&str]) -> Result<
     Ok(())
 }
 
-/// `dict.pop(key)` on a loaded object: the object without that key (the order of the rest kept); a missing key is
-/// a `KeyError`, a value that is no dict has no `pop`.
 fn pop_required(value: &PyValue, key: &str) -> Result<PyValue, Raised> {
     match value.peel() {
         PyValue::Dict(map) if map.contains_key(key) => {
@@ -1227,7 +1223,6 @@ fn pop_required(value: &PyValue, key: &str) -> Result<PyValue, Raised> {
     }
 }
 
-/// The entry of a node in `events_scan.nodes`: `next((e for e in ... if e.get("node") == node), {})`.
 fn node_entry(record: &PyValue, node: &str) -> Result<PyValue, Raised> {
     let nodes = or_default(
         get(&get_obj(record, "events_scan")?, "nodes")?,
@@ -1241,7 +1236,6 @@ fn node_entry(record: &PyValue, node: &str) -> Result<PyValue, Raised> {
     Ok(empty_object())
 }
 
-/// `mstatus(record, node)`-style lookup: the field of the node's entry, `None` when the node is not listed.
 fn node_field(record: &PyValue, node: &str, field: &str) -> Result<PyValue, Raised> {
     let nodes = or_default(
         get(&get_obj(record, "events_scan")?, "nodes")?,

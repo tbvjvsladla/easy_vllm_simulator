@@ -1,0 +1,15 @@
+{
+  "drift_fields": [],
+  "hw_check": "blocked:invalid-input",
+  "invalid_fields": [
+    "$"
+  ],
+  "manifest_path": "./output/single/manifest.yaml",
+  "notes": [
+    "observed JSON 판독 실패: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)"
+  ],
+  "preflight_required": true,
+  "reasons": [
+    "OBSERVED_INVALID"
+  ]
+}

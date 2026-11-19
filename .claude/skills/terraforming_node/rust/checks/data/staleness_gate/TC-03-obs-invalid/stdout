@@ -1,0 +1,25 @@
+{
+  "drift_fields": [],
+  "hw_check": "blocked:invalid-input",
+  "invalid_fields": [
+    "cpu_arch",
+    "cuda_version",
+    "gpu_model",
+    "gpus_per_node",
+    "interconnect.bandwidth_gbps",
+    "interconnect.gid_index",
+    "interconnect.hca_devices",
+    "interconnect.platform_preset",
+    "interconnect.socket_iface",
+    "nodes[0].host",
+    "nodes[0].role",
+    "nodes[1]",
+    "topology_declared"
+  ],
+  "manifest_path": "./output/single/manifest.yaml",
+  "notes": [],
+  "preflight_required": true,
+  "reasons": [
+    "OBSERVED_INVALID"
+  ]
+}

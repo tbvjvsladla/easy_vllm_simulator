@@ -1,0 +1,59 @@
+[
+ {
+  "id": "PD-help",
+  "args": [
+   "--help"
+  ],
+  "exit_code": 0,
+  "stdout": "usage: verify_distribution.sh [-h] [--json-out JSON_OUT]\n\noptions:\n  -h, --help           show this help message and exit\n  --json-out JSON_OUT\n",
+  "stderr": ""
+ },
+ {
+  "id": "PD-unknown-arg",
+  "args": [
+   "--bogus",
+   "x"
+  ],
+  "exit_code": 2,
+  "stdout": "",
+  "stderr": "usage: verify_distribution.sh [-h] [--json-out JSON_OUT]\nverify_distribution.sh: error: unrecognized arguments: --bogus x\n"
+ },
+ {
+  "id": "PD-missing-value",
+  "args": [
+   "--json-out"
+  ],
+  "exit_code": 2,
+  "stdout": "",
+  "stderr": "usage: verify_distribution.sh [-h] [--json-out JSON_OUT]\nverify_distribution.sh: error: argument --json-out: expected one argument\n"
+ },
+ {
+  "id": "PD-help-explicit",
+  "args": [
+   "-h=1"
+  ],
+  "exit_code": 2,
+  "stdout": "",
+  "stderr": "usage: verify_distribution.sh [-h] [--json-out JSON_OUT]\nverify_distribution.sh: error: argument -h/--help: ignored explicit argument '1'\n"
+ },
+ {
+  "id": "PD-double-dash",
+  "args": [
+   "--",
+   "a"
+  ],
+  "exit_code": 2,
+  "stdout": "",
+  "stderr": "usage: verify_distribution.sh [-h] [--json-out JSON_OUT]\nverify_distribution.sh: error: unrecognized arguments: -- a\n"
+ },
+ {
+  "id": "PD-json-out-value-looks-like-option",
+  "args": [
+   "--json-out",
+   "--bogus"
+  ],
+  "exit_code": 2,
+  "stdout": "",
+  "stderr": "usage: verify_distribution.sh [-h] [--json-out JSON_OUT]\nverify_distribution.sh: error: argument --json-out: expected one argument\n"
+ }
+]

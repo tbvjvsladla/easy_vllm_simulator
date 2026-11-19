@@ -1,5 +1,4 @@
 //! `verify()` of verify_distribution.py: the static contract checks and the named child runs, in the original order.
-use crate::clock::{observe_as_of, AsOfRecord, UtcInstant};
 use crate::fsglob::{glob, glob_child_literal, rglob};
 use crate::pyassert::assert_lines;
 use crate::pytext::{
@@ -15,7 +14,6 @@ use std::path::{Path, PathBuf};
 
 pub const EXPECTED_SKILLS: [&str; 6] = [
     "adversarial-benchmark",
-    // hint 발행 sidecar(2026-08-20 · plan_26082009).
     "hint-publisher",
     "terraforming_node",
     "upstream-version-watch",
@@ -33,9 +31,8 @@ pub const LOCAL_TOMBSTONES: [&str; 17] = [
     "scripts/systemd/easy-vllm-memwatch.service",
     "scripts/templates/hint_recipe.template.md",
 ];
-/// The exact `ROOT_RELOCATION_REPLACEMENTS` of sync_branches.sh (a tripwire list: it names where the old root
-/// `scripts/` files went). Since the Rust port the owner of each moved program is its Rust launcher (`.sh`) or, for the
-/// provider adapter without a launcher, its Rust source — never a `.py` (plan_26111615 D4: the `.py` are deleted).
+/// The exact `ROOT_RELOCATION_REPLACEMENTS` of sync_branches.sh (a tripwire list: where the old root `scripts/` files
+/// went).
 pub const LOCAL_REPLACEMENTS: [&str; 17] = [
     ".claude/skills/terraforming_node/scripts/agent_control.sh",
     ".claude/skills/vllm-recipe-explorer/scripts/cleanup_docker.sh",
@@ -73,11 +70,12 @@ pub const SUB_RETIREMENT_TOMBSTONES: [&str; 3] = [
 ];
 pub const SCRATCH_DIR_NAMES: [&str; 4] = ["temp", "tmp", "test", "tests"];
 
-/// The Rust launchers that replace the policy `.py` programs this driver used to start (repo-relative).
+/// The Rust launchers of the policy programs this driver starts (repo-relative).
 pub const POLICY_REGISTRY_LAUNCHER: &str = ".claude/policies/runtime/policy_registry.sh";
 pub const RUNTIME_SELFTEST_LAUNCHER: &str = ".claude/policies/runtime/runtime_selftest.sh";
-/// plan_26111615 pass 3: tracked non-.py executable surfaces start no Python on the host/sub (container lines allow-listed with a reason).
+/// Tracked non-.py executable surfaces start no Python on the host/sub (container lines allow-listed with a reason).
 pub const INLINE_PYTHON_SCAN_LAUNCHER: &str = ".claude/rust/py-boundary-guard/inline_python_scan.sh";
+pub const VERDICT_CLOCK_SCAN_LAUNCHER: &str = ".claude/policies/runtime/verdict_clock_scan.sh";
 pub const ANTIPATTERN_SCAN_LAUNCHER: &str = ".claude/policies/runtime/antipattern_scan.sh";
 pub const CONSTITUTION_LINT_LAUNCHER: &str = ".claude/policies/runtime/constitution_lint.sh";
 pub const DOC_NAMING_LAUNCHER: &str = ".claude/policies/runtime/doc_naming.sh";
@@ -226,8 +224,6 @@ fn git_out(repo: &Path, a: &[&str]) -> Option<std::process::Output> {
     std::process::Command::new("git").arg("-C").arg(repo).args(a).output().ok()
 }
 
-/// `_terraform_flag_issued()` — the Flag reader is the terraforming bundle's program (its native launcher
-/// `manifest_contract.sh`; the retired `manifest_contract.py` is no longer run).
 fn terraform_flag_issued(repo: &Path) -> bool {
     let mc = repo.join(".claude/skills/terraforming_node/scripts/manifest_contract.sh");
     if !mc.is_file() {
@@ -489,8 +485,8 @@ fn codex_discovery_selftest(repo: &Path) -> PyValue {
     }
 }
 
-/// `_policy_registry_check(policy_runner, record)` with the `_run` used (injectable so a self-test can capture argv).
-pub fn policy_registry_check_with<F>(policy_runner: &Path, repo: &Path, record: &AsOfRecord, runner: F) -> PyValue
+/// `_policy_registry_check(policy_runner)`: `policy_registry.sh verify --repo-root <repo>` through `runner` (`_run`).
+pub fn policy_registry_check<F>(policy_runner: &Path, repo: &Path, runner: F) -> PyValue
 where
     F: FnOnce(&str, &[String], &[i64]) -> PyValue,
 {
@@ -498,24 +494,10 @@ where
         "bash".to_string(),
         policy_runner.to_string_lossy().into_owned(),
         "verify".into(),
-        "--as-of".into(),
-        record.as_of.clone(),
         "--repo-root".into(),
         repo.to_string_lossy().into_owned(),
     ];
-    let mut check = runner("policy_registry_verify", &argv, &[0]);
-    update(&mut check, vec![
-        ("as_of", s(&record.as_of)),
-        ("as_of_source", s(record.as_of_source)),
-        ("observed_utc", opt_str(&record.observed_utc)),
-        ("repro_as_of", s(&record.repro_as_of)),
-    ]);
-    check
-}
-
-/// `_policy_registry_check` with the real `_run` (cwd = the repository).
-pub fn policy_registry_check(policy_runner: &Path, repo: &Path, record: &AsOfRecord) -> PyValue {
-    policy_registry_check_with(policy_runner, repo, record, |name, argv, expected| run(name, argv, expected, repo, &[]))
+    runner("policy_registry_verify", &argv, &[0])
 }
 
 fn copytree_skipping(src: &Path, dst: &Path, skip: &[&Path]) -> Result<(), PyError> {
@@ -549,8 +531,6 @@ fn gitless_hint_match_checks(repo: &Path) -> Vec<PyValue> {
     };
     let root = td.0.clone();
     let prepared = (|| -> Result<PyValue, PyError> {
-        // The skill tree minus its node-local cargo `target/` (build outputs, not the skill), then the one release
-        // executable the match runs (the delivered program of hint.sh).
         copytree_skipping(&repo.join(skill), &root.join(skill), &[&repo.join(skill).join("rust/target")])?;
         let bin_rel = format!("{skill}/rust/target/release/hint");
         fs::create_dir_all(root.join(&bin_rel).parent().unwrap()).map_err(|e| os_error(&e, &bin_rel))?;
@@ -595,8 +575,6 @@ fn gitless_hint_match_checks(repo: &Path) -> Vec<PyValue> {
         }
     };
     let (pv, pm, pa, pt) = (field(probe, "vllm").unwrap(), field(probe, "model").unwrap(), field(probe, "arch").unwrap(), field(probe, "tag").unwrap());
-    // The single hint CLI is the Rust `hint` (hint.sh = `HINT_SKILL_DIR=<skill> exec <skill>/rust/target/release/hint`).
-    // It is started directly because the launcher itself needs `dirname` from PATH, and PATH is cut on purpose here.
     let skill_dir = root.join(skill).to_string_lossy().into_owned();
     let gitless = [("PATH", "/nonexistent"), ("HINT_SKILL_DIR", skill_dir.as_str())];
     let cli = vec![root.join(format!("{skill}/rust/target/release/hint")).to_string_lossy().into_owned(), "match".into(), "--vllm".into(), pv.clone(), "--model".into(), pm.clone()];
@@ -781,16 +759,14 @@ pub struct Hooks<'a> {
     pub flag_issued: &'a dyn Fn(&Path) -> bool,
 }
 
-/// `verify(policy_as_of, now_utc)`. Err(ValueError message) for a malformed reference date (exit 2), Uncaught for an
-/// exception the original does not catch (its traceback ends the run with exit 1).
-pub fn verify(repo: &Path, policy_as_of: Option<&str>, now_utc: Option<UtcInstant>) -> Result<Result<PyValue, Uncaught>, String> {
-    let record = observe_as_of(policy_as_of, now_utc)?;
+/// `verify()`. Uncaught for an exception the original does not catch (its traceback ends the run with exit 1).
+pub fn verify(repo: &Path) -> Result<PyValue, Uncaught> {
     let hooks = Hooks { run: &run, gitless: &gitless_hint_match_checks, flag_issued: &terraform_flag_issued };
-    Ok(verify_with(repo, record, &hooks))
+    verify_with(repo, &hooks)
 }
 
-/// `verify()` after the reference-date observation, with explicit seams.
-pub fn verify_with(repo: &Path, record: AsOfRecord, hooks: &Hooks) -> Result<PyValue, Uncaught> {
+/// `verify()` with explicit seams.
+pub fn verify_with(repo: &Path, hooks: &Hooks) -> Result<PyValue, Uncaught> {
     let run = |name: &str, argv: &[String], expected: &[i64], cwd: &Path, env: &[(&str, &str)]| (hooks.run)(name, argv, expected, cwd, env);
     let rr = |name: &str, argv: &[&str], expected: &[i64]| run(name, &args(argv), expected, repo, &[]);
     let mut checks: Vec<PyValue> = Vec::new();
@@ -894,7 +870,6 @@ pub fn verify_with(repo: &Path, record: AsOfRecord, hooks: &Hooks) -> Result<PyV
                           ("paths", list_strs(&build_assets.iter().map(|p| rel(p, repo)).collect::<Vec<_>>()))]));
 
     let node_identity_keys = ["MASTER_HOST_IP", "SLAVE_HOST_IP", "SSH_USER"];
-    // The four generic deploy patterns are the canonical ones (docs.md §PII 정본 = hint-publisher `pii`; plan_26111708 A5).
     let pii = hintlib::pii::GENERIC_PII();
     let mut content_defects: Vec<String> = Vec::new();
     let content = (|| -> Result<(), PyError> {
@@ -1016,14 +991,11 @@ pub fn verify_with(repo: &Path, record: AsOfRecord, hooks: &Hooks) -> Result<PyV
         ("ok", b(!skeleton_text.contains("`scripts/doc_naming.py`") && skeleton_text.contains(".claude/policies/runtime/doc_naming.sh")))]));
 
     let tn = ".claude/skills/terraforming_node/scripts";
-    // hint-publisher: its Rust launchers (was `python3 hint.py --self-test` / `render_bench_section.py --selftest`); the
-    // image-git-release unittest module is the hint crate's `artifacts_cases::image_git_release` check (plan_26111615).
     checks.push(rr("hint_selftest", &["bash", HINT_LAUNCHER, "--self-test"], &[0]));
     checks.push(rr("hint_image_git_release_selftest", &["bash", ".claude/skills/terraforming_node/scripts/rust_bootstrap.sh", "exec", "--",
                     "cargo", "test", "--offline", "--locked", "--release", "--manifest-path", ".claude/skills/hint-publisher/rust/Cargo.toml",
                     "--target-dir", ".claude/skills/hint-publisher/rust/target", "--test", "artifacts_cases", "image_git_release"], &[0]));
     checks.push(rr("hint_bench_section_selftest", &["bash", ".claude/skills/hint-publisher/scripts/render_bench_section.sh", "--selftest"], &[0]));
-    // terraforming core contracts: their Rust launchers (was `python3 <x>.py --self-test`; pass 2 of plan_26111615).
     checks.push(rr("terraform_scan_selftest_legacy", &["bash", &format!("{tn}/scan_node.sh"), "--self-test"], &[0]));
     checks.push(rr("terraform_scan_p1_native_selfcheck", &["bash", &format!("{tn}/scan_node.sh"), "--p1-self-check"], &[0]));
     checks.push(rr("terraform_render_selftest", &["bash", &format!("{tn}/render_sub_env.sh"), "--self-test"], &[0]));
@@ -1031,7 +1003,6 @@ pub fn verify_with(repo: &Path, record: AsOfRecord, hooks: &Hooks) -> Result<PyV
     checks.push(rr("terraform_library_access_selftest", &["bash", &format!("{tn}/library_access.sh"), "--self-test"], &[0]));
     checks.push(rr("terraform_staleness_gate_selftest", &["bash", &format!("{tn}/staleness_gate.sh"), "--self-test"], &[0]));
     checks.push(rr("terraform_manifest_contract_selftest", &["bash", &format!("{tn}/manifest_contract.sh"), "--self-test"], &[0]));
-    // policy programs: their Rust launchers (was `python3 <x>.py --self-test`).
     checks.push(rr("antipattern_scan_selftest", &["bash", ANTIPATTERN_SCAN_LAUNCHER, "--self-test"], &[0]));
     checks.push(rr("constitution_lint_selftest", &["bash", CONSTITUTION_LINT_LAUNCHER, "--self-test"], &[0]));
     checks.push(rr("agent_control_selftest", &["bash", &format!("{tn}/agent_control.sh"), "--self-test"], &[0]));
@@ -1050,9 +1021,10 @@ pub fn verify_with(repo: &Path, record: AsOfRecord, hooks: &Hooks) -> Result<PyV
     checks.push(rr("terraform_budget_renew_loop_selftest", &["bash", &format!("{tn}/node_blackbox/budget_renew_loop.sh"), "--self-test"], &[0]));
     checks.push(rr("runtime_regression_selftest", &["bash", RUNTIME_SELFTEST_LAUNCHER], &[0]));
     checks.push(rr("inline_python_scan", &["bash", INLINE_PYTHON_SCAN_LAUNCHER, "check", "--repo", "."], &[0]));
+    checks.push(rr("verdict_clock_scan", &["bash", VERDICT_CLOCK_SCAN_LAUNCHER, "check", "--repo", "."], &[0]));
+    checks.push(rr("verdict_clock_scan_selftest", &["bash", VERDICT_CLOCK_SCAN_LAUNCHER, "--self-test"], &[0]));
     checks.extend((hooks.gitless)(repo));
     let uw = ".claude/skills/upstream-version-watch/scripts";
-    // upstream-version-watch 진입점은 Rust 런처(.sh → 노드 빌드 ELF)다 — .py 원본을 부르지 않는다(plan_26111615).
     checks.push(rr("upstream_slave_forward_selftest", &["bash", &format!("{uw}/slave_forward.sh"), "--self-test"], &[0]));
     checks.push(rr("upstream_render_dockerfile_selftest", &["bash", &format!("{uw}/render_dockerfile.sh"), "--self-test"], &[0]));
     for filename in ["resolve_torch_pin.sh", "resolve_ngc_tag.sh", "resolve_build_track.sh", "resolve_wheel.sh", "render_dockerfile.sh",
@@ -1127,14 +1099,13 @@ pub fn verify_with(repo: &Path, record: AsOfRecord, hooks: &Hooks) -> Result<PyV
 
     let wd = ".claude/skills/wiki-desk";
     checks.push(run("wiki_node_test", &args(&["node", "--test"]), &[0], &repo.join(wd), &[]));
-    // 승격된 frontmatter 검사(plan_26111707) — 추적물이라 fresh clone 에서도 돈다 · YAML 1.1 오라클은 Rust(`wiki-desk/rust`).
     checks.push(run("wiki_frontmatter_check", &args(&["node", "--test", "checks/frontmatter.check.ts"]), &[0], &repo.join(wd), &[]));
     checks.push(rr("wiki_doc_naming_selftest", &["node", &format!("{wd}/src/doc_naming.ts"), "--self-test"], &[0]));
     checks.push(rr("doc_naming_shim_selftest", &["bash", DOC_NAMING_LAUNCHER, "--self-test"], &[0]));
 
     let policy_runner = repo.join(POLICY_REGISTRY_LAUNCHER);
     if policy_runner.is_file() {
-        checks.push(policy_registry_check_with(&policy_runner, repo, &record, |n, a, e| run(n, a, e, repo, &[])));
+        checks.push(policy_registry_check(&policy_runner, repo, |n, a, e| run(n, a, e, repo, &[])));
     } else {
         checks.push(dict(vec![("name", s("policy_registry_verify")), ("ok", b(false)),
                               ("error", s(&format!("missing {POLICY_REGISTRY_LAUNCHER}")))]));
@@ -1145,8 +1116,6 @@ pub fn verify_with(repo: &Path, record: AsOfRecord, hooks: &Hooks) -> Result<PyV
         Ok(t) => {
             checks.push(order_check("single_up_grounding_before_any_state", &t,
                 "echo \"$TAG 1/7 통로·전제      : DONE", "echo \"$TAG 3/7 예산 선언       : DONE\"",
-                // single_serve_up.sh now names the Rust launchers directly (`$_CI` = campaign_init.sh · `$SESSION_SH` =
-                // blackbox_session.sh); the order contract is unchanged: grounding, then the RAM gate, then the budget declaration.
                 &["bash \"$_CI\" --grounding-check", "check_smoke_model.sh\" \"$CONFIG\"", "bash \"$SESSION_SH\" \"${DECL_ARGS[@]}\""]));
             checks.push(order_check("single_up_engine_log_saved_before_rollback", &t,
                 "echo \"$TAG 7/7 health 대기     : FAIL — 컨테이너가 종료됐다\"", "rollback; exit 5",
@@ -1168,14 +1137,10 @@ pub fn verify_with(repo: &Path, record: AsOfRecord, hooks: &Hooks) -> Result<PyV
     }
 
     let all_ok = checks.iter().all(check_ok);
-    let record_v = dict(vec![("as_of", s(&record.as_of)), ("as_of_source", s(record.as_of_source)),
-                             ("observed_utc", opt_str(&record.observed_utc)), ("repro_as_of", s(&record.repro_as_of))]);
     Ok(dict(vec![
         ("schema_version", PyValue::int(1)),
         ("repo", s(&repo.to_string_lossy())),
-        ("policy_as_of", record_v),
         ("verdict", s(if all_ok { "PASS" } else { "FAIL" })),
         ("checks", PyValue::List(checks)),
     ]))
 }
-

@@ -1,9 +1,8 @@
 //! The registry validator/auditor (`policy_registry.py`): violations, citation scanning, safe JSON loading, schema-meta
-//! and schema-shape validation, lifecycle clocks, git-native evidence admissibility, assertion ids, claim bindings,
+//! and schema-shape validation, lifecycle rules, git-native evidence admissibility, assertion ids, claim bindings,
 //! contract-tree identity and removal eligibility. Every message is the original's text.
 
 use crate::pathutil;
-use crate::pydate::Date;
 use crate::pyids;
 use crate::value::*;
 use agent_runtime_support::pyjson;
@@ -14,13 +13,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
-pub const SCHEMA_VERSION: i64 = 2;
-pub const REVIEW_PERIOD_DAYS: i64 = 90;
-pub const OVERDUE_GRACE_DAYS: i64 = 30;
+pub const ENVELOPE_SCHEMA_VERSION: i64 = 2;
 pub const CLAIM_BINDINGS_REL: &str = ".claude/policies/claim_bindings.json";
-/// The validator source whose bytes enter the contract-tree digest (`compute_contract_tree_sha256`). The original
-/// hashed its own program text (`policy_registry.py`); the validator is now this Rust module. No removal artifact is
-/// recorded in the registry (no policy carries `removal_evidence`), so no stored digest depends on the old input.
+/// The validator source whose bytes enter the contract-tree digest (`compute_contract_tree_sha256`).
 pub const CONTRACT_SCRIPT_REL: &str = ".claude/rust/policy-audit/src/registry.rs";
 
 /// Directory of the claim predicates port; a clause's dedicated predicate lives in one of its `claims*.rs` files.
@@ -83,9 +78,6 @@ impl Violation {
     }
 }
 
-// ── regex-equivalents ─────────────────────────────────────────────────────────────────────────
-
-/// `re.match(r"^...$")` semantics: `$` also matches before one trailing newline.
 fn strip_one_nl(s: &str) -> &str {
     s.strip_suffix('\n').unwrap_or(s)
 }
@@ -142,7 +134,6 @@ pub fn scan_policy_citations(text: &str) -> Vec<(usize, String)> {
     out
 }
 
-/// `(?<=[A-Za-z0-9_가-힣])policy:([A-Z][A-Z0-9_]*)(?![A-Za-z0-9_-])` (backtracking: the id may shorten to satisfy the lookahead).
 fn embedded_policy_citations(text: &str) -> Vec<(usize, String)> {
     let chars: Vec<char> = text.chars().collect();
     let lit: Vec<char> = "policy:".chars().collect();
@@ -156,7 +147,6 @@ fn embedded_policy_citations(text: &str) -> Vec<(usize, String)> {
                 while j < chars.len() && (chars[j].is_ascii_uppercase() || chars[j].is_ascii_digit() || chars[j] == '_') {
                     j += 1;
                 }
-                // greedy, then backtrack until the lookahead holds
                 let mut end = j;
                 loop {
                     let next = chars.get(end).copied();
@@ -251,8 +241,6 @@ pub fn citation_violations(text: &str, registry_doc: &PyValue, source_label: Opt
     out
 }
 
-// ── safe loading ──────────────────────────────────────────────────────────────────────────────
-
 fn py_type_name(v: &PyValue) -> &'static str {
     v.type_name()
 }
@@ -279,9 +267,6 @@ pub fn safe_load_json_object(path: &Path, label: &str) -> Result<PyValue, Violat
                 }
                 other => other.to_string(),
             };
-            if matches!(e, pyjson::LoadError::IntegerTooLong { .. }) {
-                // ValueError other than JSONDecodeError escapes the original's handler; reported the same way here.
-            }
             return Err(Violation::new(format!("{label}_INVALID_JSON"), format!("{shown} is not valid JSON: {msg}")));
         }
     };
@@ -293,8 +278,6 @@ pub fn safe_load_json_object(path: &Path, label: &str) -> Result<PyValue, Violat
     }
     Ok(doc)
 }
-
-// ── schema ────────────────────────────────────────────────────────────────────────────────────
 
 const SUPPORTED_TYPES: &[&str] = &["object", "array", "string", "integer", "number", "boolean", "null"];
 const UNSUPPORTED_KEYWORDS: &[&str] = &["oneOf", "anyOf", "not", "patternProperties", "pattern", "additionalItems"];
@@ -435,21 +418,6 @@ pub fn schema_violations(doc: &PyValue, schema: &PyValue) -> Vec<Violation> {
     }
 }
 
-// ── dates ─────────────────────────────────────────────────────────────────────────────────────
-
-pub fn is_iso_date(v: &PyValue) -> bool {
-    parse_iso_date(v).is_some()
-}
-
-pub fn parse_iso_date(v: &PyValue) -> Option<Date> {
-    match v.peel() {
-        PyValue::Str(st) => Date::fromisoformat(&st.to_utf8()?),
-        _ => None,
-    }
-}
-
-// ── per-policy checks ─────────────────────────────────────────────────────────────────────────
-
 fn pol_path(pid: &PyValue, tail: &str) -> String {
     format!("$.policies[{}]{tail}", py_str(pid))
 }
@@ -528,7 +496,6 @@ pub fn is_substantive(v: &PyValue) -> bool {
     if stripped.chars().count() < MIN_SUBSTANTIVE_LEN {
         return false;
     }
-    // re.findall(r"[A-Za-z0-9가-힣]+")
     let mut words = 0;
     let mut in_word = false;
     for c in stripped.chars() {
@@ -555,183 +522,6 @@ pub fn remove_when_violations(policies: &[PyValue]) -> Vec<Violation> {
             Violation::new("LAZY_REMOVE_WHEN", "remove_when is not substantive").pid(pid).path_s(pol_path(pid, ".remove_when"))
         })
         .collect()
-}
-
-fn review_of(p: &PyValue) -> PyValue {
-    let r = get(p, "review");
-    if truthy(r) {
-        r.clone()
-    } else {
-        PyValue::Dict(PyDict::new())
-    }
-}
-
-pub fn review_shape_violations(policies: &[PyValue]) -> Vec<Violation> {
-    let mut out = Vec::new();
-    for p in policies {
-        let pid = get(p, "policy_id");
-        let review = review_of(p);
-        let state = as_str(get(&review, "state"));
-        let state_ok = matches!(state.as_deref(), Some("current" | "due" | "overdue"));
-        if !state_ok {
-            out.push(Violation::new("REVIEW_SHAPE_VIOLATION", "review.state is not a valid enum value").pid(pid).path_s(pol_path(pid, ".review.state")));
-        }
-        if !is_iso_date(get(&review, "last_reviewed_at")) {
-            out.push(Violation::new("REVIEW_SHAPE_VIOLATION", "review.last_reviewed_at is not an ISO-8601 date").pid(pid).path_s(pol_path(pid, ".review.last_reviewed_at")));
-        }
-        if !is_iso_date(get(&review, "next_review_due")) {
-            out.push(Violation::new("REVIEW_SHAPE_VIOLATION", "review.next_review_due is not an ISO-8601 date").pid(pid).path_s(pol_path(pid, ".review.next_review_due")));
-        }
-        if !nonblank_str(get(&review, "reviewer")) {
-            out.push(Violation::new("REVIEW_SHAPE_VIOLATION", "review.reviewer is missing").pid(pid).path_s(pol_path(pid, ".review.reviewer")));
-        }
-        if matches!(state.as_deref(), Some("due" | "overdue")) && !is_substantive(get(&review, "reason")) {
-            out.push(
-                Violation::new("REVIEW_REASON_MISSING", "review.state is due/overdue but review.reason is not a substantive explanation")
-                    .pid(pid)
-                    .path_s(pol_path(pid, ".review.reason")),
-            );
-        }
-    }
-    out
-}
-
-pub fn review_due_arithmetic_violations(policies: &[PyValue]) -> Vec<Violation> {
-    let mut out = Vec::new();
-    for p in policies {
-        let pid = get(p, "policy_id");
-        let review = review_of(p);
-        let (Some(last), Some(due)) = (parse_iso_date(get(&review, "last_reviewed_at")), parse_iso_date(get(&review, "next_review_due"))) else { continue };
-        let Some(expected) = last.add_days(REVIEW_PERIOD_DAYS) else { continue };
-        if due != expected {
-            out.push(
-                Violation::new(
-                    "REVIEW_DUE_ARITHMETIC_MISMATCH",
-                    format!("next_review_due {} != last_reviewed_at + {REVIEW_PERIOD_DAYS}d ({})", due.isoformat(), expected.isoformat()),
-                )
-                .pid(pid)
-                .path_s(pol_path(pid, ".review.next_review_due")),
-            );
-        }
-    }
-    out
-}
-
-pub fn last_reproduced_violations(policies: &[PyValue]) -> Vec<Violation> {
-    let mut out = Vec::new();
-    for p in policies {
-        let pid = get(p, "policy_id");
-        let val = get(p, "last_reproduced");
-        if matches!(val.peel(), PyValue::None) {
-            continue;
-        }
-        if !is_iso_date(val) {
-            out.push(
-                Violation::new("BAD_LAST_REPRODUCED_DATE", format!("last_reproduced {} is neither null nor a valid ISO-8601 date", val.repr()))
-                    .pid(pid)
-                    .path_s(pol_path(pid, ".last_reproduced")),
-            );
-        }
-    }
-    out
-}
-
-pub fn date_chronology_violations(policies: &[PyValue], as_of: Date) -> Vec<Violation> {
-    let mut out = Vec::new();
-    let a = as_of.isoformat();
-    for p in policies {
-        let pid = get(p, "policy_id");
-        let added_raw = get(p, "added_at");
-        let Some(added) = parse_iso_date(added_raw) else {
-            out.push(Violation::new("BAD_ADDED_AT", format!("added_at {} is not a valid ISO-8601 date", added_raw.repr())).pid(pid).path_s(pol_path(pid, ".added_at")));
-            continue;
-        };
-        if added > as_of {
-            out.push(Violation::new("FUTURE_ADDED_AT", format!("added_at {} is after as_of={a}", added.isoformat())).pid(pid).path_s(pol_path(pid, ".added_at")));
-        }
-        if let Some(lr) = parse_iso_date(get(p, "last_reproduced")) {
-            if lr > as_of {
-                out.push(Violation::new("FUTURE_REPRODUCTION", format!("last_reproduced {} is after as_of={a}", lr.isoformat())).pid(pid).path_s(pol_path(pid, ".last_reproduced")));
-            }
-            if added > lr {
-                out.push(
-                    Violation::new("ADDED_AFTER_REPRODUCTION", format!("added_at {} is after last_reproduced {}", added.isoformat(), lr.isoformat()))
-                        .pid(pid)
-                        .path_s(pol_path(pid, ".last_reproduced")),
-                );
-            }
-        }
-        let review = review_of(p);
-        if let Some(lrv) = parse_iso_date(get(&review, "last_reviewed_at")) {
-            if lrv > as_of {
-                out.push(
-                    Violation::new("FUTURE_REVIEW", format!("review.last_reviewed_at {} is after as_of={a}", lrv.isoformat()))
-                        .pid(pid)
-                        .path_s(pol_path(pid, ".review.last_reviewed_at")),
-                );
-            }
-            if added > lrv {
-                out.push(
-                    Violation::new("ADDED_AFTER_REVIEW", format!("added_at {} is after review.last_reviewed_at {}", added.isoformat(), lrv.isoformat()))
-                        .pid(pid)
-                        .path_s(pol_path(pid, ".review.last_reviewed_at")),
-                );
-            }
-        }
-    }
-    out
-}
-
-fn stale_origin(p: &PyValue) -> Option<Date> {
-    parse_iso_date(get(p, "last_reproduced")).or_else(|| parse_iso_date(get(p, "added_at")))
-}
-
-pub fn unreproduced_90_day_violations(policies: &[PyValue], as_of: Date) -> Vec<Violation> {
-    let mut out = Vec::new();
-    for p in policies {
-        let pid = get(p, "policy_id");
-        let Some(origin) = stale_origin(p) else { continue };
-        let stale = as_of.days_since(&origin) >= REVIEW_PERIOD_DAYS;
-        if stale && as_str(get(p, "status")).as_deref() == Some("active") {
-            out.push(
-                Violation::new(
-                    "UNREPRODUCED_90_DAY_NOT_CANDIDATE",
-                    "unreproduced (or never-reproduced) for >= 90 days (measured from last_reproduced, or added_at when never reproduced) but status is still active, not candidate",
-                )
-                .pid(pid)
-                .path_s(pol_path(pid, ".status")),
-            );
-        }
-    }
-    out
-}
-
-pub fn as_of_state_violations(policies: &[PyValue], as_of: Date) -> Vec<Violation> {
-    let mut out = Vec::new();
-    for p in policies {
-        let pid = get(p, "policy_id");
-        let review = review_of(p);
-        let state = get(&review, "state");
-        let Some(due) = parse_iso_date(get(&review, "next_review_due")) else { continue };
-        let expected = if as_of < due {
-            "current"
-        } else if due.add_days(OVERDUE_GRACE_DAYS).map_or(true, |g| as_of <= g) {
-            "due"
-        } else {
-            "overdue"
-        };
-        if as_str(state).as_deref() != Some(expected) {
-            out.push(
-                Violation::new(
-                    "AS_OF_STATE_MISMATCH",
-                    format!("as_of={} vs next_review_due={} requires review.state={} exactly, got {}", as_of.isoformat(), due.isoformat(), r(expected), state.repr()),
-                )
-                .pid(pid)
-                .path_s(pol_path(pid, ".review.state")),
-            );
-        }
-    }
-    out
 }
 
 pub fn status_enum_violations(policies: &[PyValue]) -> Vec<Violation> {
@@ -805,8 +595,6 @@ pub fn retirement_metadata_closure_violations(policies: &[PyValue]) -> Vec<Viola
     }
     out
 }
-
-// ── git-native evidence resolution ───────────────────────────────────────────────────────────
 
 /// `_git_available(repo_root)`
 pub fn git_available(repo_root: &Path) -> bool {
@@ -1194,10 +982,6 @@ pub fn claim_binding_violations(policies: &[PyValue], claim_bindings: &PyValue) 
                 continue;
             }
             if !cid_s.starts_with("TEST_") {
-                // The dedicated predicate is the Rust `predicate_<cid>` fn of the claim predicates port
-                // (`.claude/rust/policy-predicates/src/claims*.rs`; the original required the retired
-                // `claim_predicates.py`). Which `claims*.rs` file is free; that the id really is a line-start fn of
-                // that file is the ordinary evidence check (EVIDENCE_ASSERTION_ID_NOT_FOUND / path resolution).
                 let want_id = format!("predicate_{}", cid_s.replace('.', "_"));
                 let found = act.iter().any(|(p, a)| {
                     as_str(a).as_deref() == Some(want_id.as_str()) && as_str(p).as_deref().map_or(false, is_claim_predicate_source)
@@ -1218,25 +1002,17 @@ pub fn claim_binding_violations(policies: &[PyValue], claim_bindings: &PyValue) 
     out
 }
 
-// ── lifecycle ─────────────────────────────────────────────────────────────────────────────────
-
 pub fn policies_of(doc: &PyValue) -> Vec<PyValue> {
     or_items(get(doc, "policies")).into_iter().filter(is_dict).collect()
 }
 
-pub fn evaluate_lifecycle(doc: &PyValue, as_of: Date, repo_root: &Path, claim_bindings: Option<&PyValue>) -> Vec<Violation> {
+pub fn evaluate_lifecycle(doc: &PyValue, repo_root: &Path, claim_bindings: Option<&PyValue>) -> Vec<Violation> {
     let policies = policies_of(doc);
     let mut out = Vec::new();
     out.extend(duplicate_id_violations(&policies));
     out.extend(id_pattern_violations(&policies));
     out.extend(provenance_violations(&policies));
     out.extend(remove_when_violations(&policies));
-    out.extend(review_shape_violations(&policies));
-    out.extend(review_due_arithmetic_violations(&policies));
-    out.extend(last_reproduced_violations(&policies));
-    out.extend(date_chronology_violations(&policies, as_of));
-    out.extend(unreproduced_90_day_violations(&policies, as_of));
-    out.extend(as_of_state_violations(&policies, as_of));
     out.extend(status_enum_violations(&policies));
     out.extend(retirement_metadata_closure_violations(&policies));
     out.extend(evidence_structural_violations(&policies, repo_root));
@@ -1249,8 +1025,6 @@ pub fn evaluate_lifecycle(doc: &PyValue, as_of: Date, repo_root: &Path, claim_bi
     }
     out
 }
-
-// ── removal ───────────────────────────────────────────────────────────────────────────────────
 
 fn sha256_hex(bytes: &[u8]) -> String {
     let mut h = Sha256::new();
@@ -1315,7 +1089,7 @@ fn is_tree_sha(v: &PyValue) -> bool {
     }
 }
 
-pub fn check_removal_eligibility(policy: &PyValue, repo_root: &Path, expected_tree: Option<&str>, expected_as_of: Option<Date>) -> Vec<Violation> {
+pub fn check_removal_eligibility(policy: &PyValue, repo_root: &Path, expected_tree: Option<&str>) -> Vec<Violation> {
     let pid = get(policy, "policy_id");
     let mut out = Vec::new();
     if as_str(get(policy, "status")).as_deref() != Some("retired") {
@@ -1350,26 +1124,6 @@ pub fn check_removal_eligibility(policy: &PyValue, repo_root: &Path, expected_tr
             Violation::new("REMOVAL_EVIDENCE_RESULT_NOT_PASS", format!("removal artifact result {} is not 'PASS'", result.repr())).pid(pid).path(&path),
         );
     }
-    let a_as_of = get(&artifact, "as_of");
-    match parse_iso_date(a_as_of) {
-        None => out.push(
-            Violation::new("REMOVAL_EVIDENCE_AS_OF_INVALID", format!("removal artifact as_of {} is not a valid ISO-8601 date", a_as_of.repr())).pid(pid).path(&path),
-        ),
-        Some(d) => {
-            if let Some(exp) = expected_as_of {
-                if d != exp {
-                    out.push(
-                        Violation::new(
-                            "REMOVAL_EVIDENCE_AS_OF_MISMATCH",
-                            format!("removal artifact as_of {} != the invocation's own --as-of {}", a_as_of.repr(), r(&exp.isoformat())),
-                        )
-                        .pid(pid)
-                        .path(&path),
-                    );
-                }
-            }
-        }
-    }
     let tree = get(&artifact, "tree_sha256");
     if !is_tree_sha(tree) {
         out.push(
@@ -1393,12 +1147,12 @@ pub fn check_removal_eligibility(policy: &PyValue, repo_root: &Path, expected_tr
     out
 }
 
-pub fn check_removal_full(doc: &PyValue, policy_id: &str, as_of: Date, schema: &PyValue, repo_root: &Path, claim_bindings: &PyValue) -> Vec<Violation> {
+pub fn check_removal_full(doc: &PyValue, policy_id: &str, schema: &PyValue, repo_root: &Path, claim_bindings: &PyValue) -> Vec<Violation> {
     let shape = schema_violations(doc, schema);
     if !shape.is_empty() {
         return shape;
     }
-    let lifecycle = evaluate_lifecycle(doc, as_of, repo_root, Some(claim_bindings));
+    let lifecycle = evaluate_lifecycle(doc, repo_root, Some(claim_bindings));
     if !lifecycle.is_empty() {
         return lifecycle;
     }
@@ -1409,10 +1163,8 @@ pub fn check_removal_full(doc: &PyValue, policy_id: &str, as_of: Date, schema: &
     let removal = get(policy, "removal_evidence");
     let artifact = if truthy(removal) { as_str(get(removal, "path")) } else { None };
     let expected = compute_contract_tree_sha256(doc, schema, claim_bindings, repo_root, artifact.as_deref());
-    check_removal_eligibility(policy, repo_root, Some(&expected), Some(as_of))
+    check_removal_eligibility(policy, repo_root, Some(&expected))
 }
-
-// ── misc used by the arch contract ────────────────────────────────────────────────────────────
 
 pub fn read_text(path: &Path) -> Result<String, String> {
     match std::fs::read(path) {

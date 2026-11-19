@@ -1,7 +1,7 @@
 {
   "exit_code": 1,
   "schema_version": 2,
-  "violation_count": 31,
+  "violation_count": 15,
   "violations": [
     {
       "clause_id": null,
@@ -58,118 +58,6 @@
       "path": "$.policies[TEST_LAZY2].remove_when",
       "policy_id": "TEST_LAZY2",
       "reason_code": "LAZY_REMOVE_WHEN"
-    },
-    {
-      "clause_id": null,
-      "message": "review.last_reviewed_at is not an ISO-8601 date",
-      "path": "$.policies[TEST_REVSHAPE].review.last_reviewed_at",
-      "policy_id": "TEST_REVSHAPE",
-      "reason_code": "REVIEW_SHAPE_VIOLATION"
-    },
-    {
-      "clause_id": null,
-      "message": "review.next_review_due is not an ISO-8601 date",
-      "path": "$.policies[TEST_REVSHAPE].review.next_review_due",
-      "policy_id": "TEST_REVSHAPE",
-      "reason_code": "REVIEW_SHAPE_VIOLATION"
-    },
-    {
-      "clause_id": null,
-      "message": "review.reviewer is missing",
-      "path": "$.policies[TEST_REVSHAPE].review.reviewer",
-      "policy_id": "TEST_REVSHAPE",
-      "reason_code": "REVIEW_SHAPE_VIOLATION"
-    },
-    {
-      "clause_id": null,
-      "message": "review.state is due/overdue but review.reason is not a substantive explanation",
-      "path": "$.policies[TEST_REVREASON].review.reason",
-      "policy_id": "TEST_REVREASON",
-      "reason_code": "REVIEW_REASON_MISSING"
-    },
-    {
-      "clause_id": null,
-      "message": "next_review_due 2026-04-16 != last_reviewed_at + 90d (2026-04-15)",
-      "path": "$.policies[TEST_ARITH].review.next_review_due",
-      "policy_id": "TEST_ARITH",
-      "reason_code": "REVIEW_DUE_ARITHMETIC_MISMATCH"
-    },
-    {
-      "clause_id": null,
-      "message": "last_reproduced 'never' is neither null nor a valid ISO-8601 date",
-      "path": "$.policies[TEST_NEVER].last_reproduced",
-      "policy_id": "TEST_NEVER",
-      "reason_code": "BAD_LAST_REPRODUCED_DATE"
-    },
-    {
-      "clause_id": null,
-      "message": "added_at 2026-01-01 is after review.last_reviewed_at 2025-10-17",
-      "path": "$.policies[TEST_REVREASON].review.last_reviewed_at",
-      "policy_id": "TEST_REVREASON",
-      "reason_code": "ADDED_AFTER_REVIEW"
-    },
-    {
-      "clause_id": null,
-      "message": "added_at '2026-13-01' is not a valid ISO-8601 date",
-      "path": "$.policies[TEST_BADADD].added_at",
-      "policy_id": "TEST_BADADD",
-      "reason_code": "BAD_ADDED_AT"
-    },
-    {
-      "clause_id": null,
-      "message": "added_at 2026-02-01 is after as_of=2026-01-15",
-      "path": "$.policies[TEST_FUTURE].added_at",
-      "policy_id": "TEST_FUTURE",
-      "reason_code": "FUTURE_ADDED_AT"
-    },
-    {
-      "clause_id": null,
-      "message": "last_reproduced 2026-03-01 is after as_of=2026-01-15",
-      "path": "$.policies[TEST_FUTURE].last_reproduced",
-      "policy_id": "TEST_FUTURE",
-      "reason_code": "FUTURE_REPRODUCTION"
-    },
-    {
-      "clause_id": null,
-      "message": "review.last_reviewed_at 2026-02-02 is after as_of=2026-01-15",
-      "path": "$.policies[TEST_FUTURE].review.last_reviewed_at",
-      "policy_id": "TEST_FUTURE",
-      "reason_code": "FUTURE_REVIEW"
-    },
-    {
-      "clause_id": null,
-      "message": "added_at 2026-01-10 is after last_reproduced 2026-01-05",
-      "path": "$.policies[TEST_ORDER].last_reproduced",
-      "policy_id": "TEST_ORDER",
-      "reason_code": "ADDED_AFTER_REPRODUCTION"
-    },
-    {
-      "clause_id": null,
-      "message": "added_at 2026-01-10 is after review.last_reviewed_at 2026-01-09",
-      "path": "$.policies[TEST_ORDER].review.last_reviewed_at",
-      "policy_id": "TEST_ORDER",
-      "reason_code": "ADDED_AFTER_REVIEW"
-    },
-    {
-      "clause_id": null,
-      "message": "unreproduced (or never-reproduced) for >= 90 days (measured from last_reproduced, or added_at when never reproduced) but status is still active, not candidate",
-      "path": "$.policies[TEST_STALE].status",
-      "policy_id": "TEST_STALE",
-      "reason_code": "UNREPRODUCED_90_DAY_NOT_CANDIDATE"
-    },
-    {
-      "clause_id": null,
-      "message": "as_of=2026-01-15 vs next_review_due=2026-01-15 requires review.state='due' exactly, got 'current'",
-      "path": "$.policies[TEST_DUEWIN].review.state",
-      "policy_id": "TEST_DUEWIN",
-      "reason_code": "AS_OF_STATE_MISMATCH"
-    },
-    {
-      "clause_id": null,
-      "message": "as_of=2026-01-15 vs next_review_due=2025-12-15 requires review.state='overdue' exactly, got 'due'",
-      "path": "$.policies[TEST_OVER].review.state",
-      "policy_id": "TEST_OVER",
-      "reason_code": "AS_OF_STATE_MISMATCH"
     },
     {
       "clause_id": null,

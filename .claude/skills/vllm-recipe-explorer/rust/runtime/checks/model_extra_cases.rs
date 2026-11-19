@@ -1,17 +1,3 @@
-//! The boundary corrections of the second round, observed against the original's saved results and against the language's own
-//! primitives:
-//!
-//! * `api_cases` / `cli_cases`: the 14 function calls and 6 command lines the original was run on once each for the R24 rounds
-//!   (`data/model_extra/`: HTTPS trust and timeouts, dtype keys that are large floats or NaN, `--` and a missing option value,
-//!   a private temporary directory that already exists, a ratio that rounds into the subnormal range, a non-UTF-8 option value,
-//!   a header length beyond an index). The captured paths and origins are tokens (`@REFERENCE@`, `@EXTRA@`, `@RATIO@`,
-//!   `@TLS@`, `@PLAIN@`) replaced by this run's scratch directories and loopback servers; that is the only rebasing.
-//! * `tls_variants`: which hashed-directory layouts the reference interpreter trusts (its answers, taken once from Python's own
-//!   `ssl`/`urllib` against a local server, are the expected values), against a loopback TLS server with certificates made for each
-//!   run by the OpenSSL command line.
-//! * `subject_hash`: the canonical-name hash against `openssl x509 -subject_hash` for many synthetic names (string types, case,
-//!   spaces, multi-valued RDNs, order).
-
 use super::support::{items, member, text_of, Fixture, Pki, Scratch};
 use agent_runtime_support::pystr::PyStr;
 use agent_runtime_support::pyvalue::{PyDict, PyValue};
@@ -66,7 +52,6 @@ fn parse_json(text: &str) -> PyValue {
     agent_runtime_support::pyjson::loads_text(&PyStr::new(text)).expect("saved JSON")
 }
 
-/// One request through a fresh `recipe_model_api` process with exactly the given environment; the record it answered.
 fn ask(request: &PyValue, environment: &[(&str, &Path)]) -> PyValue {
     let line = request.dumps_unicode().expect("a request line");
     let mut command = Command::new(env!("CARGO_BIN_EXE_recipe_model_api"));
@@ -111,7 +96,6 @@ fn private(label: &str) -> PrivateDirectory {
     PrivateDirectory::create(label).expect("a private directory")
 }
 
-/// `<hash>.<suffix>`-style layouts of a hashed directory made for the given certificate files.
 struct Layout {
     _directory: PrivateDirectory,
     pub path: PathBuf,
@@ -130,8 +114,6 @@ impl Layout {
         }
     }
 }
-
-// ── the 14 function calls ────────────────────────────────────────────────────────────────────
 
 mod api_cases {
     use super::*;
@@ -264,7 +246,6 @@ mod api_cases {
 
     #[test]
     fn the_observer_would_notice_a_trusting_directory_that_the_original_refuses() {
-        // Negative control: the unhashed-directory row must differ from a successful lookup, so a client that trusts it fails the above.
         let refused = load_original("CA-unhashed-directory");
         let accepted = load_original("CA-file");
         assert!(!same_value(&refused, &accepted));
@@ -274,8 +255,6 @@ mod api_cases {
         );
     }
 }
-
-// ── the 5 command lines ─────────────────────────────────────────────────────────────────────
 
 mod cli_cases {
     use super::*;
@@ -300,7 +279,6 @@ mod cli_cases {
     fn the_6_command_lines_the_original_was_run_on_for_these_rounds_end_as_it_did() {
         let scratch = Scratch::new("extra-cli");
         let reference = scratch.root.as_os_str().as_bytes().to_vec();
-        // A directory whose name holds the byte FF (not UTF-8), with the saved model directory inside.
         let ratio = private("model-ratio-");
         let mut name = b"nas-".to_vec();
         name.push(0xFF);
@@ -340,8 +318,6 @@ mod cli_cases {
                 .stdin(Stdio::null());
             let mut sentinel: Option<PathBuf> = None;
             let output = if id == "selftest-existing-private-directory" {
-                // The original ran this with a directory of the name its own process would pick already in place; here the
-                // temporary directory is one of ours and holds directories named the way earlier versions named theirs.
                 let tmp = private("model-tmp-");
                 let child = tmp.path().join("holder");
                 std::fs::create_dir_all(&child).expect("holder");
@@ -434,13 +410,9 @@ mod cli_cases {
     }
 }
 
-// ── which hashed-directory layouts are trusted ──────────────────────────────────────────────────
-
 mod tls_variants {
     use super::*;
 
-    /// The answer of the reference interpreter (Python's `ssl` and `urllib` against a local TLS server, taken once) for layouts
-    /// whose outcome does not depend on the order the file system lists a directory.
     const DIRECTORY_VARIANTS: &[(&str, bool)] = &[
         ("<H>.0", true),
         ("<H>.r0", true),
@@ -588,7 +560,6 @@ mod tls_variants {
                 wrong.push(format!("{variant}: trusted={trusted} got {got:?}"));
             }
         }
-        // The two sources are separate: a file with an empty directory, a directory list with empty entries, an emptied variable.
         let hashed = directory_for("<H>.0", &pki, &hash);
         let empty_dir = directory_for("empty", &pki, &hash);
         let listed = OsString::from(format!(
@@ -692,35 +663,13 @@ mod tls_variants {
         PyValue::Dict(dict)
     }
 
-    /// The failure texts of the reference interpreter for a server certificate that is expired, not yet valid or names another
-    /// host (taken once from Python's `urllib`/`ssl` against a local server: `oracle/tls_oracle4.py`), for each address form.
     #[test]
     fn a_certificate_fault_is_worded_as_the_reference_interpreter_words_it() {
         let pki = Pki::generate();
-        pki.issue(
-            "expired",
-            "20200101000000Z",
-            "20200102000000Z",
-            "DNS:localhost,IP:127.0.0.1",
-        );
-        pki.issue(
-            "future",
-            "20400101000000Z",
-            "20400102000000Z",
-            "DNS:localhost,IP:127.0.0.1",
-        );
-        pki.issue(
-            "badname",
-            "20200101000000Z",
-            "20400102000000Z",
-            "DNS:other.example,IP:10.1.2.3",
-        );
-        pki.issue(
-            "dnsonly",
-            "20200101000000Z",
-            "20400102000000Z",
-            "DNS:localhost",
-        );
+        pki.issue("expired", -730..-729, "DNS:localhost,IP:127.0.0.1");
+        pki.issue("future", 729..730, "DNS:localhost,IP:127.0.0.1");
+        pki.issue("badname", -365..365, "DNS:other.example,IP:10.1.2.3");
+        pki.issue("dnsonly", -365..365, "DNS:localhost");
         let nothing = Layout::new(&[]);
         let ca = pki.file("ca.pem");
         let environment = [
@@ -787,8 +736,6 @@ mod tls_variants {
     }
 }
 
-// ── chains: which certificates may end a chain, which may only help build it ───────────────────────
-
 mod tls_chains {
     use super::super::support::rebased;
     use super::tls_variants::{fetch_request, reason_of};
@@ -800,7 +747,6 @@ mod tls_chains {
         )
     }
 
-    /// The whole record the service answers for a lookup of `check` with timeout 3.0.
     fn record(value: &str) -> PyValue {
         parse_json(&format!(
             "{{\"id\": \"fault\", \"kind\": \"value\", \"value\": {value}, \"stdout\": \"\", \"stderr\": \"\", \"args_after\": [\"check\", 3.0], \"kwargs_after\": {{}}}}"
@@ -825,10 +771,6 @@ mod tls_chains {
         )]
     }
 
-    /// The two saved answers of the reference interpreter (Python's `ssl`/`urllib`, default context: verify flags 32768, no partial
-    /// chain) for a root -> intermediate -> leaf chain whose server sends leaf + intermediate, when the only certificate configured is
-    /// the intermediate (as the CA file, or in a hashed directory): the connection is refused with OpenSSL error 2. The held first
-    /// candidate trusted the intermediate as an anchor and answered `ok`.
     #[test]
     fn an_intermediate_alone_cannot_end_a_chain_as_the_reference_interpreter_refuses() {
         let pki = Pki::generate();
@@ -890,10 +832,6 @@ mod tls_chains {
         );
     }
 
-    /// Controls so that the refusal above is not a blanket refusal of intermediates: the verdicts of Python's `ssl`/`urllib` for
-    /// four new inputs (`oracle/tls_chain_oracle.py`, one call each, all accepted): a server that sends the whole chain with the
-    /// root as the only store certificate, a server that sends the leaf alone while the store holds the root and the
-    /// intermediate (file or hashed directory), and a server that sends leaf + intermediate with the root in the store.
     #[test]
     fn chains_are_built_from_the_server_and_from_the_store_as_the_reference_interpreter_builds_them(
     ) {
@@ -977,10 +915,6 @@ mod tls_chains {
         );
     }
 
-    /// The saved whole answer of the original (one new call, `r24-redirect-reference`: `http` -> `302` -> `https` on loopback, valid
-    /// root -> intermediate -> leaf chain, CA file = the root, the server sends leaf + intermediate; the held v3 refused it because the
-    /// trust store was chosen from the first request's scheme): the same record, from an actual `https` GET after the redirect, and the
-    /// requests the two servers saw are the saved ones. Only the origin is rebased.
     #[test]
     fn a_redirect_from_http_to_https_is_verified_against_the_process_selected_store() {
         let pki = Pki::generate();
@@ -1019,7 +953,6 @@ mod tls_chains {
             saved.repr(),
             got.repr()
         );
-        // The requests: the saved original's (an `http` GET of `/check`, then an `https` GET of `/check`, both asking for JSON).
         let expected = parse_json(
             &std::fs::read_to_string(extra("redirect/http-requests.json")).expect("saved requests"),
         );
@@ -1054,8 +987,6 @@ mod tls_chains {
         assert_eq!(secure, vec![("/check".to_string(), Some(json))]);
     }
 
-    /// The control: the same redirect with a store that holds no authority is refused with the known refusal of an unknown issuer,
-    /// and no request reaches the TLS server (nothing is accepted without verification, whatever the first request's scheme).
     #[test]
     fn a_redirect_to_https_without_a_trusted_authority_is_refused() {
         let pki = Pki::generate();
@@ -1090,8 +1021,6 @@ mod tls_chains {
         );
     }
 
-    /// Derived from OpenSSL's source (`internal_verify` checks the dates of the trust anchor too; WebPKI does not), not observed: a chain
-    /// that is sound except that its anchor's own validity ended is refused with the date's words, and no request reaches the server.
     #[test]
     fn an_anchor_whose_own_dates_are_not_valid_refuses_the_connection() {
         let pki = Pki::generate();
@@ -1111,7 +1040,6 @@ mod tls_chains {
             server.base
         );
         assert_eq!(reason_of(&got), Some(want));
-        // (An aborted connection is logged by the fixture as a request for `/` with no `Accept`; none for the lookup's path.)
         assert!(
             server
                 .received()
@@ -1121,8 +1049,6 @@ mod tls_chains {
         );
     }
 }
-
-// ── the canonical name hash ─────────────────────────────────────────────────────────────────────
 
 mod subject_hash {
     use super::*;
@@ -1145,16 +1071,13 @@ mod subject_hash {
     const COUNTRY: [u8; 5] = [0x06, 0x03, 0x55, 0x04, 0x06];
     const ORGANIZATION: [u8; 5] = [0x06, 0x03, 0x55, 0x04, 0x0A];
     const UNIT: [u8; 5] = [0x06, 0x03, 0x55, 0x04, 0x0B];
-    /// An attribute type the OpenSSL string table does not know, so that it accepts any string type for it.
     const UNKNOWN: [u8; 5] = [0x06, 0x03, 0x2A, 0x03, 0x04];
     const EMAIL: [u8; 11] = [
         0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x09, 0x01,
     ];
 
-    /// One attribute: `(oid, tag, value bytes)`.
     type Attribute<'a> = (&'a [u8], u8, Vec<u8>);
 
-    /// A `Name` from RDNs (each a list of attributes, written in the order given, which for a multi-valued RDN is not the DER order).
     fn name(rdns: &[Vec<Attribute<'_>>]) -> Vec<u8> {
         let mut body = Vec::new();
         for rdn in rdns {
@@ -1179,7 +1102,6 @@ mod subject_hash {
             .collect()
     }
 
-    /// A DER certificate with the given subject (the signature is not a real one: only the name is read).
     fn certificate(subject: &[u8], key_info: &[u8]) -> Vec<u8> {
         let algorithm = tlv(
             0x30,
@@ -1202,8 +1124,6 @@ mod subject_hash {
         tlv(0x30, &whole)
     }
 
-    /// A DER certificate with its own issuer, subject, signature algorithm (the whole `AlgorithmIdentifier` element), serial and
-    /// extensions (the `Extension` elements; none when empty). The signature is not a real one.
     fn certificate_with(
         issuer: &[u8],
         subject: &[u8],
@@ -1236,13 +1156,14 @@ mod subject_hash {
         tlv(0x30, &[object.to_vec(), tlv(0x04, value)].concat())
     }
 
-    /// OpenSSL's own answer to "is this certificate a self-signed trust anchor": `openssl verify` accepts a certificate that is its
-    /// own only trusted certificate exactly when it is self-signed in OpenSSL's sense (the signature is not checked by default).
+    /// `openssl verify -attime` at 2025-01-01T00:00:00Z, inside the 2024–2034 validity of `certificate_with`, accepts a
+    /// certificate as its own only trusted certificate exactly when OpenSSL holds it self-signed (the signature is not
+    /// checked by default).
     fn openssl_accepts_as_own_anchor(directory: &Path, der: &[u8]) -> bool {
         let path = directory.join("anchor.pem");
         std::fs::write(&path, pem(der)).expect("write a certificate");
         Command::new("openssl")
-            .args(["verify", "-CAfile"])
+            .args(["verify", "-attime", "1735689600", "-CAfile"])
             .arg(&path)
             .arg(&path)
             .stdin(Stdio::null())
@@ -1252,9 +1173,8 @@ mod subject_hash {
             .success()
     }
 
-    /// Which certificates may end a chain: the rule written from OpenSSL 3.0.13 (`EXFLAG_SS`: same names, an authority key identifier
-    /// that agrees with the certificate's own, a signature algorithm that suits its key) against what `openssl verify` does with the
-    /// same certificate as its own only trust anchor.
+    /// OpenSSL 3.0.13 `EXFLAG_SS`: same names, an authority key identifier that agrees with the certificate's own, and a
+    /// signature algorithm that suits its key.
     #[test]
     fn the_self_signed_rule_equals_what_openssl_verify_does_with_a_certificate_that_is_its_own_anchor(
     ) {
@@ -1398,7 +1318,6 @@ mod subject_hash {
     #[test]
     fn the_canonical_name_hash_equals_openssls_for_many_names() {
         let pki = Pki::generate();
-        // A valid SubjectPublicKeyInfo to put in the synthetic certificates (the CA's own).
         let key_info = {
             let der = {
                 let pem = super::super::support::openssl(&[
@@ -1414,7 +1333,6 @@ mod subject_hash {
                     .collect();
                 body
             };
-            // decode with the system tool-free path: the CA certificate's own key info element
             let _ = der;
             let certificate = std::fs::read_to_string(pki.file("ca.pem")).expect("the CA");
             let body: String = certificate
@@ -1469,8 +1387,6 @@ mod subject_hash {
                 "ia5 email",
                 name(&[vec![(&EMAIL, 0x16, b"Test@Example.COM".to_vec())]]),
             ),
-            // VisibleString is canonicalised by OpenSSL too, but the command line of this build refuses to load a name holding one
-            // ("unsupported"), so there is no oracle for it here: that string type is covered by the unit test of the canonical strings.
             (
                 "numeric is copied",
                 name(&[vec![(&UNKNOWN, 0x12, b"12 34".to_vec())]]),
@@ -1534,7 +1450,6 @@ mod subject_hash {
                 wrong.push(format!("{label}: openssl {oracle}, ours {ours:?}"));
             }
         }
-        // The same attributes in the two orders hash alike, and the certificates this module's fixtures use agree too.
         let a = tls_trust::subject_hash(&certificate(&cases[3].1, &key_info));
         let b = tls_trust::subject_hash(&certificate(&cases[4].1, &key_info));
         assert_eq!(a, b);
@@ -1584,7 +1499,6 @@ mod subject_hash {
         out
     }
 
-    /// The SubjectPublicKeyInfo element of a DER certificate (the one after the subject in the TBS).
     fn find_key_info(der: &[u8]) -> Vec<u8> {
         fn read(data: &[u8]) -> (u8, &[u8], &[u8], &[u8]) {
             let first = data[1];
@@ -1613,7 +1527,7 @@ mod subject_hash {
         if tag == 0xA0 {
             rest = after;
         }
-        // serial, signature, issuer, validity, subject, then the key info
+        // TBSCertificate: serial, signature, issuer, validity, subject, then the key info
         for _ in 0..5 {
             let (_, _, after, _) = read(rest);
             rest = after;

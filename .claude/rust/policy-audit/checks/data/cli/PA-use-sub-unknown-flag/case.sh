@@ -1,5 +1,4 @@
 # shellcheck shell=bash
-# golden case
 PROG_KIND=policy_registry
-ARGS=(verify --bogus 1 --as-of nope)
+ARGS=(verify --bogus 1)
 ENVS=(COLUMNS=80)

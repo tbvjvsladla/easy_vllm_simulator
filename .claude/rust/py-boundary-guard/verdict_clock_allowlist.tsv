@@ -1,0 +1,265 @@
+# 판정 시계 허용목록 — 사용자 결정 h20·h21(c24-no-clock) · CLAUDE.md 불변식 「하네스 판정은 벽시계를 읽지 않는다」의 데이터.
+# 한 줄 = <repo 상대경로>\t<검출 텍스트>\t<개수>\t<구분>\t<사유>. '#' 줄과 빈 줄은 무시한다.
+# 범위 = 추적 .rs·.ts·셸(.sh·.bash, 그 밖의 이름은 shebang 인터프리터가 셸인 파일) 전부다. 시험이 실행하는 checks/data/ 고정물도 들어간다.
+#   빼는 것은 실행되지 않는 고정 데이터 둘뿐이다: parity 기록 .claude/rust/parity/data/ 와 이 lint 의 심은 고정물
+#   .claude/rust/py-boundary-guard/checks/data/verdict_clock/(--self-test 가 대조한다).
+# 검출 텍스트 = `verdict_clock_scan check` 가 CLOCK-VIOLATION 줄에 보이는 텍스트 그대로다. 키 = 경로 + 이 텍스트다.
+# 개수 = 그 파일에서 같은 텍스트로 검출되는 읽기 수. 더 많으면 넘는 읽기가 위반이고, 적으면(0 포함) CLOCK-STALE 이며 둘 다 실패다.
+#   파일 단위 허용은 없다 — 같은 파일의 새 읽기는 걸린다.
+# 구분 = runtime-fact(런타임이 실제 경과 시간·외부 사실을 잰다) | record-only(기록·로그·이름에 시각을 찍을 뿐 판정에 쓰지 않는다)
+#   | not-time(이름이나 실행하지 않는 문자열이 규칙에 걸린 것).
+# 사유 = c24 분류표(clock_inventory.tsv) 행 id 와 근거. 표에 없던 읽기는 not-in-inventory 로 시작한다. 행 추가는 개정 plan + HITL 로만 한다.
+.claude/rust/parity/src/main.rs	std::time::SystemTime::now()	1	record-only	CK-093 SystemTime::now→nanos
+.claude/rust/policy-audit/src/selftest.rs	std::time::SystemTime::now()	1	record-only	CK-014 SystemTime::now→subsec_nanos
+.claude/rust/policy-distribution/checks/pure_goldens.rs	std::time::SystemTime::now()	1	record-only	CK-046 SystemTime::now→nanos
+.claude/rust/policy-distribution/src/checks.rs	std::time::SystemTime::now()	1	record-only	CK-039 SystemTime::now→nanos
+.claude/rust/policy-distribution/src/runner.rs	Instant::now()	2	runtime-fact	CK-042 Instant::now + 180 s child timeout
+.claude/rust/policy-gate/checks/golden_checks.rs	std::time::SystemTime::now()	1	record-only	CK-060 SystemTime::now→nanos
+.claude/rust/policy-gate/src/completion_gate.rs	std::time::Instant::now()	2	runtime-fact	CK-059 Instant::now + timeout_s deadline
+.claude/rust/policy-predicates/checks/hint_checks.rs	std::time::SystemTime::now()	1	record-only	CK-068 SystemTime::now→nanos
+.claude/rust/policy-predicates/checks/predicate_checks.rs	std::time::SystemTime::now()	1	record-only	CK-067 SystemTime::now→nanos
+.claude/rust/policy-predicates/checks/tf_checks.rs	std::time::SystemTime::now()	1	record-only	CK-066 SystemTime::now→nanos
+.claude/rust/policy-predicates/src/support.rs	std::time::SystemTime::now()	1	record-only	CK-061 SystemTime::now→subsec_nanos
+.claude/rust/policy-predicates/src/support.rs	Instant::now()	1	runtime-fact	CK-062 Instant::now; elapsed > timeout → kill
+.claude/rust/policy-predicates/src/support.rs	.elapsed()	1	runtime-fact	CK-062 Instant::now; elapsed > timeout → kill
+.claude/rust/policy-predicates/src/unit.rs	std::time::Instant::now()	1	record-only	CK-063 Instant::now; elapsed printed "Ran N tests in X s"
+.claude/rust/policy-predicates/src/unit.rs	.elapsed()	1	record-only	CK-063 Instant::now; elapsed printed "Ran N tests in X s"
+.claude/rust/policy-publisher/checks/golden_scenarios.rs	std::time::SystemTime::now()	1	record-only	CK-072 SystemTime::now→nanos
+.claude/rust/policy-publisher/src/publisher.rs	std::time::Instant::now()	1	runtime-fact	CK-070 Instant::now; elapsed >= secs → kill
+.claude/rust/policy-publisher/src/publisher.rs	.elapsed()	1	runtime-fact	CK-070 Instant::now; elapsed >= secs → kill
+.claude/rust/policy-publisher/src/selftest.rs	std::time::SystemTime::now()	1	record-only	CK-071 SystemTime::now→subsec_nanos
+.claude/rust/policy-selftest/checks/golden_checks.rs	std::time::SystemTime::now()	1	record-only	CK-058 SystemTime::now→nanos
+.claude/rust/policy-selftest/checks/hint_suite_cases.rs	std::time::SystemTime::now()	1	record-only	CK-057 SystemTime::now→nanos
+.claude/rust/policy-selftest/src/hint_suite.rs	std::time::SystemTime::now()	1	record-only	CK-056 SystemTime::now→nanos
+.claude/rust/policy-selftest/src/tempdir.rs	std::time::SystemTime::now()	1	record-only	CK-055 SystemTime::now→nanos
+.claude/rust/py-boundary-guard/src/bin/py_exec_trap.rs	std::time::SystemTime::now()	1	record-only	CK-088 SystemTime::now→UTC timestamp
+.claude/rust/role-contract/src/topology.rs	Instant::now()	2	runtime-fact	CK-073 Instant::now + GIT_TIMEOUT
+.claude/rust/role-contract/src/topology_cli.rs	std::time::SystemTime::now()	1	record-only	CK-074 SystemTime::now→nanos seed
+.claude/rust/runtime-support/src/pydyn.rs	const MAX_DELTA_DAYS	1	not-time	CK-079 timedelta 범위 상수(값 변환 · 시계·기간 판정 없음)
+.claude/skills/adversarial-benchmark/rust/checks/bench_shell_original_cases.rs	std::time::SystemTime::now()	1	runtime-fact	CK-217 SystemTime::now→secs before/after spawn
+.claude/skills/adversarial-benchmark/rust/checks/campaign_read_cli.rs	.modified()	1	record-only	CK-220 metadata.modified() in tree snapshot
+.claude/skills/adversarial-benchmark/rust/checks/conformance_helper_cases.rs	std::time::Instant::now()	2	runtime-fact	CK-208 Instant::now/elapsed bounds or patience
+.claude/skills/adversarial-benchmark/rust/checks/conformance_helper_cases.rs	.elapsed()	3	runtime-fact	CK-208 Instant::now/elapsed bounds or patience
+.claude/skills/adversarial-benchmark/rust/checks/guidellm_release_tls_cases.rs	Instant::now()	1	runtime-fact	CK-209 Instant::now/elapsed bounds or patience
+.claude/skills/adversarial-benchmark/rust/checks/guidellm_release_tls_cases.rs	.elapsed()	1	runtime-fact	CK-209 Instant::now/elapsed bounds or patience
+.claude/skills/adversarial-benchmark/rust/checks/guidellm_release_tls_common.rs	Instant::now()	1	runtime-fact	CK-210 Instant::now/elapsed bounds or patience
+.claude/skills/adversarial-benchmark/rust/checks/guidellm_release_tls_common.rs	.elapsed()	1	runtime-fact	CK-210 Instant::now/elapsed bounds or patience
+.claude/skills/adversarial-benchmark/rust/checks/resolve_topology_api_cases.rs	std::time::Instant::now()	3	runtime-fact	CK-211 Instant::now/elapsed bounds or patience
+.claude/skills/adversarial-benchmark/rust/checks/resolve_topology_api_cases.rs	.elapsed()	3	runtime-fact	CK-211 Instant::now/elapsed bounds or patience
+.claude/skills/adversarial-benchmark/rust/checks/roofline_verdict_cli.rs	std::time::Instant::now()	1	runtime-fact	CK-212 Instant::now/elapsed bounds or patience
+.claude/skills/adversarial-benchmark/rust/checks/roofline_verdict_cli.rs	.elapsed()	1	runtime-fact	CK-212 Instant::now/elapsed bounds or patience
+.claude/skills/adversarial-benchmark/rust/checks/scan_node_boundary_cases.rs	Command::new("date")	1	runtime-fact	CK-148 Command::new("date") +%Y%m%d%H vs LocalClock, 4 zones
+.claude/skills/adversarial-benchmark/rust/checks/scan_node_p2_api_cases.rs	date +%s%N	1	record-only	not-in-inventory: 시험 대역 fake_script 가 호출마다 argv·stdin 로그 파일 이름에 찍는 시각(판정 아님)
+.claude/skills/adversarial-benchmark/rust/checks/scan_node_p2_api_cases.rs	std::time::Instant::now()	2	runtime-fact	CK-213 Instant::now/elapsed bounds or patience
+.claude/skills/adversarial-benchmark/rust/checks/scan_node_p2_api_cases.rs	.elapsed()	2	runtime-fact	CK-213 Instant::now/elapsed bounds or patience
+.claude/skills/adversarial-benchmark/rust/checks/sweep_meta_cases.rs	UtcInstant::now()	2	runtime-fact	CK-214 UtcInstant::now before/after the call
+.claude/skills/adversarial-benchmark/rust/checks/sweep_meta_cases.rs	std::time::Instant::now()	4	runtime-fact	CK-215 Instant::now deadlines 30 s/10 s
+.claude/skills/adversarial-benchmark/rust/checks/sweep_repeats_cases.rs	$EPOCHREALTIME	2	runtime-fact	CK-219 $EPOCHREALTIME in shim script text
+.claude/skills/adversarial-benchmark/rust/checks/sweep_repeats_cases.rs	.mtime()	1	record-only	CK-218 MetadataExt mtime·mtime_nsec 스냅숏 — 시험 트리가 바뀌지 않았는지 보는 동등 비교(벽시계와 비교 안 함)
+.claude/skills/adversarial-benchmark/rust/checks/sweep_repeats_cases.rs	.mtime_nsec()	1	record-only	CK-218 MetadataExt mtime·mtime_nsec 스냅숏 — 시험 트리가 바뀌지 않았는지 보는 동등 비교(벽시계와 비교 안 함)
+.claude/skills/adversarial-benchmark/rust/src/assemble_sweep_meta.rs	crate::utc::UtcInstant::now()	1	record-only	CK-125 UtcInstant::now().evaluated_text() call
+.claude/skills/adversarial-benchmark/rust/src/bench_preset_selftest.rs	std::time::SystemTime::now()	1	record-only	CK-179 SystemTime::now→nanos
+.claude/skills/adversarial-benchmark/rust/src/bin/bench_preset_bench.rs	Instant::now()	1	runtime-fact	CK-195 Instant::now/elapsed
+.claude/skills/adversarial-benchmark/rust/src/bin/bench_preset_bench.rs	.elapsed()	1	runtime-fact	CK-195 Instant::now/elapsed
+.claude/skills/adversarial-benchmark/rust/src/bin/bench_reporting_bench.rs	Instant::now()	1	runtime-fact	CK-196 Instant::now/elapsed
+.claude/skills/adversarial-benchmark/rust/src/bin/bench_reporting_bench.rs	.elapsed()	1	runtime-fact	CK-196 Instant::now/elapsed
+.claude/skills/adversarial-benchmark/rust/src/bin/classify_cell_bench.rs	Instant::now()	1	runtime-fact	CK-197 Instant::now/elapsed
+.claude/skills/adversarial-benchmark/rust/src/bin/classify_cell_bench.rs	.elapsed()	1	runtime-fact	CK-197 Instant::now/elapsed
+.claude/skills/adversarial-benchmark/rust/src/bin/conformance_full_superset_lite_bench.rs	Instant::now()	1	runtime-fact	CK-198 Instant::now/elapsed
+.claude/skills/adversarial-benchmark/rust/src/bin/conformance_full_superset_lite_bench.rs	.elapsed()	1	runtime-fact	CK-198 Instant::now/elapsed
+.claude/skills/adversarial-benchmark/rust/src/bin/dataset_prep_bench.rs	Instant::now()	1	runtime-fact	CK-199 Instant::now/elapsed
+.claude/skills/adversarial-benchmark/rust/src/bin/dataset_prep_bench.rs	.elapsed()	1	runtime-fact	CK-199 Instant::now/elapsed
+.claude/skills/adversarial-benchmark/rust/src/bin/lite_metrics_bench.rs	Instant::now()	1	runtime-fact	CK-200 Instant::now/elapsed
+.claude/skills/adversarial-benchmark/rust/src/bin/lite_metrics_bench.rs	.elapsed()	1	runtime-fact	CK-200 Instant::now/elapsed
+.claude/skills/adversarial-benchmark/rust/src/bin/parse_guidellm_bench.rs	Instant::now()	1	runtime-fact	CK-201 Instant::now/elapsed
+.claude/skills/adversarial-benchmark/rust/src/bin/parse_guidellm_bench.rs	.elapsed()	1	runtime-fact	CK-201 Instant::now/elapsed
+.claude/skills/adversarial-benchmark/rust/src/bin/repeat_axis_bench.rs	Instant::now()	1	runtime-fact	CK-202 Instant::now/elapsed
+.claude/skills/adversarial-benchmark/rust/src/bin/repeat_axis_bench.rs	.elapsed()	1	runtime-fact	CK-202 Instant::now/elapsed
+.claude/skills/adversarial-benchmark/rust/src/bin/resolve_bench_tool_bench.rs	Instant::now()	1	runtime-fact	CK-203 Instant::now/elapsed
+.claude/skills/adversarial-benchmark/rust/src/bin/resolve_bench_tool_bench.rs	.elapsed()	1	runtime-fact	CK-203 Instant::now/elapsed
+.claude/skills/adversarial-benchmark/rust/src/bin/resolve_guidellm_bench.rs	Instant::now()	1	runtime-fact	CK-204 Instant::now/elapsed
+.claude/skills/adversarial-benchmark/rust/src/bin/resolve_guidellm_bench.rs	.elapsed()	1	runtime-fact	CK-204 Instant::now/elapsed
+.claude/skills/adversarial-benchmark/rust/src/bin/resolve_topology_bench.rs	Instant::now()	1	runtime-fact	CK-205 Instant::now/elapsed
+.claude/skills/adversarial-benchmark/rust/src/bin/resolve_topology_bench.rs	.elapsed()	1	runtime-fact	CK-205 Instant::now/elapsed
+.claude/skills/adversarial-benchmark/rust/src/bin/sweep_stop_bench.rs	Instant::now()	1	runtime-fact	CK-206 Instant::now/elapsed
+.claude/skills/adversarial-benchmark/rust/src/bin/sweep_stop_bench.rs	.elapsed()	1	runtime-fact	CK-206 Instant::now/elapsed
+.claude/skills/adversarial-benchmark/rust/src/captured_process.rs	Instant::now()	13	runtime-fact	CK-126,CK-128 Instant::now()+limit deadline; saturating_duration_since(Instant::now())
+.claude/skills/adversarial-benchmark/rust/src/captured_process.rs	std::time::SystemTime::now()	1	record-only	CK-127 SystemTime::now→nanos
+.claude/skills/adversarial-benchmark/rust/src/captured_process.rs	.elapsed()	9	runtime-fact	CK-128 Instant::now/elapsed bound asserts
+.claude/skills/adversarial-benchmark/rust/src/classify_cell.rs	std::time::SystemTime::now()	1	record-only	CK-130 SystemTime::now→nanos fallback seed
+.claude/skills/adversarial-benchmark/rust/src/classify_cell_owner.rs	Instant::now()	2	runtime-fact	CK-143 Instant::now()+timeout deadline
+.claude/skills/adversarial-benchmark/rust/src/classify_cell_selftest.rs	std::time::SystemTime::now()	1	record-only	CK-187 SystemTime::now→nanos
+.claude/skills/adversarial-benchmark/rust/src/dataset_commands.rs	Instant::now()	3	runtime-fact	CK-136 Instant::now()+timeout deadline; remaining seconds
+.claude/skills/adversarial-benchmark/rust/src/dataset_prep_selftest.rs	std::time::SystemTime::now()	1	record-only	CK-180 SystemTime::now→nanos
+.claude/skills/adversarial-benchmark/rust/src/guidellm_release_selftest.rs	std::time::SystemTime::now()	1	record-only	CK-181 SystemTime::now→nanos
+.claude/skills/adversarial-benchmark/rust/src/guidellm_selftest.rs	std::time::SystemTime::now()	1	record-only	CK-182 SystemTime::now→nanos
+.claude/skills/adversarial-benchmark/rust/src/repeat_selftest.rs	std::time::SystemTime::now()	1	record-only	CK-183 SystemTime::now→nanos
+.claude/skills/adversarial-benchmark/rust/src/reporting_selftest.rs	std::time::SystemTime::now()	1	record-only	CK-184 SystemTime::now→nanos
+.claude/skills/adversarial-benchmark/rust/src/resolve_topology.rs	std::time::Instant::now()	1	runtime-fact	CK-140 Instant::now().checked_add(span) representability
+.claude/skills/adversarial-benchmark/rust/src/resolve_topology_selftest.rs	std::time::SystemTime::now()	1	record-only	CK-186 SystemTime::now→nanos
+.claude/skills/adversarial-benchmark/rust/src/roofline_selftest.rs	std::time::SystemTime::now()	1	record-only	CK-185 SystemTime::now→nanos
+.claude/skills/adversarial-benchmark/rust/src/scan_node_boundary.rs	extern fn time	1	record-only	CK-146 libc time()+tzset+localtime_r → %Y%m%d%H
+.claude/skills/adversarial-benchmark/rust/src/scan_node_host.rs	Instant::now()	5	runtime-fact	CK-145 Instant::now/elapsed caps and deadlines
+.claude/skills/adversarial-benchmark/rust/src/scan_node_host.rs	.elapsed()	1	runtime-fact	CK-145 Instant::now/elapsed caps and deadlines
+.claude/skills/adversarial-benchmark/rust/src/selftest_lite_report.rs	.mtime()	1	runtime-fact	CK-221 MetadataExt mtime·mtime_nsec — 가장 새 lite raw 고르기(파일끼리 상대 순서, 날짜 무관)
+.claude/skills/adversarial-benchmark/rust/src/selftest_lite_report.rs	.mtime_nsec()	1	runtime-fact	CK-221 MetadataExt mtime·mtime_nsec — 가장 새 lite raw 고르기(파일끼리 상대 순서, 날짜 무관)
+.claude/skills/adversarial-benchmark/rust/src/sweep_repeats_broad.rs	SystemTime::now()	1	runtime-fact	CK-177,CK-178(표 처분 change-test, h20 고정물 상대화로 생긴 새 읽기) 셀프테스트 run_start: 실행 시각 한 번 — 주입 --now-utc·고정물 시각을 그 기준 상대값으로 만들어 실제 ENDED·shim·lite 시각과 같은 시계에 맞춘다
+.claude/skills/adversarial-benchmark/rust/src/sweep_repeats_broad.rs	.mtime()	1	record-only	CK-175 MetadataExt mtime·mtime_nsec 스냅숏 — 셀프테스트가 손대지 않은 트리인지 보는 동등 비교(날짜 무관)
+.claude/skills/adversarial-benchmark/rust/src/sweep_repeats_broad.rs	.mtime_nsec()	1	record-only	CK-175 MetadataExt mtime·mtime_nsec 스냅숏 — 셀프테스트가 손대지 않은 트리인지 보는 동등 비교(날짜 무관)
+.claude/skills/adversarial-benchmark/rust/src/sweep_repeats_fixture.rs	date -u +%FT%TZ	1	record-only	CK-135 shell `date -u +%FT%TZ` in shim script text
+.claude/skills/adversarial-benchmark/rust/src/sweep_repeats_load_shim.rs	std::time::SystemTime::now()	1	runtime-fact	CK-132 SystemTime::now→civil UTC text
+.claude/skills/adversarial-benchmark/rust/src/topology_parity_api.rs	std::time::Instant::now()	1	runtime-fact	CK-137 Instant::now().checked_add(deadline_ms) representability check
+.claude/skills/adversarial-benchmark/rust/src/utc.rs	std::time::SystemTime::now()	1	record-only	CK-121 SystemTime::now→duration_since(UNIX_EPOCH)→UtcInstant
+.claude/skills/adversarial-benchmark/rust/src/verify_fixture.rs	.accessed()	1	record-only	CK-171 metadata.accessed()/modified() → set times
+.claude/skills/adversarial-benchmark/rust/src/verify_fixture.rs	.modified()	1	record-only	CK-171 metadata.accessed()/modified() → set times
+.claude/skills/adversarial-benchmark/rust/src/verify_fixture.rs	std::time::SystemTime::now()	1	record-only	CK-172 SystemTime::now→nanos
+.claude/skills/adversarial-benchmark/rust/src/verify_fixture.rs	Instant::now()	2	runtime-fact	CK-170 Instant::now()+GIT_TIMEOUT deadline
+.claude/skills/adversarial-benchmark/scripts/broad_search.sh	date -u +%FT%TZ	2	runtime-fact	CK-150 ENDED=$(date -u +%FT%TZ)
+.claude/skills/adversarial-benchmark/scripts/lite_bench.sh	date -u +%Y%m%dT%H%M%SZ	1	record-only	CK-157 date -u
+.claude/skills/adversarial-benchmark/scripts/lite_bench.sh	date -u +%FT%TZ	3	runtime-fact	CK-157,CK-158 date -u
+.claude/skills/adversarial-benchmark/scripts/run_bench.sh	date -u +%FT%TZ	2	runtime-fact	CK-155 budget-status/renew-budget --now $(date -u)
+.claude/skills/adversarial-benchmark/scripts/run_bench.sh	date -u +%Y-%m-%dT%H:%M:%SZ	1	runtime-fact	CK-156 BENCH_SINCE=$(date -u …); docker logs --since
+.claude/skills/adversarial-benchmark/scripts/sweep_bench.sh	date -u +%FT%TZ	6	runtime-fact	CK-152,CK-153,CK-154 DATASET_SWEEP_SALT=$(date -u +%FT%TZ)
+.claude/skills/hint-publisher/rust/src/artifacts/a1.rs	std::time::Instant::now()	2	runtime-fact	CK-282 Instant::now+Duration(timeout)
+.claude/skills/hint-publisher/rust/src/artifacts/a1.rs	.modified()	1	runtime-fact	CK-284 fs::metadata().modified()→duration_since(UNIX_EPOCH)
+.claude/skills/hint-publisher/rust/src/artifacts/a2.rs	std::time::Instant::now()	1	runtime-fact	CK-287 Instant::now + elapsed()>20s
+.claude/skills/hint-publisher/rust/src/artifacts/a2.rs	.elapsed()	1	runtime-fact	CK-287 Instant::now + elapsed()>20s
+.claude/skills/hint-publisher/rust/src/artifacts/selftest.rs	.modified()	1	record-only	CK-294 fs::metadata().modified() 저장·복원
+.claude/skills/hint-publisher/rust/src/cli/selftest_e2e.rs	.modified()	1	record-only	CK-298 fs::metadata().modified() → set_modified(dst)
+.claude/skills/hint-publisher/rust/src/cli/util.rs	std::time::SystemTime::now()	1	record-only	CK-299 SystemTime::now→subsec_nanos
+.claude/skills/hint-publisher/rust/src/core.rs	std::time::SystemTime::now()	1	record-only	CK-301 SystemTime::now→as_nanos
+.claude/skills/hint-publisher/rust/src/evidence/e3.rs	.modified()	1	runtime-fact	CK-307 fs::metadata().modified()→duration_since(UNIX_EPOCH)
+.claude/skills/hint-publisher/rust/src/evidence/selftest.rs	date -u +%FT%TZ	1	not-time	CK-312(표 처분 none) 실행하지 않는 고정물 lite_bench.sh 본문 문자열
+.claude/skills/terraforming_node/rust/checks/a2a_goldens.rs	std::time::SystemTime::now()	1	record-only	CK-328 SystemTime::now→as_nanos
+.claude/skills/terraforming_node/rust/src/agent_control.rs	std::time::SystemTime::now()	1	record-only	CK-383 SystemTime::now→subsec_nanos
+.claude/skills/terraforming_node/rust/src/agent_control/process.rs	Instant::now()	1	runtime-fact	CK-382 Instant::now + elapsed()>=timeout
+.claude/skills/terraforming_node/rust/src/agent_control/process.rs	.elapsed()	1	runtime-fact	CK-382 Instant::now + elapsed()>=timeout
+.claude/skills/terraforming_node/rust/src/agent_control/selftest.rs	std::time::SystemTime::now()	1	record-only	CK-385 SystemTime::now→as_nanos(임시 이름) + deadline·grace 문구
+.claude/skills/terraforming_node/rust/src/agent_control/selftest.rs	Instant::now()	3	runtime-fact	CK-386 Instant::now·elapsed()<5s·deadline 2s, grace 0.15
+.claude/skills/terraforming_node/rust/src/agent_control/selftest.rs	.elapsed()	1	runtime-fact	CK-386 Instant::now·elapsed()<5s·deadline 2s, grace 0.15
+.claude/skills/terraforming_node/rust/src/agent_guard.rs	std::time::Instant::now()	2	runtime-fact	CK-387,CK-390 Instant::now→monotonic, SystemTime::now→wall(int(time.time()))
+.claude/skills/terraforming_node/rust/src/agent_guard.rs	.elapsed()	3	runtime-fact	CK-387,CK-390 Instant::now→monotonic, SystemTime::now→wall(int(time.time()))
+.claude/skills/terraforming_node/rust/src/agent_guard.rs	std::time::SystemTime::now()	2	runtime-fact	CK-387,CK-390 Instant::now→monotonic, SystemTime::now→wall(int(time.time()))
+.claude/skills/terraforming_node/rust/src/bb.rs	std::time::SystemTime::now()	1	record-only	CK-391 SystemTime::now→subsec_nanos
+.claude/skills/terraforming_node/rust/src/blackbox_collect.rs	std::time::SystemTime::now()	1	runtime-fact	CK-393 SystemTime::now→as_secs_f64 (time.time())
+.claude/skills/terraforming_node/rust/src/blackbox_collect.rs	std::time::Instant::now()	3	runtime-fact	CK-395 Instant::now 3s·sleep 끝
+.claude/skills/terraforming_node/rust/src/blackbox_collect.rs	.elapsed()	1	runtime-fact	CK-395 Instant::now 3s·sleep 끝
+.claude/skills/terraforming_node/rust/src/blackbox_session.rs	std::time::Instant::now()	1	runtime-fact	CK-401 Instant::now + elapsed()>=5s
+.claude/skills/terraforming_node/rust/src/blackbox_session.rs	.elapsed()	1	runtime-fact	CK-401 Instant::now + elapsed()>=5s
+.claude/skills/terraforming_node/rust/src/bootstrap_canary.rs	std::time::SystemTime::now()	2	record-only	CK-406 SystemTime::now→as_nanos
+.claude/skills/terraforming_node/rust/src/check_sub_hint_equip.rs	std::time::SystemTime::now()	1	record-only	CK-407 SystemTime::now→as_nanos
+.claude/skills/terraforming_node/rust/src/harness_permission_probe.rs	Instant::now()	1	runtime-fact	CK-409 Instant::now + elapsed()>=20s
+.claude/skills/terraforming_node/rust/src/harness_permission_probe.rs	.elapsed()	1	runtime-fact	CK-409 Instant::now + elapsed()>=20s
+.claude/skills/terraforming_node/rust/src/harness_permission_probe.rs	std::time::SystemTime::now()	1	record-only	CK-410 SystemTime::now→subsec_nanos
+.claude/skills/terraforming_node/rust/src/logs_lifecycle.rs	const DEFAULT_RAW_DAYS	1	runtime-fact	CK-412(표 처분 none, 기간 이름 규칙) 일자 로그 보존 일수 — 주입 --now 기준 하우스키핑, 판정 아님
+.claude/skills/terraforming_node/rust/src/logs_lifecycle.rs	const DEFAULT_COMPRESSED_DAYS	1	runtime-fact	CK-412(표 처분 none, 기간 이름 규칙) 압축 로그 보존 일수 — 주입 --now 기준 하우스키핑, 판정 아님
+.claude/skills/terraforming_node/rust/src/logs_lifecycle.rs	std::time::SystemTime::now()	1	record-only	CK-413 SystemTime::now→as_secs
+.claude/skills/terraforming_node/rust/src/proc.rs	Instant::now()	1	runtime-fact	CK-415 Instant::now + elapsed()>=t
+.claude/skills/terraforming_node/rust/src/proc.rs	.elapsed()	1	runtime-fact	CK-415 Instant::now + elapsed()>=t
+.claude/skills/terraforming_node/rust/src/provider_claude_code.rs	Instant::now()	1	runtime-fact	CK-416 Instant::now·남은 timeout
+.claude/skills/terraforming_node/rust/src/provider_claude_code.rs	.elapsed()	1	runtime-fact	CK-416 Instant::now·남은 timeout
+.claude/skills/terraforming_node/rust/src/provider_codex_cli.rs	$EPOCHREALTIME	1	runtime-fact	CK-418 $EPOCHREALTIME 로 deadline 계산·reap
+.claude/skills/terraforming_node/rust/src/provider_codex_cli.rs	Instant::now()	1	runtime-fact	CK-419 Instant::now + elapsed()>=timeout
+.claude/skills/terraforming_node/rust/src/provider_codex_cli.rs	.elapsed()	1	runtime-fact	CK-419 Instant::now + elapsed()>=timeout
+.claude/skills/terraforming_node/rust/src/relay/core.rs	.modified()	1	runtime-fact	CK-428 fs::metadata().modified() vs 기록 attempt 창(started_utc..ended_utc ± skew)
+.claude/skills/terraforming_node/rust/src/relay/dispatch.rs	std::time::Instant::now()	1	runtime-fact	CK-430 Instant::now + elapsed()>=timeout
+.claude/skills/terraforming_node/rust/src/relay/dispatch.rs	.elapsed()	1	runtime-fact	CK-430 Instant::now + elapsed()>=timeout
+.claude/skills/terraforming_node/rust/src/relay/dispatch.rs	std::time::SystemTime::now()	2	runtime-fact	CK-431,CK-432 SystemTime::now→fmt_utc
+.claude/skills/terraforming_node/rust/src/render_sub_env.rs	.modified()	1	record-only	CK-435 fs::metadata().modified()·accessed() → 대상에 복사
+.claude/skills/terraforming_node/rust/src/render_sub_env.rs	.accessed()	1	record-only	CK-435 fs::metadata().modified()·accessed() → 대상에 복사
+.claude/skills/terraforming_node/rust/src/render_sub_env/selftest.rs	std::time::SystemTime::now()	1	record-only	CK-437 SystemTime::now→subsec_nanos
+.claude/skills/terraforming_node/rust/src/render_sub_env/selftest.rs	std::time::Instant::now()	1	runtime-fact	CK-438 Instant::now + elapsed()>=timeout
+.claude/skills/terraforming_node/rust/src/render_sub_env/selftest.rs	.elapsed()	1	runtime-fact	CK-438 Instant::now + elapsed()>=timeout
+.claude/skills/terraforming_node/rust/src/selftests/mod.rs	std::time::SystemTime::now()	1	record-only	CK-442 SystemTime::now→nanos seed
+.claude/skills/terraforming_node/rust/src/stress.rs	Instant::now()	4	runtime-fact	CK-447 Instant::now·elapsed() 지속·보고 주기·join deadline
+.claude/skills/terraforming_node/rust/src/stress.rs	.elapsed()	3	runtime-fact	CK-447 Instant::now·elapsed() 지속·보고 주기·join deadline
+.claude/skills/terraforming_node/scripts/host_safety/host/vllm-drop-caches.sh	date -u +%FT%TZ	1	record-only	CK-351 date -u +%FT%TZ
+.claude/skills/terraforming_node/scripts/host_safety/mem_watchdog.sh	date -u +%FT%TZ	1	record-only	CK-353 date -u +%FT%TZ
+.claude/skills/terraforming_node/scripts/host_safety/mem_watchdog.sh	date +%s	1	runtime-fact	CK-354 now=$(date +%s)
+.claude/skills/terraforming_node/scripts/node_blackbox/budget_renew_loop.sh	date -u +%FT%TZ	1	runtime-fact	CK-356 date -u +%FT%TZ
+.claude/skills/terraforming_node/scripts/node_blackbox/install_node_blackbox.sh	date -u +%%Y-%%m-%%dT%%H:%%M:%%SZ	2	runtime-fact	CK-359 systemd ExecStart --now "$(date -u ...)"
+.claude/skills/terraforming_node/scripts/node_blackbox/install_node_blackbox.sh	date -u +%F	1	runtime-fact	CK-360 $(date -u +%F) 오늘 샘플 파일 경로
+.claude/skills/terraforming_node/scripts/node_blackbox/mem_watchdog_eta.sh	date -u +%FT%TZ	1	record-only	CK-363 date -u +%FT%TZ
+.claude/skills/terraforming_node/scripts/node_blackbox/mem_watchdog_eta.sh	date +%s	5	runtime-fact	CK-364,CK-365,CK-366 now=$(date +%s) vs expires_epoch
+.claude/skills/terraforming_node/scripts/node_blackbox/thermal_watchdog.sh	date -u +%FT%TZ	1	record-only	CK-369 date -u +%FT%TZ
+.claude/skills/terraforming_node/scripts/node_blackbox/thermal_watchdog.sh	date -u +'%s %F'	1	runtime-fact	CK-370 read now day <<< $(date -u +'%s %F'); now-GPU_TS>STALE_AFTER
+.claude/skills/terraforming_node/scripts/node_blackbox/verify_node_blackbox.sh	date -u +%Y-%m-%dT%H:%M:%SZ	2	runtime-fact	CK-371,CK-375 date -u > .crash_test_marker; kmsg 마커
+.claude/skills/terraforming_node/scripts/node_blackbox/verify_node_blackbox.sh	date -u +%FT%TZ	2	runtime-fact	CK-371,CK-373 date -u > .crash_test_marker; kmsg 마커
+.claude/skills/terraforming_node/scripts/node_blackbox/verify_node_blackbox.sh	date -u +%F	1	runtime-fact	CK-372 $(date -u +%F) 오늘 샘플 파일
+.claude/skills/terraforming_node/scripts/node_blackbox/verify_node_blackbox.sh	date -u +%s	1	record-only	CK-373 date -u 가 든 kmsg 마커·peertest 토큰
+.claude/skills/terraforming_node/scripts/node_blackbox/verify_node_blackbox.sh	find -newer	1	runtime-fact	CK-374 find -newer "$MARK"
+.claude/skills/upstream-version-watch/rust/runtime/checks/classify_checks.rs	std::time::SystemTime::now()	1	record-only	CK-448 SystemTime::now→as_nanos
+.claude/skills/upstream-version-watch/rust/runtime/checks/layout_checks.rs	Instant::now()	2	runtime-fact	CK-452 Instant::now+Duration::from_secs(10) deadline
+.claude/skills/upstream-version-watch/rust/runtime/checks/ngc_checks.rs	Instant::now()	4	runtime-fact	CK-454,CK-455,CK-456 Instant::now; started.elapsed() < 10s
+.claude/skills/upstream-version-watch/rust/runtime/checks/ngc_checks.rs	.elapsed()	2	runtime-fact	CK-454,CK-455 Instant::now; started.elapsed() < 10s
+.claude/skills/upstream-version-watch/rust/runtime/checks/regen_checks.rs	std::time::SystemTime::now()	1	record-only	CK-449 SystemTime::now→as_nanos
+.claude/skills/upstream-version-watch/rust/runtime/checks/role_checks.rs	std::time::SystemTime::now()	1	record-only	CK-450 SystemTime::now→as_nanos
+.claude/skills/upstream-version-watch/rust/runtime/checks/toml_program_checks.rs	SystemTime::now()	1	record-only	CK-451 use SystemTime·UNIX_EPOCH; SystemTime::now→as_nanos
+.claude/skills/upstream-version-watch/rust/runtime/src/bench.rs	Instant::now()	1	runtime-fact	CK-467 Instant::now; elapsed().as_nanos()
+.claude/skills/upstream-version-watch/rust/runtime/src/bench.rs	.elapsed()	1	runtime-fact	CK-467 Instant::now; elapsed().as_nanos()
+.claude/skills/upstream-version-watch/rust/runtime/src/branch_sync_selftest.rs	std::time::SystemTime::now()	1	record-only	CK-469 SystemTime::now→as_nanos
+.claude/skills/upstream-version-watch/rust/runtime/src/budget_preflight.rs	std::time::SystemTime::now()	1	record-only	CK-472 SystemTime::now→as_nanos
+.claude/skills/upstream-version-watch/rust/runtime/src/classify_source.rs	std::time::SystemTime::now()	1	record-only	CK-473 SystemTime::now→as_nanos
+.claude/skills/upstream-version-watch/rust/runtime/src/http_direct/transport.rs	Instant::now()	1	runtime-fact	CK-475 Instant::now (connect 시각·current_time fn)
+.claude/skills/upstream-version-watch/rust/runtime/src/http_direct/transport.rs	Instant::now	1	runtime-fact	CK-475 Instant::now 함수 값(current_time) — HTTP connect·socket 타임아웃이 잴 단조 시계
+.claude/skills/upstream-version-watch/rust/runtime/src/installed_dist.rs	std::time::SystemTime::now()	1	record-only	CK-476 SystemTime::now→as_nanos
+.claude/skills/upstream-version-watch/rust/runtime/src/judge_delta/selftest.rs	std::time::SystemTime::now()	1	record-only	CK-477 SystemTime::now→as_nanos
+.claude/skills/upstream-version-watch/rust/runtime/src/layer_ledger_selftest.rs	std::time::SystemTime::now()	1	record-only	CK-479 SystemTime::now→as_nanos
+.claude/skills/upstream-version-watch/rust/runtime/src/native_multinode.rs	std::time::SystemTime::now()	1	runtime-fact	CK-480 SystemTime::now secs_f64; OnceLock<Instant>.elapsed()
+.claude/skills/upstream-version-watch/rust/runtime/src/native_multinode.rs	.elapsed()	1	runtime-fact	CK-480 SystemTime::now secs_f64; OnceLock<Instant>.elapsed()
+.claude/skills/upstream-version-watch/rust/runtime/src/native_multinode.rs	Instant::now()	6	runtime-fact	CK-481,CK-482 Instant::now+Duration(timeout_s)
+.claude/skills/upstream-version-watch/rust/runtime/src/native_multinode.rs	Instant::now	1	runtime-fact	CK-480 RealClock::mono 의 OnceLock<Instant> get_or_init(Instant::now) — 단조 경과 시간 기준점
+.claude/skills/upstream-version-watch/rust/runtime/src/native_multinode/self_test.rs	std::time::SystemTime::now()	1	record-only	CK-483 SystemTime::now→as_nanos
+.claude/skills/upstream-version-watch/rust/runtime/src/native_triplet.rs	std::time::SystemTime::now()	1	record-only	CK-484 SystemTime::now→as_nanos
+.claude/skills/upstream-version-watch/rust/runtime/src/ngc_inspect.rs	Instant::now()	3	runtime-fact	CK-486 Instant::now; deadline = started + timeout; saturating_duration_since(now)
+.claude/skills/upstream-version-watch/rust/runtime/src/ngc_tag.rs	const START_MONTHS	1	not-time	not-in-inventory: ngc_tag 하위명령 인자 표(start·months) 이름 — 기간 상수 아님
+.claude/skills/upstream-version-watch/rust/runtime/src/regen_api.rs	std::time::SystemTime::now()	1	record-only	CK-488 SystemTime::now→as_nanos
+.claude/skills/upstream-version-watch/rust/runtime/src/regen_flow.rs	std::time::SystemTime::now()	1	record-only	CK-489 SystemTime::now→as_nanos
+.claude/skills/upstream-version-watch/rust/runtime/src/regen_sync.rs	.mtime()	2	runtime-fact	CK-491 same_snapshot: 같은 파일 두 stat 의 mtime·ctime 동등 비교 — 복사 중 변경 감지(벽시계와 비교 안 함)
+.claude/skills/upstream-version-watch/rust/runtime/src/regen_sync.rs	.mtime_nsec()	2	runtime-fact	CK-491 same_snapshot: 같은 파일 두 stat 의 mtime·ctime 동등 비교 — 복사 중 변경 감지(벽시계와 비교 안 함)
+.claude/skills/upstream-version-watch/rust/runtime/src/regen_sync.rs	.ctime()	2	runtime-fact	CK-491 same_snapshot: 같은 파일 두 stat 의 mtime·ctime 동등 비교 — 복사 중 변경 감지(벽시계와 비교 안 함)
+.claude/skills/upstream-version-watch/rust/runtime/src/regen_sync.rs	.ctime_nsec()	2	runtime-fact	CK-491 same_snapshot: 같은 파일 두 stat 의 mtime·ctime 동등 비교 — 복사 중 변경 감지(벽시계와 비교 안 함)
+.claude/skills/upstream-version-watch/rust/runtime/src/render_selftest.rs	std::time::SystemTime::now()	1	record-only	CK-492 SystemTime::now→as_nanos
+.claude/skills/upstream-version-watch/rust/runtime/src/slave_forward/selftest.rs	std::time::SystemTime::now()	1	record-only	CK-494 SystemTime::now→as_nanos
+.claude/skills/upstream-version-watch/rust/runtime/src/urlretrieve.rs	std::time::SystemTime::now()	1	record-only	CK-500 SystemTime::now→as_nanos
+.claude/skills/upstream-version-watch/rust/runtime/src/version_bench.rs	Instant::now()	1	runtime-fact	CK-501 Instant::now; elapsed()
+.claude/skills/upstream-version-watch/rust/runtime/src/version_bench.rs	.elapsed()	1	runtime-fact	CK-501 Instant::now; elapsed()
+.claude/skills/upstream-version-watch/rust/runtime/src/wheelhouse_build.rs	std::time::Instant::now()	1	runtime-fact	CK-502 Instant::now t0; elapsed → elapsed_s_monotonic
+.claude/skills/upstream-version-watch/rust/runtime/src/wheelhouse_build.rs	.elapsed()	1	runtime-fact	CK-502 Instant::now t0; elapsed → elapsed_s_monotonic
+.claude/skills/upstream-version-watch/rust/runtime/src/wheelhouse_selftest.rs	std::time::SystemTime::now()	1	record-only	CK-505 SystemTime::now→as_nanos
+.claude/skills/upstream-version-watch/rust/runtime/src/wheelhouse_verify.rs	Instant::now()	3	runtime-fact	CK-506,CK-507 Instant::now; elapsed() > timeout
+.claude/skills/upstream-version-watch/rust/runtime/src/wheelhouse_verify.rs	.elapsed()	2	runtime-fact	CK-506,CK-507 Instant::now; elapsed() > timeout
+.claude/skills/upstream-version-watch/rust/runtime/src/wheelhouse_verify.rs	std::time::SystemTime::now()	1	record-only	CK-508 SystemTime::now subsec_nanos seed
+.claude/skills/upstream-version-watch/scripts/fetch_sub_docs.sh	date -u +%FT%TZ	1	record-only	CK-511 date -u +%FT%TZ → _NOW
+.claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh	date -u +%FT%TZ	4	runtime-fact	CK-515,CK-516,CK-518,CK-522 date -u +%FT%TZ → --ended-utc
+.claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh	ENVELOPE_MAX_AGE_DAYS=	1	runtime-fact	CK-519(표 처분 none, 기간 이름 규칙) 포락선 신선도 경고 일수 — 경고만, 종료 코드 무시
+.claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh	date +%s	3	runtime-fact	CK-521 date +%s → clear_t0·t0
+.claude/skills/upstream-version-watch/scripts/single_serve_down.sh	date -u +%FT%TZ	1	runtime-fact	CK-523 date -u +%FT%TZ
+.claude/skills/upstream-version-watch/scripts/single_serve_up.sh	date -u +%FT%TZ	1	runtime-fact	CK-525 date -u +%FT%TZ
+.claude/skills/upstream-version-watch/scripts/single_serve_up.sh	date -u +%Y%m%dT%H%M%SZ	2	record-only	CK-526,CK-527 date -u +%Y%m%dT%H%M%SZ
+.claude/skills/upstream-version-watch/scripts/sync_to_sub.sh	date -u +%Y%m%dT%H%M%SZ	2	record-only	CK-530 date -u +%Y%m%dT%H%M%SZ
+.claude/skills/vllm-recipe-explorer/rust/runtime/checks/memory_checks.rs	Instant::now()	1	runtime-fact	CK-540 Instant::now; elapsed ∈ [300ms,10s)
+.claude/skills/vllm-recipe-explorer/rust/runtime/checks/memory_checks.rs	.elapsed()	1	runtime-fact	CK-540 Instant::now; elapsed ∈ [300ms,10s)
+.claude/skills/vllm-recipe-explorer/rust/runtime/checks/model_support.rs	SystemTime::now()	1	runtime-fact	CK-541,CK-542,CK-544(표 처분 change-test, h21 Q2 로 생긴 새 읽기) 시험 인증서 유효기간을 실행 시각 상대값으로 — 생산 tls_verify 가 읽는 실제 시계(rustls)에 맞춘다
+.claude/skills/vllm-recipe-explorer/rust/runtime/src/bench.rs	Instant::now()	1	runtime-fact	CK-546 Instant::now; elapsed().as_nanos()
+.claude/skills/vllm-recipe-explorer/rust/runtime/src/bench.rs	.elapsed()	1	runtime-fact	CK-546 Instant::now; elapsed().as_nanos()
+.claude/skills/vllm-recipe-explorer/rust/runtime/src/classifier_bench.rs	Instant::now()	1	runtime-fact	CK-547 Instant::now; elapsed().as_nanos()
+.claude/skills/vllm-recipe-explorer/rust/runtime/src/classifier_bench.rs	.elapsed()	1	runtime-fact	CK-547 Instant::now; elapsed().as_nanos()
+.claude/skills/vllm-recipe-explorer/rust/runtime/src/cleanup_process.rs	Instant::now()	1	runtime-fact	CK-550 Instant::now; elapsed vs timeout
+.claude/skills/vllm-recipe-explorer/rust/runtime/src/cleanup_process.rs	.elapsed()	4	runtime-fact	CK-550 Instant::now; elapsed vs timeout
+.claude/skills/vllm-recipe-explorer/rust/runtime/src/escalation_bench.rs	Instant::now()	1	runtime-fact	CK-551 Instant::now; elapsed().as_nanos()
+.claude/skills/vllm-recipe-explorer/rust/runtime/src/escalation_bench.rs	.elapsed()	1	runtime-fact	CK-551 Instant::now; elapsed().as_nanos()
+.claude/skills/vllm-recipe-explorer/rust/runtime/src/feedback.rs	std::time::SystemTime::now()	1	record-only	CK-554 SystemTime::now → iso_text(지역시)
+.claude/skills/vllm-recipe-explorer/rust/runtime/src/generation_bench.rs	Instant::now()	1	runtime-fact	CK-555 Instant::now; elapsed().as_nanos()
+.claude/skills/vllm-recipe-explorer/rust/runtime/src/generation_bench.rs	.elapsed()	1	runtime-fact	CK-555 Instant::now; elapsed().as_nanos()
+.claude/skills/vllm-recipe-explorer/rust/runtime/src/memory_system.rs	Instant::now()	3	runtime-fact	CK-558 Instant::now+timeout; saturating_duration_since
+.claude/skills/vllm-recipe-explorer/rust/runtime/src/model_bench.rs	Instant::now()	1	runtime-fact	CK-559 Instant::now; elapsed().as_nanos()
+.claude/skills/vllm-recipe-explorer/rust/runtime/src/model_bench.rs	.elapsed()	1	runtime-fact	CK-559 Instant::now; elapsed().as_nanos()
+.claude/skills/vllm-recipe-explorer/rust/runtime/src/run_trial.rs	Instant::now()	4	runtime-fact	CK-560,CK-561 Instant::now+20s
+.claude/skills/vllm-recipe-explorer/rust/runtime/src/run_trial.rs	.elapsed()	2	runtime-fact	CK-561 Instant deadline; elapsed → waited_s
+.claude/skills/vllm-recipe-explorer/rust/runtime/src/run_trial_session.rs	Instant::now()	4	runtime-fact	CK-563,CK-566 Instant::now+5s
+.claude/skills/vllm-recipe-explorer/rust/runtime/src/run_trial_session.rs	std::time::SystemTime::now()	1	runtime-fact	CK-565 SystemTime::now secs → utc_iso
+.claude/skills/vllm-recipe-explorer/scripts/engine_liveness_watchdog.sh	date -u +%FT%TZ	1	record-only	CK-575 date -u +%FT%TZ
+.claude/skills/vllm-recipe-explorer/scripts/engine_liveness_watchdog.sh	date +%s	3	runtime-fact	CK-576 date +%s 진행 정지 시간
+.claude/skills/wiki-desk/src/cli.ts	new Date()	1	runtime-fact	CK-584 new Date().toISOString() → now
+.claude/skills/wiki-desk/src/commands.ts	performance.now()	2	runtime-fact	CK-586 performance.now(); elapsed_ms

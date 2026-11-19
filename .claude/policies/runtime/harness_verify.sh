@@ -1,5 +1,5 @@
 #!/bin/bash
-# `harness_verify.py [--as-of YYYY-MM-DD] [--registry ...]` (the three-stage completion gate) through the node-built Rust
+# `harness_verify.py [--registry ...]` (the three-stage completion gate) through the node-built Rust
 # executable (package .claude/rust/policy-audit). Its stages run the Rust launchers policy_registry.sh, runtime_selftest.sh
 # and predicates/*.sh. Direct normal ELF startup: no install, build, download or Python fallback; a missing executable is
 # exit 2 with the build command.

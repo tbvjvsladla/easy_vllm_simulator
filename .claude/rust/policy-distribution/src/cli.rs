@@ -1,20 +1,19 @@
-//! The original's command line: `argparse.ArgumentParser()` with `--json-out` and `--policy-as-of`, its usage/help/
+//! The original's command line: `argparse.ArgumentParser()` with `--json-out`, its usage/help/
 //! error text (help wrapped for argparse's default 80-column width), then `verify()`, the indented JSON on stdout,
 //! the optional `--json-out` copy and the exit code (0 PASS · 1 FAIL · 2 usage).
 use crate::checks::verify;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-const OPTIONS: [&str; 3] = ["--help", "--json-out", "--policy-as-of"];
+const OPTIONS: [&str; 2] = ["--help", "--json-out"];
 
 fn usage(prog: &str) -> String {
-    let pad = " ".repeat("usage: ".len() + prog.len() + 1);
-    format!("usage: {prog} [-h] [--json-out JSON_OUT]\n{pad}[--policy-as-of YYYY-MM-DD]\n")
+    format!("usage: {prog} [-h] [--json-out JSON_OUT]\n")
 }
 
 fn help(prog: &str) -> String {
     format!(
-        "{}\noptions:\n  -h, --help            show this help message and exit\n  --json-out JSON_OUT\n  --policy-as-of YYYY-MM-DD\n                        explicit caller input for a deterministic reproduction\n                        of the policy audit's reference date (default: the\n                        live UTC date observed once per run; recorded in the\n                        result either way)\n",
+        "{}\noptions:\n  -h, --help           show this help message and exit\n  --json-out JSON_OUT\n",
         usage(prog)
     )
 }
@@ -61,7 +60,7 @@ fn looks_like_option(arg: &str) -> bool {
     !negative && !arg.contains(' ')
 }
 
-/// The repository root: `Path(__file__).resolve().parents[3]` of the public `.py` path the launcher passes as argv[0]
+/// The repository root: the fourth ancestor of the launcher path `verify_distribution.sh` the launcher passes as argv[0]
 /// (`exec -a`), else the ancestor of the native executable that holds `.claude/policies/runtime`.
 pub fn repo_root(argv0: &str) -> PathBuf {
     let p = Path::new(argv0);
@@ -87,7 +86,6 @@ pub fn main_with(argv: Vec<String>) -> i32 {
     let argv0 = argv.first().cloned().unwrap_or_else(|| "verify_distribution.sh".into());
     let prog = Path::new(&argv0).file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or(argv0.clone());
     let mut json_out: Option<String> = None;
-    let mut as_of: Option<String> = None;
     let mut extras: Vec<String> = Vec::new();
     let mut i = 1;
     let mut positional_only = false;
@@ -122,21 +120,16 @@ pub fn main_with(argv: Vec<String>) -> i32 {
                 let _ = std::io::stdout().flush();
                 return 0;
             }
-            Some(o) => {
+            Some(_) => {
                 let value = if let Some((_, v)) = a.split_once('=') {
                     v.to_string()
                 } else if i + 1 < argv.len() && !looks_like_option(&argv[i + 1]) {
                     i += 1;
                     argv[i].clone()
                 } else {
-                    let metavar = if o == "--json-out" { "--json-out" } else { "--policy-as-of" };
-                    return fail(&prog, &format!("argument {metavar}: expected one argument"));
+                    return fail(&prog, "argument --json-out: expected one argument");
                 };
-                if o == "--json-out" {
-                    json_out = Some(value);
-                } else {
-                    as_of = Some(value);
-                }
+                json_out = Some(value);
             }
             None => extras.push(a.clone()),
         }
@@ -146,16 +139,12 @@ pub fn main_with(argv: Vec<String>) -> i32 {
         return fail(&prog, &format!("unrecognized arguments: {}", extras.join(" ")));
     }
     let repo = repo_root(&argv0);
-    let result = match verify(&repo, as_of.as_deref(), None) {
-        Err(msg) => {
-            eprintln!("[verify_distribution] usage error: {msg}");
-            return 2;
-        }
-        Ok(Err(uncaught)) => {
+    let result = match verify(&repo) {
+        Err(uncaught) => {
             eprintln!("Traceback (most recent call last):\n  (native verify_distribution)\n{}", uncaught.0);
             return 1;
         }
-        Ok(Ok(v)) => v,
+        Ok(v) => v,
     };
     let text = match result.dumps_pretty() {
         Ok(t) => t.to_utf8().unwrap_or_default(),

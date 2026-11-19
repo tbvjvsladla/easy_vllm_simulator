@@ -1,11 +1,9 @@
-//! Goldens captured from the ORIGINAL verify_distribution.py by checks/capture_goldens.sh [retired with the originals · frozen · plan_26111717] (frozen inputs: the tree of
-//! the golden's `rev` + literal fixtures). Nothing here runs Python: the Rust port is compared against those files.
 use agent_runtime_support::pyjson;
 use agent_runtime_support::pyvalue::{float_repr, PyValue};
 use policy_distribution::checks::{verify_with, Hooks};
-use policy_distribution::{dict, list_ints, observe_policy_as_of, ordered_between_detail, shell_array, shipped_python_paths, UtcInstant};
+use policy_distribution::{dict, list_ints, ordered_between_detail, shell_array, shipped_python_paths};
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
 
 fn crate_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -15,8 +13,6 @@ fn repo() -> PathBuf {
 }
 fn golden(name: &str) -> PyValue {
     let text = std::fs::read_to_string(crate_dir().join("checks/data").join(name)).unwrap();
-    // Tracked golden data spells the skill-script prefix as `@TFN_SCRIPTS@/` so that it is not read as an external call of
-    // a non-public terraforming_node script by the public-surface tripwire (antipattern_scan); decoded here.
     let text = text.replace("@TFN_SCRIPTS@/", concat!("terraforming", "_node/scripts/"));
     pyjson::loads(&text).unwrap()
 }
@@ -38,7 +34,6 @@ fn items(v: &PyValue) -> Vec<PyValue> {
 fn dumps(v: &PyValue) -> String {
     v.dumps_pretty().unwrap().to_utf8().unwrap()
 }
-/// Key-order-insensitive canonical text (for values whose dict order is not part of the contract).
 fn canon(v: &PyValue) -> String {
     match v.peel() {
         PyValue::Dict(d) => {
@@ -77,7 +72,6 @@ impl Drop for Tree {
         let _ = std::fs::remove_dir_all(&self.0);
     }
 }
-/// The frozen input tree: `git archive <rev>` + a fresh index on branch single-node (as capture_goldens.sh [retired with the originals · frozen · plan_26111717] builds it).
 fn frozen_tree(rev: &str, tag: &str) -> Tree {
     let n = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
     let dir = std::env::temp_dir().join(format!("vd-golden-rs-{tag}-{}-{n}", std::process::id()));
@@ -88,8 +82,6 @@ fn frozen_tree(rev: &str, tag: &str) -> Tree {
     Tree(dir)
 }
 
-/// The delivered tree carries the policy launcher the driver probes (`policy_runner.is_file()`; the original probed the
-/// `.py`, which the frozen tree has). Content is irrelevant: children are stubbed. Untracked, like a node build output.
 fn with_launcher(tree: &Path) {
     std::fs::write(tree.join(".claude/policies/runtime/policy_registry.sh"), "#!/bin/bash\n").unwrap();
 }
@@ -112,7 +104,6 @@ fn norm(v: &PyValue, tree: &Path, py: &str) -> PyValue {
     }
 }
 
-/// The documented argv changes: checks that started a policy `.py` now start its Rust launcher.
 fn expected_argv(name: &str, golden_argv: &[String]) -> Vec<String> {
     let to_sh = |a: &str| a.replace(".py", ".sh");
     match name {
@@ -133,8 +124,6 @@ fn expected_argv(name: &str, golden_argv: &[String]) -> Vec<String> {
             "bash".into(),
             golden_argv[5].clone(),
         ],
-        // plan_26111615 pass 3: hint-publisher's programs are its Rust launchers; the image-git-release unittest module
-        // is the hint crate's cargo check (run from the repository, not from scripts/).
         "hint_selftest" => vec!["bash".into(), ".claude/skills/hint-publisher/scripts/hint.sh".into(), "--self-test".into()],
         "hint_bench_section_selftest" => vec!["bash".into(), ".claude/skills/hint-publisher/scripts/render_bench_section.sh".into(), "--selftest".into()],
         "hint_image_git_release_selftest" => [
@@ -143,8 +132,6 @@ fn expected_argv(name: &str, golden_argv: &[String]) -> Vec<String> {
             ".claude/skills/hint-publisher/rust/target", "--test", "artifacts_cases", "image_git_release",
         ].iter().map(|s| s.to_string()).collect(),
         n if LAUNCHER_SWITCHED.contains(&n) || n.starts_with("upstream_help:") => {
-            // plan_26111615: upstream/recipe 진입점이 Rust 런처(.sh)로 바뀌었다 — golden 은 b1f3563e 의 `<PY> x.py ...`.
-            // The interpreter flag `-B` of the retired `<PY> -B selftest_*.py` rows has no launcher counterpart.
             let rest: Vec<&String> = golden_argv[1..].iter().skip_while(|a| a.as_str() == "-B").collect();
             let script = if n == "recipe_info_only_gate" {
                 ".claude/skills/vllm-recipe-explorer/scripts/recipe.sh".to_string()
@@ -159,7 +146,6 @@ fn expected_argv(name: &str, golden_argv: &[String]) -> Vec<String> {
     }
 }
 
-/// Checks whose `<PY> x.py` argv became `bash x.sh` when their owners were ported (closed list · tripwire).
 const LAUNCHER_SWITCHED: &[&str] = &[
     "upstream_slave_forward_selftest",
     "upstream_render_dockerfile_selftest",
@@ -178,16 +164,13 @@ const LAUNCHER_SWITCHED: &[&str] = &[
     "recipe_gmu_roles_batch_selftest",
     "terraform_agent_guard_selftest",
     "blackbox_session_selftest",
-    // terraforming_node A2A control plane (relay · agent_control · render_sub_env · canary · gates).
     "terraform_render_selftest",
     "terraform_staleness_gate_selftest",
     "agent_control_selftest",
     "terraform_relay_selftest",
     "terraform_bootstrap_canary_selftest",
     "terraform_check_sub_hint_equip_selftest",
-    // terraforming first pass (library_access ported in 3de7a246; its row was switched at the core-contracts merge).
     "terraform_library_access_selftest",
-    // terraforming pass 3: the five unittest suites `selftest_*.py` became Rust self-test bins behind `selftest_*.sh`.
     "harness_switch_integration_selftest",
     "claude_native_events_selftest",
     "terraform_bootstrap_permissions_selftest",
@@ -195,13 +178,12 @@ const LAUNCHER_SWITCHED: &[&str] = &[
     "campaign_lifecycle_selftest",
 ];
 
-/// Checks added after the golden capture (closed list · tripwire): absent from the original's report, present exactly once.
 const ADDED_CHECKS: &[&str] = &[
-    // plan_26111615 pass 3: tracked non-.py executable surfaces start no Python on the host/sub.
     "inline_python_scan",
+    "verdict_clock_scan",
+    "verdict_clock_scan_selftest",
 ];
 
-/// Golden check names that were renamed with their launcher (`upstream_help:x.py` → `upstream_help:x.sh`).
 fn renamed(name: &str) -> String {
     match name.strip_prefix("upstream_help:") {
         Some(f) => format!("upstream_help:{}", f.replace(".py", ".sh")),
@@ -234,16 +216,11 @@ fn stub_report(tree: &Path, py: &str) -> PyValue {
         ]
     };
     let flag = |_: &Path| false;
-    let record = observe_policy_as_of(Some("2026-11-16"), None).unwrap();
     let hooks = Hooks { run: &run, gitless: &gitless, flag_issued: &flag };
-    let report = verify_with(tree, record, &hooks).expect("no uncaught exception");
+    let report = verify_with(tree, &hooks).expect("no uncaught exception");
     norm(&report, tree, py)
 }
 
-/// The frozen golden tree (b1f3563e) predates the port: its single_serve_up.sh still spelled the grounding check and the
-/// budget declaration as `bash "${_CI%.py}.sh"` / `python3 "$SESSION_PY"`. The Rust check now requires the launcher forms
-/// the live script uses (plan_26111615) and must not accept the Python form, so the fixture gets the same two call-site
-/// renames the real script got — nothing else in the frozen tree changes.
 fn port_single_up_calls(tree: &Path) {
     let p = tree.join(".claude/skills/upstream-version-watch/scripts/single_serve_up.sh");
     let Ok(t) = std::fs::read_to_string(&p) else { return };
@@ -267,7 +244,7 @@ fn compare_reports(golden_name: &str, mutate: bool) {
     let py = "/usr/bin/python3-golden-stub";
     let got = stub_report(&tree.0, py);
     let want = get(&g, "report");
-    for key in ["schema_version", "repo", "policy_as_of", "verdict"] {
+    for key in ["schema_version", "repo", "verdict"] {
         assert_eq!(dumps(get(&got, key)), dumps(get(want, key)), "{golden_name}: top-level {key}");
     }
     let gc: Vec<PyValue> = items(get(&got, "checks")).into_iter().filter(|c| !ADDED_CHECKS.contains(&st(get(c, "name")).as_str())).collect();
@@ -447,35 +424,72 @@ fn shell_arrays_and_order_detail_match() {
 }
 
 #[test]
-fn reference_date_observation_matches() {
-    for case in items(&golden("clock.json")) {
-        let got = match policy_distribution::get(&case, "explicit") {
-            Some(e) => observe_policy_as_of(Some(&st(e)), None),
-            None => {
-                let secs = match get(&case, "unix").peel() {
-                    PyValue::Int(n) => n.to_string().parse::<i64>().unwrap(),
-                    _ => panic!(),
-                };
-                let micros = match get(&case, "micros").peel() {
-                    PyValue::Int(n) => n.to_string().parse::<u32>().unwrap(),
-                    _ => panic!(),
-                };
-                observe_policy_as_of(None, Some(UtcInstant::from_unix(secs, micros)))
-            }
+fn the_retired_policy_as_of_option_is_a_usage_error() {
+    for args in [&["--policy-as-of", "2026-11-16"][..], &["--policy-as-of=2026-11-16"][..], &["--pol", "2026-11-16"][..]] {
+        let out = Command::new(env!("CARGO_BIN_EXE_verify_distribution"))
+            .args(args)
+            .env_remove("COLUMNS")
+            .stdin(Stdio::null())
+            .output()
+            .unwrap();
+        let stderr = String::from_utf8_lossy(&out.stderr);
+        assert_eq!(out.status.code(), Some(2), "{args:?}: {stderr}");
+        assert!(stderr.ends_with(&format!(": error: unrecognized arguments: {}\n", args.join(" "))), "{args:?}: {stderr}");
+        assert!(out.stdout.is_empty(), "{args:?}");
+    }
+}
+
+#[test]
+fn the_clock_scan_and_the_policy_audit_are_wired_as_documented() {
+    let tree = frozen_tree("b1f3563e", "wiring");
+    with_launcher(&tree.0);
+    let report = stub_report(&tree.0, "/usr/bin/python3-golden-stub");
+    let checks = items(get(&report, "checks"));
+    let names: Vec<String> = checks.iter().map(|c| st(get(c, "name"))).collect();
+    let scan = names.iter().position(|n| n == "inline_python_scan").expect("inline_python_scan");
+    assert_eq!(names[scan + 1..scan + 3], ["verdict_clock_scan", "verdict_clock_scan_selftest"], "{names:?}");
+    let check = |name: &str| checks.iter().find(|c| st(get(c, "name")) == name).unwrap_or_else(|| panic!("{name}"));
+    let argv = |name: &str| items(get(check(name), "argv")).iter().map(st).collect::<Vec<_>>();
+    let expected_rc = |name: &str| dumps(get(check(name), "expected_rc"));
+    let launcher = ".claude/policies/runtime/verdict_clock_scan.sh";
+    assert_eq!(argv("verdict_clock_scan"), ["bash", launcher, "check", "--repo", "."]);
+    assert_eq!(argv("verdict_clock_scan_selftest"), ["bash", launcher, "--self-test"]);
+    assert_eq!(argv("policy_registry_verify"), ["bash", "<REPO>/.claude/policies/runtime/policy_registry.sh", "verify", "--repo-root", "<REPO>"]);
+    for name in ["verdict_clock_scan", "verdict_clock_scan_selftest", "policy_registry_verify"] {
+        assert_eq!(expected_rc(name), dumps(&list_ints(&[0])), "{name}");
+    }
+    for name in ["verdict_clock_scan", "verdict_clock_scan_selftest"] {
+        assert_eq!(st(get(check(name), "cwd")), "<REPO>", "{name}");
+    }
+    let PyValue::Dict(row) = check("policy_registry_verify").peel() else { panic!("a check row is an object") };
+    assert!(row.iter().all(|(k, _)| !k.to_utf8().unwrap_or_default().starts_with("as_of")), "{}", dumps(check("policy_registry_verify")));
+    let PyValue::Dict(top) = report.peel() else { panic!("the report is an object") };
+    assert!(top.iter().all(|(k, _)| k.to_utf8().unwrap_or_default() != "policy_as_of"), "{}", dumps(&report));
+}
+
+#[test]
+fn launcher_help_and_usage_errors_match_goldens() {
+    let launcher = repo().join(".claude/policies/runtime/verify_distribution.sh");
+    let cases = items(&golden("cli.json"));
+    assert!(!cases.is_empty());
+    for case in cases {
+        let id = st(get(&case, "id"));
+        let args: Vec<String> = items(get(&case, "args")).iter().map(st).collect();
+        let out = Command::new("bash")
+            .arg(&launcher)
+            .args(&args)
+            .env("VERIFY_DISTRIBUTION_BIN", env!("CARGO_BIN_EXE_verify_distribution"))
+            .env_remove("COLUMNS")
+            .stdin(Stdio::null())
+            .output()
+            .unwrap();
+        let exit_code = match get(&case, "exit_code").peel() {
+            PyValue::Int(n) => n.to_string().parse::<i32>().unwrap(),
+            other => panic!("{id}: exit_code is not an int: {}", other.repr()),
         };
-        match policy_distribution::get(&case, "error") {
-            Some(e) => assert_eq!(got.unwrap_err(), st(e)),
-            None => {
-                let r = got.unwrap();
-                let v = dict(vec![
-                    ("as_of", PyValue::str(&r.as_of)),
-                    ("as_of_source", PyValue::str(r.as_of_source)),
-                    ("observed_utc", policy_distribution::opt_str(&r.observed_utc)),
-                    ("repro_as_of", PyValue::str(&r.repro_as_of)),
-                ]);
-                assert_eq!(dumps(&v), dumps(get(&case, "value")));
-            }
-        }
+        assert_eq!(String::from_utf8_lossy(&out.stdout), st(get(&case, "stdout")), "{id}: stdout");
+        assert_eq!(String::from_utf8_lossy(&out.stderr), st(get(&case, "stderr")), "{id}: stderr");
+        assert_eq!(out.status.code(), Some(exit_code), "{id}: exit code");
     }
 }
 

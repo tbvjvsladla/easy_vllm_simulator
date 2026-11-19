@@ -1,15 +1,8 @@
 {
   "exit_code": 1,
   "schema_version": 2,
-  "violation_count": 2,
+  "violation_count": 1,
   "violations": [
-    {
-      "clause_id": null,
-      "message": "removal artifact as_of 'soon' is not a valid ISO-8601 date",
-      "path": "rm/art.json",
-      "policy_id": "TEST_RET",
-      "reason_code": "REMOVAL_EVIDENCE_AS_OF_INVALID"
-    },
     {
       "clause_id": null,
       "message": "removal artifact tree_sha256 'XYZ' is not a well-formed 64-hex digest",

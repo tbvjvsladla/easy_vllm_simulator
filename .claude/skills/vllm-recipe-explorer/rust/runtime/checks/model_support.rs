@@ -6,13 +6,14 @@ use agent_runtime_support::pyjson::loads_text;
 use agent_runtime_support::pystr::PyStr;
 use agent_runtime_support::pyvalue::{PyDict, PyValue};
 use recipe_runtime::model_files::PrivateDirectory;
+use recipe_runtime::run_trial_session::utc_iso;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
+use std::ops::Range;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
-
-// ── a loopback port that this check owns and nobody listens on ─────────────────────────────────
+use std::time::{SystemTime, UNIX_EPOCH};
 
 /// A TCP socket bound to a loopback port chosen by the system and never put into the listening state, owned for as long as
 /// the value lives: the port cannot be bound by anyone else meanwhile, and a connection to it is refused (`ECONNREFUSED`).
@@ -210,8 +211,6 @@ pub fn text_of(value: &PyValue) -> String {
     }
 }
 
-// ── the loopback HTTP fixture ────────────────────────────────────────────────────────────────
-
 pub struct Fixture {
     pub base: String,
     requests: Arc<Mutex<Vec<Seen>>>,
@@ -222,7 +221,6 @@ pub struct Fixture {
 /// Answers added to the capture's: a path and the body it gets (status 200).
 pub type Route = (String, Vec<u8>);
 
-/// What the capture's handler answered for a path: status, body.
 fn canned(path: &str, extra: &[Route]) -> (u16, Vec<u8>) {
     if let Some((_, body)) = extra.iter().find(|(route, _)| route == path) {
         return (200, body.clone());
@@ -243,7 +241,6 @@ fn canned(path: &str, extra: &[Route]) -> (u16, Vec<u8>) {
     (status, body)
 }
 
-/// Reads one request head from a stream and answers it as the capture's handler did (over plain TCP or TLS).
 fn serve_stream<S: Read + Write>(mut stream: S, requests: &Mutex<Vec<Seen>>, extra: &[Route]) {
     let mut head: Vec<u8> = Vec::new();
     let mut byte = [0u8; 1];
@@ -274,12 +271,10 @@ fn serve_stream<S: Read + Write>(mut stream: S, requests: &Mutex<Vec<Seen>>, ext
         .expect("requests")
         .push((path.clone(), accept));
     if path == "/stall" {
-        // Never answers: the client's timeout decides.
         std::thread::sleep(std::time::Duration::from_millis(1500));
         return;
     }
     if path == "/bodystall" {
-        // Sends the head of a 100-byte body and five bytes of it, then stops.
         let head =
             "HTTP/1.0 200 OK\r\nContent-Type: application/json\r\nContent-Length: 100\r\n\r\n";
         if stream
@@ -308,7 +303,6 @@ fn serve_stream<S: Read + Write>(mut stream: S, requests: &Mutex<Vec<Seen>>, ext
     }
 }
 
-/// How a connection is wrapped before it is served.
 type Wrap = dyn Fn(TcpStream, &Mutex<Vec<Seen>>, &[Route]) + Send + Sync;
 
 fn run_listener(
@@ -426,8 +420,6 @@ impl Drop for Fixture {
     }
 }
 
-// ── certificates made with the OpenSSL command line (fixture generation only) and a TLS loopback server ──────────────
-
 /// Runs the `openssl` command line; the program is used only to make fixtures and to answer the hash of a certificate.
 pub fn openssl(arguments: &[&str]) -> String {
     let output = std::process::Command::new("openssl")
@@ -443,6 +435,15 @@ pub fn openssl(arguments: &[&str]) -> String {
         String::from_utf8_lossy(&output.stderr)
     );
     String::from_utf8_lossy(&output.stdout).trim().to_string()
+}
+
+fn openssl_days_from_now(days: i64) -> String {
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("a clock after the epoch")
+        .as_secs();
+    let now = i64::try_from(now).expect("seconds since the epoch fit i64");
+    utc_iso(now + days * 86_400).replace(['-', 'T', ':'], "")
 }
 
 /// Two certificate authorities (`ca`, `other`) and a server certificate for 127.0.0.1 / localhost signed by `ca`, in a private
@@ -588,10 +589,10 @@ impl Pki {
         );
     }
 
-    /// A server certificate named `<name>.pem` (key `<name>.key`) signed by `ca`, valid from `start` to `end`
-    /// (`YYYYMMDDHHMMSSZ`) and naming the given subject alternative names, made with `openssl ca` (the only way to
-    /// back-date a certificate with this command line).
-    pub fn issue(&self, name: &str, start: &str, end: &str, alternative_names: &str) {
+    /// A server certificate named `<name>.pem` (key `<name>.key`) signed by `ca`, valid over `validity_days_from_now` and naming
+    /// the given subject alternative names, made with `openssl ca` (the only way to back-date a certificate with this command
+    /// line).
+    pub fn issue(&self, name: &str, validity_days_from_now: Range<i64>, alternative_names: &str) {
         let path = |file: &str| self.file(file).to_string_lossy().into_owned();
         if !self.file("ca.cnf").exists() {
             std::fs::write(
@@ -640,17 +641,18 @@ impl Pki {
             "-out",
             &path(&format!("{name}.pem")),
             "-startdate",
-            start,
+            &openssl_days_from_now(validity_days_from_now.start),
             "-enddate",
-            end,
+            &openssl_days_from_now(validity_days_from_now.end),
             "-extfile",
             &path(&format!("{name}.ext")),
             "-notext",
         ]);
     }
 
-    /// A self-signed root whose own validity ended in 2020 (`old-root`) and a leaf for 127.0.0.1 / localhost (`old-leaf`) signed
-    /// by it that is valid now: the chain is sound except for the dates of its anchor. Made with `openssl ca` (to back-date).
+    /// A self-signed root whose own validity ended two years before the run (`old-root`) and a leaf for 127.0.0.1 / localhost
+    /// (`old-leaf`) signed by it that is valid now: the chain is sound except for the dates of its anchor. Made with `openssl ca`
+    /// (to back-date).
     pub fn expired_anchor(&self) {
         let path = |file: &str| self.file(file).to_string_lossy().into_owned();
         std::fs::write(
@@ -697,9 +699,9 @@ impl Pki {
             "-out",
             &path("old-root.pem"),
             "-startdate",
-            "20200101000000Z",
+            &openssl_days_from_now(-730),
             "-enddate",
-            "20200102000000Z",
+            &openssl_days_from_now(-729),
             "-extfile",
             &path("old-root.ext"),
             "-notext",
@@ -737,9 +739,9 @@ impl Pki {
             "-out",
             &path("old-leaf.pem"),
             "-startdate",
-            "20200601000000Z",
+            &openssl_days_from_now(-365),
             "-enddate",
-            "20400101000000Z",
+            &openssl_days_from_now(365),
             "-extfile",
             &path("old-leaf.ext"),
             "-notext",
@@ -774,7 +776,6 @@ fn base64_value(byte: u8) -> Option<u32> {
     }
 }
 
-/// The DER bytes of the first PEM block of the given kind in a file.
 fn pem_block(path: &Path, label: &str) -> Vec<u8> {
     let text = std::fs::read_to_string(path).expect("a PEM file");
     let begin = format!("-----BEGIN {label}-----");
@@ -848,9 +849,7 @@ impl Fixture {
                 let mut tls = rustls::StreamOwned::new(connection, stream);
                 serve_stream(&mut tls, requests, routes);
                 tls.conn.send_close_notify();
-                if tls.flush().is_err() {
-                    // the client may already have gone away
-                }
+                let _ = tls.flush();
             }),
         )
     }

@@ -1,4 +1,4 @@
-usage: harness_verify.sh [-h] [--as-of AS_OF]
+usage: harness_verify.sh [-h]
                          [--registry REGISTRY]
                          [--schema SCHEMA]
                          [--claim-bindings CLAIM_BINDINGS]
@@ -8,26 +8,24 @@ Constitution-owned minimal, tracked, fail-closed completion gate
 (plan_26072506 Phase4 cycle2).
 
 The gap this closes: no tracked runner or test contract previously invoked
-`policy_registry.sh verify --as-of` as part of a full correction-cycle --
-only the CLI's own docstring mentioned it, never a caller. This script sequentially runs (1) the policy registry audit with an EXPLICIT --as-of (this caller observes the live UTC date once per run unless the operator passes one),
+`policy_registry.sh verify` as part of a full correction-cycle --
+only the CLI's own docstring mentioned it, never a caller. This script sequentially runs (1) the policy registry audit,
 (2) the constitution-owned runtime regression probe, and (3) the production predicate suite.
 It exits 0 only if ALL stages pass. Later stages never start after an earlier failure.
 completion outright, fail-closed.
 
-stdlib-only (argparse/datetime/subprocess/sys) -- no PyYAML, no jsonschema, no requests.
+stdlib-only (argparse/subprocess/sys) -- no PyYAML, no jsonschema, no requests.
 
-Reference date (user directive 2026-11-09: no fixed operating dates): the pure validator `policy_registry.sh` keeps its explicit `--as-of`
-and reads no clock. THIS caller supplies it: by default `observe_as_of()` observes the actual UTC date ONCE per run, and the run prints the
-as_of with its source, the observed UTC instant and the exact input that reproduces the criteria. `--as-of YYYY-MM-DD` is the explicit
-caller input for a deterministic reproduction (recorded as such); there is no environment override and no default date.
+No clock (user decision h20, 2026-11-19): neither this gate nor the validator reads the date; the same inputs give the same verdict
+whenever they run.
 
 Usage:
-    python3 .claude/policies/runtime/harness_verify.py [--as-of YYYY-MM-DD]
+    python3 .claude/policies/runtime/harness_verify.py
         [--registry PATH] [--schema PATH] [--claim-bindings PATH] [--repo-root PATH]
 
 Exit codes:
     0  both stages passed.
-    2  usage error (malformed --as-of), OR the policy audit itself exited 2
+    2  usage error, OR the policy audit itself exited 2
        (schema/load-tier violation -- verbatim propagation of policy_registry.sh's own exit code).
     1  the policy audit exited 1 (lifecycle-tier violation -- verbatim propagation).
     3  stage 1 passed but stage 2 (the production predicate suite) failed.
@@ -35,17 +33,6 @@ Exit codes:
 options:
   -h, --help            show this help message
                         and exit
-  --as-of AS_OF         YYYY-MM-DD explicit
-                        caller input for a
-                        deterministic
-                        reproduction; default =
-                        the live UTC date
-                        observed once per run
-                        and recorded -- passed
-                        straight through to
-                        policy_registry.sh
-                        verify (the validator
-                        itself reads no clock)
   --registry REGISTRY   passthrough to
                         policy_registry.sh
                         verify --registry

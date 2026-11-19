@@ -1,0 +1,12 @@
+usage: staleness_gate.sh [-h] [--topology {single,multi}] [--repo REPO]
+                         [--observed OBSERVED] [--json] [--self-test]
+
+테라포밍 조건부 preflight 의 결정론 staleness 트리거
+
+options:
+  -h, --help            show this help message and exit
+  --topology {single,multi}
+  --repo REPO
+  --observed OBSERVED   scan_node.sh stdout JSON(또는 manifest 형태) HW 사실 파일
+  --json                JSON 출력(기본과 동일)
+  --self-test
