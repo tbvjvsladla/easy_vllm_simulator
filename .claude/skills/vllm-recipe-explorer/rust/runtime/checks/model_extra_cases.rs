@@ -131,8 +131,6 @@ impl Layout {
     }
 }
 
-// ── the 14 function calls ────────────────────────────────────────────────────────────────────
-
 mod api_cases {
     use super::*;
 
@@ -264,7 +262,6 @@ mod api_cases {
 
     #[test]
     fn the_observer_would_notice_a_trusting_directory_that_the_original_refuses() {
-        // Negative control: the unhashed-directory row must differ from a successful lookup, so a client that trusts it fails the above.
         let refused = load_original("CA-unhashed-directory");
         let accepted = load_original("CA-file");
         assert!(!same_value(&refused, &accepted));
@@ -274,8 +271,6 @@ mod api_cases {
         );
     }
 }
-
-// ── the 5 command lines ─────────────────────────────────────────────────────────────────────
 
 mod cli_cases {
     use super::*;
@@ -300,7 +295,6 @@ mod cli_cases {
     fn the_6_command_lines_the_original_was_run_on_for_these_rounds_end_as_it_did() {
         let scratch = Scratch::new("extra-cli");
         let reference = scratch.root.as_os_str().as_bytes().to_vec();
-        // A directory whose name holds the byte FF (not UTF-8), with the saved model directory inside.
         let ratio = private("model-ratio-");
         let mut name = b"nas-".to_vec();
         name.push(0xFF);
@@ -340,8 +334,6 @@ mod cli_cases {
                 .stdin(Stdio::null());
             let mut sentinel: Option<PathBuf> = None;
             let output = if id == "selftest-existing-private-directory" {
-                // The original ran this with a directory of the name its own process would pick already in place; here the
-                // temporary directory is one of ours and holds directories named the way earlier versions named theirs.
                 let tmp = private("model-tmp-");
                 let child = tmp.path().join("holder");
                 std::fs::create_dir_all(&child).expect("holder");
@@ -433,8 +425,6 @@ mod cli_cases {
         );
     }
 }
-
-// ── which hashed-directory layouts are trusted ──────────────────────────────────────────────────
 
 mod tls_variants {
     use super::*;
@@ -588,7 +578,6 @@ mod tls_variants {
                 wrong.push(format!("{variant}: trusted={trusted} got {got:?}"));
             }
         }
-        // The two sources are separate: a file with an empty directory, a directory list with empty entries, an emptied variable.
         let hashed = directory_for("<H>.0", &pki, &hash);
         let empty_dir = directory_for("empty", &pki, &hash);
         let listed = OsString::from(format!(
@@ -697,30 +686,10 @@ mod tls_variants {
     #[test]
     fn a_certificate_fault_is_worded_as_the_reference_interpreter_words_it() {
         let pki = Pki::generate();
-        pki.issue(
-            "expired",
-            "20200101000000Z",
-            "20200102000000Z",
-            "DNS:localhost,IP:127.0.0.1",
-        );
-        pki.issue(
-            "future",
-            "20400101000000Z",
-            "20400102000000Z",
-            "DNS:localhost,IP:127.0.0.1",
-        );
-        pki.issue(
-            "badname",
-            "20200101000000Z",
-            "20400102000000Z",
-            "DNS:other.example,IP:10.1.2.3",
-        );
-        pki.issue(
-            "dnsonly",
-            "20200101000000Z",
-            "20400102000000Z",
-            "DNS:localhost",
-        );
+        pki.issue("expired", -730..-729, "DNS:localhost,IP:127.0.0.1");
+        pki.issue("future", 729..730, "DNS:localhost,IP:127.0.0.1");
+        pki.issue("badname", -365..365, "DNS:other.example,IP:10.1.2.3");
+        pki.issue("dnsonly", -365..365, "DNS:localhost");
         let nothing = Layout::new(&[]);
         let ca = pki.file("ca.pem");
         let environment = [
@@ -786,8 +755,6 @@ mod tls_variants {
         assert_eq!(member(member(&row, "value"), "ok"), &PyValue::Bool(true));
     }
 }
-
-// ── chains: which certificates may end a chain, which may only help build it ───────────────────────
 
 mod tls_chains {
     use super::super::support::rebased;
@@ -1019,7 +986,6 @@ mod tls_chains {
             saved.repr(),
             got.repr()
         );
-        // The requests: the saved original's (an `http` GET of `/check`, then an `https` GET of `/check`, both asking for JSON).
         let expected = parse_json(
             &std::fs::read_to_string(extra("redirect/http-requests.json")).expect("saved requests"),
         );
@@ -1111,7 +1077,6 @@ mod tls_chains {
             server.base
         );
         assert_eq!(reason_of(&got), Some(want));
-        // (An aborted connection is logged by the fixture as a request for `/` with no `Accept`; none for the lookup's path.)
         assert!(
             server
                 .received()
@@ -1121,8 +1086,6 @@ mod tls_chains {
         );
     }
 }
-
-// ── the canonical name hash ─────────────────────────────────────────────────────────────────────
 
 mod subject_hash {
     use super::*;
@@ -1398,7 +1361,6 @@ mod subject_hash {
     #[test]
     fn the_canonical_name_hash_equals_openssls_for_many_names() {
         let pki = Pki::generate();
-        // A valid SubjectPublicKeyInfo to put in the synthetic certificates (the CA's own).
         let key_info = {
             let der = {
                 let pem = super::super::support::openssl(&[
@@ -1414,7 +1376,6 @@ mod subject_hash {
                     .collect();
                 body
             };
-            // decode with the system tool-free path: the CA certificate's own key info element
             let _ = der;
             let certificate = std::fs::read_to_string(pki.file("ca.pem")).expect("the CA");
             let body: String = certificate
@@ -1469,8 +1430,6 @@ mod subject_hash {
                 "ia5 email",
                 name(&[vec![(&EMAIL, 0x16, b"Test@Example.COM".to_vec())]]),
             ),
-            // VisibleString is canonicalised by OpenSSL too, but the command line of this build refuses to load a name holding one
-            // ("unsupported"), so there is no oracle for it here: that string type is covered by the unit test of the canonical strings.
             (
                 "numeric is copied",
                 name(&[vec![(&UNKNOWN, 0x12, b"12 34".to_vec())]]),
@@ -1534,7 +1493,6 @@ mod subject_hash {
                 wrong.push(format!("{label}: openssl {oracle}, ours {ours:?}"));
             }
         }
-        // The same attributes in the two orders hash alike, and the certificates this module's fixtures use agree too.
         let a = tls_trust::subject_hash(&certificate(&cases[3].1, &key_info));
         let b = tls_trust::subject_hash(&certificate(&cases[4].1, &key_info));
         assert_eq!(a, b);
@@ -1613,7 +1571,6 @@ mod subject_hash {
         if tag == 0xA0 {
             rest = after;
         }
-        // serial, signature, issuer, validity, subject, then the key info
         for _ in 0..5 {
             let (_, _, after, _) = read(rest);
             rest = after;

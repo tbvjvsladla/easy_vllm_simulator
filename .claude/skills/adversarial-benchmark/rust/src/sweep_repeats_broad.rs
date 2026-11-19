@@ -10,7 +10,7 @@ use crate::selftest_sweep_repeats::{
     contained_in_or_empty, empty_object, get_default, get_obj, is_int_at, is_none_at, is_text_at,
     json_line, level_calls, load_object, status, str_at_starts, tl, tup, Outcome, Program,
 };
-use crate::sweep_repeats_clock::strptime;
+use crate::sweep_repeats_clock::{strptime, WholeSecondTime};
 use crate::sweep_repeats_fixture::{Sandbox, CAMPAIGN, KNOB_REASONS, LEVEL_REASON};
 use crate::verify_fixture::{
     contains, exists, get, is_file, or_default, read_bytes, read_text, write_str, TextRun,
@@ -19,9 +19,32 @@ use std::collections::BTreeMap;
 use std::ffi::OsString;
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
+use std::time::{SystemTime, UNIX_EPOCH};
 
-/// The injected clock of every broad search call.
-const NOW: &str = "2026-01-01T00:00:00Z";
+fn run_start() -> WholeSecondTime {
+    static STARTED: OnceLock<WholeSecondTime> = OnceLock::new();
+    *STARTED.get_or_init(|| {
+        let seconds = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("a clock after the epoch")
+            .as_secs();
+        let seconds = i64::try_from(seconds).expect("seconds since the epoch fit i64");
+        strptime(&st("1970-01-01T00:00:00Z"))
+            .and_then(|epoch| epoch.plus_seconds(seconds))
+            .expect("the clock reads a year between 1 and 9999")
+    })
+}
+
+fn utc_after_run_start(seconds: i64) -> Result<String, Raised> {
+    Ok(run_start().plus_seconds(seconds)?.format())
+}
+
+fn injected_now_utc() -> &'static str {
+    static NOW: OnceLock<String> = OnceLock::new();
+    NOW.get_or_init(|| utc_after_run_start(-3600).expect("an hour before the run is a valid time"))
+}
+
 const FIRST_EVENTS: &str = "docs/logs/main/events/2026-09.jsonl";
 
 fn arguments(items: &[&str]) -> Vec<OsString> {
@@ -62,7 +85,7 @@ fn measuring_tail(extra: &[OsString]) -> Vec<OsString> {
     words.extend(LEVEL_REASON.map(OsString::from));
     words.extend(arguments(&[
         "--now-utc",
-        NOW,
+        injected_now_utc(),
         "--topology",
         "single",
         "--confirm-risk",
@@ -92,7 +115,7 @@ fn init_command(sweep_id: &str, state: &Path, cells: &str, topology: &str) -> Ve
         "--authority",
         "explore",
         "--now-utc",
-        NOW,
+        injected_now_utc(),
         "--topology",
         topology,
     ]));
@@ -295,13 +318,13 @@ impl Program<'_, '_> {
         let mut source_only = serve_failed_head.clone();
         source_only.extend(arguments(&[
             "--now-utc",
-            NOW,
+            injected_now_utc(),
             "--topology",
             "single",
             "--serve-failed",
             "fixture",
             "--serve-started-utc",
-            NOW,
+            injected_now_utc(),
             "--cross-node-tolerance-source",
             "only-source",
         ]));
@@ -309,13 +332,13 @@ impl Program<'_, '_> {
         let mut not_a_number = serve_failed_head;
         not_a_number.extend(arguments(&[
             "--now-utc",
-            NOW,
+            injected_now_utc(),
             "--topology",
             "single",
             "--serve-failed",
             "fixture",
             "--serve-started-utc",
-            NOW,
+            injected_now_utc(),
             "--cross-node-tolerance-s",
             "x",
             "--cross-node-tolerance-source",
@@ -701,7 +724,7 @@ impl Program<'_, '_> {
             with_path(
                 arguments(&["status", "--state"]),
                 &legacy,
-                &["--now-utc", NOW],
+                &["--now-utc", injected_now_utc()],
             ),
             None,
         )?;
@@ -710,7 +733,7 @@ impl Program<'_, '_> {
         let mut map_words = with_path(
             arguments(&["map", "--state"]),
             &legacy,
-            &["--now-utc", NOW, "--out-md"],
+            &["--now-utc", injected_now_utc(), "--out-md"],
         );
         map_words.push(out_md.as_os_str().to_os_string());
         let map_run = self.broad(map_words, None)?;
@@ -741,8 +764,9 @@ impl Program<'_, '_> {
     /// B7: a `--serve-failed` cell names this node by the owner rule (a manifest without `self_role`).
     fn serve_failed_main_node(&mut self, state: &Path) -> Outcome {
         self.sb.clear_events();
+        let serve_started = utc_after_run_start(-60)?;
         let event = dict_of(vec![
-            ("ts", st("2026-09-01T00:00:30Z")),
+            ("ts", st(&utc_after_run_start(-30)?)),
             ("kind", st("watchdog_kill_ack")),
             ("source", st("fixture")),
             ("mode", st("armed")),
@@ -754,13 +778,13 @@ impl Program<'_, '_> {
         let mut words = cell_head(state, "cell-sf", "cfg-sf");
         words.extend(arguments(&[
             "--now-utc",
-            NOW,
+            injected_now_utc(),
             "--topology",
             "single",
             "--serve-failed",
             "materialize-fixture",
             "--serve-started-utc",
-            "2026-09-01T00:00:00Z",
+            &serve_started,
         ]));
         let run = self.broad(words, None)?;
         let record = self.record("cell-sf", state)?;
@@ -944,8 +968,9 @@ impl Program<'_, '_> {
     fn serve_failed_multi(&mut self, mirror: &Path) -> Outcome {
         self.sb.clear_events();
         let _ = std::fs::remove_dir_all(self.sb.root().join("sync_staging"));
+        let serve_started = utc_after_run_start(-50)?;
         let kill = dict_of(vec![
-            ("ts", st("2026-09-01T00:00:00Z")),
+            ("ts", st(&utc_after_run_start(-60)?)),
             ("kind", st("watchdog_kill_ack")),
             ("source", st("fixture")),
             ("mode", st("armed")),
@@ -960,13 +985,13 @@ impl Program<'_, '_> {
             let mut words = cell_head(&state, key, "cfg-mf");
             words.extend(arguments(&[
                 "--now-utc",
-                NOW,
+                injected_now_utc(),
                 "--topology",
                 "multi",
                 "--serve-failed",
                 "materialize-fixture",
                 "--serve-started-utc",
-                "2026-09-01T00:00:10Z",
+                &serve_started,
             ]));
             words.extend(arguments(extra));
             words
@@ -1017,7 +1042,7 @@ impl Program<'_, '_> {
         )
     }
 
-    /// `campaign_init.sh --cell-set KEY --outcome OUTCOME --sweep-state STATE --utc NOW` in the sandbox.
+    /// `campaign_init.sh --cell-set KEY --outcome OUTCOME --sweep-state STATE --utc <injected now>` in the sandbox.
     fn cell_set(&self, key: &str, outcome: &str, state: &Path) -> Result<TextRun, Raised> {
         let mut command = vec![
             OsString::from("bash"),
@@ -1028,7 +1053,7 @@ impl Program<'_, '_> {
         ];
         command.extend(arguments(&["--cell-set", key, "--outcome", outcome, "--sweep-state"]));
         command.push(state.as_os_str().to_os_string());
-        command.extend(arguments(&["--utc", NOW]));
+        command.extend(arguments(&["--utc", injected_now_utc()]));
         self.sb.run(command, None)
     }
 
@@ -1101,7 +1126,6 @@ impl Program<'_, '_> {
             cond,
             &tup(vec![status(&run), pick(&record, &["cell_outcome", "void_reason", "sweep_dir"])?, tl(&run.stderr, 400)]),
         )?;
-        // the multi topology: the same record, derived from the same declaration, read for a cell of a multi node
         let declaration = self.sb.campaign_dir().join("campaign.yaml");
         write_str(&declaration, &read_text(&declaration)?.replace("\"single\"", "\"multi\""))?;
         self.sb.config("cell-b", "multi")?;

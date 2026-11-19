@@ -96,6 +96,7 @@
 .claude/skills/adversarial-benchmark/rust/src/scan_node_boundary.rs	extern fn time	1	record-only	CK-146 libc time()+tzset+localtime_r → %Y%m%d%H
 .claude/skills/adversarial-benchmark/rust/src/scan_node_host.rs	Instant::now()	5	runtime-fact	CK-145 Instant::now/elapsed caps and deadlines
 .claude/skills/adversarial-benchmark/rust/src/scan_node_host.rs	.elapsed()	1	runtime-fact	CK-145 Instant::now/elapsed caps and deadlines
+.claude/skills/adversarial-benchmark/rust/src/sweep_repeats_broad.rs	SystemTime::now()	1	runtime-fact	CK-177,CK-178(표 처분 change-test, h20 고정물 상대화로 생긴 새 읽기) 셀프테스트 run_start: 실행 시각 한 번 — 주입 --now-utc·고정물 시각을 그 기준 상대값으로 만들어 실제 ENDED·shim·lite 시각과 같은 시계에 맞춘다
 .claude/skills/adversarial-benchmark/rust/src/sweep_repeats_fixture.rs	date -u +%FT%TZ	1	record-only	CK-135 shell `date -u +%FT%TZ` in shim script text
 .claude/skills/adversarial-benchmark/rust/src/sweep_repeats_load_shim.rs	std::time::SystemTime::now()	1	runtime-fact	CK-132 SystemTime::now→civil UTC text
 .claude/skills/adversarial-benchmark/rust/src/topology_parity_api.rs	std::time::Instant::now()	1	runtime-fact	CK-137 Instant::now().checked_add(deadline_ms) representability check
@@ -224,6 +225,7 @@
 .claude/skills/upstream-version-watch/scripts/sync_to_sub.sh	date -u +%Y%m%dT%H%M%SZ	2	record-only	CK-530 date -u +%Y%m%dT%H%M%SZ
 .claude/skills/vllm-recipe-explorer/rust/runtime/checks/memory_checks.rs	Instant::now()	1	runtime-fact	CK-540 Instant::now; elapsed ∈ [300ms,10s)
 .claude/skills/vllm-recipe-explorer/rust/runtime/checks/memory_checks.rs	.elapsed()	1	runtime-fact	CK-540 Instant::now; elapsed ∈ [300ms,10s)
+.claude/skills/vllm-recipe-explorer/rust/runtime/checks/model_support.rs	SystemTime::now()	1	runtime-fact	CK-541,CK-542,CK-544(표 처분 change-test, h21 Q2 로 생긴 새 읽기) 시험 인증서 유효기간을 실행 시각 상대값으로 — 생산 tls_verify 가 읽는 실제 시계(rustls)에 맞춘다
 .claude/skills/vllm-recipe-explorer/rust/runtime/src/bench.rs	Instant::now()	1	runtime-fact	CK-546 Instant::now; elapsed().as_nanos()
 .claude/skills/vllm-recipe-explorer/rust/runtime/src/bench.rs	.elapsed()	1	runtime-fact	CK-546 Instant::now; elapsed().as_nanos()
 .claude/skills/vllm-recipe-explorer/rust/runtime/src/classifier_bench.rs	Instant::now()	1	runtime-fact	CK-547 Instant::now; elapsed().as_nanos()
