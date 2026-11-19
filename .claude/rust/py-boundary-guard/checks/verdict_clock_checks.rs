@@ -57,6 +57,7 @@ fn check(dir: &Path) -> (i32, String, String) {
     run(dir, &["check"])
 }
 
+const NO_ROWS: &str = "# no rows\n";
 const TWO_READS: &str = "fn f() {\n    let _ = std::time::Instant::now();\n    let _ = std::time::Instant::now();\n}\n";
 const TWO_READS_REL: &str = ".claude/rust/x/src/two.rs";
 
@@ -70,6 +71,7 @@ fn every_planted_read_fails_with_its_line() {
     for (name, rel) in PLANTED {
         write(&r.0, rel, &fixture(name));
     }
+    write(&r.0, ALLOW_REL, NO_ROWS);
     let (code, out, err) = check(&r.0);
     assert_eq!(code, 1, "{out}{err}");
     let expected = fixture("expected.tsv");
@@ -87,7 +89,8 @@ fn every_planted_read_fails_with_its_line() {
 #[test]
 fn mentions_in_comments_and_strings_are_not_reads() {
     let r = repo("mentions");
-    write(&r.0, ".claude/rust/x/src/m.rs", "// SystemTime::now()\n/// Instant::now()\nfn f() {\n    let _ = \"SystemTime::now()\";\n}\n");
+    write(&r.0, ".claude/rust/x/src/m.rs", "// SystemTime::now()\n/// Instant::now()\nfn f() {\n    let _ = \"SystemTime::now()\";\n}\nuse a::now;\n");
+    write(&r.0, ALLOW_REL, NO_ROWS);
     let (code, out, err) = check(&r.0);
     assert_eq!(code, 0, "{out}{err}");
     assert!(out.contains("PASS 0 clock reads"), "{out}");
@@ -167,7 +170,112 @@ fn usage_errors_are_exit_2() {
 fn self_test_passes() {
     let out = Command::new(bin()).arg("--self-test").output().unwrap();
     assert_eq!(out.status.code(), Some(0), "{}", String::from_utf8_lossy(&out.stdout));
-    assert!(String::from_utf8_lossy(&out.stdout).contains("--self-test PASS 21 planted reads"));
+    assert!(String::from_utf8_lossy(&out.stdout).contains("--self-test PASS 52 planted reads"));
+}
+
+#[test]
+fn a_missing_default_allowlist_is_an_input_error() {
+    let r = repo("noallow");
+    write(&r.0, ".claude/rust/x/src/clean.rs", "fn f() {}\n");
+    let (code, out, err) = check(&r.0);
+    assert_eq!(code, 2, "{out}{err}");
+    assert!(err.contains("cannot read allowlist") && err.contains("verdict_clock_allowlist.tsv"), "{err}");
+}
+
+#[test]
+fn an_unreadable_tracked_source_is_an_input_error() {
+    use std::os::unix::fs::PermissionsExt;
+    let r = repo("unreadable");
+    write(&r.0, ALLOW_REL, NO_ROWS);
+    write(&r.0, ".claude/rust/x/src/clean.rs", "fn f() {}\n");
+    write(&r.0, ".claude/x/scripts/locked", "#!/bin/bash\necho\n");
+    git(&r.0, &["add", "-A"]);
+    let locked = r.0.join(".claude/x/scripts/locked");
+    std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o000)).unwrap();
+    if std::fs::File::open(&locked).is_ok() {
+        return;
+    }
+    let out = Command::new(bin()).args(["check", "--repo"]).arg(&r.0).output().unwrap();
+    std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o644)).unwrap();
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert_eq!(out.status.code(), Some(2), "{err}");
+    assert!(err.contains("cannot read tracked file .claude/x/scripts/locked"), "{err}");
+}
+
+#[test]
+fn nothing_to_scan_is_an_input_error() {
+    let r = repo("empty");
+    write(&r.0, ALLOW_REL, NO_ROWS);
+    write(&r.0, "README.md", "# x\n");
+    let (code, out, err) = check(&r.0);
+    assert_eq!(code, 2, "{out}{err}");
+    assert!(err.contains("no tracked .rs, shell or .ts source to scan"), "{err}");
+}
+
+#[test]
+fn a_deleted_tracked_file_is_skipped_and_counted() {
+    let r = repo("deleted");
+    write(&r.0, ALLOW_REL, NO_ROWS);
+    write(&r.0, ".claude/rust/x/src/clean.rs", "fn f() {}\n");
+    write(&r.0, ".claude/rust/x/src/gone.rs", "fn g() { let _ = std::time::Instant::now(); }\n");
+    git(&r.0, &["add", "-A"]);
+    std::fs::remove_file(r.0.join(".claude/rust/x/src/gone.rs")).unwrap();
+    let out = Command::new(bin()).args(["check", "--repo"]).arg(&r.0).output().unwrap();
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert_eq!(out.status.code(), Some(0), "{stdout}");
+    assert!(stdout.contains("scanned 1 .rs, 0 shell, 0 .ts · 1 deleted from the work tree"), "{stdout}");
+}
+
+#[test]
+fn a_symlink_is_not_read() {
+    let r = repo("symlink");
+    write(&r.0, ALLOW_REL, NO_ROWS);
+    write(&r.0, ".claude/rust/x/src/clean.rs", "fn f() {}\n");
+    std::os::unix::fs::symlink("/nonexistent/target.rs", r.0.join(".claude/rust/x/src/link.rs")).unwrap();
+    let (code, out, err) = check(&r.0);
+    assert_eq!(code, 0, "{out}{err}");
+    assert!(out.contains("scanned 1 .rs,"), "{out}");
+}
+
+#[test]
+fn test_scripts_under_checks_data_are_scanned() {
+    let r = repo("checksdata");
+    write(&r.0, ALLOW_REL, NO_ROWS);
+    let case = ".claude/rust/policy-audit/checks/data/cli/PA-x/case.sh";
+    write(&r.0, case, &fixture("planted.sh"));
+    write(&r.0, ".claude/rust/parity/data/S1/run.sh", &fixture("planted.sh"));
+    write(&r.0, ".claude/rust/py-boundary-guard/checks/data/verdict_clock/planted.sh", &fixture("planted.sh"));
+    let (code, out, err) = check(&r.0);
+    assert_eq!(code, 1, "{out}{err}");
+    let planted_sh = fixture("expected.tsv").lines().filter(|row| row.starts_with("planted.sh\t")).count();
+    assert_eq!(out.lines().filter(|l| l.starts_with(&format!("CLOCK-VIOLATION {case}:"))).count(), planted_sh, "{out}");
+    assert_eq!(out.lines().filter(|l| l.starts_with("CLOCK-VIOLATION ")).count(), planted_sh, "{out}");
+}
+
+#[test]
+fn a_shell_script_is_known_by_its_shebang() {
+    let r = repo("shebang");
+    write(&r.0, ALLOW_REL, NO_ROWS);
+    let planted = fixture("planted.sh");
+    let body = planted.split_once('\n').expect("a shebang line").1;
+    let heads = [
+        (".claude/x/a", "#!/bin/bash -e"),
+        (".claude/x/b", "#!/usr/bin/env bash\r"),
+        (".claude/x/c", "#!/usr/bin/env -S bash -eu"),
+        (".claude/x/tool.v2", "#!/usr/bin/env bash"),
+        (".claude/x/script.py", "#!/usr/bin/env python3"),
+    ];
+    for (rel, head) in heads {
+        write(&r.0, rel, &format!("{head}\n{body}"));
+    }
+    let (code, out, err) = check(&r.0);
+    assert_eq!(code, 1, "{out}{err}");
+    let planted_sh = fixture("expected.tsv").lines().filter(|row| row.starts_with("planted.sh\t")).count();
+    for (rel, _) in &heads[..4] {
+        let found = out.lines().filter(|l| l.starts_with(&format!("CLOCK-VIOLATION {rel}:"))).count();
+        assert_eq!(found, planted_sh, "{rel}\n{out}");
+    }
+    assert!(!out.contains("script.py"), "{out}");
 }
 
 #[test]

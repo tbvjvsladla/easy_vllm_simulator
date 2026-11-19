@@ -8,6 +8,11 @@
 //! `class` is `runtime-fact` (the runtime measures real elapsed time or an outside fact: timeouts, watchdogs, leases,
 //! certificate validity), `record-only` (a time stamped into a record, a log or a name, never into a verdict),
 //! or `not-time` (a name or a never-executed string that matches a rule but reads no time).
+//!
+//! Every tracked `.rs`, `.ts` and shell source is read (a shell source: `.sh`, `.bash`, or any other name whose
+//! shebang interpreter is a shell), test fixtures that tests run included. Two frozen data planes are not: the parity
+//! records `.claude/rust/parity/data/` (recorded outputs, never executed) and this lint's own planted reads
+//! `.claude/rust/py-boundary-guard/checks/data/verdict_clock/` (checked by `--self-test`).
 
 pub mod rust_reads;
 pub mod selftest;
@@ -19,7 +24,7 @@ use std::collections::BTreeMap;
 pub const DEFAULT_ALLOWLIST: &str = ".claude/rust/py-boundary-guard/verdict_clock_allowlist.tsv";
 pub const CLASSES: [&str; 3] = ["runtime-fact", "record-only", "not-time"];
 
-const DATA_PLANES: [&str; 2] = ["/checks/data/", ".claude/rust/parity/data/"];
+pub const DATA_PLANES: [&str; 2] = [".claude/rust/parity/data/", ".claude/rust/py-boundary-guard/checks/data/verdict_clock/"];
 const PERIOD_UNITS: [&str; 3] = ["DAYS", "WEEKS", "MONTHS"];
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -40,30 +45,47 @@ pub enum Surface {
     TypeScript,
 }
 
-fn in_data_plane(path: &str) -> bool {
-    DATA_PLANES
-        .iter()
-        .any(|plane| path.contains(plane) || path.starts_with(plane.trim_start_matches('/')))
+pub fn in_data_plane(path: &str) -> bool {
+    DATA_PLANES.iter().any(|plane| path.starts_with(plane))
 }
 
-pub fn surface(path: &str, head: &[u8]) -> Option<Surface> {
-    if in_data_plane(path) {
-        return None;
-    }
+/// The surface a tracked path has by its name alone; `None` leaves the shebang to decide.
+pub fn surface_by_name(path: &str) -> Option<Surface> {
     let name = path.rsplit('/').next().unwrap_or(path);
     if name.ends_with(".rs") {
         Some(Surface::Rust)
     } else if name.ends_with(".ts") {
         Some(Surface::TypeScript)
-    } else if name.ends_with(".sh") || name.ends_with(".bash") || is_shell_script(name, head) {
+    } else if name.ends_with(".sh") || name.ends_with(".bash") {
         Some(Surface::Shell)
     } else {
         None
     }
 }
 
-fn is_shell_script(name: &str, head: &[u8]) -> bool {
-    !name.contains('.') && head.starts_with(b"#!") && head.split(|b| *b == b'\n').next().is_some_and(|l| l.ends_with(b"sh"))
+/// The first line is `#!<interpreter> …` and the interpreter (through `env`, its options and assignments skipped)
+/// is a shell (its name ends in `sh`).
+pub fn is_shell_script(head: &[u8]) -> bool {
+    let Some(first) = head.split(|b| *b == b'\n').next().and_then(|l| l.strip_prefix(b"#!")) else { return false };
+    let first = String::from_utf8_lossy(first.strip_suffix(b"\r").unwrap_or(first)).into_owned();
+    let mut words = first.split_whitespace();
+    let Some(mut interpreter) = words.next().map(|w| w.rsplit('/').next().unwrap_or(w)) else { return false };
+    if interpreter == "env" {
+        let mut skip_value = false;
+        interpreter = "";
+        for word in words {
+            if std::mem::take(&mut skip_value) || word.contains('=') {
+                continue;
+            }
+            if let Some(option) = word.strip_prefix('-') {
+                skip_value = matches!(option, "u" | "-unset" | "C" | "-chdir");
+                continue;
+            }
+            interpreter = word.rsplit('/').next().unwrap_or(word);
+            break;
+        }
+    }
+    interpreter.ends_with("sh")
 }
 
 pub fn find(surface: Surface, source: &str) -> Result<Vec<Finding>, String> {
@@ -168,6 +190,13 @@ pub fn judge(found: &Found, rows: &[Row]) -> Verdict {
 mod tests {
     use super::*;
 
+    fn surface(path: &str, head: &[u8]) -> Option<Surface> {
+        if in_data_plane(path) {
+            return None;
+        }
+        surface_by_name(path).or_else(|| is_shell_script(head).then_some(Surface::Shell))
+    }
+
     #[test]
     fn rows_are_checked_field_by_field() {
         let good = "# c\na/x.rs\tInstant::now()\t2\truntime-fact\tCK-001 watchdog\n";
@@ -190,11 +219,32 @@ mod tests {
     #[test]
     fn surfaces() {
         assert_eq!(surface("a/src/x.rs", b""), Some(Surface::Rust));
-        assert_eq!(surface("a/checks/data/x.rs", b""), None);
+        assert_eq!(surface("a/checks/data/cli/X/case.sh", b""), Some(Surface::Shell));
         assert_eq!(surface(".claude/rust/parity/data/S1/x.sh", b""), None);
+        assert_eq!(surface(".claude/rust/py-boundary-guard/checks/data/verdict_clock/planted.rs", b""), None);
+        assert_eq!(surface("x/.claude/rust/parity/data/S1/x.sh", b""), Some(Surface::Shell));
         assert_eq!(surface("s/run.sh", b""), Some(Surface::Shell));
         assert_eq!(surface(".claude/hooks/pre-commit", b"#!/bin/bash\nset -e\n"), Some(Surface::Shell));
         assert_eq!(surface("w/src/cli.ts", b""), Some(Surface::TypeScript));
         assert_eq!(surface("README.md", b""), None);
+    }
+
+    #[test]
+    fn shebangs_name_their_interpreter() {
+        for shell in [
+            &b"#!/bin/bash\n"[..],
+            b"#!/bin/bash -e\n",
+            b"#!/usr/bin/env bash\r\n",
+            b"#!/usr/bin/env -S bash -eu\n",
+            b"#!/usr/bin/env -u X LC_ALL=C dash\n",
+            b"#!/bin/sh",
+            b"#!/usr/bin/zsh -f\n",
+        ] {
+            assert!(is_shell_script(shell), "{:?}", String::from_utf8_lossy(shell));
+        }
+        for other in [&b"#!/usr/bin/env python3\n"[..], b"#!/usr/bin/env -S node --x\n", b"# bash\n", b"echo\n"] {
+            assert!(!is_shell_script(other), "{:?}", String::from_utf8_lossy(other));
+        }
+        assert_eq!(surface("s/tool.v2", b"#!/usr/bin/env bash\n"), Some(Surface::Shell));
     }
 }

@@ -27,3 +27,31 @@ git log -1 --before={created_s} -- {rel}
 export KEEP_DAYS=7	KEEP_DAYS=
 x=${KEEP_DAYS:-7}
 days=3
+a=$(date -d "+90 days" +%F)	date -d "+90 days" +%F
+b=$(date -d yesterday +%F)	date -d yesterday +%F
+c=$(date -d now +%s)	date -d now +%s
+d=$(date --date="1 day ago" +%F)	date --date="1 day ago" +%F
+e=$(date -ud now +%s)	date -ud now +%s
+f=$(date -d "$created + 90 days" +%s)	date -d "$created + 90 days" +%s
+g=$(date -d "@$ts" +%F)
+[ "$(date -u -d "$ets" +%s 2>/dev/null || echo 0)" -ge "$t0" ]
+date -f dates.txt +%F
+if [[ "$(date -d "$last + 90 days" +%F)" < "$(date -d today +%F)" ]]; then	date -d "$last + 90 days" +%F	date -d today +%F
+git log --since="2 weeks ago" --oneline	git --since
+git log --after='1 month ago'	git --after
+git log --since "2 weeks ago" --oneline	git --since
+[ a -ot b ]	test -ot
+t=$(bash -c 'date +%s')	date +%s
+r=$(ssh h "date -u +%s")	date -u +%s
+ssh -o BatchMode=yes -p 22 h date +%s	date +%s
+eval "date +%s"	date +%s
+sh -c "echo \$EPOCHSECONDS"	$EPOCHSECONDS
+ssh h "cd /x && date -u +%FT%TZ"	date -u +%FT%TZ
+ssh h "bash -lc 'date +%s'"	date +%s
+ssh h
+bash script.sh
+echo use ssh h date +%s
+if (( SECONDS > 30 )); then exit 1; fi	$SECONDS
+age=$(( EPOCHSECONDS - t0 ))	$EPOCHSECONDS
+age=$(( $EPOCHSECONDS - t0 ))	$EPOCHSECONDS
+n=$(( SECONDS_LEFT + 1 ))

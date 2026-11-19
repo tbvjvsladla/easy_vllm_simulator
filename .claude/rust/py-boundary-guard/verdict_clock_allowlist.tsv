@@ -1,5 +1,8 @@
 # 판정 시계 허용목록 — 사용자 결정 h20·h21(c24-no-clock) · CLAUDE.md 불변식 「하네스 판정은 벽시계를 읽지 않는다」의 데이터.
 # 한 줄 = <repo 상대경로>\t<검출 텍스트>\t<개수>\t<구분>\t<사유>. '#' 줄과 빈 줄은 무시한다.
+# 범위 = 추적 .rs·.ts·셸(.sh·.bash, 그 밖의 이름은 shebang 인터프리터가 셸인 파일) 전부다. 시험이 실행하는 checks/data/ 고정물도 들어간다.
+#   빼는 것은 실행되지 않는 고정 데이터 둘뿐이다: parity 기록 .claude/rust/parity/data/ 와 이 lint 의 심은 고정물
+#   .claude/rust/py-boundary-guard/checks/data/verdict_clock/(--self-test 가 대조한다).
 # 검출 텍스트 = `verdict_clock_scan check` 가 CLOCK-VIOLATION 줄에 보이는 텍스트 그대로다. 키 = 경로 + 이 텍스트다.
 # 개수 = 그 파일에서 같은 텍스트로 검출되는 읽기 수. 더 많으면 넘는 읽기가 위반이고, 적으면(0 포함) CLOCK-STALE 이며 둘 다 실패다.
 #   파일 단위 허용은 없다 — 같은 파일의 새 읽기는 걸린다.
@@ -52,6 +55,8 @@
 .claude/skills/adversarial-benchmark/rust/checks/sweep_meta_cases.rs	UtcInstant::now()	2	runtime-fact	CK-214 UtcInstant::now before/after the call
 .claude/skills/adversarial-benchmark/rust/checks/sweep_meta_cases.rs	std::time::Instant::now()	4	runtime-fact	CK-215 Instant::now deadlines 30 s/10 s
 .claude/skills/adversarial-benchmark/rust/checks/sweep_repeats_cases.rs	$EPOCHREALTIME	2	runtime-fact	CK-219 $EPOCHREALTIME in shim script text
+.claude/skills/adversarial-benchmark/rust/checks/sweep_repeats_cases.rs	.mtime()	1	record-only	CK-218 MetadataExt mtime·mtime_nsec 스냅숏 — 시험 트리가 바뀌지 않았는지 보는 동등 비교(벽시계와 비교 안 함)
+.claude/skills/adversarial-benchmark/rust/checks/sweep_repeats_cases.rs	.mtime_nsec()	1	record-only	CK-218 MetadataExt mtime·mtime_nsec 스냅숏 — 시험 트리가 바뀌지 않았는지 보는 동등 비교(벽시계와 비교 안 함)
 .claude/skills/adversarial-benchmark/rust/src/assemble_sweep_meta.rs	crate::utc::UtcInstant::now()	1	record-only	CK-125 UtcInstant::now().evaluated_text() call
 .claude/skills/adversarial-benchmark/rust/src/bench_preset_selftest.rs	std::time::SystemTime::now()	1	record-only	CK-179 SystemTime::now→nanos
 .claude/skills/adversarial-benchmark/rust/src/bin/bench_preset_bench.rs	Instant::now()	1	runtime-fact	CK-195 Instant::now/elapsed
@@ -96,7 +101,11 @@
 .claude/skills/adversarial-benchmark/rust/src/scan_node_boundary.rs	extern fn time	1	record-only	CK-146 libc time()+tzset+localtime_r → %Y%m%d%H
 .claude/skills/adversarial-benchmark/rust/src/scan_node_host.rs	Instant::now()	5	runtime-fact	CK-145 Instant::now/elapsed caps and deadlines
 .claude/skills/adversarial-benchmark/rust/src/scan_node_host.rs	.elapsed()	1	runtime-fact	CK-145 Instant::now/elapsed caps and deadlines
+.claude/skills/adversarial-benchmark/rust/src/selftest_lite_report.rs	.mtime()	1	runtime-fact	CK-221 MetadataExt mtime·mtime_nsec — 가장 새 lite raw 고르기(파일끼리 상대 순서, 날짜 무관)
+.claude/skills/adversarial-benchmark/rust/src/selftest_lite_report.rs	.mtime_nsec()	1	runtime-fact	CK-221 MetadataExt mtime·mtime_nsec — 가장 새 lite raw 고르기(파일끼리 상대 순서, 날짜 무관)
 .claude/skills/adversarial-benchmark/rust/src/sweep_repeats_broad.rs	SystemTime::now()	1	runtime-fact	CK-177,CK-178(표 처분 change-test, h20 고정물 상대화로 생긴 새 읽기) 셀프테스트 run_start: 실행 시각 한 번 — 주입 --now-utc·고정물 시각을 그 기준 상대값으로 만들어 실제 ENDED·shim·lite 시각과 같은 시계에 맞춘다
+.claude/skills/adversarial-benchmark/rust/src/sweep_repeats_broad.rs	.mtime()	1	record-only	CK-175 MetadataExt mtime·mtime_nsec 스냅숏 — 셀프테스트가 손대지 않은 트리인지 보는 동등 비교(날짜 무관)
+.claude/skills/adversarial-benchmark/rust/src/sweep_repeats_broad.rs	.mtime_nsec()	1	record-only	CK-175 MetadataExt mtime·mtime_nsec 스냅숏 — 셀프테스트가 손대지 않은 트리인지 보는 동등 비교(날짜 무관)
 .claude/skills/adversarial-benchmark/rust/src/sweep_repeats_fixture.rs	date -u +%FT%TZ	1	record-only	CK-135 shell `date -u +%FT%TZ` in shim script text
 .claude/skills/adversarial-benchmark/rust/src/sweep_repeats_load_shim.rs	std::time::SystemTime::now()	1	runtime-fact	CK-132 SystemTime::now→civil UTC text
 .claude/skills/adversarial-benchmark/rust/src/topology_parity_api.rs	std::time::Instant::now()	1	runtime-fact	CK-137 Instant::now().checked_add(deadline_ms) representability check
@@ -192,18 +201,24 @@
 .claude/skills/upstream-version-watch/rust/runtime/src/budget_preflight.rs	std::time::SystemTime::now()	1	record-only	CK-472 SystemTime::now→as_nanos
 .claude/skills/upstream-version-watch/rust/runtime/src/classify_source.rs	std::time::SystemTime::now()	1	record-only	CK-473 SystemTime::now→as_nanos
 .claude/skills/upstream-version-watch/rust/runtime/src/http_direct/transport.rs	Instant::now()	1	runtime-fact	CK-475 Instant::now (connect 시각·current_time fn)
+.claude/skills/upstream-version-watch/rust/runtime/src/http_direct/transport.rs	Instant::now	1	runtime-fact	CK-475 Instant::now 함수 값(current_time) — HTTP connect·socket 타임아웃이 잴 단조 시계
 .claude/skills/upstream-version-watch/rust/runtime/src/installed_dist.rs	std::time::SystemTime::now()	1	record-only	CK-476 SystemTime::now→as_nanos
 .claude/skills/upstream-version-watch/rust/runtime/src/judge_delta/selftest.rs	std::time::SystemTime::now()	1	record-only	CK-477 SystemTime::now→as_nanos
 .claude/skills/upstream-version-watch/rust/runtime/src/layer_ledger_selftest.rs	std::time::SystemTime::now()	1	record-only	CK-479 SystemTime::now→as_nanos
 .claude/skills/upstream-version-watch/rust/runtime/src/native_multinode.rs	std::time::SystemTime::now()	1	runtime-fact	CK-480 SystemTime::now secs_f64; OnceLock<Instant>.elapsed()
 .claude/skills/upstream-version-watch/rust/runtime/src/native_multinode.rs	.elapsed()	1	runtime-fact	CK-480 SystemTime::now secs_f64; OnceLock<Instant>.elapsed()
 .claude/skills/upstream-version-watch/rust/runtime/src/native_multinode.rs	Instant::now()	6	runtime-fact	CK-481,CK-482 Instant::now+Duration(timeout_s)
+.claude/skills/upstream-version-watch/rust/runtime/src/native_multinode.rs	Instant::now	1	runtime-fact	CK-480 RealClock::mono 의 OnceLock<Instant> get_or_init(Instant::now) — 단조 경과 시간 기준점
 .claude/skills/upstream-version-watch/rust/runtime/src/native_multinode/self_test.rs	std::time::SystemTime::now()	1	record-only	CK-483 SystemTime::now→as_nanos
 .claude/skills/upstream-version-watch/rust/runtime/src/native_triplet.rs	std::time::SystemTime::now()	1	record-only	CK-484 SystemTime::now→as_nanos
 .claude/skills/upstream-version-watch/rust/runtime/src/ngc_inspect.rs	Instant::now()	3	runtime-fact	CK-486 Instant::now; deadline = started + timeout; saturating_duration_since(now)
 .claude/skills/upstream-version-watch/rust/runtime/src/ngc_tag.rs	const START_MONTHS	1	not-time	not-in-inventory: ngc_tag 하위명령 인자 표(start·months) 이름 — 기간 상수 아님
 .claude/skills/upstream-version-watch/rust/runtime/src/regen_api.rs	std::time::SystemTime::now()	1	record-only	CK-488 SystemTime::now→as_nanos
 .claude/skills/upstream-version-watch/rust/runtime/src/regen_flow.rs	std::time::SystemTime::now()	1	record-only	CK-489 SystemTime::now→as_nanos
+.claude/skills/upstream-version-watch/rust/runtime/src/regen_sync.rs	.mtime()	2	runtime-fact	CK-491 same_snapshot: 같은 파일 두 stat 의 mtime·ctime 동등 비교 — 복사 중 변경 감지(벽시계와 비교 안 함)
+.claude/skills/upstream-version-watch/rust/runtime/src/regen_sync.rs	.mtime_nsec()	2	runtime-fact	CK-491 same_snapshot: 같은 파일 두 stat 의 mtime·ctime 동등 비교 — 복사 중 변경 감지(벽시계와 비교 안 함)
+.claude/skills/upstream-version-watch/rust/runtime/src/regen_sync.rs	.ctime()	2	runtime-fact	CK-491 same_snapshot: 같은 파일 두 stat 의 mtime·ctime 동등 비교 — 복사 중 변경 감지(벽시계와 비교 안 함)
+.claude/skills/upstream-version-watch/rust/runtime/src/regen_sync.rs	.ctime_nsec()	2	runtime-fact	CK-491 same_snapshot: 같은 파일 두 stat 의 mtime·ctime 동등 비교 — 복사 중 변경 감지(벽시계와 비교 안 함)
 .claude/skills/upstream-version-watch/rust/runtime/src/render_selftest.rs	std::time::SystemTime::now()	1	record-only	CK-492 SystemTime::now→as_nanos
 .claude/skills/upstream-version-watch/rust/runtime/src/slave_forward/selftest.rs	std::time::SystemTime::now()	1	record-only	CK-494 SystemTime::now→as_nanos
 .claude/skills/upstream-version-watch/rust/runtime/src/urlretrieve.rs	std::time::SystemTime::now()	1	record-only	CK-500 SystemTime::now→as_nanos

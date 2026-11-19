@@ -19,3 +19,34 @@ planted.sh	11	printf %(…)T
 planted.ts	2	new Date()
 planted.ts	3	performance.now()
 planted.ts	6	Date.now()
+planted.rs	28	static GRACE_DAYS
+planted.rs	31	UtcInstant::now
+planted.rs	32	Clock::now
+planted.rs	33	SystemTime::now
+planted.rs	34	<std::time::SystemTime>::now()
+planted.rs	35	<Clock as Tick>::now()
+planted.rs	36	.mtime()
+planted.rs	36	.mtime_nsec()
+planted.rs	36	.atime()
+planted.rs	36	.ctime_nsec()
+planted.rs	37	.created()
+planted.rs	38	.add_days()
+planted.rs	38	.days_since()
+planted.rs	39	stat %Y
+planted.rs	40	find -mmin
+planted.rs	41	git --since
+planted.rs	42	date +%s
+planted.rs	43	date -u +%s
+planted.sh	13	date -d "+90 days" +%F
+planted.sh	14	date -d "$created + 90 days" +%s
+planted.sh	16	date +%s
+planted.sh	17	date -u +%s
+planted.sh	18	$SECONDS
+planted.sh	19	test -ot
+planted.sh	20	git --since
+planted.ts	7	Date.now()
+planted.ts	8	Date()
+planted.ts	9	new Date()
+planted.ts	10	Date.now
+planted.ts	11	new Date()
+planted.ts	12	process.hrtime

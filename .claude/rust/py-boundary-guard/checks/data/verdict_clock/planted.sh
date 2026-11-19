@@ -10,3 +10,11 @@ git log --since=1.week --oneline
 stat -c %Y "$f"
 printf '%(%F)T\n' -1
 echo "$NOW $when"
+a=$(date -d "+90 days" +%F)
+due=$(date -d "$created + 90 days" +%s)
+given=$(date -u -d "$ets" +%s)
+t=$(bash -c 'date +%s')
+r=$(ssh h "date -u +%s")
+if (( SECONDS > 30 )); then echo late; fi
+[ "$a" -ot "$b" ] && echo older
+git log --since="2 weeks ago" --oneline
