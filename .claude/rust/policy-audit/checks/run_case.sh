@@ -14,7 +14,7 @@ ROOT="$(cd "$ROOT" && pwd -P)"
 trap 'rm -rf -- "$ROOT"' EXIT
 export GIT_AUTHOR_NAME=fixture GIT_AUTHOR_EMAIL=fixture@invalid GIT_COMMITTER_NAME=fixture GIT_COMMITTER_EMAIL=fixture@invalid
 export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null
-unset COLUMNS   # help/usage width comes from the case's ENVS only (the goldens were captured without a terminal)
+unset COLUMNS
 ARGS=(); ENVS=()
 cd "$ROOT" || exit 90
 # shellcheck disable=SC1091

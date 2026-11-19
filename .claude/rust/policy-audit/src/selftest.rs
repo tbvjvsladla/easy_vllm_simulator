@@ -1,7 +1,4 @@
 //! `policy_registry.py --self-test`: an in-memory lifecycle round trip plus the selector-wiring negative controls.
-//!
-//! The OK fixture's evidence entry cites a tracked path with an exact identifier:
-//! `.claude/rust/runtime-support/src/schema.rs` :: `validate_against_schema`.
 
 use crate::arch::{slave_forward_groups, smoke_forwards_image_identity, COMPOSE_MULTI_TEMPLATE_REL, SLAVE_FORWARD_REL};
 use crate::registry::evaluate_lifecycle;

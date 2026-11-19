@@ -25,7 +25,7 @@ launcher and the repository root is derived from the same directory); a missing 
 - `schema_meta_violations`, `schema_violations`, `safe_load_json_object`, `compute_contract_tree_sha256`,
   `check_removal_eligibility`, `check_removal_full`, `extract_assertion_ids`
 - `self_test(repo_root)` (`policy_registry._self_test`)
-- No date rule and no clock (h20, 2026-11-19): the review-cycle state machine, the 90-day rules, the date-chronology rules and
+- No date rule, and no verdict reads the clock (h20, 2026-11-19): the review-cycle state machine, the 90-day rules, the date-chronology rules and
   `--as-of` are gone; the registry fields they read (`added_at`, `last_reproduced`, `review`) left the schema (v3).
 - `registry::policies_of(doc)` = `[p for p in doc["policies"] if isinstance(p, dict)]`
 
