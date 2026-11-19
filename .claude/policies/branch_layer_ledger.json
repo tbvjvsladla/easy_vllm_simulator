@@ -25638,6 +25638,1314 @@
           "provenance": "agent-judged"
         }
       ]
+    },
+    {
+      "entry_id": "sync-202611191124-single-to-multi-no-clock",
+      "utc": "2026-11-19T11:24:11Z",
+      "departure": "single-node",
+      "departure_commit": "b6d909e2816257fe89bf9f42e239c1af537ce467",
+      "approved_by": "AhnSangHun: 중계 답 원문 \"① 이대로 승인 (권장)\" (질문 n-nc-classification · val_agent 오케스트레이터 중계 · source=user · 2026-11-19T11:46:16.000Z)",
+      "approved_utc": "2026-11-19T11:46:16Z",
+      "_reach": "multi-node vs HEAD 트리차이 · 동기 지점 ead7087d1af5(departure-landed)",
+      "_note": "216행 전부 common_promote. 행 집합 = git diff --name-only ead7087d b6d909e2 216경로(g-nc 215경로 + 삭제 커밋 b6d909e2 만 건드린 clock.json)와 같다. 고정 표면 변경 D1–D6·D17 의 원장 기록(plan_26111808 §2.3 · 개정 plan_26111919 b7)은 해당 행의 reason 칸에 D 번호로 남긴다.",
+      "classification": [
+        {
+          "file": ".claude/policies/registry.yaml",
+          "verdict": "common_promote",
+          "reason": "공통층 정책 원장. 양 브랜치의 policy_registry·harness_verify 가 같은 원장과 스키마(const 3)를 읽으므로 한쪽만 v3 이면 반대쪽 검증이 깨진다. multi-node 의 v2 원장(next_review_due 2026-10-23 13건)이 2026-11-23 00:00 UTC 부터 게이트를 실패시키는 것을 이 행이 푼다. 고정 표면 변경 D5(원장·스키마 v3 · added_at·last_reproduced·review 삭제) — h23 승인 · plan_26111808 §2.3 원장 기록(개정 plan b7). 원장 과거 판정 common_promote.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/runtime/harness_verify.sh",
+          "verdict": "common_promote",
+          "reason": "공통 런처 harness_verify.sh. 주석의 명령줄에서 --as-of 를 뺐다. 고정 표면 변경 D2(HV --as-of 삭제)의 런처 쪽 — h23 승인 · plan_26111808 §2.3 원장 기록(개정 plan b7). 원장 과거 판정 common_promote.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/runtime/verdict_clock_scan.sh",
+          "verdict": "common_promote",
+          "reason": "새 공통 런처 verdict_clock_scan.sh — CLAUDE.md 공통 불변식(하네스 판정은 벽시계를 읽지 않는다 · h20)의 집행자. 양 브랜치의 추적 하네스를 같은 규칙으로 검사한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/runtime/verify_distribution.sh",
+          "verdict": "common_promote",
+          "reason": "공통 런처 verify_distribution.sh. 주석의 명령줄에서 --policy-as-of 를 빼고 argv[0] 사실을 고쳤다. 고정 표면 변경 D3(PD --policy-as-of 삭제)의 런처 쪽 — h23 승인 · plan_26111808 §2.3 원장 기록(개정 plan b7). 원장 과거 판정 common_promote.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/parity/cases/pa.json",
+          "verdict": "common_promote",
+          "reason": "공통 parity 사례 목록. 옛 날짜 인자 사례를 지우고 남은 동작은 Rust 골든으로 옮겼다(D15·D16·D19 · h24 승인). 양 브랜치가 같은 crate 를 시험하므로 공통이다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/parity/cases/pd.json",
+          "verdict": "common_promote",
+          "reason": "공통 parity 사례 목록. 옛 날짜 인자 사례를 지우고 남은 동작은 Rust 골든으로 옮겼다(D15·D16·D19 · h24 승인). 양 브랜치가 같은 crate 를 시험하므로 공통이다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/parity/cases/tc.json",
+          "verdict": "common_promote",
+          "reason": "공통 parity 사례 목록(staleness_gate TC-03). 사례를 지우고 남은 동작은 Rust 골든으로 옮겼다(D19 · h24 승인). 지운 사례의 single·multi 픽스처는 두 토폴로지를 한 시험에서 함께 검사하던 것이라 공통이다. D17 소비자 시험.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/Cargo.toml",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 빌드 정의. 시험 타깃 schema_v3_checks 를 더하고 주석을 걷었다. 의존 변화 없음(Cargo.lock 불변). 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/README.md",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 설명서. 고정 표면 변경 D1·D2·D5·D6(PA·HV --as-of 삭제 · 원장 v3 · 퇴역 artifact as_of 삭제)을 적는다 — h23 승인 · plan_26111808 §2.3 원장 기록(개정 plan b7). 원장 과거 판정 common_promote.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/cli_golden.rs",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 시험 코드. 고정 표면 변경 D1·D2·D5 의 소비자 시험(v3 스키마 시험 신설 · 날짜 축 제거). 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-arch-approval/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-arch-candidate-ev/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-arch-collision/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-arch-compose/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-arch-fork/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-arch-ledger-bad/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-arch-ledger-shape/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-arch-noslave/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-arch-nosmoke/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-arch-noworkflow/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-arch-portmanifest/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-arch-procedure/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-arch-promote/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-arch-selector0/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-arch-smoke/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-arch-status/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-cb-dedicated-absent-fn/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-cb-dedicated-legacy-py/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-cb-dedicated-nested/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-cb-dedicated-rust/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-cb-dedicated-wrong-id/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-cb-empty/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-cb-malformed/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-cb-mismatch/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-cb-nodedicated/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-cb-real-drop/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-cb-truever/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-cb-version/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-help-narrow/stdout",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-help-removal/stdout",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-help-verify/stdout",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-help/stdout",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-hv-ambiguous/stderr",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-hv-bad-asof-shape/stderr",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-hv-bad-asof/stderr",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-hv-help-narrow/stdout",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-hv-help/stdout",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-hv-novalue/stderr",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-hv-positional/stderr",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-hv-stage1-block/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-hv-stage1-block/stdout",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-hv-stage1-cb/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-hv-stage1-cb/stdout",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-hv-stage1-missing/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-hv-stage1-missing/stdout",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-hv-unknown/stderr",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-in-asof-bad/stdout",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-in-asof-compact/exit_code",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-in-asof-compact/stdout",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-in-asof-week/exit_code",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-in-asof-week/stdout",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-in-asof-word/stdout",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-in-cb-missing/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-in-reg-array/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-in-reg-badjson/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-in-reg-bom/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-in-reg-dir/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-in-reg-empty/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-in-reg-missing/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-in-reg-utf8/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-in-schema-empty/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-in-schema-enum/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-in-schema-meta/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-in-schema-required/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-real-early/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-real-early/exit_code",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-real-early/stdout",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-real-evidence-drift/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-real-late/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-real-late/exit_code",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-real-late/stdout",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-real-now/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-real-removal/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-rm-badfields/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-rm-badfields/stdout",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-rm-badjson/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-rm-candidate/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-rm-lifecycle/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-rm-mismatch/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-rm-mismatch/stdout",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-rm-notgreen/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-rm-unknown/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-rm-untracked/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-syn-evidence/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-syn-fixture-gitless/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-syn-fixture-gitless/exit_code",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-syn-fixture-gitless/stderr",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-syn-fixture-gitless/stdout",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-syn-ids/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-syn-lifecycle/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-syn-lifecycle/stdout",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-syn-nogit/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-syn-ok/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-use-abbrev/stdout",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-use-ambiguous/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-use-asof-novalue/stdout",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-use-dashdash/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-use-eq/stdout",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-use-extra/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-use-removal-asof/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-use-removal-asof/exit_code",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-use-removal-asof/stderr",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-use-removal-asof/stdout",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-use-removal-missing/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-use-selftest-after-sub/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-use-sub-unknown-flag/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-use-verify-noasof/case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/data/cli/PA-use-verify-noasof/stdout",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 CLI 골든. 옛 날짜 인자 거절·help·usage 재기준선(D10–D13 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D1·D2·D6 의 소비자 시험. 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/harness_checks.rs",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 시험 코드. 고정 표면 변경 D1·D2·D5 의 소비자 시험(v3 스키마 시험 신설 · 날짜 축 제거). 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/run_case.sh",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 시험 코드. 고정 표면 변경 D1·D2·D5 의 소비자 시험(v3 스키마 시험 신설 · 날짜 축 제거). 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/schema_v3_checks.rs",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 시험 코드. 고정 표면 변경 D1·D2·D5 의 소비자 시험(v3 스키마 시험 신설 · 날짜 축 제거). 양 브랜치가 같은 crate 를 시험한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/src/cli.rs",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit CLI. --as-of 를 뺐다. 고정 표면 변경 D1·D6(PA --as-of · 퇴역 artifact as_of 삭제) — h23 승인 · plan_26111808 §2.3 원장 기록(개정 plan b7). 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/src/harness.rs",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 harness_verify 구현·도움말. --as-of 와 기준일 줄을 뺐다. 고정 표면 변경 D2(HV --as-of 삭제 · 출력 D8) — h23 승인 · plan_26111808 §2.3 원장 기록(개정 plan b7). 원장 과거 판정 common_promote.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/src/harness_verify_doc.txt",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 harness_verify 구현·도움말. --as-of 와 기준일 줄을 뺐다. 고정 표면 변경 D2(HV --as-of 삭제 · 출력 D8) — h23 승인 · plan_26111808 §2.3 원장 기록(개정 plan b7). 원장 과거 판정 common_promote.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/src/lib.rs",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 모듈 목록·셀프테스트. pydate 모듈과 날짜 상태 검사를 걷었다(test_delta 3행 · h22 승인). 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/src/policy_registry_doc.txt",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 policy_registry 도움말. --as-of 와 검토 주기 서술을 뺐다. 고정 표면 변경 D1·D5·D6 — h23 승인 · plan_26111808 §2.3 원장 기록(개정 plan b7). 원장 과거 판정 common_promote.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/src/pydate.rs",
+          "verdict": "common_promote",
+          "reason": "삭제(커밋 b6d909e2 · 삭제 3경로 a6 · h35 승인). 공통 crate 에서 더 쓰이지 않는 날짜 모듈이다. common_promote 는 multi-node 에서도 지운다는 뜻이다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/src/registry.rs",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 의 원장 검사기. --as-of·검토 주기·날짜 상태 검사를 뺐다. 고정 표면 변경 D1·D5·D6 — h23 승인 · plan_26111808 §2.3 원장 기록(개정 plan b7). 원장 과거 판정 common_promote.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/src/selftest.rs",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-audit 모듈 목록·셀프테스트. pydate 모듈과 날짜 상태 검사를 걷었다(test_delta 3행 · h22 승인). 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-distribution/Cargo.toml",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-distribution 빌드 정의(설명·주석). 의존 변화 없음(Cargo.lock 불변). 원장 과거 판정 common_promote.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-distribution/README.md",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-distribution 설명서. 고정 표면 변경 D3·D4(PD --policy-as-of 삭제 · 보고서 policy_as_of 와 check 4필드 삭제)를 적는다 — h23 승인 · plan_26111808 §2.3 원장 기록(개정 plan b7). 원장 과거 판정 common_promote.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-distribution/checks/data/cli.json",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-distribution 골든. 보고서·help·usage 재기준선(D14 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D3·D4 의 소비자 시험. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-distribution/checks/data/clock.json",
+          "verdict": "common_promote",
+          "reason": "삭제(커밋 b6d909e2 · 삭제 3경로 a6 · h35 승인). clock.rs 와 함께 쓰이지 않게 된 골든 데이터다. common_promote 는 multi-node 에서도 지운다는 뜻이다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-distribution/checks/data/verify_static.json",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-distribution 골든. 보고서·help·usage 재기준선(D14 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D3·D4 의 소비자 시험. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-distribution/checks/data/verify_static_mutated.json",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-distribution 골든. 보고서·help·usage 재기준선(D14 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D3·D4 의 소비자 시험. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-distribution/checks/pure_goldens.rs",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-distribution 골든. 보고서·help·usage 재기준선(D14 · h23 승인)과 지운 parity 사례의 Rust 골든 보강(h24 승인). 고정 표면 변경 D3·D4 의 소비자 시험. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-distribution/src/checks.rs",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-distribution 검사 본체. 보고서의 policy_as_of·check 4필드를 빼고(고정 표면 변경 D4 — h23 승인 · plan_26111808 §2.3 원장 기록(개정 plan b7)) check verdict_clock_scan·verdict_clock_scan_selftest 를 더했다(D20). 원장 과거 판정 common_promote.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-distribution/src/cli.rs",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-distribution CLI. --policy-as-of 를 뺐다. 고정 표면 변경 D3 — h23 승인 · plan_26111808 §2.3 원장 기록(개정 plan b7). 원장 과거 판정 common_promote.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-distribution/src/clock.rs",
+          "verdict": "common_promote",
+          "reason": "삭제(커밋 b6d909e2 · 삭제 3경로 a6 · h35 승인). --policy-as-of 관측 모듈이며 D3·D4 뒤 쓰이지 않는다. common_promote 는 multi-node 에서도 지운다는 뜻이다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-distribution/src/lib.rs",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-distribution 모듈 목록. clock 모듈과 observe_policy_as_of 를 걷었다. 고정 표면 변경 D3·D4 의 구현 쪽 — h23 승인 · plan_26111808 §2.3 원장 기록(개정 plan b7). 원장 과거 판정 common_promote.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-selftest/src/suite.rs",
+          "verdict": "common_promote",
+          "reason": "공통 crate policy-selftest. 운영일 관측 단계를 빼고(D9 · h23 승인) 주석을 걷었다. 토폴로지 분기 없음. 원장 과거 판정 common_promote.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/py-boundary-guard/Cargo.toml",
+          "verdict": "common_promote",
+          "reason": "공통 crate py-boundary-guard 빌드 정의. verdict_clock_scan 바이너리·시험 타깃을 더했다. 새 외부 크레이트 없음(Cargo.lock 불변). 원장 과거 판정 common_promote.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/py-boundary-guard/checks/data/verdict_clock/expected.tsv",
+          "verdict": "common_promote",
+          "reason": "verdict_clock_scan 구현·시험·픽스처 — CLAUDE.md 공통 불변식(하네스 판정은 벽시계를 읽지 않는다 · h20)의 집행자. 양 브랜치의 추적 하네스를 같은 규칙으로 검사한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/py-boundary-guard/checks/data/verdict_clock/planted.rs",
+          "verdict": "common_promote",
+          "reason": "verdict_clock_scan 구현·시험·픽스처 — CLAUDE.md 공통 불변식(하네스 판정은 벽시계를 읽지 않는다 · h20)의 집행자. 양 브랜치의 추적 하네스를 같은 규칙으로 검사한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/py-boundary-guard/checks/data/verdict_clock/planted.sh",
+          "verdict": "common_promote",
+          "reason": "verdict_clock_scan 구현·시험·픽스처 — CLAUDE.md 공통 불변식(하네스 판정은 벽시계를 읽지 않는다 · h20)의 집행자. 양 브랜치의 추적 하네스를 같은 규칙으로 검사한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/py-boundary-guard/checks/data/verdict_clock/planted.ts",
+          "verdict": "common_promote",
+          "reason": "verdict_clock_scan 구현·시험·픽스처 — CLAUDE.md 공통 불변식(하네스 판정은 벽시계를 읽지 않는다 · h20)의 집행자. 양 브랜치의 추적 하네스를 같은 규칙으로 검사한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/py-boundary-guard/checks/data/verdict_clock/regression_lock.rs",
+          "verdict": "common_promote",
+          "reason": "verdict_clock_scan 구현·시험·픽스처 — CLAUDE.md 공통 불변식(하네스 판정은 벽시계를 읽지 않는다 · h20)의 집행자. 양 브랜치의 추적 하네스를 같은 규칙으로 검사한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/py-boundary-guard/checks/data/verdict_clock/regression_lock.sh",
+          "verdict": "common_promote",
+          "reason": "verdict_clock_scan 구현·시험·픽스처 — CLAUDE.md 공통 불변식(하네스 판정은 벽시계를 읽지 않는다 · h20)의 집행자. 양 브랜치의 추적 하네스를 같은 규칙으로 검사한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/py-boundary-guard/checks/data/verdict_clock/regression_lock.ts",
+          "verdict": "common_promote",
+          "reason": "verdict_clock_scan 구현·시험·픽스처 — CLAUDE.md 공통 불변식(하네스 판정은 벽시계를 읽지 않는다 · h20)의 집행자. 양 브랜치의 추적 하네스를 같은 규칙으로 검사한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/py-boundary-guard/checks/data/verdict_clock/shell_lines.tsv",
+          "verdict": "common_promote",
+          "reason": "verdict_clock_scan 구현·시험·픽스처 — CLAUDE.md 공통 불변식(하네스 판정은 벽시계를 읽지 않는다 · h20)의 집행자. 양 브랜치의 추적 하네스를 같은 규칙으로 검사한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/py-boundary-guard/checks/verdict_clock_checks.rs",
+          "verdict": "common_promote",
+          "reason": "verdict_clock_scan 구현·시험·픽스처 — CLAUDE.md 공통 불변식(하네스 판정은 벽시계를 읽지 않는다 · h20)의 집행자. 양 브랜치의 추적 하네스를 같은 규칙으로 검사한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/py-boundary-guard/src/verdict_clock.rs",
+          "verdict": "common_promote",
+          "reason": "verdict_clock_scan 구현·시험·픽스처 — CLAUDE.md 공통 불변식(하네스 판정은 벽시계를 읽지 않는다 · h20)의 집행자. 양 브랜치의 추적 하네스를 같은 규칙으로 검사한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/py-boundary-guard/src/verdict_clock/rust_reads.rs",
+          "verdict": "common_promote",
+          "reason": "verdict_clock_scan 구현·시험·픽스처 — CLAUDE.md 공통 불변식(하네스 판정은 벽시계를 읽지 않는다 · h20)의 집행자. 양 브랜치의 추적 하네스를 같은 규칙으로 검사한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/py-boundary-guard/src/verdict_clock/selftest.rs",
+          "verdict": "common_promote",
+          "reason": "verdict_clock_scan 구현·시험·픽스처 — CLAUDE.md 공통 불변식(하네스 판정은 벽시계를 읽지 않는다 · h20)의 집행자. 양 브랜치의 추적 하네스를 같은 규칙으로 검사한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/py-boundary-guard/src/verdict_clock/shell_reads.rs",
+          "verdict": "common_promote",
+          "reason": "verdict_clock_scan 구현·시험·픽스처 — CLAUDE.md 공통 불변식(하네스 판정은 벽시계를 읽지 않는다 · h20)의 집행자. 양 브랜치의 추적 하네스를 같은 규칙으로 검사한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/py-boundary-guard/src/verdict_clock/ts_reads.rs",
+          "verdict": "common_promote",
+          "reason": "verdict_clock_scan 구현·시험·픽스처 — CLAUDE.md 공통 불변식(하네스 판정은 벽시계를 읽지 않는다 · h20)의 집행자. 양 브랜치의 추적 하네스를 같은 규칙으로 검사한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/py-boundary-guard/src/verdict_clock_scan.rs",
+          "verdict": "common_promote",
+          "reason": "verdict_clock_scan 구현·시험·픽스처 — CLAUDE.md 공통 불변식(하네스 판정은 벽시계를 읽지 않는다 · h20)의 집행자. 양 브랜치의 추적 하네스를 같은 규칙으로 검사한다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/py-boundary-guard/verdict_clock_allowlist.tsv",
+          "verdict": "common_promote",
+          "reason": "verdict_clock_scan 허용목록 254행(h25 242행 · h27 12행 승인). 행은 양 브랜치 공통 하네스 경로를 가리키며 브랜치마다 다르면 반대쪽 검사가 깨진다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/schemas/policy-registry.schema.json",
+          "verdict": "common_promote",
+          "reason": "공통층 정책 원장 스키마. registry.yaml v3 와 함께 가야 양 브랜치 검증이 성립한다. 고정 표면 변경 D5(스키마 const 3 · review 계열 필드 삭제) — h23 승인 · plan_26111808 §2.3 원장 기록(개정 plan b7). 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/sweep_repeats_broad.rs",
+          "verdict": "common_promote",
+          "reason": "공통 스킬 adversarial-benchmark 셀프테스트가 달력 날짜에 기대지 않게 했다(h20). 토폴로지 분기 없음. 원장 과거 판정 common_promote.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/SKILL.md",
+          "verdict": "common_promote",
+          "reason": "공통 스킬 terraforming_node 라우터. staleness_gate 명령줄에서 --now 와 ATTESTATION_STALE 을 뺐다(고정 표면 변경 D17 의 소비자 문서 — h23 승인 · plan_26111808 §2.3 원장 기록(개정 plan b7)). --topology single|multi 는 두 토폴로지를 함께 적는 공통 서술이다. 원장 과거 판정 common_promote.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/references/blackbox/host_safety.md",
+          "verdict": "common_promote",
+          "reason": "공통 스킬 terraforming_node 참조. 지운 staleness_gate --max-age-days 선례 언급을 뺐다(D17 잔재 정리). 토폴로지 분기 없음. 원장 과거 판정 common_promote.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/references/blackbox/logs_plane.md",
+          "verdict": "common_promote",
+          "reason": "공통 스킬 terraforming_node 참조. 지운 staleness_gate --max-age-days 선례 언급을 뺐다(D17 잔재 정리). 토폴로지 분기 없음. 원장 과거 판정 common_promote.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/references/install/onboarding.md",
+          "verdict": "common_promote",
+          "reason": "공통 스킬 terraforming_node 온보딩 참조. staleness_gate 옵션·축 서술에서 --now·--max-age-days·attestation 나이 축을 뺐다(고정 표면 변경 D17 의 소비자 문서 — h23 승인 · plan_26111808 §2.3 원장 기록(개정 plan b7)). single·multi 비교 서술은 양 토폴로지 공통이다. 원장 과거 판정 common_promote.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/Cargo.toml",
+          "verdict": "common_promote",
+          "reason": "공통 crate terraforming_node rust 빌드 정의. 시험 타깃 staleness_gate_goldens 를 더하고 주석을 걷었다. 의존 변화 없음(Cargo.lock 불변). 원장 과거 판정 common_promote.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/checks/data/staleness_gate/TC-03-absent/exit_code",
+          "verdict": "common_promote",
+          "reason": "staleness_gate Rust 골든(지운 TC-03 parity 사례의 명령줄 경로 · h24 승인). single·multi 픽스처는 두 토폴로지를 한 시험에서 함께 검사하는 것이라 공통이다. 고정 표면 변경 D17 의 소비자 시험.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/checks/data/staleness_gate/TC-03-absent/stderr",
+          "verdict": "common_promote",
+          "reason": "staleness_gate Rust 골든(지운 TC-03 parity 사례의 명령줄 경로 · h24 승인). single·multi 픽스처는 두 토폴로지를 한 시험에서 함께 검사하는 것이라 공통이다. 고정 표면 변경 D17 의 소비자 시험.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/checks/data/staleness_gate/TC-03-absent/stdout",
+          "verdict": "common_promote",
+          "reason": "staleness_gate Rust 골든(지운 TC-03 parity 사례의 명령줄 경로 · h24 승인). single·multi 픽스처는 두 토폴로지를 한 시험에서 함께 검사하는 것이라 공통이다. 고정 표면 변경 D17 의 소비자 시험.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/checks/data/staleness_gate/TC-03-drift/exit_code",
+          "verdict": "common_promote",
+          "reason": "staleness_gate Rust 골든(지운 TC-03 parity 사례의 명령줄 경로 · h24 승인). single·multi 픽스처는 두 토폴로지를 한 시험에서 함께 검사하는 것이라 공통이다. 고정 표면 변경 D17 의 소비자 시험.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/checks/data/staleness_gate/TC-03-drift/stderr",
+          "verdict": "common_promote",
+          "reason": "staleness_gate Rust 골든(지운 TC-03 parity 사례의 명령줄 경로 · h24 승인). single·multi 픽스처는 두 토폴로지를 한 시험에서 함께 검사하는 것이라 공통이다. 고정 표면 변경 D17 의 소비자 시험.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/checks/data/staleness_gate/TC-03-drift/stdout",
+          "verdict": "common_promote",
+          "reason": "staleness_gate Rust 골든(지운 TC-03 parity 사례의 명령줄 경로 · h24 승인). single·multi 픽스처는 두 토폴로지를 한 시험에서 함께 검사하는 것이라 공통이다. 고정 표면 변경 D17 의 소비자 시험.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/checks/data/staleness_gate/TC-03-fresh/exit_code",
+          "verdict": "common_promote",
+          "reason": "staleness_gate Rust 골든(지운 TC-03 parity 사례의 명령줄 경로 · h24 승인). single·multi 픽스처는 두 토폴로지를 한 시험에서 함께 검사하는 것이라 공통이다. 고정 표면 변경 D17 의 소비자 시험.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/checks/data/staleness_gate/TC-03-fresh/stderr",
+          "verdict": "common_promote",
+          "reason": "staleness_gate Rust 골든(지운 TC-03 parity 사례의 명령줄 경로 · h24 승인). single·multi 픽스처는 두 토폴로지를 한 시험에서 함께 검사하는 것이라 공통이다. 고정 표면 변경 D17 의 소비자 시험.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/checks/data/staleness_gate/TC-03-fresh/stdout",
+          "verdict": "common_promote",
+          "reason": "staleness_gate Rust 골든(지운 TC-03 parity 사례의 명령줄 경로 · h24 승인). single·multi 픽스처는 두 토폴로지를 한 시험에서 함께 검사하는 것이라 공통이다. 고정 표면 변경 D17 의 소비자 시험.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/checks/data/staleness_gate/TC-03-help/exit_code",
+          "verdict": "common_promote",
+          "reason": "staleness_gate Rust 골든(지운 TC-03 parity 사례의 명령줄 경로 · h24 승인). single·multi 픽스처는 두 토폴로지를 한 시험에서 함께 검사하는 것이라 공통이다. 고정 표면 변경 D17 의 소비자 시험.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/checks/data/staleness_gate/TC-03-help/stderr",
+          "verdict": "common_promote",
+          "reason": "staleness_gate Rust 골든(지운 TC-03 parity 사례의 명령줄 경로 · h24 승인). single·multi 픽스처는 두 토폴로지를 한 시험에서 함께 검사하는 것이라 공통이다. 고정 표면 변경 D17 의 소비자 시험.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/checks/data/staleness_gate/TC-03-help/stdout",
+          "verdict": "common_promote",
+          "reason": "staleness_gate Rust 골든(지운 TC-03 parity 사례의 명령줄 경로 · h24 승인). single·multi 픽스처는 두 토폴로지를 한 시험에서 함께 검사하는 것이라 공통이다. 고정 표면 변경 D17 의 소비자 시험.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/checks/data/staleness_gate/TC-03-man-badyaml/exit_code",
+          "verdict": "common_promote",
+          "reason": "staleness_gate Rust 골든(지운 TC-03 parity 사례의 명령줄 경로 · h24 승인). single·multi 픽스처는 두 토폴로지를 한 시험에서 함께 검사하는 것이라 공통이다. 고정 표면 변경 D17 의 소비자 시험.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/checks/data/staleness_gate/TC-03-man-badyaml/stderr",
+          "verdict": "common_promote",
+          "reason": "staleness_gate Rust 골든(지운 TC-03 parity 사례의 명령줄 경로 · h24 승인). single·multi 픽스처는 두 토폴로지를 한 시험에서 함께 검사하는 것이라 공통이다. 고정 표면 변경 D17 의 소비자 시험.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/checks/data/staleness_gate/TC-03-man-badyaml/stdout",
+          "verdict": "common_promote",
+          "reason": "staleness_gate Rust 골든(지운 TC-03 parity 사례의 명령줄 경로 · h24 승인). single·multi 픽스처는 두 토폴로지를 한 시험에서 함께 검사하는 것이라 공통이다. 고정 표면 변경 D17 의 소비자 시험.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/checks/data/staleness_gate/TC-03-man-empty/exit_code",
+          "verdict": "common_promote",
+          "reason": "staleness_gate Rust 골든(지운 TC-03 parity 사례의 명령줄 경로 · h24 승인). single·multi 픽스처는 두 토폴로지를 한 시험에서 함께 검사하는 것이라 공통이다. 고정 표면 변경 D17 의 소비자 시험.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/checks/data/staleness_gate/TC-03-man-empty/stderr",
+          "verdict": "common_promote",
+          "reason": "staleness_gate Rust 골든(지운 TC-03 parity 사례의 명령줄 경로 · h24 승인). single·multi 픽스처는 두 토폴로지를 한 시험에서 함께 검사하는 것이라 공통이다. 고정 표면 변경 D17 의 소비자 시험.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/checks/data/staleness_gate/TC-03-man-empty/stdout",
+          "verdict": "common_promote",
+          "reason": "staleness_gate Rust 골든(지운 TC-03 parity 사례의 명령줄 경로 · h24 승인). single·multi 픽스처는 두 토폴로지를 한 시험에서 함께 검사하는 것이라 공통이다. 고정 표면 변경 D17 의 소비자 시험.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/checks/data/staleness_gate/TC-03-man-wrongtopo/exit_code",
+          "verdict": "common_promote",
+          "reason": "staleness_gate Rust 골든(지운 TC-03 parity 사례의 명령줄 경로 · h24 승인). single·multi 픽스처는 두 토폴로지를 한 시험에서 함께 검사하는 것이라 공통이다. 고정 표면 변경 D17 의 소비자 시험.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/checks/data/staleness_gate/TC-03-man-wrongtopo/stderr",
+          "verdict": "common_promote",
+          "reason": "staleness_gate Rust 골든(지운 TC-03 parity 사례의 명령줄 경로 · h24 승인). single·multi 픽스처는 두 토폴로지를 한 시험에서 함께 검사하는 것이라 공통이다. 고정 표면 변경 D17 의 소비자 시험.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/checks/data/staleness_gate/TC-03-man-wrongtopo/stdout",
+          "verdict": "common_promote",
+          "reason": "staleness_gate Rust 골든(지운 TC-03 parity 사례의 명령줄 경로 · h24 승인). single·multi 픽스처는 두 토폴로지를 한 시험에서 함께 검사하는 것이라 공통이다. 고정 표면 변경 D17 의 소비자 시험.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/checks/data/staleness_gate/TC-03-multi-drift/exit_code",
+          "verdict": "common_promote",
+          "reason": "staleness_gate Rust 골든(지운 TC-03 parity 사례의 명령줄 경로 · h24 승인). single·multi 픽스처는 두 토폴로지를 한 시험에서 함께 검사하는 것이라 공통이다. 고정 표면 변경 D17 의 소비자 시험.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/checks/data/staleness_gate/TC-03-multi-drift/stderr",
+          "verdict": "common_promote",
+          "reason": "staleness_gate Rust 골든(지운 TC-03 parity 사례의 명령줄 경로 · h24 승인). single·multi 픽스처는 두 토폴로지를 한 시험에서 함께 검사하는 것이라 공통이다. 고정 표면 변경 D17 의 소비자 시험.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/checks/data/staleness_gate/TC-03-multi-drift/stdout",
+          "verdict": "common_promote",
+          "reason": "staleness_gate Rust 골든(지운 TC-03 parity 사례의 명령줄 경로 · h24 승인). single·multi 픽스처는 두 토폴로지를 한 시험에서 함께 검사하는 것이라 공통이다. 고정 표면 변경 D17 의 소비자 시험.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/checks/data/staleness_gate/TC-03-noflag/exit_code",
+          "verdict": "common_promote",
+          "reason": "staleness_gate Rust 골든(지운 TC-03 parity 사례의 명령줄 경로 · h24 승인). single·multi 픽스처는 두 토폴로지를 한 시험에서 함께 검사하는 것이라 공통이다. 고정 표면 변경 D17 의 소비자 시험.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/checks/data/staleness_gate/TC-03-noflag/stderr",
+          "verdict": "common_promote",
+          "reason": "staleness_gate Rust 골든(지운 TC-03 parity 사례의 명령줄 경로 · h24 승인). single·multi 픽스처는 두 토폴로지를 한 시험에서 함께 검사하는 것이라 공통이다. 고정 표면 변경 D17 의 소비자 시험.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/checks/data/staleness_gate/TC-03-noflag/stdout",
+          "verdict": "common_promote",
+          "reason": "staleness_gate Rust 골든(지운 TC-03 parity 사례의 명령줄 경로 · h24 승인). single·multi 픽스처는 두 토폴로지를 한 시험에서 함께 검사하는 것이라 공통이다. 고정 표면 변경 D17 의 소비자 시험.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/checks/data/staleness_gate/TC-03-obs-badjson/exit_code",
+          "verdict": "common_promote",
+          "reason": "staleness_gate Rust 골든(지운 TC-03 parity 사례의 명령줄 경로 · h24 승인). single·multi 픽스처는 두 토폴로지를 한 시험에서 함께 검사하는 것이라 공통이다. 고정 표면 변경 D17 의 소비자 시험.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/checks/data/staleness_gate/TC-03-obs-badjson/stderr",
+          "verdict": "common_promote",
+          "reason": "staleness_gate Rust 골든(지운 TC-03 parity 사례의 명령줄 경로 · h24 승인). single·multi 픽스처는 두 토폴로지를 한 시험에서 함께 검사하는 것이라 공통이다. 고정 표면 변경 D17 의 소비자 시험.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/checks/data/staleness_gate/TC-03-obs-badjson/stdout",
+          "verdict": "common_promote",
+          "reason": "staleness_gate Rust 골든(지운 TC-03 parity 사례의 명령줄 경로 · h24 승인). single·multi 픽스처는 두 토폴로지를 한 시험에서 함께 검사하는 것이라 공통이다. 고정 표면 변경 D17 의 소비자 시험.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/checks/data/staleness_gate/TC-03-obs-invalid/exit_code",
+          "verdict": "common_promote",
+          "reason": "staleness_gate Rust 골든(지운 TC-03 parity 사례의 명령줄 경로 · h24 승인). single·multi 픽스처는 두 토폴로지를 한 시험에서 함께 검사하는 것이라 공통이다. 고정 표면 변경 D17 의 소비자 시험.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/checks/data/staleness_gate/TC-03-obs-invalid/stderr",
+          "verdict": "common_promote",
+          "reason": "staleness_gate Rust 골든(지운 TC-03 parity 사례의 명령줄 경로 · h24 승인). single·multi 픽스처는 두 토폴로지를 한 시험에서 함께 검사하는 것이라 공통이다. 고정 표면 변경 D17 의 소비자 시험.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/checks/data/staleness_gate/TC-03-obs-invalid/stdout",
+          "verdict": "common_promote",
+          "reason": "staleness_gate Rust 골든(지운 TC-03 parity 사례의 명령줄 경로 · h24 승인). single·multi 픽스처는 두 토폴로지를 한 시험에서 함께 검사하는 것이라 공통이다. 고정 표면 변경 D17 의 소비자 시험.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/checks/data/staleness_gate/TC-03-obs-missing/exit_code",
+          "verdict": "common_promote",
+          "reason": "staleness_gate Rust 골든(지운 TC-03 parity 사례의 명령줄 경로 · h24 승인). single·multi 픽스처는 두 토폴로지를 한 시험에서 함께 검사하는 것이라 공통이다. 고정 표면 변경 D17 의 소비자 시험.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/checks/data/staleness_gate/TC-03-obs-missing/stderr",
+          "verdict": "common_promote",
+          "reason": "staleness_gate Rust 골든(지운 TC-03 parity 사례의 명령줄 경로 · h24 승인). single·multi 픽스처는 두 토폴로지를 한 시험에서 함께 검사하는 것이라 공통이다. 고정 표면 변경 D17 의 소비자 시험.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/checks/data/staleness_gate/TC-03-obs-missing/stdout",
+          "verdict": "common_promote",
+          "reason": "staleness_gate Rust 골든(지운 TC-03 parity 사례의 명령줄 경로 · h24 승인). single·multi 픽스처는 두 토폴로지를 한 시험에서 함께 검사하는 것이라 공통이다. 고정 표면 변경 D17 의 소비자 시험.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/checks/data/staleness_gate/TC-03-obs-null/exit_code",
+          "verdict": "common_promote",
+          "reason": "staleness_gate Rust 골든(지운 TC-03 parity 사례의 명령줄 경로 · h24 승인). single·multi 픽스처는 두 토폴로지를 한 시험에서 함께 검사하는 것이라 공통이다. 고정 표면 변경 D17 의 소비자 시험.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/checks/data/staleness_gate/TC-03-obs-null/stderr",
+          "verdict": "common_promote",
+          "reason": "staleness_gate Rust 골든(지운 TC-03 parity 사례의 명령줄 경로 · h24 승인). single·multi 픽스처는 두 토폴로지를 한 시험에서 함께 검사하는 것이라 공통이다. 고정 표면 변경 D17 의 소비자 시험.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/checks/data/staleness_gate/TC-03-obs-null/stdout",
+          "verdict": "common_promote",
+          "reason": "staleness_gate Rust 골든(지운 TC-03 parity 사례의 명령줄 경로 · h24 승인). single·multi 픽스처는 두 토폴로지를 한 시험에서 함께 검사하는 것이라 공통이다. 고정 표면 변경 D17 의 소비자 시험.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/checks/data/staleness_gate/TC-03-self-test/exit_code",
+          "verdict": "common_promote",
+          "reason": "staleness_gate Rust 골든(지운 TC-03 parity 사례의 명령줄 경로 · h24 승인). single·multi 픽스처는 두 토폴로지를 한 시험에서 함께 검사하는 것이라 공통이다. 고정 표면 변경 D17 의 소비자 시험.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/checks/data/staleness_gate/TC-03-self-test/stderr",
+          "verdict": "common_promote",
+          "reason": "staleness_gate Rust 골든(지운 TC-03 parity 사례의 명령줄 경로 · h24 승인). single·multi 픽스처는 두 토폴로지를 한 시험에서 함께 검사하는 것이라 공통이다. 고정 표면 변경 D17 의 소비자 시험.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/checks/data/staleness_gate/TC-03-self-test/stdout",
+          "verdict": "common_promote",
+          "reason": "staleness_gate Rust 골든(지운 TC-03 parity 사례의 명령줄 경로 · h24 승인). single·multi 픽스처는 두 토폴로지를 한 시험에서 함께 검사하는 것이라 공통이다. 고정 표면 변경 D17 의 소비자 시험.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/checks/data/staleness_gate/cases.json",
+          "verdict": "common_promote",
+          "reason": "staleness_gate Rust 골든(지운 TC-03 parity 사례의 명령줄 경로 · h24 승인). single·multi 픽스처는 두 토폴로지를 한 시험에서 함께 검사하는 것이라 공통이다. 고정 표면 변경 D17 의 소비자 시험.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/checks/staleness_gate_goldens.rs",
+          "verdict": "common_promote",
+          "reason": "staleness_gate Rust 골든(지운 TC-03 parity 사례의 명령줄 경로 · h24 승인). single·multi 픽스처는 두 토폴로지를 한 시험에서 함께 검사하는 것이라 공통이다. 고정 표면 변경 D17 의 소비자 시험.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/help/staleness_gate.help",
+          "verdict": "common_promote",
+          "reason": "staleness_gate 구현·런처·도움말. --now·--max-age-days·ATTESTATION_STALE(attestation 나이 축)을 뺐다. 고정 표면 변경 D17 — h21 Q1·h23 승인 · plan_26111808 §2.3 원장 기록(개정 plan b7). 공통 스킬이며 원장 과거 판정 common_promote.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/help/staleness_gate.usage",
+          "verdict": "common_promote",
+          "reason": "staleness_gate 구현·런처·도움말. --now·--max-age-days·ATTESTATION_STALE(attestation 나이 축)을 뺐다. 고정 표면 변경 D17 — h21 Q1·h23 승인 · plan_26111808 §2.3 원장 기록(개정 plan b7). 공통 스킬이며 원장 과거 판정 common_promote.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/src/staleness_gate.rs",
+          "verdict": "common_promote",
+          "reason": "staleness_gate 구현·런처·도움말. --now·--max-age-days·ATTESTATION_STALE(attestation 나이 축)을 뺐다. 고정 표면 변경 D17 — h21 Q1·h23 승인 · plan_26111808 §2.3 원장 기록(개정 plan b7). 공통 스킬이며 원장 과거 판정 common_promote.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/staleness_gate.sh",
+          "verdict": "common_promote",
+          "reason": "staleness_gate 구현·런처·도움말. --now·--max-age-days·ATTESTATION_STALE(attestation 나이 축)을 뺐다. 고정 표면 변경 D17 — h21 Q1·h23 승인 · plan_26111808 §2.3 원장 기록(개정 plan b7). 공통 스킬이며 원장 과거 판정 common_promote.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/rust/runtime/checks/model_extra_cases.rs",
+          "verdict": "common_promote",
+          "reason": "공통 스킬 vllm-recipe-explorer 의 TLS 시험이 인증서 유효기간 안의 고정 시각으로 검사한다(h21). 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/rust/runtime/checks/model_support.rs",
+          "verdict": "common_promote",
+          "reason": "공통 스킬 vllm-recipe-explorer 의 TLS 시험이 인증서 유효기간 안의 고정 시각으로 검사한다(h21). 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": "CLAUDE.md",
+          "verdict": "common_promote",
+          "reason": "공통 헌법 CLAUDE.md 에 불변식 한 줄(하네스 판정은 벽시계를 읽지 않는다 · 2026-11-19 · h20)을 더했다. 공통층 헌법은 양 브랜치가 같아야 한다(policy:BRANCH_CONSTITUTION_LAYERING). 원장 과거 판정 common_promote.",
+          "provenance": "agent-judged"
+        }
+      ]
     }
   ]
 }
