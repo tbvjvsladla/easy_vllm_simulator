@@ -1,9 +1,7 @@
 //! `policy_registry.py --self-test`: an in-memory lifecycle round trip plus the selector-wiring negative controls.
 //!
-//! One deliberate difference from the original: the OK fixture's evidence entry cites a tracked Rust file
-//! (`.claude/rust/runtime-support/src/schema.rs` :: `validate_against_schema`) instead of `policy_registry.py` ::
-//! `evaluate_lifecycle`, so the self-test keeps working once the Python original is deleted. The fixture still exercises
-//! the same gate (tracked path, exact identifier).
+//! The OK fixture's evidence entry cites a tracked path with an exact identifier:
+//! `.claude/rust/runtime-support/src/schema.rs` :: `validate_against_schema`.
 
 use crate::arch::{slave_forward_groups, smoke_forwards_image_identity, COMPOSE_MULTI_TEMPLATE_REL, SLAVE_FORWARD_REL};
 use crate::registry::evaluate_lifecycle;

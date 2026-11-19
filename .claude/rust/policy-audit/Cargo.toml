@@ -35,6 +35,10 @@ path = "checks/citations_golden.rs"
 name = "harness_checks"
 path = "checks/harness_checks.rs"
 
+[[test]]
+name = "schema_v3_checks"
+path = "checks/schema_v3_checks.rs"
+
 [dependencies]
 # Python-compatible JSON/str/repr/lower semantics and the generic schema engine (completion_gate.validate_against_schema port).
 agent-runtime-support = { path = "../runtime-support" }

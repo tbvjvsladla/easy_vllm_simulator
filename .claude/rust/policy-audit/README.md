@@ -57,12 +57,16 @@ launcher and the repository root is derived from the same directory); a missing 
 `cargo test --release --offline --locked` runs:
 
 - `ids_golden` — assertion-id sets vs. `checks/data/assertion_ids.json` (frozen — capture tool retired).
-- `cli_golden` — the CLI cases in `checks/data/cli/<id>/` (fixture `case.sh` + captured `stdout`/`stderr`/`exit_code`;
-  frozen — capture tool retired; re-run here through the launchers by `checks/run_case.sh`).
+- `cli_golden` — the CLI cases in `checks/data/cli/<id>/` (fixture `case.sh` + recorded `stdout`/`stderr`/`exit_code`),
+  run here through the launchers by `checks/run_case.sh`. Most recordings are captures of the Python originals; the
+  cases whose output changed when the date rules and `--as-of` were removed, and the cases added after that, are
+  recorded from the Rust launchers (`checks/run_case.sh <case dir> <out dir> rust`).
   Fixtures are git repos built from commit `b1f3563e`'s blobs or literal text (helpers in `checks/fixture_lib.sh`).
+- `schema_v3_checks` — the tracked schema accepts the tracked registry (version 3) and refuses the version-2 fields
+  `added_at`, `last_reproduced`, `review` and `schema_version` 2.
 - `citations_golden` — `scan_policy_citations` / `citation_violations` vs. `checks/data/citations.json`
   (frozen — capture tool retired).
 - `harness_checks` — stage order / exit-code mapping with fake stage launchers.
 
-The goldens are frozen: their capture tools were retired with the Python originals (plan_26111717 R1, 28556136), so they are not
-re-captured; the checks themselves never run Python.
+The assertion-id and citation goldens are frozen captures: their capture tools were retired with the Python originals
+(plan_26111717 R1, 28556136). The checks never run Python.

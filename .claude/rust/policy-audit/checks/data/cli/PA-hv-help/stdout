@@ -12,7 +12,7 @@ only the CLI's own docstring mentioned it, never a caller. This script sequentia
 It exits 0 only if ALL stages pass. Later stages never start after an earlier failure.
 completion outright, fail-closed.
 
-stdlib-only (argparse/datetime/subprocess/sys) -- no PyYAML, no jsonschema, no requests.
+stdlib-only (argparse/subprocess/sys) -- no PyYAML, no jsonschema, no requests.
 
 No clock (user decision h20, 2026-11-19): neither this gate nor the validator reads the date; the same inputs give the same verdict
 whenever they run.

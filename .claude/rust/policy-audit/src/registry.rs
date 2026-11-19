@@ -15,9 +15,7 @@ use std::process::{Command, Stdio};
 
 pub const ENVELOPE_SCHEMA_VERSION: i64 = 2;
 pub const CLAIM_BINDINGS_REL: &str = ".claude/policies/claim_bindings.json";
-/// The validator source whose bytes enter the contract-tree digest (`compute_contract_tree_sha256`). The original
-/// hashed its own program text (`policy_registry.py`); the validator is now this Rust module. No removal artifact is
-/// recorded in the registry (no policy carries `removal_evidence`), so no stored digest depends on the old input.
+/// The validator source whose bytes enter the contract-tree digest (`compute_contract_tree_sha256`).
 pub const CONTRACT_SCRIPT_REL: &str = ".claude/rust/policy-audit/src/registry.rs";
 
 /// Directory of the claim predicates port; a clause's dedicated predicate lives in one of its `claims*.rs` files.
