@@ -10,7 +10,8 @@ Check names and order, the report (`json.dumps(indent=2, ensure_ascii=False)` ke
 checks `verdict_clock_scan` (`verdict_clock_scan.sh check --repo .`) and `verdict_clock_scan_selftest` (`--self-test`),
 both expecting 0, run right after `inline_python_scan`; the policy audit runs as
 `policy_registry.sh verify --repo-root <repo>` and the report has no `policy_as_of`; usage and help have no
-`--policy-as-of`. The run reads no clock.
+`--policy-as-of`. Its verdicts read no clock; the clock reads it keeps (a stamp in a scratch name, the child timeout) are
+rows of `verdict_clock_allowlist.tsv`.
 
 ## Documented changes (intentional)
 

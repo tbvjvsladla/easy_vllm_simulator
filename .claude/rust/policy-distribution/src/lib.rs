@@ -1,7 +1,7 @@
 //! `policy-distribution`: Rust port of `.claude/policies/runtime/verify_distribution.py` (fail-closed acceptance of the
 //! five-skill self-contained distribution). Check names, the JSON report (`json.dumps(indent=2, ensure_ascii=False)`
 //! key order) and exit codes (0 PASS · 1 FAIL · 2 usage) follow the original; README.md lists the differences (the
-//! clock-scan checks, no `policy_as_of`, every program started through its Rust launcher).
+//! clock-scan checks, no `policy_as_of`, the policy programs started through their Rust launchers).
 pub mod checks;
 pub mod cli;
 pub mod fsglob;

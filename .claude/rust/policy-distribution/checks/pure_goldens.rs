@@ -458,6 +458,9 @@ fn the_clock_scan_and_the_policy_audit_are_wired_as_documented() {
     for name in ["verdict_clock_scan", "verdict_clock_scan_selftest", "policy_registry_verify"] {
         assert_eq!(expected_rc(name), dumps(&list_ints(&[0])), "{name}");
     }
+    for name in ["verdict_clock_scan", "verdict_clock_scan_selftest"] {
+        assert_eq!(st(get(check(name), "cwd")), "<REPO>", "{name}");
+    }
     let PyValue::Dict(row) = check("policy_registry_verify").peel() else { panic!("a check row is an object") };
     assert!(row.iter().all(|(k, _)| !k.to_utf8().unwrap_or_default().starts_with("as_of")), "{}", dumps(check("policy_registry_verify")));
     let PyValue::Dict(top) = report.peel() else { panic!("the report is an object") };

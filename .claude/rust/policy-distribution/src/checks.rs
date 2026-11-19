@@ -32,7 +32,7 @@ pub const LOCAL_TOMBSTONES: [&str; 17] = [
     "scripts/templates/hint_recipe.template.md",
 ];
 /// The exact `ROOT_RELOCATION_REPLACEMENTS` of sync_branches.sh (a tripwire list: where the old root `scripts/` files
-/// went). Each owner is a Rust launcher (`.sh`) or, for the provider adapter without one, its Rust source.
+/// went).
 pub const LOCAL_REPLACEMENTS: [&str; 17] = [
     ".claude/skills/terraforming_node/scripts/agent_control.sh",
     ".claude/skills/vllm-recipe-explorer/scripts/cleanup_docker.sh",

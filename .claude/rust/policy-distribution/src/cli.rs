@@ -60,7 +60,7 @@ fn looks_like_option(arg: &str) -> bool {
     !negative && !arg.contains(' ')
 }
 
-/// The repository root: `Path(__file__).resolve().parents[3]` of the public `.py` path the launcher passes as argv[0]
+/// The repository root: the fourth ancestor of the launcher path `verify_distribution.sh` the launcher passes as argv[0]
 /// (`exec -a`), else the ancestor of the native executable that holds `.claude/policies/runtime`.
 pub fn repo_root(argv0: &str) -> PathBuf {
     let p = Path::new(argv0);
