@@ -199,6 +199,9 @@ const LAUNCHER_SWITCHED: &[&str] = &[
 const ADDED_CHECKS: &[&str] = &[
     // plan_26111615 pass 3: tracked non-.py executable surfaces start no Python on the host/sub.
     "inline_python_scan",
+    // h20: harness verdicts read no wall clock (verdict_clock_scan and its planted-read self-test).
+    "verdict_clock_scan",
+    "verdict_clock_scan_selftest",
 ];
 
 /// Golden check names that were renamed with their launcher (`upstream_help:x.py` → `upstream_help:x.sh`).

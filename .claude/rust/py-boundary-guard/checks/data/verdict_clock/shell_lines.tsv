@@ -1,0 +1,29 @@
+NOW=$(date -u +%FT%TZ)	date -u +%FT%TZ
+ts=`date +%s`	date +%s
+x=$(TZ=UTC date)	date
+  /bin/date -u >> log	date -u
+date -Iseconds	date -Iseconds
+date -r "$f" +%s	date -r "$f" +%s
+date -u -d "@$t" +%F
+date --date="$x"
+date -ud @1
+date
+echo the date is wrong
+update_date -u
+--date x
+# date -u
+echo ok # $(date -u)
+date value out of range
+t=$EPOCHSECONDS; s=${SECONDS}	$EPOCHSECONDS	$SECONDS
+echo $SECONDS_LEFT
+printf '%(%F)T' -1	printf %(…)T
+stat -c %Y "$f"	stat %Y
+find . -mmin -5 -newer x	find -mmin	find -newer
+[ a -nt b ]	test -nt
+git log --since=2.weeks	git --since
+git log --until "3 days ago"	git --until
+git log -1 --before=2026-01-01T19:30:00Z -- f
+git log -1 --before={created_s} -- {rel}
+export KEEP_DAYS=7	KEEP_DAYS=
+x=${KEEP_DAYS:-7}
+days=3

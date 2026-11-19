@@ -78,6 +78,7 @@ pub const POLICY_REGISTRY_LAUNCHER: &str = ".claude/policies/runtime/policy_regi
 pub const RUNTIME_SELFTEST_LAUNCHER: &str = ".claude/policies/runtime/runtime_selftest.sh";
 /// plan_26111615 pass 3: tracked non-.py executable surfaces start no Python on the host/sub (container lines allow-listed with a reason).
 pub const INLINE_PYTHON_SCAN_LAUNCHER: &str = ".claude/rust/py-boundary-guard/inline_python_scan.sh";
+pub const VERDICT_CLOCK_SCAN_LAUNCHER: &str = ".claude/policies/runtime/verdict_clock_scan.sh";
 pub const ANTIPATTERN_SCAN_LAUNCHER: &str = ".claude/policies/runtime/antipattern_scan.sh";
 pub const CONSTITUTION_LINT_LAUNCHER: &str = ".claude/policies/runtime/constitution_lint.sh";
 pub const DOC_NAMING_LAUNCHER: &str = ".claude/policies/runtime/doc_naming.sh";
@@ -1050,6 +1051,8 @@ pub fn verify_with(repo: &Path, record: AsOfRecord, hooks: &Hooks) -> Result<PyV
     checks.push(rr("terraform_budget_renew_loop_selftest", &["bash", &format!("{tn}/node_blackbox/budget_renew_loop.sh"), "--self-test"], &[0]));
     checks.push(rr("runtime_regression_selftest", &["bash", RUNTIME_SELFTEST_LAUNCHER], &[0]));
     checks.push(rr("inline_python_scan", &["bash", INLINE_PYTHON_SCAN_LAUNCHER, "check", "--repo", "."], &[0]));
+    checks.push(rr("verdict_clock_scan", &["bash", VERDICT_CLOCK_SCAN_LAUNCHER, "check", "--repo", "."], &[0]));
+    checks.push(rr("verdict_clock_scan_selftest", &["bash", VERDICT_CLOCK_SCAN_LAUNCHER, "--self-test"], &[0]));
     checks.extend((hooks.gitless)(repo));
     let uw = ".claude/skills/upstream-version-watch/scripts";
     // upstream-version-watch 진입점은 Rust 런처(.sh → 노드 빌드 ELF)다 — .py 원본을 부르지 않는다(plan_26111615).

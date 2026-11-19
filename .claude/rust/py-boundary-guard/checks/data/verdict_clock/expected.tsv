@@ -1,0 +1,21 @@
+planted.rs	4	const REVIEW_PERIOD_DAYS
+planted.rs	9	SystemTime::now()
+planted.rs	10	Clock::now()
+planted.rs	11	.elapsed()
+planted.rs	12	.modified()
+planted.rs	13	Run::new("date")
+planted.rs	14	date -u +%FT%TZ
+planted.rs	14	find -mmin
+planted.rs	17	let keep_days
+planted.rs	22	extern fn time
+planted.sh	3	date -u +%FT%TZ
+planted.sh	4	$EPOCHSECONDS
+planted.sh	5	find -mmin
+planted.sh	6	test -nt
+planted.sh	7	TTL_DAYS=
+planted.sh	9	git --since
+planted.sh	10	stat %Y
+planted.sh	11	printf %(…)T
+planted.ts	2	new Date()
+planted.ts	3	performance.now()
+planted.ts	6	Date.now()
