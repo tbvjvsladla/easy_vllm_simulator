@@ -146,6 +146,16 @@ fn bad_inputs_fail_closed() {
 }
 
 #[test]
+fn a_transitional_row_is_refused() {
+    let r = repo("transitional");
+    write(&r.0, TWO_READS_REL, TWO_READS);
+    write(&r.0, ALLOW_REL, &format!("{TWO_READS_REL}\tstd::time::Instant::now()\t2\ttransitional\tc24 stage B\n"));
+    let (code, out, err) = check(&r.0);
+    assert_eq!(code, 2, "{out}{err}");
+    assert!(err.contains("class must be one of"), "{err}");
+}
+
+#[test]
 fn usage_errors_are_exit_2() {
     for args in [&["check", "--repo"][..], &["scan"][..], &["--self-test", "x"][..], &[][..]] {
         let out = Command::new(bin()).args(args).output().unwrap();

@@ -7,7 +7,7 @@
 //!
 //! `class` is `runtime-fact` (the runtime measures real elapsed time or an outside fact: timeouts, watchdogs, leases,
 //! certificate validity), `record-only` (a time stamped into a record, a log or a name, never into a verdict),
-//! `not-time` (a calendar-period name that is no period) or `transitional`.
+//! or `not-time` (a name or a never-executed string that matches a rule but reads no time).
 
 pub mod rust_reads;
 pub mod selftest;
@@ -17,7 +17,7 @@ pub mod ts_reads;
 use std::collections::BTreeMap;
 
 pub const DEFAULT_ALLOWLIST: &str = ".claude/rust/py-boundary-guard/verdict_clock_allowlist.tsv";
-pub const CLASSES: [&str; 4] = ["runtime-fact", "record-only", "not-time", "transitional"];
+pub const CLASSES: [&str; 3] = ["runtime-fact", "record-only", "not-time"];
 
 const DATA_PLANES: [&str; 2] = ["/checks/data/", ".claude/rust/parity/data/"];
 const PERIOD_UNITS: [&str; 3] = ["DAYS", "WEEKS", "MONTHS"];
@@ -175,6 +175,7 @@ mod tests {
             "a/x.rs\tInstant::now()\t0\truntime-fact\twhy\n",
             "a/x.rs\tInstant::now()\ttwo\truntime-fact\twhy\n",
             "a/x.rs\tInstant::now()\t1\tbomb\twhy\n",
+            "a/x.rs\tInstant::now()\t1\ttransitional\twhy\n",
             "/a/x.rs\tInstant::now()\t1\truntime-fact\twhy\n",
             "a/../x.rs\tInstant::now()\t1\truntime-fact\twhy\n",
             "a/x.rs\t\t1\truntime-fact\twhy\n",
