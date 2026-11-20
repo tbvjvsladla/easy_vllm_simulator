@@ -44,6 +44,11 @@ path = "checks/rs_scan_checks.rs"
 name = "verdict_clock_checks"
 path = "checks/verdict_clock_checks.rs"
 
+# Contract checks of the fixed surface (plan 26111805, cell c21-contract-tests).
+[[test]]
+name = "contract_checks"
+path = "checks/contract_checks.rs"
+
 [dependencies]
 syn = { version = "3.0.9", default-features = false, features = ["clone-impls", "full", "parsing", "printing", "visit"] }
 proc-macro2 = { version = "1.0.107", default-features = false, features = ["span-locations"] }

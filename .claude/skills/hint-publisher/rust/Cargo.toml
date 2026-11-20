@@ -85,3 +85,8 @@ path = "checks/render_bench_section_cases.rs"
 [[test]]
 name = "cli_cases"
 path = "checks/cli_cases.rs"
+
+# Contract checks of the fixed surface (plan 26111805, cell c21-contract-tests).
+[[test]]
+name = "contract_checks"
+path = "checks/contract_checks.rs"

@@ -23,6 +23,11 @@ path = "src/bin/doc_naming.rs"
 name = "golden_checks"
 path = "checks/golden_checks.rs"
 
+# Contract checks of the fixed surface (plan 26111805, cell c21-contract-tests).
+[[test]]
+name = "contract_checks"
+path = "checks/contract_checks.rs"
+
 [dependencies]
 # Python-compatible JSON values, repr, str semantics and the Draft-07-subset schema engine (local path dependency).
 agent-runtime-support = { path = "../runtime-support" }
