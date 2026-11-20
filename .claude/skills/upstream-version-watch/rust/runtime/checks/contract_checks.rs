@@ -2838,7 +2838,7 @@ fn judge_version_delta_write_resolved_keeps_keys() {
 
 /// `resolve_build_track --torch-pin P --sm-arch S` (S1, references/resolve-and-render.md:58) prints the JSON fragment the
 /// agent merges into `resolved.json`: `build_track.decision` (`wheel` below torch 2.11, `source-build` from 2.11),
-/// `build_track.arbiter` `smoke` and `source_build.torch_cuda_arch` — the keys hint-publisher `e1.rs:2014-2016` and this
+/// `build_track.arbiter` `smoke` and `source_build.torch_cuda_arch` — the keys hint-publisher `e1.rs:2021-2026` and this
 /// crate's `render_template.rs:315`·`:334` read. Exit 0.
 #[test]
 fn resolve_build_track_fragment_keys() {
