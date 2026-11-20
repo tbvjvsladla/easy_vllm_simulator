@@ -93,6 +93,8 @@ c21은 아래 계약을 bin별 계약 시험에 우선 고정한다. 근거 줄�
   `--list`), 요청서 26111719 §3의 W 게이트·pre-commit 훅·가드·`crate_allow check`·wiki-desk(Node)·툴체인 런처의 실제 모드, 오케스트레이션·호스트·컨테이너 스크립트.
 - `M 가능`의 근거: c20이 M HEAD `000a9c79`의 쌍둥이(공유 클론, `target/`·`.claude/runtime` 연결)에서 모든 후보를 T safe_run으로 돌렸다. 격리 위반 0, 쌍둥이 작업 트리 변화 0,
   python 성공 execve 0이었다. 실행 기록은 캠페인 c20 cell 폴더 `runs/probe*/`에 있다.
+- 여기서 `M 가능`은 "M에서 격리 위반 없이 돌고 M을 더럽히지 않는다"는 뜻이다(종료 0이 아니어도 된다 — pyexec는 종료 코드를 판정하지 않는다). c19 `wgates.tsv`의 `M 가능`(M에서 종료 0)과
+  다르다: `verify_distribution`·`harness_verify`는 여기서 `M 가능`(M에서는 가지·shim 때문에 종료 1·4)이고 `wgates.tsv`에서는 `W 전용`이다.
 - `W 전용`: 실행하면 호스트·컨테이너·서브에 작용하는 스크립트 26개(`cmd`는 구문 확인 `bash -n`뿐 — Python 기동은 `inline_python_scan`(정적)과 E2E strace가 센다)와,
   strace 아래에서 너무 긴 `parity compare --stage all`(W pyexec에서 센다).
 - 스킬·MCP·런처 교차 확인: 추적 MCP 서버 설정은 없다. 스킬 문서가 부르는 명령은 런처(`.sh`)와 `node .claude/skills/wiki-desk/src/cli.ts`뿐이며 모두 표에 있다.
