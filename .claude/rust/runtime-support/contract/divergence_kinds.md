@@ -34,6 +34,8 @@
 3. `wording`·`layout`은 소비자가 없다는 근거가 있을 때만 쓴다. 셸 소비자가 grep하는 줄이 바뀌었으면 `surface-change`다(`consumers.tsv` `reads`에 `stdout-text`·`stderr`).
 4. 묶음 행(`approval_key` 하나에 여러 골든)은 `path`에 크레이트 디렉터리나 골든 폴더를 적고, `before`·`after`에 대표 사례 하나, `reason`에 전체 목록을 둘 위치(cell 폴더 파일)를 적는다.
 5. 시험을 없애거나 바꿔 통과 수가 줄면 divergence 행과 별개로 `test_delta.tsv` 행이 필요하다(형식은 FORMAT.md). 같은 `approval_key`를 두 파일에 함께 쓰지 않는다.
+6. 전에 받던 입력을 새로 거부(종료 2)하는 것은 저장소 안에 그 입력을 만들거나 넘기는 생산자·소비자가 없으면 `output`/`strictness` 한 행이고, 있으면 `fixed-surface`/`surface-change`다(`types.md` 1절, 4회차).
+   기대값을 거부로 바꾼 퇴역 픽스처(`types.md` 5절)는 시험을 빼지 않으므로 `test_delta.tsv`가 없다.
 
 ## 예
 

@@ -1,7 +1,7 @@
 # 네이티브 타입 계약 (runtime-support · 16 크레이트 공통)
 
 - 정본: plan 26111805 「보존 계약」·「cell 세부」 c20, interview D1·D3·D4·D7·D8·D9·D16·D17, 사용자 결정 h9–h16.
-- 쓴 cell: c20-contract (base `ead7087d`, 3회차는 g-c0 검토 1회차 지적 반영). 읽는 cell: c21(계약 시험), c22(yaml_compat), c30~c60(이전·삭제).
+- 쓴 cell: c20-contract (base `ead7087d`, 3회차는 g-c0 검토 1회차, 4회차는 2회차 지적 반영). 읽는 cell: c21(계약 시험), c22(yaml_compat), c30~c60(이전·삭제).
 - 같은 폴더: `consumers.tsv`·`consumers.md`(고정 표면과 소비자), `entrypoints.tsv`(결정론 진입점),
   `yaml_inputs.tsv`(YAML 1.1 의존 입력), `divergence_kinds.md`(divergence 의미 분류).
 - 크레이트 판·라이선스는 `.claude/rust/py-boundary-guard/crate_allowlist.tsv`가 정본이다. 이 문서는 어떤 크레이트를 어디에 쓰는지만 적는다.
@@ -16,7 +16,7 @@ PyYAML 1.1 해소, argparse 문구, Traceback 흉내)는 보존 대상이 아니
 
 | 수준 | 대상 | 이전 뒤 요구 |
 |---|---|---|
-| **L1 바이트 고정** | 종료 코드 값, 표식 줄(`…-PASS` 등), reason_codes 문자열, 기계 파싱 표(SKILL.md §4 공개 표면 표 등), tripwire가 읽는 stderr 줄, 셸 소비자가 grep·awk·sed로 읽는 줄, 서브커맨드·플래그 long 이름과 실제 쓰는 짧은 형, 런처 환경 변수 이름과 그 값의 해석, argv[0]으로 루트를 찾는 bin의 argv[0], 다른 크레이트가 소스 텍스트로 대조하는 토큰 | 같은 바이트. 바꾸면 같은 cell에서 소비자를 고치고 divergence `fixed-surface`(의미 `surface-change`) 행 |
+| **L1 바이트 고정** | 종료 코드 값, 표식 줄(`…-PASS` 등), reason_codes 문자열, 기계 파싱 표(SKILL.md §4 공개 표면 표 등), tripwire가 읽는 stderr 줄, 셸 소비자가 grep·awk·sed로 읽는 줄, 서브커맨드·플래그 long 이름과 실제 쓰는 짧은 형, 런처 환경 변수 이름과 그 값의 해석, argv[0]으로 루트를 찾는 bin의 argv[0], 다른 크레이트가 소스 본문이나 출력에서 대조하는 토큰·문구(오류 문구 포함) | 같은 바이트. 바꾸면 같은 cell에서 소비자를 고치고 divergence `fixed-surface`(의미 `surface-change`) 행 |
 | **L2 값 고정** | JSON 파서가 읽는 stdout·파일(키, JSON 타입, 값), stdout/stderr 분리 | 파싱한 값이 같다. 키 순서·공백·이스케이프·float 표기는 자유. 바이트 비교 골든은 재기준선(divergence `golden`·`parity`) |
 | **L3 자유** | usage·help·오류 문구와 배치, 접두어 축약, Python repr·Traceback 흉내, 진단 메시지 | 소비자가 없으면 자유. 바뀐 골든은 `golden` 재기준선 |
 
@@ -25,12 +25,19 @@ PyYAML 1.1 해소, argparse 문구, Traceback 흉내)는 보존 대상이 아니
   - `stdout-json`과 JSON 파서로 읽는 `file:`은 L2다. `exit:`는 L1이다. `golden(…)`·`comment`·`agent-instruction`은 L3이다(단 `fixed`가 `argv`이면 서브커맨드·플래그는 L1).
   - 확인되지 않은 행은 L1로 다룬다. `reads`가 `?`(252행)이거나 `…?`(108행, 대부분 `stdout-json?`)인 행, `fixed`가 `?`(25행)인 행이다.
     이전 cell이 소비자 코드를 읽고 낮출 수 있다. 낮추면 그 행을 `checked`로 고친다.
+- **다른 크레이트가 대조하는 문구는 L1이다.** 오류·진단 문구는 보통 L3지만, 다른 크레이트가 그 bin의 소스 본문이나 출력에서 그 문구를 찾으면 L1이다.
+  예: policy-predicates `claims_text.rs:773`이 terraforming `agent_control.rs:273`의 오류 문구를 소스에서 대조한다. 목록은 `consumers.md` 「소스 본문·경로 결합」이다.
 - 접두어 축약(argparse의 `--rep` → `--repo`)은 자유다. 저장소 안 소비자가 축약형을 쓰면(`consumers.tsv` `invocation`) 그 형을 명시 별칭으로 남긴다.
+  - 단 **base에서 유일하게 풀리는 축약형만** 별칭으로 남긴다. base가 모호하다고 거부하던 축약형은 별칭으로 만들지 않는다.
+  - 예: terraforming `relay`는 reslice 때 `campaign_init --sub-echo … --rev <rev>`를 넘긴다(`relay/dispatch.rs:1232-1235`). `campaign_init`에는 `--rev`로 시작하는 플래그가 다섯이다(`--revise`·`--revise-set`·`--revise-reason`·`--revise-evidence`·`--revise-approved-by`, `campaign_args.rs:129-133`).
+    그래서 base는 모호한 옵션으로 거부한다(종료 2). base 결함이다. 별칭을 만들지 않는다. 처분은 c44(`campaign_init` 파서·reslice 검사)와 c40(`relay` 호출 쪽)이 함께 정하고, echo가 rev를 실어야 하는지는 그때 사용자 HITL이다.
 - 반복 플래그와 음수 값(clap으로 옮길 때):
   - argparse `store`는 같은 옵션을 두 번 주면 뒤 값이 이기고, `-1`처럼 `-`로 시작하는 음수를 옵션 값으로 받는다.
   - clap derive의 기본은 단일 값 옵션의 반복을 오류로 보고, `-1`을 모르는 플래그로 읽는다(`allow_negative_numbers`·`allow_hyphen_values`가 필요하다).
+    뒤 값이 이기게 하려면 명령에 `args_override_self(true)`를 둔다.
   - 소비자가 반복이나 음수 값을 넘기는 bin(`consumers.tsv` `invocation`)은 지금처럼 받게 설정하고 계약 시험에 그 사례를 둔다.
   - 소비자가 쓰지 않는 반복을 오류로 바꾸는 것은 divergence `output`(의미 `strictness`)이다.
+- **strictness와 fixed-surface의 경계:** 전에 받던 입력을 새로 거부(종료 2)하는 것은, 저장소 안에 그 입력을 만들거나 넘기는 생산자·소비자가 없으면 `output`/`strictness` 한 행이다. 있으면(`consumers.tsv` `invocation`·영속 데이터) `fixed-surface`/`surface-change`다.
 - 환경 변수와 argv[0]: 런처 환경 변수(`<NAME>_BIN`, `TERRAFORMING_BIN_DIR`, `EASY_VLLM_UPSTREAM_RUNTIME_ROOT` 등)는 이름과 값의 해석이 L1이다. 해석에는 설정 안 됨·빈 값·상대 경로의 구분이 든다.
   예: `inline_json.sh:8-15`는 `EASY_VLLM_UPSTREAM_RUNTIME_ROOT`가 설정됐는데 비면 오류다. argv[0]으로 루트를 찾는 bin은 런처가 `exec -a`로 넣는 값을 지금처럼 해석한다(`consumers.md` 「런처와 환경 변수」).
 - L2 값과 CPython 의미의 경계:
@@ -57,19 +64,20 @@ PyYAML 1.1 해소, argparse 문구, Traceback 흉내)는 보존 대상이 아니
   `std::env::args()`(policy-audit·distribution·publisher·predicates·hint-publisher·parity와 `*_api`·`*_bench` bin들). 이전한 크레이트는 위 표 하나로 맞춘다.
   py-boundary-guard `crate_allow`는 3회차에 `args_os`로 바꿨다(비UTF-8 인자·추적 lock 경로 → 종료 2).
 - `PyStr`이 담던 홀 서로게이트(U+D800..DFFF)는 `String`에 없다. 저장소의 입력(manifest·원장·캠페인 상태·argv)에서 홀 서로게이트를 일부러 나르는 계약은 찾지 못했다.
-- c21 a·b·c가 실제로 고정한 비UTF-8 사례:
+- 계약 시험이 지금 고정한 비UTF-8 사례(`<크레이트> <시험 바이너리> :: <시험 이름>`, 4회차에 `**/checks/*.rs`를 `\xff`·`from_bytes`로 훑어 확인):
   - 텍스트 인자(종료 2, stdout 빈):
-    - c21 a: policy-gate의 `completion_gate`·`doc_naming`(`policy-gate/checks/contract_checks.rs:310`).
-    - c21c: policy-selftest의 `runtime_selftest`·`antipattern_scan`·`constitution_lint`(`policy-selftest/checks/contract_checks.rs:170`).
-    - c21c: adversarial-benchmark의 `verdict_rule`(`contract_checks.rs:1549`)·`manifest_contract`(`contract_checks_campaign.rs:404`)·`topology_parity`(`:682`)·`campaign_init`(`:964`).
-    - c21b(recipe·upstream·terraforming)는 0이다.
-  - 파일명: 하나뿐이다. adversarial-benchmark `resolve_topology --repo <비UTF-8 디렉터리>`가 경로를 나르고 `multi`를 낸다(`contract_checks.rs:1421`).
-  - c20: `crate_allow`의 비UTF-8 인자·추적 lock 경로(`py-boundary-guard/checks/crate_allow_checks.rs`).
-  - 나머지 bin에는 사례가 없다.
+    - policy-gate `contract_checks :: non_utf8_text_argument_is_exit_2`(c21 a).
+    - policy-selftest `contract_checks :: usage_errors_and_non_utf8_arguments_are_exit_2`(c21c).
+    - adversarial-benchmark `contract_checks :: non_utf8_text_argument_is_exit_2`, `contract_checks_campaign :: manifest_contract_flag_gate_exit_codes_and_json`·`topology_parity_evaluate_json_value_and_exit_codes`·`campaign_init_usage_options_and_selftest`(c21c).
+    - terraforming·upstream-runtime·recipe-runtime `contract_checks :: non_utf8_choice_arguments_are_usage_errors`(c21b, 선택지 인자).
+    - py-boundary-guard `contract_checks :: crate_allow_no_tracked_lock_and_non_utf8_argument_are_exit_2`(c21 a), `crate_allow_checks :: non_utf8_arguments_and_tracked_lock_paths_exit_2`(c20).
+    - wiki-desk-oracle `contract_checks :: unsupported_or_unreadable_input_is_a_nonzero_exit_without_stdout`(c21 a, stdin).
+  - 파일명: adversarial-benchmark `contract_checks :: resolve_topology_stdout_and_exit_codes`(`resolve_topology --repo <비UTF-8 디렉터리>`가 경로를 나르고 `multi`를 낸다), py-boundary-guard `crate_allow_checks :: non_utf8_arguments_and_tracked_lock_paths_exit_2`(추적 lock 경로 → 종료 2).
+  - 이 목록에 없는 bin은 비UTF-8 사례가 없다. 계약 시험 밖의 기존 시험(`identity_checks`·`classify_cell_files` 등)은 Python 의미 재현 시험이라 여기 넣지 않았다.
 - **이전 cell 의무:** `std::env::args()`·lossy 경로를 `args_os`·`Path`로 바꾸는 cell은 그 bin의 계약 시험에 다음을 더한다.
   - 비UTF-8 텍스트 인자 사례(종료 2, stdout 빈).
   - 경로 인자가 있으면 비UTF-8 파일명 사례(경로로 나르고, 기계 출력에는 쓰지 않거나 종료 2).
-  - 이 사례는 빼거나 약하게 하지 않는다. 빼면 `test_delta.tsv` 대상이고, 승인 없이는 gate 규칙 4가 막는다.
+  - 이 사례는 빼거나 약하게 하지 않는다. 빼면 `test_delta.tsv` 대상이다. gate 규칙 4는 시험 이름이 사라지는 것만 막는다(이름만 보호). 단언을 약하게 하는 것은 검토가 본다.
   - c30은 소비 크레이트에서 `std::env::args()`·`to_string_lossy`가 기계 출력에 닿는 자리를 찾는 정적 검사를 둘지 정한다(제안).
 - 대소문자·공백 판정은 Rust 표준(`char::is_whitespace`, `to_lowercase`)을 쓴다. CPython 3.12 Unicode 15 표(`pylower`, `unicode_*_table.rs`)는 버린다.
   비교 결과가 달라지는 자리는 divergence `output`·`cpython-semantics`다.
@@ -87,7 +95,8 @@ PyYAML 1.1 해소, argparse 문구, Traceback 흉내)는 보존 대상이 아니
   - 소비자가 없으면 L3이다.
 - panic은 종료 101이다. 어느 bin의 계약 코드도 아니므로 소비자에게는 "정하지 못함"(비0)으로 읽힌다. 입력에서 닿는 panic(`unwrap`, 범위 밖 첨자)은 결함이며 입력 오류(종료 2)로 바꾼다.
 - stdout이 닫힌 파이프(EPIPE)일 때 `println!`은 panic한다. 셸 소비자가 `| head`·`| sed … | head -1`로 읽는 bin(`consumers.tsv` `invocation`)은 쓰기 오류를 받아 조용히 끝낸다.
-  끝내는 종료 코드는 그 bin의 정상 코드다. Python 판의 BrokenPipeError 동작은 보존 대상이 아니다(L3).
+  끝내는 종료 코드는 그 bin의 정상 코드다. 정상 코드는 쓰기가 성공했다면 그 실행이 냈을 코드다(판정은 출력 전에 끝난다). 출력하면서 판정하는 bin은 끊긴 때까지의 판정 코드다.
+  Python 판의 BrokenPipeError 동작은 보존 대상이 아니다(L3).
 - 오류 값은 크레이트마다 `enum`(+ `std::error::Error`·`Display`)으로 둔다. 문구는 L3다. 소비자가 오류 **분류**를 기계로 읽는 자리(reason code, `CODE: …` 접두)는 L1이다.
 - Python Traceback 흉내(`Traceback (most recent call last):` 31개 파일)는 없앤다. tripwire·소비자가 그 줄을 읽는 자리가 있으면 `consumers.md`가 L1로 적는다.
   manifest_contract 골든의 Traceback 행(Python 충돌, 종료 1)은 5절 처분을 따른다.
@@ -100,27 +109,55 @@ PyYAML 1.1 해소, argparse 문구, Traceback 흉내)는 보존 대상이 아니
 
 ### 영속 문서 (읽고 다시 쓰는 writer)
 
-1. **모르는 키를 보존한다.** 문서를 읽어 고친 뒤 다시 쓰는 writer가 대상이다. 문서와 그 안의 객체는 `serde_json::Value`로 다루거나, 구조체에 `#[serde(flatten)] rest: serde_json::Map<String, Value>`를 둔다.
-   그래서 모르는 키를 읽은 그대로 다시 쓴다. 아는 필드만 담는 구조체로 읽고 쓰기(모르는 키 버림)는 읽기 전용 소비자만 쓴다.
-   - 근거: 원장 `.claude/policies/branch_layer_ledger.json` 항목 65개 중 52개 키가 스키마 밖 키다.
+**원칙: 모르는 키를 조용히 지우지 않는다.** 판정 단위는 객체다(스키마의 `additionalProperties`, 또는 base 코드가 그 객체의 키를 거르는지).
+- **열린 문서·열린 자리**(base가 모르는 키를 받아 그대로 나르는 것): 그 키를 보존한다.
+- **닫힌 문서·닫힌 자리**(base가 닫힌 스키마로 모르는 키를 거부하는 것): 거부를 보존한다. 같은 종료 코드와 reason code를 내고, 기록 바이트를 바꾸지 않는다.
+  받아들이도록 여는 것은 고정 표면 변경이다(divergence `fixed-surface`/`surface-change`). 조용히 버리고 다시 쓰는 것은 어느 쪽에서도 금지다.
+- 무시(모르는 키를 읽고 버림)는 다시 쓰지 않는 읽기 전용 소비자만 한다. 그 소비자가 base에서 닫힌 검사를 하던 자리면 그 검사를 지킨다.
+
+1. **열린 쪽과 보존 방법.** 문서와 그 안의 객체는 `serde_json::Value`로 다루거나, 구조체에 `#[serde(flatten)] rest: serde_json::Map<String, Value>`를 둔다. 그래서 모르는 키를 읽은 그대로 다시 쓴다.
+   - 브랜치 레이어 원장 `.claude/policies/branch_layer_ledger.json`: 항목 65개 중 52개 키가 스키마 밖 키다.
      - `_reach` 31은 `layer_ledger.rs:1121` `emit_skeleton`이 만든다. `_execution_note` 15, `_note` 5, `_approval_source` 1은 손으로 적은 키다.
-     - upstream `layer_ledger`는 원장을 동적 값으로 읽는다(`layer_ledger.rs:919` `load`).
-     - `append`(`:1021`)와 `merge`(`:1069`)는 파일 전체를 `save`(`:929-936`)로 다시 쓴다. 구조체로 옮기면 이 키가 조용히 사라진다.
-   - 메인/서브 버전 혼재 정책 2(`consumers.md`)의 "읽는 쪽은 모르는 키를 무시한다"는 읽기 전용 소비자의 규칙이다. writer는 무시가 아니라 보존한다.
-2. **값 없음(Python `None`)의 표기는 base를 따른다.** 지금 키를 `null`로 쓰는 자리는 `null`로 쓴다. 지금 키를 빼는 자리는 `#[serde(skip_serializing_if = "Option::is_none")]`로 뺀다.
+     - upstream `layer_ledger`는 원장을 동적 값으로 읽는다(`layer_ledger.rs:919` `load`). `append`(`:1021`)와 `merge`(`:1069`)는 파일 전체를 `save`(`:929-936`)로 다시 쓴다. 구조체로 옮기면 이 키가 조용히 사라진다.
+   - 캠페인 상태의 열린 자리(아래 2의 닫힌 자리와 같은 문서다):
+     - `campaign.yaml` 최상위의 `_`로 시작하는 안내 키. 검증기가 스키마 대조 전에 걷어낸다(`campaign_validator.rs:553`).
+     - `additionalProperties: true`인 `budgets`·`budgets.bench_pins`·`topology_sections`(`campaigns/_template/campaign.schema.json`).
+     - 단계 상태 파일 `phases/<node>/<phase>.status.json`의 최상위. `campaign_write.rs:1131` `write_phase`가 읽은 객체 위에 덮어쓴다(`:1159-1199`).
+   - 릴레이 원장 `campaigns/<id>/relay/<ctx>.json`(terraforming `relay`).
+   - `output/<topology>/resolved.json`(아래 3 (c)).
+2. **닫힌 쪽(거부를 보존한다):**
+   - evidence_publisher 발행 기록: `policy-publisher/src/publisher.rs:530-577` `validate_record_shape`. 기록을 읽을 때마다(`:830`) 돈다.
+     - 최상위 키는 허용 14개와 `OPTIONAL_RECORD_FIELDS`(`:25`) 밖이면 `PUBLICATION_RECORD_UNKNOWN_FIELDS`다(`:546-553`).
+     - 항목 안(`identity`·`conditions`·`benchmark` 등)은 스키마 검사(`gate::validate_property`)로 `PUBLICATION_RECORD_SCHEMA_INVALID`다(`:568-577`).
+     - 거부 때 종료 2이고 기록을 다시 쓰지 않는다. `append-raw` 등 기록을 읽는 서브커맨드 모두가 이 길을 탄다.
+   - 캠페인 상태 검증: `campaigns/_template/campaign.schema.json` 최상위 `additionalProperties: false`(`:19`)와 `node`·`matrix`·`hint_target`·`hint_approval`·`assignment`·`assignment_revision`(모두 false).
+     검증기는 그 스키마를 읽고(`campaign_validator.rs:727`), 뼈대 스키마의 `hint_target`이 `additionalProperties: false`인지 스스로 확인한다(`:976-977`). 닫힌 자리의 모르는 키는 검증기가 거부한다.
+   - 서브 리포트 `.claude/skills/terraforming_node/sub_node/task-report.schema.json`: 최상위(`:7`)와 객체 여럿이 `additionalProperties: false`다. 메인 `relay`(`relay/core.rs:53` `task_report_schema`)와 `bootstrap_canary.rs:503`이 대조한다.
+3. **빈칸 셋:**
+   - (a) **통째 교체 writer.** 보존 단위는 writer가 고치지 않는 자리다. writer가 새로 만들어 통째로 바꾸는 객체 안의 모르는 키는 base도 버린다. 그 동작은 그대로 옮기고, 버리는 범위를 넓히지 않는다.
+     - campaign_init `--assign-set NODE`: `campaign_write.rs:4424` `assign_set`이 `assignments`를 새 사전으로 바꾸고 `assignment_revisions`에 개정 행을 잇는다(`:4599-4600`). 다른 최상위 키는 읽은 그대로다.
+     - campaign_init `--phase-set`: `write_phase`(`:1131`, 쓰기 `:1159-1199`)가 상태 파일 최상위의 모르는 키를 남기고, `proof`는 새 객체로 바꾼다(`:1174-1178`). `proof` 안의 모르는 키는 base도 버린다.
+   - (b) **null과 부재를 모두 나르는 필드는 `Option<T>`로 두지 않는다.** `Option<T>`는 `"k": null`과 키 없음을 한 값으로 접는다.
+     - `serde_json::Value`로 두거나, 이중 Option(`Option<Option<T>>`, `#[serde(default, deserialize_with = …)]`로 "키 있음"을 바깥 `Some`에 담는 작은 함수, 쓰기는 `skip_serializing_if = "Option::is_none"`)을 쓴다. 새 크레이트는 쓰지 않는다.
+     - 근거: upstream `layer_ledger.rs:106-121` `jeq`는 사전을 키 집합까지 비교한다. 그래서 `{"k": null}`과 `{}`는 다른 항목이고, `merge`의 충돌 판정(`:392-393`)이 그 차이를 쓴다. 접으면 충돌이 숨거나 생긴다.
+   - (c) **`judge_version_delta --write-resolved`도 RMW writer다**(`judge_delta.rs:1205-1229`). `resolved.json`을 읽어 `upstream_delta_*` 손저작 키를 `_superseded_manual_<키>`로 옮기고, `upstream_delta`를 쓴 뒤, 나머지 키를 읽은 그대로 다시 쓴다.
+4. **값 없음(Python `None`)의 표기는 base를 따른다.** 지금 키를 `null`로 쓰는 자리는 `null`로 쓴다. 지금 키를 빼는 자리는 `#[serde(skip_serializing_if = "Option::is_none")]`로 뺀다.
    어느 쪽인지는 base 출력·골든이 정한다. 키 없음과 `null`은 파싱한 값이 다르므로 바꾸면 L2 값 변경(`surface-change`)이다.
-3. **중복 키:** derive 구조체는 같은 필드가 두 번 나오면 `duplicate field` 오류를 낸다. `Value`(Map)는 뒤 값이 이긴다(`serde_json-1.0.154/src/value/de.rs:139-141`).
+5. **중복 키:** derive 구조체는 같은 필드가 두 번 나오면 `duplicate field` 오류를 낸다. `Value`(Map)는 뒤 값이 이긴다(`serde_json-1.0.154/src/value/de.rs:139-141`).
    지금 pyjson은 뒤 값이 이긴다. 단 `pyjson::loads_text_unique`를 쓰는 자리는 거부한다.
    - derive로 바꿔 전에 받던 문서를 거부하게 되면 divergence `output`(의미 `strictness`)이다.
    - `Value`로 읽는 자리에서 `loads_text_unique`와 같은 거부가 필요하면 사용자 정의 방문자를 둔다.
-4. **writer 키 보존 계약 시험 의무:** 다시 쓰는 writer bin마다 시험을 둔다.
-   - 모르는 키를 최상위와 항목 안에 넣은 입력으로 한 번 쓰게 하고, 출력에 그 키·값이 그대로 남는지 본다. 이전 cell은 이 시험을 빼지 않는다.
-   - 대상 writer:
+6. **계약 시험 의무.** 이전 cell은 아래 시험을 빼지 않는다. 시험은 그 크레이트의 c21 계열이 둔다(`consumers.md` 「계약 시험에 반영할 것」).
+   - **키 보존 시험**(열린 쪽 writer): 모르는 키를 최상위와 항목 안의 열린 자리에 넣은 입력으로 한 번 쓰게 하고, 출력에 그 키·값이 그대로 남는지 본다. null과 부재를 나르는 필드는 두 경우를 모두 넣는다.
      - upstream `layer_ledger append`·`merge`(원장).
-     - adversarial-benchmark `campaign_init`(캠페인 상태의 유일한 writer, workflow.md §캠페인).
-     - terraforming `relay`(릴레이 원장 `campaigns/<id>/relay/<ctx>.json`).
-     - policy-publisher `evidence_publisher append-raw`(발행 기록).
-   - 시험은 그 크레이트의 c21 계열이 둔다(`consumers.md` 「계약 시험에 반영할 것」).
+     - adversarial-benchmark `campaign_init`(캠페인 상태의 유일한 writer, workflow.md §캠페인). 대상은 1의 열린 자리다. 3 (a)의 통째 교체 객체는 뺀다.
+     - terraforming `relay`(릴레이 원장).
+     - upstream `judge_version_delta --write-resolved`(`resolved.json`).
+   - **거부 보존 시험**(닫힌 쪽): 모르는 키를 넣은 입력이 base와 같은 종료 코드와 reason code로 거부되고, 기록 파일의 바이트가 그대로인지 본다.
+     - policy-publisher `evidence_publisher append-raw`: 최상위 모르는 키 → 종료 2·`PUBLICATION_RECORD_UNKNOWN_FIELDS`, 항목 안 모르는 키 → 종료 2·`PUBLICATION_RECORD_SCHEMA_INVALID`. 두 경우 모두 기록 바이트 불변.
+       대조로 모르는 키가 없는 같은 기록은 받아들여진다.
+     - adversarial-benchmark 캠페인 검증기(`campaign_template_validator.sh`·`campaign_init`의 검증): 닫힌 자리의 모르는 키 → 거부.
+     - terraforming `relay`의 리포트 검사: `task-report.schema.json` 밖 키 → 거부.
 
 ### 키 순서
 
@@ -143,17 +180,24 @@ PyYAML 1.1 해소, argparse 문구, Traceback 흉내)는 보존 대상이 아니
     - 읽은 뒤 수를 훑는다. 정수 모양(`-?[0-9]+`)인데 `as_i64`·`as_u64`가 모두 `None`이면 입력 오류(종료 2)다. `-0`은 정수 0이다(Python `json.loads`와 같다).
     - 실수 모양은 `as_f64`가 유한해야 한다(`1e400` 거부).
     - 이 기능을 켜면 `Number`가 원문 텍스트를 든다. 그래서 `1.0`과 `1.00`이 다른 값이 되므로 수 비교는 `as_f64`·`as_i64`로 한다.
+    - **함정:** serde의 버퍼 경로(`#[serde(flatten)]`, `#[serde(untagged)]`·내부 태그 enum)를 지나는 수는 이 기능에서 `Number`가 아니라 내부 맵으로 보인다. 그 자리의 `f64`·`i64` 필드 역직렬화가 실패한다.
+      위 「영속 문서」의 `flatten` `rest`와 함께 쓸 때 특히 그렇다. 켜는 cell은 flatten·untagged 구조체의 수 필드를 시험으로 확인한다.
+    - 기능은 크레이트 빌드마다 합쳐진다(Cargo feature 통합). 한 크레이트가 켜면 그 빌드 안의 serde_json 전체에 켜진다. 그래서 켜는 결정은 16 크레이트 모두의 계약 시험으로 확인한다.
     - 대안은 입력 바이트를 따로 훑는 토큰 검사다. c30이 정한다.
   - 지금 추적 JSON·JSONL 18파일·547토큰에 i64·u64 밖 정수가 있다. 모두 `checks/data`의 `*_api`·사례 데이터다.
     - adversarial-benchmark 11파일·515토큰: roofline_verdict `api_extra.jsonl` 272, guidellm `api_raw_cases.jsonl` 158 등.
     - recipe-runtime 7파일·32토큰.
-    - 처분은 그 bin을 옮기는 cell(c44·c44b·c44c, c34)이 정한다. CPython BigInt 의미 시험이면 `retired`/`cpython-semantics`다.
-      와이어 계약으로 남기면 typed wire(문자열 표기)로 바꾸고 소비자와 함께 `surface-change`다.
+    - 처분은 그 bin을 옮기는 cell(c44·c44b·c44c, c34)이 정한다.
+      CPython BigInt 의미를 시험하던 사례는 빼지 않고, 기대값을 입력 오류(종료 2 또는 그 API의 예외)로 바꾼다. divergence `output`/`strictness`다.
+      와이어 계약으로 남기면 typed wire(문자열 표기)로 바꾸고 소비자와 함께 `fixed-surface`/`surface-change`다.
 
 ### 수·비유한 실수
 
 - 정수는 `i64`/`u64`, 실수는 `f64`다. 기계 JSON에 비유한 실수를 쓰지 않는다.
-- serde_json은 비유한 `f64`를 `null`로 쓴다. 지금 `NaN`·`Infinity` 토큰을 쓰는 자리는 값이 바뀐다(L2). 그래서 소비자와 같은 cell에서 정하고 divergence `fixed-surface`(의미 `surface-change`)로 올린다.
+- **출력 기본 처분: 쓰기 전에 검사하고, 기본은 오류다.**
+  - `serde_json::Value`는 비유한 수를 담지 못한다(`Number::from_f64`가 `None`). 그런데 derive 구조체의 `f64` 필드는 serde_json이 비유한 값을 `null`로 써 버린다.
+  - 그래서 기계 JSON을 쓰는 자리는 쓰기 전에 비유한 수를 찾고, 있으면 오류(그 bin의 실패 코드)로 끝낸다. 조용히 `null`로 쓰지 않는다.
+  - 지금 `NaN`·`Infinity` 토큰을 쓰는 자리(아래 표)를 다른 표기로 바꾸는 것은 값 변경이다. 소비자와 같은 cell에서 정하고 divergence `fixed-surface`(의미 `surface-change`)로 올린다.
 - 비유한 수의 생산자와 처분 cell. 셈은 JSON 값으로 쓰인 토큰만 센 것이다. 문자열 안의 "NaN" 글자까지 세는 grep은 55파일이다.
 
 | 자리 | 근거 | 지금 | 처분 cell |
@@ -187,13 +231,18 @@ PyYAML 1.1 해소, argparse 문구, Traceback 흉내)는 보존 대상이 아니
 | `Null`·`NULL` | **문자열**(`:705` null은 빈 값·`~`·`null`만. `!!null`도 `~`·`null`만 `:173-176`) | plain·태그 없는 `Null`·`NULL`을 Null로 본다(core schema·PyYAML과 같다) | 변환층이 맞춘다 |
 | 앞자리 0 정수(`010`), `0o17`, `0x1A` | `010`은 10진 10, `0o`·`0x`는 정수(`:691-698`) | 그대로 | 1.1은 `010` = 8, `0o17` = 문자열. 하네스 로더 입력에서 0건 |
 | `0b`·60진(`1:20`)·`_` 구분 수 | 문자열 | 그대로 | 하네스 로더 입력에서 0건 |
-| i64 밖 정수(`100000000000000000000`, `0xfff…`) | 10진은 **Real**(i64 실패 → `parse_f64` 성공 `:709-713`), 16·8진은 **문자열**(`from_str_radix` 실패) | plain·태그 없는 스칼라가 core int 모양(`[-+]?[0-9]+`, `0o[0-7]+`, `0x[0-9a-fA-F]+`)인데 Integer가 아니면 다음과 같다. 양의 10진이 u64 안이면 u64이고, 아니면 입력 오류다 | strictness. 픽스처 G33·R48K04 |
-| `.nan`·`.inf`·`-.inf`, `!!float nan` | Real(원문, `:62-72`·`:167-171`) | Real은 `f64`로 읽고, 비유한이면 입력 오류(4절 JSON 모델에 없다) | strictness. G31·G32·Y07·LM24 |
+| i64 밖 정수(`100000000000000000000`, `0xfff…`) | 10진은 **Real**(i64 실패 → `parse_f64` 성공 `:709-713`), 16·8진은 **문자열**(`from_str_radix` 실패) | 태그 없는 plain이 core int 모양(`[-+]?[0-9]+`, `0o[0-7]+`, `0x[0-9a-fA-F]+`)이면 정수다. 양수는 u64까지, 넘으면 입력 오류다(「Yaml→값 변환」 6) | strictness. 픽스처 G33·R48K04 |
+| `.nan`·`.inf`·`-.inf`(태그 없음), `!!float .nan` | Real(원문, `:62-72` `parse_f64`·`:167-171`) | 비유한 Real은 입력 오류(4절 JSON 모델에 없다) | strictness. G31·G32 |
+| `!!float nan`(점 없는 `nan`) | **`BadValue`**(`parse_f64`가 숫자 없는 `nan`을 받지 않는다 `:62-72`). base(PyYAML)는 NaN | 태그 붙은 스칼라는 그 태그의 core 해소로 판정하고(「Yaml→값 변환」 7), `nan`은 core float 모양이 아니므로 입력 오류 | strictness. Y07·LM24 |
 | 타임스탬프(`2026-01-01`) | 문자열 | 그대로 | date 타입(`Opaque`)을 버린다. 날짜 비교가 필요한 소비자는 문자열을 명시적으로 파싱한다 |
-| 병합 키 `<<` | 일반 문자열 키(병합 없음). 한 매핑의 두 번째 `<<`는 중복 키 오류(`:217-228`) | **h15: 변환층이 병합한다**(아래 규칙). YAML 1.2 밖의 명시적 확장이다 | 지금 로더와 같은 값. compose 두 파일·LM09 |
+| 병합 키 `<<` | 일반 문자열 키(병합 없음). 한 매핑의 두 번째 `<<`는 중복 키 오류(`:217-228`) | **h15: 변환층이 병합한다**(「Yaml→값 변환」 8). 둘째 `<<`도 병합이고 중복 검사에서 뺀다. YAML 1.2 밖의 명시적 확장이다 | 지금 로더와 같은 값. compose 두 파일·LM09 |
 | 중복 키 | `ScanError` "duplicated key in mapping"(`:217-227`) | 거부 그대로 | PyYAML은 뒤 값이 이긴다. 입력 오류(종료 2) — strictness. YT13 |
-| 태그 | 스칼라는 다음과 같다. plain 스칼라의 `tag:yaml.org,2002:` `bool`·`int`·`float`·`null`만 해석하고, 그 밖의 접미(`binary`·`timestamp`·`python/…`)와 다른 핸들은 **문자열로 두고 태그를 버린다**(`:150-185`). 인용 스칼라는 태그와 상관없이 문자열이다(`:151`). 컬렉션 태그는 버린다(`:136-142` `SequenceStart(aid, _)`·`MappingStart(aid, _)`) — `!!set`·`!!omap`은 보통 매핑·시퀀스가 된다 | core 태그(`!!str`·`!!bool`·`!!int`·`!!float`·`!!null`·`!!seq`·`!!map`)만 받는다. 그 밖은 입력 오류다. 인용 스칼라에 `!!str` 밖 태그가 붙어도 입력 오류다. `Yaml`에는 태그가 남지 않으므로 c30은 `yaml_rust2::parser::MarkedEventReceiver`를 직접 구현한다 | strictness. python 태그는 지금도 거부라 보존된다(IO09·LM13). `!!binary`·`!!set`·`!!omap`은 퇴역 |
-| 별칭·순환 | 별칭은 앵커 값의 복사본이다(`:189-196`). 앵커는 노드가 끝날 때 등록된다(`:202-205`). 그래서 자기 안을 가리키는 별칭은 `BadValue`다. 정의되지 않은 앵커는 파서 오류다(`parser.rs:676-681`) | `BadValue`·`Alias`가 하나라도 남으면 입력 오류 | PyYAML은 순환 구조를 만든다. strictness. YT15·YT16·R48K07·X10·LM22 |
+| 태그 | 스칼라는 다음과 같다. plain 스칼라의 `tag:yaml.org,2002:` `bool`·`int`·`float`·`null`만 해석하고 맞지 않는 값은 `BadValue`다. 그 밖의 접미(`binary`·`timestamp`·`python/…`)와 다른 핸들은 **문자열로 두고 태그를 버린다**(`:150-185`). plain이 아닌 스칼라는 태그와 상관없이 문자열이다(`:151`). 컬렉션 태그는 버린다(`:136-142`). 비특정 `!`(handle 빈 값·suffix `!`)와 verbatim `!<…>`(handle 빈 값)도 core 핸들이 아니므로 문자열이 된다(`scanner.rs:1136-1155`) | 「Yaml→값 변환」 4·5·7: 받는 태그는 core 7과 키 태그 둘(`<<`의 `!!merge`, `=`의 `!!value`)이다. verbatim core 태그는 shorthand와 같다. 비특정 `!` 스칼라, 그 밖의 태그, 태그와 노드 종류의 불일치는 입력 오류다. 태그 붙은 스칼라는 스타일과 상관없이 그 태그의 core 해소로 판정한다. `Yaml`에는 태그가 남지 않으므로 c30은 `yaml_rust2::parser::MarkedEventReceiver`를 직접 구현한다 | strictness(`!!binary`·`!!set`·`!!omap`·`!!timestamp`·`!!pairs`, 비특정 `!` 스칼라, base만 받던 태그 스칼라 텍스트). python 태그는 지금도 거부라 보존된다(IO09·LM13). `!!binary`·`!!set`·`!!omap`은 퇴역 |
+| 별칭·순환 | 별칭은 앵커 값의 복사본이다(`:189-196`). 앵커는 노드가 끝날 때 등록된다(`:202-205`). 그래서 자기 안을 가리키는 별칭은 `BadValue`다. 정의되지 않은 앵커는 파서 오류다(`parser.rs:674-681`) | 「Yaml→값 변환」 9: 열린 노드를 가리키는 별칭(순환)은 입력 오류 | PyYAML은 순환 구조를 만든다. strictness. YT15·YT16·R48K07·X10·LM22 |
+| 앵커 재정의(같은 이름 두 번) | 받는다. 파서가 새 id를 주고 뒤 별칭은 새 값을 가리킨다(`parser.rs:657-667`). `Event`에 이름이 없다 | 「Yaml→값 변환」 2: Scanner 선행 훑기로 거부 | base가 거부한다(`compose.rs:136-148`). 거부 보존. 입력 0건 |
+| 값 자리 plain `=` | 문자열 `"="` | 「Yaml→값 변환」 6: 입력 오류. 키 자리는 문자열 키 `"="` | base가 값 자리에서 거부한다(`compose.rs:775-783`). 거부 보존. 입력 0건 |
+| 부호 두 번·부호 붙은 16진·8진(`+-5`, `++5`, `0x-1`, `0o+7`) | 정수(`from_str` `:690-704`: `+`를 벗긴 뒤 `parse::<i64>`, `from_str_radix`가 부호를 받는다) | 「Yaml→값 변환」 6: core 정규식으로 직접 해소하므로 문자열 | base(1.1)도 문자열. 보존. 입력 0건 |
+| 1.1 문자열 → 1.2 실수(`1e5`, `1.0e5`, `1E5` — 1.1 float 정규식은 점과 부호 있는 지수가 필요하다) | Real(`parse_f64`가 Rust `f64` 파싱을 쓴다 `:62-72`) | core float → `f64` | 값이 문자열에서 수로 바뀐다. `yaml-1.2`. 하네스 로더 입력 0건(`runs/r4-sweep/yaml_tag_scan.out`) |
 | 문서 수 | `load_from_str` → `Vec<Yaml>`. 빈 입력·주석만은 문서 0개, `---`만은 `[Null]`, 여럿은 여럿이다 | 0개 → Null(PyYAML `safe_load`의 None), 1개 → 그 값, 2개 이상 → 입력 오류(PyYAML `ComposerError`와 같다) | 보존. IO06·IO07·LM03·LM04, LM10 |
 | BOM | 맨 앞 U+FEFF를 벗기지 않는다(`scanner.rs:828` TODO). BOM 처리는 `encoding` 기능의 `YamlDecoder` 몫인데(`yaml.rs:392`) `default-features = false`라 없다 | 입력 맨 앞 U+FEFF 하나를 벗긴다(PyYAML 스캐너와 같다) | 보존. IO12·LM15 |
 | 출력 불가 문자 | 스캐너가 c-printable을 검사하지 않는다(`char_traits.rs:114-122`는 emitter 쪽) | PyYAML Reader의 printable 집합 밖 문자는 입력 오류다. 대상은 탭·LF·CR을 뺀 C0, DEL, NEL을 뺀 C1, U+FFFE·U+FFFF다 | 보존. LM29 |
@@ -203,29 +252,79 @@ PyYAML 1.1 해소, argparse 문구, Traceback 흉내)는 보존 대상이 아니
 
 ### Yaml→값 변환 (c30 한 곳)
 
-runtime-support의 네이티브 YAML 층 하나가 다음을 한다. 소비 크레이트는 `yaml_rust2`를 직접 쓰지 않는다.
+runtime-support의 네이티브 YAML 층 하나가 아래 순서로 판정한다. 소비 크레이트는 `yaml_rust2`를 직접 쓰지 않는다. 어느 단계든 걸리면 입력 오류(11)다.
+- "base"는 지금 로더(`runtime-support/src/pyyaml/`, PyYAML 6.0.3 SafeLoader 이식)다. 줄 번호는 `compose.rs`·`parser.rs`(지금 로더), `yaml-rust2-0.13.0/src/{parser,scanner,yaml}.rs`(새 파서) 기준이다.
+- base와 다른 판정은 모두 divergence 행이다. 전에 받던 입력을 거부하면 `output`/`strictness`, 같은 입력의 값이 바뀌면 `output`/`yaml-1.2`다.
+- 현재 하네스 YAML 로더 입력(`yaml_inputs.tsv` `yaml_loader` yes, 추적 284·비추적 216)에서 이 절의 판정이 base와 갈리는 구성은 퇴역 픽스처(아래 「처분」 표)에만 있다.
+  비특정 `!`·verbatim 태그·앵커 재정의·plain `=`·`from_str` 모양 차이·둘째 `<<`·태그 붙은 블록 스칼라·1.1 문자열 → 1.2 수는 0건이다(c20 cell 폴더 `runs/r4-sweep/yaml_tag_scan.{py,out}`).
 
 1. **입력:** 바이트를 UTF-8로 읽는다(실패 → 입력 오류). 맨 앞 U+FEFF 하나를 벗긴다. printable 집합 밖 문자는 입력 오류다.
-2. **파싱:** `yaml_rust2::parser::Parser`와 c30의 `MarkedEventReceiver`를 쓴다. `YamlLoader`는 쓰지 않는다. 태그와 스칼라 스타일을 봐야 하고, 병합 키와 명시 중복 키를 가려야 하기 때문이다.
-3. **문서 수:** 0개는 Null, 1개는 그 값, 2개 이상은 입력 오류다. 지금 로더의 "빈 문서 → `{}`"(`safe_load(…) or {}`, 예: `harness_permission_probe.rs:197`)는 소비자 쪽 규칙이므로 소비자가 지금처럼 처리한다.
-4. **스칼라:**
-   - 인용 스칼라는 문자열이다.
-   - plain·태그 없는 스칼라는 yaml-rust2 `Yaml::from_str` 규칙을 따른다. 여기에 위 표의 `Null`·`NULL`과 i64 밖 정수 규칙을 더한다.
-   - 태그는 core 태그만 받는다. `!!int`·`!!float`·`!!bool`·`!!null`이 값과 맞지 않으면(yaml-rust2의 `BadValue`) 입력 오류다.
-5. **별칭:** 앵커 값의 복사본이다. 순환, 정의되지 않은 앵커, 남은 `BadValue`·`Alias`는 입력 오류다. 앵커를 다시 정의하면 그 뒤 별칭은 새 값을 가리킨다(yaml-rust2·PyYAML 같음).
-6. **매핑:**
-   - 키는 문자열만 받는다. 명시 키가 겹치면 입력 오류다.
-   - 병합 키 `<<`는 h15에 따라 지금 로더와 같은 규칙으로 푼다. 지금 로더는 `runtime-support/src/pyyaml/compose.rs:927-1006` `flatten_mapping`이다.
+2. **앵커 선행 훑기:** 파싱 전에 `yaml_rust2::scanner::Scanner`로 토큰을 훑는다. `TokenType::Anchor(name)`의 이름이 두 번 나오면 입력 오류다.
+   - base는 같은 문서 안의 앵커 재정의를 거부한다(`compose.rs:136-148` "found duplicate anchor"). 이 거부를 보존한다.
+   - yaml-rust2 파서는 재정의를 받아 새 id를 준다(`parser.rs:657-667` `register_anchor`). `Event`에는 앵커 id만 있고 이름이 없다(`parser.rs:52-80`). 그래서 이벤트 수신기만으로는 이 거부를 할 수 없다.
+   - 문서가 둘 이상이면 3에서 어차피 거부하므로, 스트림 전체를 한 이름 공간으로 본다.
+3. **파싱과 문서 수:** `yaml_rust2::parser::Parser`와 c30의 `MarkedEventReceiver`를 쓰고 `Parser::load(&mut recv, true)`로 부른다(multi = true). `YamlLoader`는 쓰지 않는다.
+   - `multi = false`면 첫 문서 뒤를 읽지 않고 끝난다(`parser.rs:376-388`). 그러면 "2개 이상 거부"를 할 수 없다.
+   - 문서 0개는 Null, 1개는 그 값, 2개 이상은 입력 오류다.
+   - 지금 로더의 "빈 문서 → `{}`"(`safe_load(…) or {}`, 예: `harness_permission_probe.rs:197`)는 소비자 쪽 규칙이므로 소비자가 지금처럼 처리한다.
+4. **태그 이름:** 수신기는 `Tag { handle, suffix }`(`parser.rs:84-89`)를 `handle + suffix`로 이어 전체 이름을 만든다.
+   - `!!int` → `tag:yaml.org,2002:int`. verbatim `!<tag:yaml.org,2002:int>` → 같은 이름(`scanner.rs:1136-1137`, handle 빈 값). 비특정 `!` → `!`(`scanner.rs:1149-1155`).
+   - base도 verbatim과 shorthand를 같은 전체 이름으로 푼다(`parser.rs:399-414`). 그래서 verbatim core 태그는 base와 같다.
+5. **받는 태그와 노드 종류:**
+   - 받는 태그는 core 7(`str`·`null`·`bool`·`int`·`float`·`seq`·`map`, 접두 `tag:yaml.org,2002:`)과 키 태그 둘이다.
+     - `!!merge`는 텍스트가 `<<`인 매핑 키에만 받는다. h15 병합 키다(base `flatten_mapping`, `compose.rs:941`).
+     - `!!value`는 텍스트가 `=`인 매핑 키에만 받고, 문자열 키 `"="`로 둔다(base `compose.rs:992-993`).
+     - 다른 자리의 `!!merge`·`!!value`는 입력 오류다. 값 자리는 base도 거부한다(생성자 없음, `compose.rs:775-783`). 다른 텍스트의 키에 붙은 것은 base가 받으므로 그 거부는 strictness다.
+   - 비특정 `!`:
+     - 컬렉션에 붙으면 태그 없음과 같다(base `compose.rs:238-242`와 같다).
+     - 스칼라에 붙으면 입력 오류다. base는 `! 123`을 plain처럼 1.1 해소하고(정수), 인용한 `! "123"`도 해소한다(`compose.rs:200-203`, `parser.rs:442-444`). YAML 1.2는 문자열로 본다.
+       두 의미가 갈리고 하네스 입력에 0건이므로 받지 않는다. divergence `output`/`strictness` 행이다.
+   - 그 밖의 태그는 입력 오류다. `!!binary`·`!!timestamp`·`!!set`·`!!omap`·`!!pairs`는 base가 받으므로(`compose.rs:745-772`) strictness다. `!!python/…`·로컬 `!x`·다른 핸들은 base도 거부한다(보존).
+   - 태그와 노드 종류가 어긋나면 입력 오류다. 스칼라 태그가 붙은 컬렉션, `!!seq`·`!!map`이 붙은 스칼라, `!!seq`가 붙은 매핑 등이다. base도 거부한다(`compose.rs:723-736`·`:791-805`·`:892-898`).
+     - 예외 하나: base는 `!!str`이 붙은 매핑이 `=` 키를 가지면 그 값의 스칼라를 쓴다(`compose.rs:714-722`, PyYAML `construct_scalar`). 변환층은 거부한다(strictness).
+6. **태그 없는 스칼라:**
+   - plain: c30이 YAML 1.2 core schema 정규식으로 직접 해소한다.
+     - null `~`·`null`·`Null`·`NULL`·빈 값. bool `true`·`True`·`TRUE`·`false`·`False`·`FALSE`.
+     - int `[-+]?[0-9]+`·`0o[0-7]+`·`0x[0-9a-fA-F]+`. float `[-+]?(\.[0-9]+|[0-9]+(\.[0-9]*)?)([eE][-+]?[0-9]+)?`·`[-+]?\.(inf|Inf|INF)`·`\.(nan|NaN|NAN)`. 그 밖은 문자열.
+     - `Yaml::from_str`(`yaml.rs:690-718`)는 쓰지 않는다. core 밖 모양을 수로 받기 때문이다.
+       `+-5`·`++5`는 `+`를 벗긴 뒤 `parse::<i64>`가 부호를 또 받아 정수가 된다. `0x-1`·`0o+7`은 `from_str_radix`가 부호를 받아 정수가 된다. core에서 이들은 문자열이다.
+     - 키 자리 plain `<<`는 병합 키다(8). 키 자리 plain `=`는 문자열 키 `"="`다(base와 같다).
+     - 값 자리(매핑 값·시퀀스 원소·문서 뿌리)의 plain `=`는 입력 오류다. base는 `=`를 `tag:yaml.org,2002:value`로 해소하고, 값 자리에서는 생성자가 없어 거부한다(`compose.rs:775-783`). 이 거부를 보존한다.
+   - plain이 아닌 스칼라(인용 `'…'`·`"…"`, 블록 `|`·`>`)는 문자열이다.
+7. **태그 붙은 스칼라:** 스타일(plain·인용·블록)과 상관없이 그 태그의 core schema 해소로 판정한다.
+   - yaml-rust2 `YamlLoader`의 판정(`yaml.rs:150-185`: plain이 아니면 태그를 보지 않고 문자열, 맞지 않는 값은 `BadValue`)은 쓰지 않는다. base(PyYAML)도 `!!int "5"`를 정수 5로 만든다.
+   - `!!str`: 텍스트 그대로.
+   - `!!null`: core null 모양(`~`·`null`·`Null`·`NULL`·빈 값)이면 Null이다. `!!null`(빈 값)·`!!null Null`은 base와 같다.
+     그 밖의 텍스트는 입력 오류다. base는 텍스트와 상관없이 None이다(`compose.rs:747-750`). 그 거부는 strictness다.
+   - `!!bool`: core bool 모양만 받는다. base는 `yes`·`no`·`on`·`off`와 대소문자를 섞은 철자도 받는다(`compose.rs:1008-1015`). 그 거부는 strictness다.
+   - `!!int`: core int 모양이다. 10진은 i64, 양수는 u64까지다. 16진·8진은 u64까지다. 범위 밖은 입력 오류다.
+     - `!!int 0x1A` = 26, u64 값은 base와 같다.
+     - `!!int 0o17` = 15다. base는 거부한다(`0`으로 시작해 8진으로 읽다가 `o`에서 실패, `compose.rs:1049-1050`). 받아들이게 되는 차이라 `output`/`yaml-1.2`다.
+     - `!!int 010` = 10이다. base는 8이다(`yaml-1.2`).
+     - `_` 구분(`1_000`)·60진(`1:20`)·`0b101`은 base가 받는다(`compose.rs:1017-1066` `int_value`). 그 거부는 strictness다.
+   - `!!float`: core float 모양이다. 정수 모양 `!!float 1`은 1.0이다(base와 같다).
+     - 비유한(`.inf`·`.nan`)은 입력 오류다(4절 JSON 모델에 없다).
+     - 모양 밖(`nan`·`1_0.5`·60진)도 입력 오류다. `!!float nan`은 base에서 NaN이고, yaml-rust2에서는 `BadValue`다(`parse_f64`가 숫자 없는 `nan`을 받지 않는다, `yaml.rs:62-72`). 어느 쪽이든 퇴역 픽스처 Y07·LM24의 처분과 같다.
+   - base가 받는 태그 스칼라를 더 거부하려면 strictness 행으로 열거하고 이 목록에 더한다.
+8. **매핑:**
+   - 키는 문자열만 받는다. 태그 없는 plain이 문자열로 해소된 것, 인용, `!!str`, `!!value` `=`이다. 나머지(수·bool·Null·컬렉션 키)는 입력 오류이고, 문자열화하지 않는다(`1`과 `"1"`이 부딪친다).
+   - 명시 키가 겹치면 입력 오류다. 병합 키 `<<`는 이 검사에서 뺀다. 한 매핑의 둘째 `<<`도 병합 키다.
+     yaml-rust2 `YamlLoader`는 `<<`를 일반 문자열 키로 보므로 둘째 `<<`를 중복 키 오류로 낸다(`yaml.rs:217-228`). 수신기는 그렇게 하지 않는다.
+   - 병합 키 `<<`는 h15에 따라 지금 로더와 같은 규칙으로 푼다. 지금 로더는 `compose.rs:927-1006` `flatten_mapping`이다.
      - 병합 키는 plain·태그 없는(또는 `!!merge`) 스칼라 `<<`다. 인용한 `"<<"`는 일반 키다.
      - 값이 매핑이면 그 매핑의 병합을 먼저 풀고, 그 항목을 병합 목록에 잇는다.
      - 값이 매핑의 시퀀스면 각 매핑을 풀어 **뒤에서 앞으로** 잇는다. 그 밖의 값(스칼라, 매핑이 아닌 원소)은 입력 오류다.
      - 한 매핑의 `<<`가 여럿이면 나온 차례로 모두 푼다.
      - 결과 항목은 "병합 목록 + 명시 항목" 순서다. 같은 키는 처음 나온 자리에 두고 값은 마지막 것이 이긴다. 그래서 명시 키가 병합 키를 이기고, 시퀀스 안에서는 앞 매핑이 뒤 매핑을 이긴다.
        병합으로 생긴 겹침은 중복 키 오류가 아니다.
-     - 키 `=`(`!!value`)는 지금 로더처럼 문자열 키로 둔다.
-7. **수:** 정수는 i64, 위 규칙의 u64를 쓴다. Real은 `f64`로 읽어 유한할 때만 `serde_json::Number::from_f64`로 옮기고, 그 밖은 입력 오류다.
-8. **결과:** `serde_json::Value`다. 매핑 키 순서는 문서 순서다(키 순서 결정은 4절).
-9. **오류:** 오류 값은 하나(종류·줄·열)다. 문구는 L3다. 소비자가 내는 종료 코드는 지금 그 소비자가 파싱 실패에 내는 코드다. 예를 들어 `manifest_contract`는 2(`manifest 파싱 실패`)이고, `_load_manifest` API는 예외를 낸다.
+9. **별칭:** 앵커가 붙은 노드의 값을 복사한다. 앵커 id가 가리키는 노드가 아직 끝나지 않았는데 그 별칭이 오면(순환) 입력 오류다.
+   - yaml-rust2는 앵커를 노드 시작에서 등록하므로(`parser.rs:689-692`) 자기 안의 별칭도 id를 받는다. 수신기는 열린 노드의 id 집합을 들고 이 경우를 가린다.
+   - 정의되지 않은 앵커는 파서 오류다(`parser.rs:674-681`). 재정의는 2에서 걸린다.
+10. **수와 결과:**
+    - 정수는 i64, 6·7 규칙의 u64를 쓴다. 실수는 `f64`로 읽어 유한할 때만 `serde_json::Number::from_f64`로 옮기고, 그 밖은 입력 오류다.
+    - 결과는 `serde_json::Value`다. 매핑 키 순서는 문서 순서다. 단 serde_json `preserve_order`가 켜졌을 때만이다. 꺼져 있으면 `Map`이 키를 정렬한다(4절 「키 순서」, c30 결정).
+11. **오류:** 오류 값은 하나(종류·줄·열)다. 문구는 L3다. 소비자가 내는 종료 코드는 지금 그 소비자가 파싱 실패에 내는 코드다.
+    예를 들어 `manifest_contract`는 2(`manifest 파싱 실패`)이고, `_load_manifest` API는 예외를 낸다.
 
 ### 추적 manifest_contract 픽스처의 처분
 
@@ -234,7 +333,10 @@ runtime-support의 네이티브 YAML 층 하나가 다음을 한다. 소비 크�
   - `checks/data/manifest_contract_api/manifests/<ID>__*.yaml`(API 골든 `api87.json`의 `RETURNED`·`RAISED`).
 - 로더의 파서를 바꾸는 cell(c31-role-contract)이 같은 cell에서 아래처럼 한다. 퇴역 행의 원장 기록은 c60이 한다.
   - 보존 행은 기대값을 그대로 둔다.
-  - 퇴역 행은 골든 행을 빼거나 기대 종료 코드를 2로 바꾸고, divergence `output`(의미 `strictness`)와 `test_delta.tsv`를 올린다.
+  - 퇴역 행은 골든 행을 **빼지 않는다.** 변환층이 그 입력을 실제로 거부하는지 계속 보기 위해서다.
+    - 4회차 퇴역 21개: CLI 골든은 기대 종료 코드를 2로 바꾼다. API 골든(`api87.json`)의 LM22·LM24는 `RETURNED`를 `RAISED`로 바꾼다.
+    - 1회차 퇴역 10개(1.1 해소): 기대값을 새 파서의 값으로 바꾼다.
+    - divergence `output`(의미 `strictness`, 1회차 10개는 `yaml-1.2`)을 올린다. 시험을 빼지 않으므로 `test_delta.tsv`는 없다.
 - 처분 결과(`yaml_inputs.tsv` `disposition`): 변환층 보존 7, 변환층 거부로 base 종료 코드 보존 16, 퇴역 21이다. 이미 퇴역이던 10개는 그대로다.
 
 | 처분 | 픽스처(base 기대) | 이유 |
@@ -249,10 +351,10 @@ runtime-support의 네이티브 YAML 층 하나가 다음을 한다. 소비 크�
 | 손대지 않음 — 변환층 거부로 base 종료 코드 보존 | IO08·IO10·QYa·QYb·R48K01(종료 2), LM11·LM12(`RAISED`) | 문법 오류. c31이 실행으로 확인 |
 | 퇴역 | Y03·Y04·Y06·YT20·R48K05(종료 1, Traceback), Y05(종료 0) | `!!binary` 거부 → 종료 2 |
 | 퇴역 | YT21(종료 1), YT22(종료 0) | `!!set`·`!!omap` 거부 |
-| 퇴역 | G31(종료 1), G32(종료 5), Y07(종료 0), LM24(값) | `.nan`·`.inf` 거부 |
+| 퇴역 | G31(종료 1), G32(종료 5), Y07(종료 0), LM24(값 → `RAISED`) | 비유한 실수 거부(`.nan`·`.inf`, `!!float nan`) |
 | 퇴역 | G33(종료 0) | 1e20 정수, i64·u64 밖 거부 |
 | 퇴역 | R48K04(종료 1, `0xfff…` 키), R48K08(종료 1, 실수 키) | 비문자열·범위 밖 키 거부 |
-| 퇴역 | YT15(종료 0), YT16·R48K07·X10(종료 1), LM22(값) | 순환 별칭 거부 |
+| 퇴역 | YT15(종료 0), YT16·R48K07·X10(종료 1), LM22(값 → `RAISED`) | 순환 별칭 거부 |
 | 퇴역 | YT13(종료 6, 뒤 `topology: multi`가 이김) | 중복 키 거부 |
 | 퇴역(1회차 그대로) | X05~X09·Y01·YT17~YT19·LM21 | 타임스탬프·`yes` 등 1.1 해소 |
 
@@ -268,7 +370,7 @@ runtime-support의 네이티브 YAML 층 하나가 다음을 한다. 소비 크�
 - YAML 쓰기(지금 `pyyaml::dump`는 recipe `simlog.rs:735`의 `trialNN_candidate.yaml` 하나뿐)는 `yaml_rust2::YamlEmitter`로 옮긴다. 그 파일은 사람용 산출물이며
   하네스가 다시 읽지 않는다(`recipe_cmd/simulate_body.rs:194`). 바이트 차이는 `golden`.
 - `wiki-desk/rust`의 `yaml11_oracle`(PyYAML 6.0.1 해소 손 재현)은 c45가 "하네스 YAML 파서로 문자열 왕복" 검사로 바꾼다(plan c45). frontmatter.check.ts의 기대값도 그때 고친다.
-  wiki-desk `checks/contract_checks.rs:60-79`가 지금 고정한 PyYAML 1.1 의미(`yes` → bool, `017`, 타임스탬프, 중복 키 뒤 값)도 그때 바꾼다(검토 B-B4).
+  wiki-desk `checks/contract_checks.rs`(c21 a)는 YAML 1.1과 1.2가 같게 해소하는 스칼라만 고정한다(`:62-66` `plain_scalars_show_their_resolution`). 1.1 전용 해소(`yes`·앞자리 0 8진·타임스탬프·중복 키)는 고정하지 않으므로 c45가 오라클을 바꿔도 그 시험은 그대로 돈다.
 - 오류: `ScanError`의 위치(줄·열)는 사람용 메시지(L3)로만 쓴다. PyYAML 문구·Traceback·`RecursionError` 흉내(`pyyaml/frames.rs`, `sites.rs`)는 버린다.
 
 ### yaml_inputs.tsv (YAML 1.1 의존 입력 인벤토리)
@@ -283,6 +385,8 @@ runtime-support의 네이티브 YAML 층 하나가 다음을 한다. 소비 크�
   - 메인 비추적 817개 중 하네스 YAML 로더가 읽는 216개(manifest 4, 캠페인 54, 서빙 설정 157, bench preset 1)에 1.1 의존 토큰이 **0**이다.
   - 16토큰이 있는 75개는 인증서 30(flat 파서, 4절 위), 외부 크레이트 CI 설정 43, parity 원시 1, 서브 회수 미러 1이다.
   - 따라서 메인의 이전 대상은 없다. h11로 결정됐다: wd-yaml 메인 몫은 이전 0이고, 하네스가 YAML로 읽는 216개가 구·신 파서에서 같은 값인지 `yaml_compat compare3`로 대조만 한다. 서브 몫은 plan대로다.
+  - **wd-yaml 서브 몫 메모:** 서브 파일은 1.1 bool 토큰 대조에 더해 변환층 거부 부류에 걸리는지도 센다. 부류는 core 밖 태그, 비특정 `!` 스칼라, 비유한 실수, 범위 밖 정수, 중복 키, 순환 별칭, 앵커 재정의, 비문자열 키, 값 자리 `=`, 2개 이상 문서다.
+    걸리는 서브 파일이 있으면 서브 로더가 바뀌기 전에 사람에게 넘긴다. 메인 216개는 이 부류 0건이다(`runs/r3-sweep`·`runs/r4-sweep`).
   - 추적 입력의 퇴역은 31개다(위 「추적 manifest_contract 픽스처의 처분」). compose 두 파일(`output/{single,multi}/docker-compose.yaml`)은 하네스 YAML 로더가 읽는다(`yaml_loader` yes). h15 병합으로 손대지 않는다.
 
 ## 6. py* 계층 대체 대응표
@@ -307,6 +411,8 @@ runtime-support의 네이티브 YAML 층 하나가 다음을 한다. 소비 크�
   브리지와 py*는 c60이 빌드에서 빼고 `delete.txt`에 적는다.
 - **브리지 방향(손실 변환은 두지 않는다):**
   - `Value → PyValue`는 전체 `From`이다. 실패가 없다.
+    - 전제: 브리지에 들어오는 `Value`는 4절 읽기 검사(범위 밖 정수 거부)를 지난 값이다. 그래서 `Number`는 i64·u64·유한 f64 셋뿐이다.
+      `arbitrary_precision`을 켜면 `Number`가 범위 밖 정수 원문을 들 수 있으므로, 읽기 검사를 거치지 않은 값은 브리지에 넣지 않는다.
     - Null → None, Bool → Bool, Number(i64·u64) → Int, Number(f64) → Float, String → Str, Array → List.
     - Object → Dict(문자열 키, 순서 유지).
   - `PyValue → Value`는 `TryFrom`이다. 실패하는 값은 다음과 같다.
