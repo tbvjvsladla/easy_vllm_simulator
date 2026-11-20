@@ -68,10 +68,14 @@ fn notice(rows: &[(&str, &str, &str)]) -> String {
     text
 }
 
-const HARNESS_MANIFEST: &str = "[package]\nname = \"a\"\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[dependencies]\nsyn = { version = \"3.0.9\" }\n";
+/// One of the 16 harness crates of the closed list (`src/crate_allow/harness.rs`), at its own path.
+const LOCK_REL: &str = ".claude/rust/py-boundary-guard/Cargo.lock";
+const MANIFEST_REL: &str = ".claude/rust/py-boundary-guard/Cargo.toml";
+const HARNESS: (&str, &str, Option<&str>) = ("py-boundary-guard", "0.1.0", None);
+const HARNESS_MANIFEST: &str = "[package]\nname = \"py-boundary-guard\"\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[dependencies]\nsyn = { version = \"3.0.9\" }\n";
 
-/// A repository whose one tracked lock pins `syn 3.0.9` and the harness package `a 0.1.0` (its tracked `a/Cargo.toml`
-/// sits beside the lock), fully listed, noticed and downloaded.
+/// A repository whose one tracked lock pins `syn 3.0.9` and the harness package `py-boundary-guard 0.1.0` (its
+/// tracked manifest at the path the closed list names), fully listed, noticed and downloaded.
 fn clean_repo(name: &str) -> Repo {
     let dir = std::env::temp_dir().join(format!("crate-allow-{}-{}", name, std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
@@ -79,8 +83,8 @@ fn clean_repo(name: &str) -> Repo {
     git(&dir, &["init", "-q"]);
     write(
         &dir,
-        "a/Cargo.lock",
-        &lock(&[("a", "0.1.0", None), ("syn", "3.0.9", Some(CRATES_IO))]),
+        LOCK_REL,
+        &lock(&[HARNESS, ("syn", "3.0.9", Some(CRATES_IO))]),
     );
     write(
         &dir,
@@ -93,8 +97,8 @@ fn clean_repo(name: &str) -> Repo {
         &notice(&[("syn", "3.0.9", "MIT OR Apache-2.0")]),
     );
     downloaded(&dir, "syn", "3.0.9", "MIT OR Apache-2.0");
-    write(&dir, "a/Cargo.toml", HARNESS_MANIFEST);
-    git(&dir, &["add", "a/Cargo.lock", "a/Cargo.toml"]);
+    write(&dir, MANIFEST_REL, HARNESS_MANIFEST);
+    git(&dir, &["add", LOCK_REL, MANIFEST_REL]);
     Repo(dir)
 }
 
@@ -140,49 +144,136 @@ fn listed_noticed_and_downloaded_release_passes_with_the_marker_last() {
 }
 
 #[test]
-fn a_path_package_must_be_a_tracked_manifest_beside_a_tracked_lock() {
+fn a_path_package_must_be_one_of_the_listed_harness_crates() {
+    const ID: &str = "py-boundary-guard@0.1.0";
     // A source-less package that no manifest declares (a vendored copy named only in the lock).
     let repo = clean_repo("path-stray");
     write(
         &repo.0,
-        "a/Cargo.lock",
+        LOCK_REL,
         &lock(&[
-            ("a", "0.1.0", None),
+            HARNESS,
             ("vendored", "1.0.0", None),
             ("syn", "3.0.9", Some(CRATES_IO)),
         ]),
     );
     assert_violation(&check(&repo), "path-unknown", "vendored@1.0.0");
 
-    // The manifest beside the lock declares another version than the lock pins.
+    // The listed manifest declares another version than the list and the lock.
     let repo = clean_repo("path-version");
-    write(&repo.0, "a/Cargo.toml", &HARNESS_MANIFEST.replace("0.1.0", "0.2.0"));
-    git(&repo.0, &["add", "a/Cargo.toml"]);
-    assert_violation(&check(&repo), "path-unknown", "a@0.1.0");
+    write(
+        &repo.0,
+        MANIFEST_REL,
+        &HARNESS_MANIFEST.replace("0.1.0", "0.2.0"),
+    );
+    git(&repo.0, &["add", MANIFEST_REL]);
+    assert_violation(&check(&repo), "path-unknown", ID);
+
+    // The tripwire: the version raised in the manifest and the lock together, the closed list unchanged.
+    let repo = clean_repo("path-bumped");
+    write(
+        &repo.0,
+        MANIFEST_REL,
+        &HARNESS_MANIFEST.replace("0.1.0", "0.2.0"),
+    );
+    write(
+        &repo.0,
+        LOCK_REL,
+        &lock(&[
+            ("py-boundary-guard", "0.2.0", None),
+            ("syn", "3.0.9", Some(CRATES_IO)),
+        ]),
+    );
+    git(&repo.0, &["add", MANIFEST_REL, LOCK_REL]);
+    assert_violation(&check(&repo), "path-unknown", "py-boundary-guard@0.2.0");
 
     // A tracked manifest without its own tracked lock is not a harness package.
     let repo = clean_repo("path-vendored");
     write(
         &repo.0,
-        "a/Cargo.lock",
+        LOCK_REL,
         &lock(&[
-            ("a", "0.1.0", None),
+            HARNESS,
             ("v", "1.0.0", None),
             ("syn", "3.0.9", Some(CRATES_IO)),
         ]),
     );
     write(
         &repo.0,
-        "a/vendor/v/Cargo.toml",
+        ".claude/rust/py-boundary-guard/vendor/v/Cargo.toml",
         "[package]\nname = \"v\"\nversion = \"1.0.0\"\n",
     );
-    git(&repo.0, &["add", "a/vendor/v/Cargo.toml"]);
+    git(
+        &repo.0,
+        &["add", ".claude/rust/py-boundary-guard/vendor/v/Cargo.toml"],
+    );
     assert_violation(&check(&repo), "path-unknown", "v@1.0.0");
 
-    // The manifest of the lock's own crate untracked: its package is unknown too.
+    // A 17th crate with its own tracked manifest and lock (a vendored copy tracked with its lock looks the same).
+    let repo = clean_repo("path-17th");
+    write(
+        &repo.0,
+        LOCK_REL,
+        &lock(&[
+            HARNESS,
+            ("b", "0.2.0", None),
+            ("syn", "3.0.9", Some(CRATES_IO)),
+        ]),
+    );
+    write(
+        &repo.0,
+        "b/Cargo.toml",
+        "[package]\nname = \"b\"\nversion = \"0.2.0\"\n",
+    );
+    write(&repo.0, "b/Cargo.lock", &lock(&[("b", "0.2.0", None)]));
+    git(&repo.0, &["add", "b/Cargo.toml", "b/Cargo.lock"]);
+    let out = check(&repo);
+    assert_violation(&out, "path-unknown", "b@0.2.0");
+    assert!(
+        !stdout(&out).contains(ID),
+        "the listed harness crate passes: {}",
+        stdout(&out)
+    );
+
+    // The listed crate's manifest untracked: its package is unknown too.
     let repo = clean_repo("path-untracked");
-    git(&repo.0, &["rm", "-q", "--cached", "a/Cargo.toml"]);
-    assert_violation(&check(&repo), "path-unknown", "a@0.1.0");
+    git(&repo.0, &["rm", "-q", "--cached", MANIFEST_REL]);
+    assert_violation(&check(&repo), "path-unknown", ID);
+
+    // The listed name and version at another path is not the listed crate.
+    let repo = clean_repo("path-elsewhere");
+    git(&repo.0, &["rm", "-q", "--cached", MANIFEST_REL, LOCK_REL]);
+    write(&repo.0, "elsewhere/Cargo.toml", HARNESS_MANIFEST);
+    write(
+        &repo.0,
+        "elsewhere/Cargo.lock",
+        &lock(&[HARNESS, ("syn", "3.0.9", Some(CRATES_IO))]),
+    );
+    git(
+        &repo.0,
+        &["add", "elsewhere/Cargo.toml", "elsewhere/Cargo.lock"],
+    );
+    assert_violation(&check(&repo), "path-unknown", ID);
+}
+
+#[test]
+fn lock_table_headers_cargo_does_not_write_exit_2() {
+    for (tag, header) in [
+        ("hdr-spaced", "[[ package ]]"),
+        ("hdr-comment", "[[package]] # pinned by hand"),
+        ("hdr-indented", "  [[package]]"),
+        ("hdr-other", "[workspace]"),
+    ] {
+        let repo = clean_repo(tag);
+        let text = lock(&[HARNESS, ("syn", "3.0.9", Some(CRATES_IO))]).replacen(
+            "\n[[package]]\nname = \"syn\"",
+            &format!("\n{header}\nname = \"syn\""),
+            1,
+        );
+        assert!(text.contains(header), "{tag}");
+        write(&repo.0, LOCK_REL, &text);
+        assert_exit_2(&check(&repo), "a table header other than");
+    }
 }
 
 #[test]
@@ -190,7 +281,7 @@ fn unlisted_release_fails() {
     let repo = clean_repo("unlisted");
     write(
         &repo.0,
-        "a/Cargo.lock",
+        LOCK_REL,
         &lock(&[
             ("syn", "3.0.9", Some(CRATES_IO)),
             ("quote", "1.0.47", Some(CRATES_IO)),
@@ -205,7 +296,7 @@ fn other_version_than_the_allowlist_fails() {
     let repo = clean_repo("version");
     write(
         &repo.0,
-        "a/Cargo.lock",
+        LOCK_REL,
         &lock(&[("syn", "3.0.10", Some(CRATES_IO))]),
     );
     downloaded(&repo.0, "syn", "3.0.10", "MIT OR Apache-2.0");
@@ -295,7 +386,7 @@ fn git_source_is_refused_even_when_listed() {
     let repo = clean_repo("git");
     write(
         &repo.0,
-        "a/Cargo.lock",
+        LOCK_REL,
         &lock(&[("syn", "3.0.9", Some("git+https://example.invalid/syn#0"))]),
     );
     assert_violation(&check(&repo), "source", "syn@3.0.9");
@@ -313,8 +404,8 @@ fn unreadable_or_repeated_lock_keys_exit_2() {
     let repo = clean_repo("literal-source");
     write(
         &repo.0,
-        "a/Cargo.lock",
-        &lock(&[("a", "0.1.0", None)]).replace(
+        LOCK_REL,
+        &lock(&[HARNESS]).replace(
             "version = \"0.1.0\"\n",
             "version = \"0.1.0\"\n\n[[package]]\nname = \"syn\"\nversion = \"3.0.9\"\nsource = 'registry+https://github.com/rust-lang/crates.io-index'\n",
         ),
@@ -324,21 +415,23 @@ fn unreadable_or_repeated_lock_keys_exit_2() {
     let repo = clean_repo("twice");
     write(
         &repo.0,
-        "a/Cargo.lock",
-        &lock(&[("a", "0.1.0", None), ("syn", "3.0.9", Some(CRATES_IO))])
-            .replace("version = \"3.0.9\"\n", "version = \"3.0.9\"\nversion = \"3.0.8\"\n"),
+        LOCK_REL,
+        &lock(&[HARNESS, ("syn", "3.0.9", Some(CRATES_IO))]).replace(
+            "version = \"3.0.9\"\n",
+            "version = \"3.0.9\"\nversion = \"3.0.8\"\n",
+        ),
     );
     assert_exit_2(&check(&repo), "a second version");
 
     let repo = clean_repo("empty-lock");
-    write(&repo.0, "a/Cargo.lock", "version = 4\n");
+    write(&repo.0, LOCK_REL, "version = 4\n");
     assert_exit_2(&check(&repo), "no [[package]] entry");
 }
 
 #[test]
 fn no_tracked_lock_exits_2() {
     let repo = clean_repo("nolock");
-    git(&repo.0, &["rm", "-q", "--cached", "a/Cargo.lock"]);
+    git(&repo.0, &["rm", "-q", "--cached", LOCK_REL]);
     assert_exit_2(&check(&repo), "no tracked Cargo.lock");
 }
 
@@ -347,10 +440,13 @@ fn unreadable_harness_manifest_exits_2() {
     let repo = clean_repo("workspace-version");
     write(
         &repo.0,
-        "a/Cargo.toml",
-        "[package]\nname = \"a\"\nversion.workspace = true\n",
+        MANIFEST_REL,
+        "[package]\nname = \"py-boundary-guard\"\nversion.workspace = true\n",
     );
-    assert_exit_2(&check(&repo), "a/Cargo.toml: no [package] name or no [package] version");
+    assert_exit_2(
+        &check(&repo),
+        ".claude/rust/py-boundary-guard/Cargo.toml: no [package] name or no [package] version",
+    );
 }
 
 #[test]
@@ -387,7 +483,11 @@ fn non_utf8_arguments_and_tracked_lock_paths_exit_2() {
     let repo = clean_repo("non-utf8-lock");
     let odd = repo.0.join(OsStr::from_bytes(b"\xffb"));
     std::fs::create_dir_all(&odd).unwrap();
-    std::fs::write(odd.join("Cargo.lock"), lock(&[("syn", "3.0.9", Some(CRATES_IO))])).unwrap();
+    std::fs::write(
+        odd.join("Cargo.lock"),
+        lock(&[("syn", "3.0.9", Some(CRATES_IO))]),
+    )
+    .unwrap();
     let s = Command::new("git")
         .arg("-C")
         .arg(&repo.0)
@@ -408,7 +508,7 @@ fn input_errors_exit_2() {
     assert!(String::from_utf8_lossy(&out.stderr).contains("lacks the column 'license'"));
 
     let repo = clean_repo("badlock");
-    write(&repo.0, "a/Cargo.lock", "[[package]]\nname = \"syn\"\n");
+    write(&repo.0, LOCK_REL, "[[package]]\nname = \"syn\"\n");
     assert_eq!(check(&repo).status.code(), Some(2));
 
     let out = Command::new(bin()).arg("verify").output().unwrap();

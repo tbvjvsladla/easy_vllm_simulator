@@ -11,8 +11,9 @@
 //! An allowlist row that no lock pins yet (a release approved ahead of its first use) passes 3 on the expression
 //! alone when its source is not downloaded; once downloaded, its manifest must agree.
 //!
-//! A source-less (path) package is exempt from 1–4 only when it is a harness package: the `[package]` name and
-//! version of a tracked `Cargo.toml` beside a tracked `Cargo.lock` (`harness.rs`). Any other is `path-unknown`.
+//! A source-less (path) package is exempt from 1–4 only when it is a harness package: one of the 16 entries of the
+//! closed list `harness::HARNESS_CRATES` whose tracked `Cargo.toml` declares exactly that name and version. Any other
+//! is `path-unknown` (a vendored copy, a 17th crate with or without its own lock, a version moved without the list).
 //!
 //! Only the `crate`, `version` and `license` columns of the allowlist and of the notice are read. The other columns
 //! (`transitive`, `scope`, `origin`, `locks`, `use`, `reason`; the notice's `used by`) are values written when the
@@ -28,7 +29,8 @@
 //! Output: one `DEPS-VIOLATION <kind> <crate>@<version> <detail>` line per finding on stdout, then a summary line;
 //! on a pass the last line is `DEPS-ALLOW-PASS`.
 //! exit: 0 pass · 1 violations · 2 usage or input error (an unreadable or malformed table, lock or harness manifest,
-//! no tracked lock at all, a tracked lock or manifest path or an argument that is not UTF-8: fail closed).
+//! a lock table header Cargo does not write, no tracked lock at all, a tracked lock or manifest path or an argument
+//! that is not UTF-8: fail closed).
 
 mod harness;
 mod license;
@@ -276,9 +278,10 @@ fn check_path_packages(
     for ((name, version), locks) in path {
         if !harness.contains(&(name.clone(), version.clone())) {
             violations.push(format!(
-                "DEPS-VIOLATION path-unknown {name}@{version} {}: a package without source that no tracked Cargo.toml \
-                 beside a tracked Cargo.lock declares",
-                where_pinned(locks)
+                "DEPS-VIOLATION path-unknown {name}@{version} {}: a package without source that is not one of the {} \
+                 harness crates (harness.rs HARNESS_CRATES, as their tracked Cargo.toml declare them)",
+                where_pinned(locks),
+                harness::HARNESS_CRATES.len()
             ));
         }
     }
@@ -311,7 +314,7 @@ fn run(opts: &Options) -> Result<bool, String> {
         ));
     }
     let manifests = named(&tracked, "Cargo.toml")?;
-    let harness = harness::packages(repo, &locks, &manifests)?;
+    let harness = harness::packages(repo, &manifests)?;
     let pinned = pinned_releases(repo, &locks)?;
 
     let mut violations = Vec::new();

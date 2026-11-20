@@ -5,6 +5,11 @@
 //! spelling Cargo writes), the same one of those keys twice in one package, a package without name or version, and
 //! a lock without any package are input errors. A `source` line that cannot be read would otherwise turn an external
 //! package into a path package.
+//!
+//! Table headers are read only in the spelling Cargo writes: a line that starts with `[` must be exactly one of
+//! `KNOWN_HEADERS`, at the start of the line. `[[ package ]]`, a header followed by a comment, an indented header
+//! and any other table are input errors — read loosely, such a line would hide a package or give its keys to the
+//! package above it.
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LockedPackage {
@@ -56,6 +61,9 @@ struct PartialPackage {
     first_line: usize,
 }
 
+/// The table headers Cargo writes into a lock (format versions 1–4).
+const KNOWN_HEADERS: [&str; 3] = ["[[package]]", "[metadata]", "[[patch.unused]]"];
+
 /// The package keys the check reads; each must be readable and appear at most once per package.
 const READ_KEYS: [&str; 3] = ["name", "version", "source"];
 
@@ -90,11 +98,20 @@ pub fn parse(text: &str) -> Result<Vec<LockedPackage>, String> {
     let mut current: Option<PartialPackage> = None;
     for (index, raw) in text.lines().enumerate() {
         let line = raw.trim_end_matches('\r');
-        if line.starts_with('[') {
+        if line.trim_start().starts_with('[') {
+            if !KNOWN_HEADERS.contains(&line) {
+                return Err(format!(
+                    "line {}: a table header other than {} as Cargo writes it (spacing, indentation, a comment or \
+                     another table): {}",
+                    index + 1,
+                    KNOWN_HEADERS.join(", "),
+                    line.trim()
+                ));
+            }
             if let Some(done) = current.take() {
                 packages.push(done.finish()?);
             }
-            if line.trim() == "[[package]]" {
+            if line == "[[package]]" {
                 current = Some(PartialPackage {
                     first_line: index + 1,
                     ..PartialPackage::default()
@@ -173,7 +190,32 @@ mod tests {
         );
         assert!(parse("version = 4\n\n[metadata]\n").is_err(), "no package");
         let deps = "[[package]]\nname = \"x\"\nversion = \"1.0.0\"\ndependencies = [\n \"g 0.1.0 (git+https://example.invalid/g?branch=main#0)\",\n]\n";
-        assert_eq!(parse(deps).unwrap().len(), 1, "an '=' inside a dependency entry is not a key");
+        assert_eq!(
+            parse(deps).unwrap().len(),
+            1,
+            "an '=' inside a dependency entry is not a key"
+        );
+    }
+
+    #[test]
+    fn header_spellings_cargo_does_not_write_are_errors() {
+        let pkg = "name = \"x\"\nversion = \"1.0.0\"\n";
+        assert!(parse(&format!(
+            "[[package]]\n{pkg}\n[metadata]\n\n[[patch.unused]]\n{pkg}"
+        ))
+        .is_ok());
+        for header in [
+            "[[ package ]]",
+            "[[package]] # a comment",
+            "  [[package]]",
+            "[[package]] ",
+            "[workspace]",
+            "[package]",
+        ] {
+            let text = format!("[[package]]\n{pkg}\n{header}\n{pkg}");
+            let err = parse(&text).expect_err(header);
+            assert!(err.starts_with("line 5: a table header"), "{header}: {err}");
+        }
     }
 
     #[test]
