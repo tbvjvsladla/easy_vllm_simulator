@@ -881,9 +881,19 @@ fn parity_args<'a>(repo: &'a Path, extra: &[&'a str]) -> Vec<&'a OsStr> {
     args
 }
 
-/// The JSON verdict: keys and types sync_to_sub.sh (`inline_json parity-summary`) reads.
+/// The JSON verdict: keys and types sync_to_sub.sh (`inline_json parity-summary`) reads, and the `legs` object whose
+/// legs carry a string `status` (resolve_topology reads `legs.manifest.status`·`path`, consumers.tsv r4 topology_parity
+/// row; its PASS path is `resolve_topology_stdout_and_exit_codes`).
 fn parity_verdict(out: &Output) -> Json {
     let doc = stdout_json(out);
+    match doc.at("legs") {
+        Json::Obj(legs) => {
+            for (name, leg) in legs {
+                assert_eq!(leg.at("status").kind(), "string", "legs.{name}: {doc:?}");
+            }
+        }
+        other => panic!("legs is not an object: {other:?}"),
+    }
     assert!(
         ["PASS", "RED"].contains(&doc.at("verdict").str().unwrap()),
         "{doc:?}"
@@ -2464,7 +2474,8 @@ fn campaign_template_validator_refuses_unknown_keys_in_closed_places() {
 /// node_identity.sh and role-contract `identity.rs`, consumers.md 「영속 데이터」 manifest lines): exactly one top-level
 /// `self_role: main` line, exactly one `- role: main` node item, the top-level `topology: single` and the Flag lines
 /// `terraforming:` / `  complete: true`. Written to `output/single/manifest.yaml`, the real `node_identity.sh --resolve`
-/// and this crate's `node_identity_resolve` (the port of the same chain) both resolve it to `main`. The scan runs in
+/// and this crate's `node_identity_resolve` (the port of the same chain, given classify_cell's `--repo --source-owner`)
+/// both resolve it to `main`. The scan runs in
 /// a scratch git checkout on branch `single-node` with stand-ins for `nvidia-smi` and `nvcc` first on PATH (no GPU and
 /// no network are used; the rest of the host facts are read as they are and not pinned). `--emit-sub-manifest`
 /// writes nothing in the base (`scan_node_cli.rs` boundary exit), so the sub's `self_role:` line is the writer
@@ -2574,8 +2585,13 @@ fn scan_node_manifest_block_line_shape() {
     let out = clean(cmd).output().unwrap();
     assert_rc(&out, 0, "node_identity.sh --resolve");
     assert_eq!(text(&out.stdout), "main\n");
+    // the argv classify_cell's owner lookup gives it (`classify_cell_owner.rs` `--repo <repo> --source-owner <path>`)
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_node_identity_resolve"));
-    cmd.arg("--repo").arg(&target).current_dir(&s.0);
+    cmd.arg("--repo")
+        .arg(&target)
+        .arg("--source-owner")
+        .arg(root().join(TS).join("node_blackbox/node_identity.sh"))
+        .current_dir(&s.0);
     let out = clean(cmd).output().unwrap();
     assert_rc(&out, 0, "node_identity_resolve");
     assert_eq!(text(&out.stdout), "main\n");
