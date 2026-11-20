@@ -71,6 +71,27 @@ fn write(path: &Path, body: &str) {
     std::fs::write(path, body).unwrap();
 }
 
+/// An executable script at `path` created by `install -m 0755` in a child process (the body is written beside it
+/// first): a file this process wrote itself could still be open for writing in a child another check thread is
+/// forking, and executing it would then fail with ETXTBSY (review r2 C2-3; c21b `b300ae0d`).
+fn write_exe(path: &Path, body: &str) {
+    let dir = path.parent().unwrap();
+    let source = dir.join(format!(
+        ".{}.install-source",
+        path.file_name().unwrap().to_str().unwrap()
+    ));
+    write(&source, body);
+    let st = Command::new("install")
+        .arg("-m")
+        .arg("0755")
+        .arg(&source)
+        .arg(path)
+        .stdin(Stdio::null())
+        .status()
+        .unwrap();
+    assert!(st.success(), "install {}", path.display());
+}
+
 fn ps(p: &Path) -> &str {
     p.to_str().unwrap()
 }
@@ -398,6 +419,11 @@ fn names_option(listing: &str, name: &str) -> bool {
 }
 
 /// A usage error of the parser: exit 2 with a usage block on stderr (argparse `usage: …`, clap `Usage: …`).
+/// Limit (review r2 P2-N8): this reads the word `usage` in the block, a wording the contract does not fix (L3). The
+/// probes with a control stay fail-closed when a port drops the word: `assert_parser_takes` (and the lifecycle probe)
+/// also require an unknown-option control to be a usage error, so that control fails instead of every probe passing.
+/// The bare `!usage_error(..)` checks of domain refusals would lose that half (they keep their nonzero exit and, where
+/// a writer is refused, the absence of the write); a port that changes the word changes these checks (test_delta).
 fn usage_error(out: &Output) -> bool {
     out.status.code() == Some(2)
         && String::from_utf8_lossy(&out.stderr)
@@ -443,8 +469,7 @@ fn assert_parser_takes(cwd: &Path, file: &str, args: &[&str], at: usize, env: &[
 fn launchers_override_and_absent_executable() {
     let s = scratch("launchers");
     let stub = s.0.join("stub");
-    write(&stub, "#!/bin/sh\nprintf 'ARGS'; for a in \"$@\"; do printf '|%s' \"$a\"; done; printf '\\n'\nexit 7\n");
-    std::fs::set_permissions(&stub, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
+    write_exe(&stub, "#!/bin/sh\nprintf 'ARGS'; for a in \"$@\"; do printf '|%s' \"$a\"; done; printf '\\n'\nexit 7\n");
     for (file, var, _) in LAUNCHERS {
         assert!(scripts(file).is_file(), "{file} missing");
         let out = Command::new("bash")
@@ -486,8 +511,7 @@ fn launchers_override_and_absent_executable() {
 fn launcher_exported_environment() {
     let s = scratch("exports");
     let stub = s.0.join("env-stub");
-    write(&stub, "#!/bin/sh\nenv\n");
-    std::fs::set_permissions(&stub, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
+    write_exe(&stub, "#!/bin/sh\nenv\n");
     let rows: [(&str, &[&str]); 19] = [
         (
             "bench_preset.sh",
@@ -603,25 +627,82 @@ fn launcher_exported_environment() {
 
 // ───────────────────────────────────────────── consumer-run self-tests (exit 0)
 
-fn self_test(file: &str, args: &[&str]) {
+/// The lines of a self-test report that carry its PASS marker: the word `PASS` with no ASCII letter, digit or `_` on
+/// either side (`  [PASS] K1 …`, `  PASS N1 …`, `[parse_bench self-test] PASS T1 …`, `full ⊇ lite conformance: 43/43
+/// PASS`).
+fn pass_lines(stdout: &str) -> usize {
+    let part = |c: u8| c.is_ascii_alphanumeric() || c == b'_';
+    stdout
+        .lines()
+        .filter(|line| {
+            let b = line.as_bytes();
+            line.match_indices("PASS").any(|(at, _)| {
+                let end = at + 4;
+                (at == 0 || !part(b[at - 1])) && (end == b.len() || !part(b[end]))
+            })
+        })
+        .count()
+}
+
+/// The number of checks a self-test's summary line names as ranges `<X>1~<X><n>` (`T1~T23` = 23, `C1~C10 + S1~S10`
+/// = 20): for the self-tests that print no line per check.
+fn summary_ranges(line: &str) -> usize {
+    let mut total = 0;
+    for (at, _) in line.match_indices("1~") {
+        let head: String = line[..at]
+            .chars()
+            .rev()
+            .take_while(char::is_ascii_uppercase)
+            .collect();
+        if head.is_empty() {
+            continue;
+        }
+        let head: String = head.chars().rev().collect();
+        let rest = &line[at + 2..];
+        if let Some(tail) = rest.strip_prefix(head.as_str()) {
+            let digits: String = tail.chars().take_while(char::is_ascii_digit).collect();
+            total += digits.parse::<usize>().unwrap_or(0);
+        }
+    }
+    total
+}
+
+/// A consumer-run self-test through its launcher in a scratch cwd: exit 0 (policy-distribution `checks.rs`,
+/// judge_bench.sh), and its report holds at least `min_pass` PASS lines (review r2 P-T5: a self-test that ran no check
+/// and still exits 0 fails here). The bounds are the base's counts (2026-11-19); a port may add checks, not drop them.
+/// The bound reads the self-tests' own report format: the PASS marker is fixed, the wording around it is L3 (a port
+/// that changes the marker changes this check, so it is a test_delta row of that cell).
+fn self_test(file: &str, args: &[&str], min_pass: usize) -> String {
     let s = scratch("selftest");
     let out = run(&s.0, file, args);
+    let so = text(&out.stdout);
     assert_eq!(
         out.status.code(),
         Some(0),
-        "{file} {args:?}: {}{}",
-        text(&out.stdout),
+        "{file} {args:?}: {so}{}",
         text(&out.stderr)
     );
+    let got = pass_lines(&so);
+    assert!(
+        got >= min_pass,
+        "{file} {args:?}: {got} PASS lines, at least {min_pass} expected:\n{so}"
+    );
+    so
 }
 
+/// The last line of a self-test report (its summary).
+fn summary(stdout: &str) -> &str {
+    stdout.lines().last().unwrap_or_default()
+}
+
+/// bench_doc_naming prints one report line and no count of its checks; the bound is that PASS line.
 #[test]
 fn self_test_bench_doc_naming() {
-    self_test("bench_doc_naming.sh", &[]);
+    self_test("bench_doc_naming.sh", &[], 1);
 }
 #[test]
 fn self_test_bench_preset() {
-    self_test("bench_preset.sh", &["--self-test"]);
+    self_test("bench_preset.sh", &["--self-test"], 72);
     // selftest_bench_preset.sh execs the same self-test with the repository and skill roots exported
     let s = scratch("selftest");
     let out = Command::new("bash")
@@ -631,88 +712,107 @@ fn self_test_bench_preset() {
         .output()
         .unwrap();
     assert_eq!(out.status.code(), Some(0), "{}", text(&out.stderr));
+    assert!(
+        pass_lines(&text(&out.stdout)) >= 72,
+        "{}",
+        text(&out.stdout)
+    );
 }
+/// bench_shell prints no line per check; its summary names the count (`self-test OK — 9 checks …`).
 #[test]
 fn self_test_bench_shell() {
-    self_test("bench_shell.sh", &["--self-test"]);
+    let so = self_test("bench_shell.sh", &["--self-test"], 0);
+    let line = summary(&so);
+    let count: usize = line
+        .split(" checks")
+        .next()
+        .and_then(|head| head.rsplit(' ').next())
+        .and_then(|n| n.parse().ok())
+        .unwrap_or_else(|| panic!("no check count in the summary: {so:?}"));
+    assert!(count >= 9, "{line}");
 }
 #[test]
 fn self_test_classify_cell() {
-    self_test("classify_cell.sh", &["--self-test"]);
+    self_test("classify_cell.sh", &["--self-test"], 83);
 }
 #[test]
 fn self_test_conformance_full_superset_lite() {
-    self_test("conformance_full_superset_lite.sh", &[]);
+    self_test("conformance_full_superset_lite.sh", &[], 44);
 }
 #[test]
 fn self_test_dataset_prep() {
-    self_test("dataset_prep.sh", &["--self-test"]);
+    self_test("dataset_prep.sh", &["--self-test"], 8);
 }
 #[test]
 fn self_test_parse_bench_subcommand() {
     // `self-test` is a subcommand of parse_bench, not a flag
-    self_test("parse_bench.sh", &["self-test"]);
+    self_test("parse_bench.sh", &["self-test"], 11);
 }
 #[test]
 fn self_test_parse_guidellm() {
-    self_test("parse_guidellm.sh", &["--self-test"]);
+    self_test("parse_guidellm.sh", &["--self-test"], 30);
 }
 #[test]
 fn self_test_render_sweep_map() {
-    self_test("render_sweep_map.sh", &["--self-test"]);
+    self_test("render_sweep_map.sh", &["--self-test"], 18);
 }
 #[test]
 fn self_test_repeat_axis() {
-    self_test("repeat_axis.sh", &["--self-test"]);
+    self_test("repeat_axis.sh", &["--self-test"], 43);
 }
 #[test]
 fn self_test_resolve_bench_tool() {
-    self_test("resolve_bench_tool.sh", &["--self-test"]);
+    self_test("resolve_bench_tool.sh", &["--self-test"], 12);
 }
 #[test]
 fn self_test_resolve_guidellm() {
-    self_test("resolve_guidellm.sh", &["--self-test"]);
+    self_test("resolve_guidellm.sh", &["--self-test"], 13);
 }
 #[test]
 fn self_test_resolve_topology() {
-    self_test("resolve_topology.sh", &["--self-test"]);
+    self_test("resolve_topology.sh", &["--self-test"], 30);
 }
 #[test]
 fn self_test_roofline_subcommand() {
     // `self-test` is a subcommand of roofline, not a flag
-    self_test("roofline.sh", &["self-test"]);
+    self_test("roofline.sh", &["self-test"], 10);
 }
 #[test]
 fn self_test_sweep_stop() {
-    self_test("sweep_stop.sh", &["--self-test"]);
+    self_test("sweep_stop.sh", &["--self-test"], 24);
 }
+/// verdict_rule prints one summary line naming its checks as a range (`T1~T23`).
 #[test]
 fn self_test_verdict_rule() {
-    self_test("verdict_rule.sh", &["--self-test"]);
+    let so = self_test("verdict_rule.sh", &["--self-test"], 0);
+    assert!(summary_ranges(summary(&so)) >= 23, "{so:?}");
 }
 #[test]
 fn self_test_selftest_broad_search_cell_args() {
-    self_test("selftest_broad_search_cell_args.sh", &[]);
+    self_test("selftest_broad_search_cell_args.sh", &[], 15);
 }
 #[test]
 fn self_test_selftest_broad_search_precheck() {
-    self_test("selftest_broad_search_precheck.sh", &[]);
+    self_test("selftest_broad_search_precheck.sh", &[], 28);
 }
 #[test]
 fn self_test_selftest_lite_gate() {
-    self_test("selftest_lite_gate.sh", &[]);
+    self_test("selftest_lite_gate.sh", &[], 26);
 }
 #[test]
 fn self_test_selftest_lite_report() {
-    self_test("selftest_lite_report.sh", &[]);
+    self_test("selftest_lite_report.sh", &[], 29);
 }
+/// selftest_sweep_meta prints no PASS line; its summary names the checks as ranges (`C1~C10 + S1~S10 + W1~W7` = 27).
+/// The real-log regressions it reports as `SKIP 실로그 부재` read untracked `docs/simlog` files and are not counted.
 #[test]
 fn self_test_selftest_sweep_meta() {
-    self_test("selftest_sweep_meta.sh", &[]);
+    let so = self_test("selftest_sweep_meta.sh", &[], 0);
+    assert!(summary_ranges(summary(&so)) >= 27, "{so:?}");
 }
 #[test]
 fn self_test_selftest_sweep_repeats() {
-    self_test("selftest_sweep_repeats.sh", &[]);
+    self_test("selftest_sweep_repeats.sh", &[], 81);
 }
 /// judge_bench.sh `--self-test` execs `selftest_judge_bench.sh`; its exit code and output pass through.
 #[test]
@@ -735,7 +835,12 @@ fn self_test_selftest_judge_bench_through_judge_bench() {
         text(&out.stdout),
         text(&out.stderr)
     );
-    self_test("selftest_judge_bench.sh", &[]);
+    let direct = self_test("selftest_judge_bench.sh", &[], 30);
+    assert_eq!(
+        pass_lines(&text(&out.stdout)),
+        pass_lines(&direct),
+        "judge_bench.sh --self-test passes the report through"
+    );
 }
 
 // ───────────────────────────────────────────── broad_search.sh: the sweep state chain
@@ -2875,11 +2980,10 @@ fn resolve_bench_tool_json_and_status() {
         "status",
     ];
     keys.sort_unstable();
-    write(
+    write_exe(
         &engine,
         "#!/bin/sh\necho 'Error: No such image' >&2\nexit 1\n",
     );
-    std::fs::set_permissions(&engine, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
     let out = ask(&[]);
     assert_eq!(out.status.code(), Some(3), "absent image");
     let doc = parse(&text(&out.stdout), "absent");
@@ -3780,53 +3884,97 @@ fn verdict_rule_consumer_options_by_argument_probe() {
     assert_parser_takes(&s.0, "verdict_rule.sh", &args, at, &[]);
 }
 
-/// run_bench.sh `resolve_bench_tool --tool guidellm --tool-version V --json`: a recorded version is the answer's
-/// `version` (status absent = exit 3 here: the engine stand-in has no image); a version the record lacks is a domain
-/// refusal, not a usage error.
+/// run_bench.sh `resolve_bench_tool --tool guidellm --tool-version V --json`: the value of `--tool-version` selects the
+/// record entry the answer is built from (review r2 D2-3). The pin copy holds a second version beside the recorded
+/// default: without the option and with the default version the answer is the default entry; with the second version
+/// it is that entry (`version`, `image_ref`, `recorded_digest`, `version_source`) and the engine is asked about that
+/// image (status absent = exit 3 here: the engine stand-in has no image). A version the record lacks is the domain
+/// refusal exit 2 with nothing on stdout and the `[resolve_bench_tool] ERROR` line on stderr, before the engine is
+/// asked; it is not a usage error (the parser takes the option).
 #[test]
 fn resolve_bench_tool_consumer_options_by_argument_probe() {
     let s = scratch("bench-tool-probe");
     let pin = s.0.join("bench_tool_pin.json");
-    std::fs::copy(skill().join("bench_tool_pin.json"), &pin).unwrap();
+    let recorded = std::fs::read_to_string(skill().join("bench_tool_pin.json")).unwrap();
+    let second = "\"0.0.1-contract\": {\"image_ref\": \"registry.invalid/guidellm:v0.0.1-contract\", \
+                  \"index_digest\": \"sha256:0000000000000000000000000000000000000000000000000000000000000001\", \
+                  \"platform_digests\": {}, \"digest_source\": \"contract\", \"version_source\": \"contract-second\", \
+                  \"notes\": []}, ";
+    assert_eq!(recorded.matches("\"versions\": {").count(), 1);
+    write(
+        &pin,
+        &recorded.replacen("\"versions\": {", &format!("\"versions\": {{{second}"), 1),
+    );
     let bin = s.0.join("bin");
     let engine = bin.join("docker");
-    write(
+    let log = s.0.join("engine.log");
+    write_exe(
         &engine,
-        "#!/bin/sh\necho 'Error: No such image' >&2\nexit 1\n",
+        &format!(
+            "#!/bin/sh\necho \"$*\" >> '{}'\necho 'Error: No such image' >&2\nexit 1\n",
+            ps(&log)
+        ),
     );
-    std::fs::set_permissions(&engine, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
     let path = std::ffi::OsString::from(format!(
         "{}:{}",
         ps(&bin),
         std::env::var("PATH").unwrap_or_default()
     ));
-    let version = read_json(&pin)
+    let default = read_json(&pin)
         .at("tools")
         .at("guidellm")
         .at("default_version")
         .str()
         .unwrap()
         .to_string();
-    let out = Run::new(
-        &s.0,
-        "resolve_bench_tool.sh",
-        &[
-            "--tool",
-            "guidellm",
-            "--tool-version",
-            &version,
-            "--pin",
-            ps(&pin),
-            "--json",
-        ],
-    )
-    .env("PATH", &path)
-    .out();
-    assert_eq!(out.status.code(), Some(3), "{}", text(&out.stderr));
-    assert_eq!(
-        parse(&text(&out.stdout), "absent").at("version").str(),
-        Some(version.as_str())
-    );
+    assert_ne!(default, "0.0.1-contract");
+    let ask = |version: Option<&str>| {
+        let _ = std::fs::remove_file(&log);
+        let mut args = vec!["--tool", "guidellm", "--pin", ps(&pin), "--json"];
+        if let Some(v) = version {
+            args.extend_from_slice(&["--tool-version", v]);
+        }
+        let out = Run::new(&s.0, "resolve_bench_tool.sh", &args)
+            .env("PATH", &path)
+            .out();
+        (out, std::fs::read_to_string(&log).unwrap_or_default())
+    };
+    let entry = |version: &str| {
+        read_json(&pin)
+            .at("tools")
+            .at("guidellm")
+            .at("versions")
+            .at(version)
+            .clone()
+    };
+    for (asked, answered) in [
+        (None, default.as_str()),
+        (Some(default.as_str()), default.as_str()),
+        (Some("0.0.1-contract"), "0.0.1-contract"),
+    ] {
+        let (out, engine_log) = ask(asked);
+        assert_eq!(
+            out.status.code(),
+            Some(3),
+            "{asked:?}: {}",
+            text(&out.stderr)
+        );
+        let doc = parse(&text(&out.stdout), "absent");
+        let want = entry(answered);
+        assert_eq!(doc.at("version").str(), Some(answered), "{asked:?}");
+        for (key, field) in [
+            ("image_ref", "image_ref"),
+            ("recorded_digest", "index_digest"),
+            ("version_source", "version_source"),
+        ] {
+            assert_eq!(doc.at(key), want.at(field), "{asked:?}: {key}");
+        }
+        let image = want.at("image_ref").str().unwrap();
+        assert!(
+            engine_log.contains(image),
+            "{asked:?}: the engine is asked about {image}: {engine_log:?}"
+        );
+    }
     let args = [
         "--tool",
         "guidellm",
@@ -3836,10 +3984,22 @@ fn resolve_bench_tool_consumer_options_by_argument_probe() {
         ps(&pin),
         "--json",
     ];
-    let out = Run::new(&s.0, "resolve_bench_tool.sh", &args)
-        .env("PATH", &path)
-        .out();
-    assert_ne!(out.status.code(), Some(0), "an unrecorded version");
+    let (out, engine_log) = ask(Some("0.0.0-contract-absent"));
+    assert_eq!(out.status.code(), Some(2), "an unrecorded version");
+    assert_eq!(
+        text(&out.stdout),
+        "",
+        "an unrecorded version prints no answer"
+    );
+    assert!(
+        text(&out.stderr).starts_with("[resolve_bench_tool] ERROR"),
+        "{}",
+        text(&out.stderr)
+    );
+    assert_eq!(
+        engine_log, "",
+        "the engine is not asked about an unrecorded version"
+    );
     let path_dir = std::path::PathBuf::from(&path);
     assert_parser_takes(
         &s.0,

@@ -14,7 +14,9 @@
 //!   `set-promotion-target`·`finalize` as `<subcommand> --repo-root <repo> …` and reads `reason_codes`·`messages`; the
 //!   options it passes beyond the documents (`--benchmark-mode`, `--benchmark-verdict`, `--dest-name`,
 //!   `--downgrade-from`, `--downgrade-reason`, `promotion_target`) are run through to the record;
-//! - `append-raw` re-writes the publication record and never drops a key it does not know (types.md 4절).
+//! - the publication record is a closed schema: `append-raw` refuses a record holding a key it does not know (top level
+//!   `PUBLICATION_RECORD_UNKNOWN_FIELDS`, inside an item `PUBLICATION_RECORD_SCHEMA_INVALID`, exit 2) and leaves its
+//!   bytes as they were (types.md 4절 「영속 문서」 2·6, refusal preserved).
 //!
 //! The program runs for real through its launcher (argv[0] = the launcher, so the program finds the repository's
 //! schemas) with `--repo-root` set to a scratch directory, so nothing is written into the repository. stdout is one JSON
@@ -150,17 +152,24 @@ fn launcher_override_and_absent_executable() {
     assert_eq!(out.status.code(), Some(0));
 }
 
-/// policy-selftest `suite.rs`: `bash evidence_publisher.sh --self-test` is exit 0.
+/// policy-selftest `suite.rs`: `bash evidence_publisher.sh --self-test` is exit 0. The self-test reports no count of
+/// its checks (one stdout line); the lower bound here is that line, `[evidence_publisher] self-test PASS` (its PASS
+/// marker, review r2 P-T5), so an exit 0 without the report fails. The wording around the marker is L3.
 #[test]
 fn self_test_through_the_launcher_passes() {
     let s = scratch("selftest");
     let out = publish(&s.0, &["--self-test"]);
+    let so = text(&out.stdout);
     assert_eq!(
         out.status.code(),
         Some(0),
-        "stdout:\n{}\nstderr:\n{}",
-        text(&out.stdout),
+        "stdout:\n{so}\nstderr:\n{}",
         text(&out.stderr)
+    );
+    let last = so.lines().last().unwrap_or_default();
+    assert!(
+        last.starts_with("[evidence_publisher]") && last.split_whitespace().any(|w| w == "PASS"),
+        "the self-test's report line: {so:?}"
     );
 }
 
@@ -674,13 +683,13 @@ fn hint_driver_options_reach_the_record() {
     );
 }
 
-/// `append-raw` never drops a key of the publication record it does not know (types.md 4절 「영속 문서」 4): after the
-/// call the record still holds the unknown key and its value. Whether the call then succeeds is not fixed here — the base
-/// treats the record as a closed schema and refuses it (see the cell record), which types.md's "preserve" wording does
-/// not describe.
-#[test]
-fn append_raw_never_drops_unknown_record_keys() {
-    let s = publication_root("unknown-keys");
+/// One `append-raw` of the `verification` evidence on a fresh minor_patch record whose text `edit` changed: the exit
+/// code, the envelope, whether the record kept its bytes, and whether the raw log was written.
+fn append_raw_on_edited_record(
+    tag: &str,
+    edit: impl Fn(&str) -> String,
+) -> (Option<i32>, Json, bool, bool) {
+    let s = publication_root(tag);
     let r = s.0.to_str().unwrap();
     let out = publish(
         &s.0,
@@ -700,16 +709,8 @@ fn append_raw_never_drops_unknown_record_keys() {
     );
     assert_eq!(out.status.code(), Some(0));
     let record = s.0.join("docs/_evidence/t1.json");
-    let body = std::fs::read_to_string(&record).unwrap();
-    assert!(body.contains("\"identity\": {"), "{body}");
-    let body = body
-        .replacen('{', "{\"_contract_top\": \"keep-top\", ", 1)
-        .replacen(
-            "\"identity\": {",
-            "\"identity\": {\"_contract_item\": \"keep-item\", ",
-            1,
-        );
-    std::fs::write(&record, body).unwrap();
+    let body = edit(&std::fs::read_to_string(&record).unwrap());
+    std::fs::write(&record, &body).unwrap();
     let out = publish(
         &s.0,
         &[
@@ -726,13 +727,70 @@ fn append_raw_never_drops_unknown_record_keys() {
             "2026-01-01T00:01:00Z",
         ],
     );
-    envelope(&out);
-    let rec = read_json(&record);
-    assert_eq!(rec.at("_contract_top").str(), Some("keep-top"));
-    assert_eq!(
-        rec.at("identity").at("_contract_item").str(),
-        Some("keep-item")
+    let doc = envelope(&out);
+    let unchanged = std::fs::read(&record).unwrap() == body.as_bytes();
+    let raw_written =
+        s.0.join("docs/_evidence/t1.verification.raw.jsonl")
+            .exists();
+    (out.status.code(), doc, unchanged, raw_written)
+}
+
+/// The control of the two refusals below: the same record without an injected key is taken (exit 0, `ok` true, the
+/// raw log written and the record re-written with its path).
+fn assert_append_raw_takes_the_plain_record() {
+    let (rc, doc, unchanged, raw_written) = append_raw_on_edited_record("plain", str::to_string);
+    assert_eq!(rc, Some(0), "{doc:?}");
+    assert_eq!(doc.at("ok"), &Json::Bool(true));
+    assert_eq!(doc.at("reason_codes").strs(), Vec::<String>::new());
+    assert!(
+        raw_written && !unchanged,
+        "the plain record is taken and re-written"
     );
+}
+
+/// The publication record is a closed schema (types.md 4절 「영속 문서」 2, `src/publisher.rs` `validate_record_shape`,
+/// run on every load): a top-level key it does not know is refused — exit 2, `reason_codes` =
+/// `PUBLICATION_RECORD_UNKNOWN_FIELDS`, `ok` false — and the record keeps its bytes (nothing is re-written or dropped,
+/// no raw log is written). Accepting such a key would be a change of the fixed surface; dropping it is forbidden.
+#[test]
+fn append_raw_refuses_an_unknown_top_level_record_key() {
+    assert_append_raw_takes_the_plain_record();
+    let (rc, doc, unchanged, raw_written) = append_raw_on_edited_record("unknown-top", |body| {
+        assert!(body.starts_with('{'), "{body}");
+        body.replacen('{', "{\"_contract_top\": \"keep-top\", ", 1)
+    });
+    assert_eq!(rc, Some(2), "{doc:?}");
+    assert_eq!(doc.at("ok"), &Json::Bool(false));
+    assert_eq!(
+        doc.at("reason_codes").strs(),
+        ["PUBLICATION_RECORD_UNKNOWN_FIELDS"]
+    );
+    assert!(unchanged, "the refused record keeps its bytes");
+    assert!(!raw_written, "nothing is appended for a refused record");
+}
+
+/// The same closed schema inside an item (`identity` here): a key the item's schema does not know is refused — exit
+/// 2, `reason_codes` = `PUBLICATION_RECORD_SCHEMA_INVALID` (the base's code for an item; the message names
+/// `SCHEMA_UNKNOWN_PROPERTY:identity.<key>`, L3) — and the record keeps its bytes.
+#[test]
+fn append_raw_refuses_an_unknown_key_inside_a_record_item() {
+    assert_append_raw_takes_the_plain_record();
+    let (rc, doc, unchanged, raw_written) = append_raw_on_edited_record("unknown-item", |body| {
+        assert!(body.contains("\"identity\": {"), "{body}");
+        body.replacen(
+            "\"identity\": {",
+            "\"identity\": {\"_contract_item\": \"keep-item\", ",
+            1,
+        )
+    });
+    assert_eq!(rc, Some(2), "{doc:?}");
+    assert_eq!(doc.at("ok"), &Json::Bool(false));
+    assert_eq!(
+        doc.at("reason_codes").strs(),
+        ["PUBLICATION_RECORD_SCHEMA_INVALID"]
+    );
+    assert!(unchanged, "the refused record keeps its bytes");
+    assert!(!raw_written, "nothing is appended for a refused record");
 }
 
 /// A small RFC 8259 reader for the contract checks: the fixed surface is the parsed value (L2), so the checks read the

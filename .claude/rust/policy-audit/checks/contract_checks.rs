@@ -142,23 +142,33 @@ fn launchers_override_and_absent_executable() {
     }
 }
 
-/// policy-selftest `suite.rs`: `bash policy_registry.sh --self-test` is exit 0.
+/// policy-selftest `suite.rs`: `bash policy_registry.sh --self-test` is exit 0. The self-test reports no count of its
+/// checks (one stdout line); the lower bound here is that line, `[policy_registry] --self-test PASS` (its PASS marker,
+/// review r2 P-T5), so an exit 0 without the report fails. The wording around the marker is L3.
 #[test]
 fn registry_self_test_passes() {
     let s = scratch("selftest");
     let out = registry(&s.0, &["--self-test"]);
+    let so = text(&out.stdout);
     assert_eq!(
         out.status.code(),
         Some(0),
-        "stdout:\n{}\nstderr:\n{}",
-        text(&out.stdout),
+        "stdout:\n{so}\nstderr:\n{}",
         text(&out.stderr)
+    );
+    let last = so.lines().last().unwrap_or_default();
+    assert!(
+        last.starts_with("[policy_registry]") && last.split_whitespace().any(|w| w == "PASS"),
+        "the self-test's report line: {so:?}"
     );
 }
 
 /// policy-distribution's form `verify --as-of <date> --repo-root <repo>` on the repository's tracked inputs: the envelope,
 /// exit 0 exactly when there is no violation (else 1); naming the default inputs with `--registry --schema
-/// --claim-bindings` gives the same answer.
+/// --claim-bindings` gives the same answer. The real tree is exit 0 with no violation at the reference date
+/// 2026-11-18 (consumers.md 「소스 본문·경로 결합」: the evidence paths, assertion ids and claim bindings the registry
+/// names resolve in this checkout; review r2 (4) policy-audit), and the same tree judged at 2099-01-01 is exit 1 with
+/// its lifecycle violations (`reason_code`, `policy_id` per row).
 #[test]
 fn registry_verify_envelope_and_exit_code() {
     let r = root();
@@ -166,11 +176,25 @@ fn registry_verify_envelope_and_exit_code() {
     let out = registry(&r, &["verify", "--as-of", "2026-11-18", "--repo-root", rs]);
     let doc = envelope(&out);
     let rc = out.status.code().unwrap();
-    assert!(
-        rc == 0 || rc == 1,
-        "verify is 0 (no violation) or 1 (lifecycle violations): {rc}"
+    assert_eq!(
+        rc, 0,
+        "the real tree has no violation at 2026-11-18: {doc:?}"
     );
-    assert_eq!(rc == 0, doc.at("violation_count") == &Json::Num("0".into()));
+    assert_eq!(doc.at("violation_count"), &Json::Num("0".into()));
+    assert_eq!(doc.at("violations").arr().map(<[Json]>::len), Some(0));
+    let late = registry(&r, &["verify", "--as-of", "2099-01-01", "--repo-root", rs]);
+    let late_doc = envelope(&late);
+    assert_eq!(late.status.code(), Some(1), "{late_doc:?}");
+    let rows = late_doc.at("violations").arr().unwrap();
+    assert!(!rows.is_empty());
+    assert_eq!(
+        late_doc.at("violation_count"),
+        &Json::Num(rows.len().to_string())
+    );
+    for row in rows {
+        assert_eq!(row.at("reason_code").kind(), "string", "{row:?}");
+        assert_eq!(row.at("policy_id").kind(), "string", "{row:?}");
+    }
     let reg = r.join(".claude/policies/registry.yaml");
     let schema = r.join(".claude/schemas/policy-registry.schema.json");
     let cb = r.join(".claude/policies/claim_bindings.json");

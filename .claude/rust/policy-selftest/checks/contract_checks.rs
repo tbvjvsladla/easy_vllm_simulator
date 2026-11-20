@@ -232,18 +232,42 @@ fn usage_errors_and_non_utf8_arguments_are_exit_2() {
     assert_eq!(out.status.code(), Some(2), "no mode is a usage answer");
 }
 
-/// policy-distribution: `antipattern_scan.sh --self-test` and `constitution_lint.sh --self-test` are exit 0.
+/// The lines of a report that carry the PASS marker: the word `PASS` with no ASCII letter, digit or `_` on either side.
+fn pass_lines(report: &str) -> usize {
+    let part = |c: u8| c.is_ascii_alphanumeric() || c == b'_';
+    report
+        .lines()
+        .filter(|line| {
+            let b = line.as_bytes();
+            line.match_indices("PASS").any(|(at, _)| {
+                let end = at + 4;
+                (at == 0 || !part(b[at - 1])) && (end == b.len() || !part(b[end]))
+            })
+        })
+        .count()
+}
+
+/// policy-distribution: `antipattern_scan.sh --self-test` and `constitution_lint.sh --self-test` are exit 0, with a
+/// lower bound on their reports (review r2 P-T5: an exit 0 of a self-test that ran no check fails): antipattern_scan
+/// prints one `[PASS]` line per check on stdout (16 in the base, 2026-11-19); constitution_lint reports no count, only
+/// its `[constitution_lint] self-test PASS` line on stderr, which is the bound. The PASS marker is fixed, the wording
+/// around it is L3.
 #[test]
 fn self_tests_pass() {
     let r = root();
-    for rel in [ANTIPATTERN_REL, LINT_REL] {
+    for (rel, min_stdout, min_stderr) in [(ANTIPATTERN_REL, 16, 0), (LINT_REL, 0, 1)] {
         let out = run(rel, &r, &["--self-test"]);
+        let (so, se) = (text(&out.stdout), text(&out.stderr));
         assert_eq!(
             out.status.code(),
             Some(0),
-            "{rel}\nstdout:\n{}\nstderr:\n{}",
-            text(&out.stdout),
-            text(&out.stderr)
+            "{rel}\nstdout:\n{so}\nstderr:\n{se}"
+        );
+        assert!(
+            pass_lines(&so) >= min_stdout && pass_lines(&se) >= min_stderr,
+            "{rel}: PASS lines (stdout {}, stderr {}) below ({min_stdout}, {min_stderr})\nstdout:\n{so}\nstderr:\n{se}",
+            pass_lines(&so),
+            pass_lines(&se)
         );
     }
 }

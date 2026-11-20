@@ -218,21 +218,201 @@ fn claim_predicates_list_and_usage_errors() {
 }
 
 /// harness_verify stage 3 / policy-distribution: each companion launcher, without arguments, is exit 0 on the checkout
-/// and non-zero (1) when the owners it reads are absent.
+/// and non-zero (1) when the owners it reads are absent. The passing run reports how many cases it ran (the stderr
+/// summary line `Ran <n> tests`); the lower bound is the base's count, 8 companion and 4 runtime-patch cases (review r2
+/// P-T5: an exit 0 that ran no case fails). The summary wording is L3; the count it carries is what is bounded.
 #[test]
 fn companion_suites_pass_on_the_checkout_and_fail_closed() {
     let s = scratch("companion");
-    for l in [COMPANION, PATCH] {
+    for (l, min_cases) in [(COMPANION, 8), (PATCH, 4)] {
         let out = launch(l, &[], None);
-        assert_eq!(
-            out.status.code(),
-            Some(0),
-            "{}\nstderr:\n{}",
-            l.0,
-            text(&out.stderr)
+        let se = text(&out.stderr);
+        assert_eq!(out.status.code(), Some(0), "{}\nstderr:\n{se}", l.0);
+        let ran: usize = se
+            .lines()
+            .find_map(|line| line.strip_prefix("Ran ")?.split(' ').next()?.parse().ok())
+            .unwrap_or_else(|| panic!("{}: no `Ran <n> tests` line:\n{se}", l.0));
+        assert!(
+            ran >= min_cases,
+            "{}: {ran} cases, at least {min_cases}",
+            l.0
         );
         let out = launch(l, &[], Some(&s.0));
         assert_eq!(out.status.code(), Some(1), "{}", l.0);
+    }
+}
+
+/// A copy of the checkout's tracked files (`git ls-files`, read only) under `dst`: the root the predicates judge through
+/// `POLICY_PREDICATES_REPO`. The built program directories the clauses start (upstream `render_dockerfile` for the
+/// rendered compose of MODEL_ACQUISITION.C1 and HOST_SAFETY.C3) are links to the checkout's (as `tf_checks.rs` does).
+fn tracked_copy(dst: &Path) {
+    let out = Command::new("git")
+        .arg("--no-optional-locks")
+        .arg("-C")
+        .arg(root())
+        .args(["ls-files", "-z"])
+        .env_remove("GIT_DIR")
+        .env_remove("GIT_WORK_TREE")
+        .env_remove("GIT_INDEX_FILE")
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "git ls-files");
+    for rel in text(&out.stdout).split('\0').filter(|r| !r.is_empty()) {
+        let src = root().join(rel);
+        match std::fs::symlink_metadata(&src) {
+            Ok(meta) if meta.is_file() => {}
+            _ => continue,
+        }
+        let to = dst.join(rel);
+        std::fs::create_dir_all(to.parent().unwrap()).unwrap();
+        std::fs::copy(&src, &to).unwrap();
+    }
+    for target in [
+        ".claude/skills/upstream-version-watch/rust/runtime/target",
+        ".claude/skills/adversarial-benchmark/rust/target",
+        ".claude/skills/vllm-recipe-explorer/rust/runtime/target",
+    ] {
+        let src = root().join(target);
+        if src.is_dir() {
+            std::fs::create_dir_all(dst.join(target).parent().unwrap()).unwrap();
+            std::os::unix::fs::symlink(&src, dst.join(target)).unwrap();
+        }
+    }
+}
+
+/// The clauses of `claims_text.rs` and `claims_owner.rs` that read other crates' sources (consumers.md 「소스 본문·경로
+/// 결합」, the first six rows; their predicate goldens are in the baseline failure set, so these couplings had no M check).
+const COUPLED_CLAUSES: [&str; 9] = [
+    "A2A_IDENTITY_PROOF_FAIL_CLOSED.C1",
+    "A2A_IDENTITY_PROOF_FAIL_CLOSED.C2",
+    "A2A_IDENTITY_PROOF_FAIL_CLOSED.C3",
+    "A2A_IDENTITY_PROOF_FAIL_CLOSED.C4",
+    "SUB_GIT_LOCAL_ONLY.C2",
+    "LIBRARY_GROUNDING_FAIL_CLOSED.C5",
+    "MODEL_ACQUISITION_TERNARY_GATE.C1",
+    "MODEL_ACQUISITION_TERNARY_GATE.C2",
+    "HOST_SAFETY_LAYERED_DEFENSE.C3",
+];
+
+fn clause_args(clauses: &[&'static str]) -> Vec<&'static str> {
+    clauses.iter().flat_map(|c| ["--clause", *c]).collect()
+}
+
+fn failed_clauses(doc: &Json) -> Vec<String> {
+    doc.at("failures")
+        .arr()
+        .unwrap()
+        .iter()
+        .map(|f| f.at("clause_id").str().unwrap().to_string())
+        .collect()
+}
+
+/// The source couplings of `claims_text` and `claims_owner` (consumers.md 「소스 본문·경로 결합」 rows 1-6, review r2
+/// R2-c21c-2), run apart from the predicate goldens: the coupled clauses pass on the checkout and on a copy of its
+/// tracked files, and each token they read, changed in the copy, fails its clause (and only through that token):
+/// - `tf/agent_control.rs` `role/transport mismatch` (A2A.C3);
+/// - `tf/render_sub_env.rs`: `render_tree` writes `render_file("CLAUDE.template.md", "CLAUDE.md", "md", &mut
+///   produced)` (SUB_GIT_LOCAL_ONLY.C2), and the retired trust tokens stay out of it (A2A.C4);
+/// - `tf/relay.rs`·`tf/relay/*.rs`: `library_request` in a relay module fails C5, in `relay/selftest.rs` it does not;
+/// - `rc/scan_node_probe.rs` `BatchMode=yes` (A2A.C1);
+/// - `policy-gate/src/completion_gate.rs` `plan_sha256` (A2A.C2), `EXECUTION_APPROVAL_ACTION_NOT_ALLOWED` (A2A.C3);
+/// - `rc/manifest_gate.rs` the mode check reading `VALID_MODES` (MODEL_ACQUISITION.C1), `up/smoke_model.rs` the exact
+///   `Command::new("bash")` + 20 spaces `.arg(&spec_script)` lines (C2), `rc/scan_node_manifest.rs` `Flag 와 독립`
+///   (HOST_SAFETY.C3).
+///
+/// The tokens are L1 (the readers compare them byte for byte). What M cannot run here: the clauses that start the
+/// network-facing sync scripts or other crates' ELFs stay with the full suite in W (harness_verify stage 3).
+#[test]
+fn claims_text_and_owner_source_couplings_by_mutation() {
+    let out = launch(CLAIM, &clause_args(&COUPLED_CLAUSES), None);
+    let doc = verdict(&out);
+    assert_eq!(out.status.code(), Some(0), "the checkout: {doc:?}");
+    let s = scratch("couplings");
+    tracked_copy(&s.0);
+    let judge = || verdict(&launch(CLAIM, &clause_args(&COUPLED_CLAUSES), Some(&s.0)));
+    assert_eq!(
+        failed_clauses(&judge()),
+        Vec::<String>::new(),
+        "the unchanged copy"
+    );
+    let tf = ".claude/skills/terraforming_node/rust/src";
+    let cases: [(String, &str, &str, Option<&str>); 11] = [
+        (
+            format!("{tf}/agent_control.rs"),
+            "role/transport mismatch",
+            "role/transport mixup",
+            Some("A2A_IDENTITY_PROOF_FAIL_CLOSED.C3"),
+        ),
+        (
+            format!("{tf}/render_sub_env.rs"),
+            r#"render_file("CLAUDE.template.md", "CLAUDE.md", "md", &mut produced)"#,
+            r#"render_file("CLAUDE.template.md", "CLAUDE.md", "txt", &mut produced)"#,
+            Some("SUB_GIT_LOCAL_ONLY.C2"),
+        ),
+        (
+            format!("{tf}/render_sub_env.rs"),
+            "\n",
+            "\n// trusted_keys.json\n",
+            Some("A2A_IDENTITY_PROOF_FAIL_CLOSED.C4"),
+        ),
+        (
+            format!("{tf}/relay/dispatch.rs"),
+            "\n",
+            "\n// library_request\n",
+            Some("LIBRARY_GROUNDING_FAIL_CLOSED.C5"),
+        ),
+        (
+            format!("{tf}/relay/selftest.rs"),
+            "\n",
+            "\n// library_request\n",
+            None,
+        ),
+        (
+            ".claude/rust/role-contract/src/scan_node_probe.rs".into(),
+            "BatchMode=yes",
+            "BatchMode=no",
+            Some("A2A_IDENTITY_PROOF_FAIL_CLOSED.C1"),
+        ),
+        (
+            ".claude/rust/policy-gate/src/completion_gate.rs".into(),
+            "plan_sha256",
+            "plan_digest",
+            Some("A2A_IDENTITY_PROOF_FAIL_CLOSED.C2"),
+        ),
+        (
+            ".claude/rust/policy-gate/src/completion_gate.rs".into(),
+            "EXECUTION_APPROVAL_ACTION_NOT_ALLOWED",
+            "EXECUTION_APPROVAL_ACTION_DENIED",
+            Some("A2A_IDENTITY_PROOF_FAIL_CLOSED.C3"),
+        ),
+        (
+            ".claude/rust/role-contract/src/manifest_gate.rs".into(),
+            "VALID_MODES.iter().any(|mode| text.equals(mode))",
+            "VALID_MODES.contains(&text)",
+            Some("MODEL_ACQUISITION_TERNARY_GATE.C1"),
+        ),
+        (
+            ".claude/skills/upstream-version-watch/rust/runtime/src/smoke_model.rs".into(),
+            "Command::new(\"bash\")\n                    .arg(&spec_script)",
+            "Command::new(\"bash\")\n                .arg(&spec_script)",
+            Some("MODEL_ACQUISITION_TERNARY_GATE.C2"),
+        ),
+        (
+            ".claude/rust/role-contract/src/scan_node_manifest.rs".into(),
+            "Flag 와 독립",
+            "Flag 와 무관",
+            Some("HOST_SAFETY_LAYERED_DEFENSE.C3"),
+        ),
+    ];
+    for (rel, from, to, clause) in &cases {
+        let path = s.0.join(rel);
+        let body = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{rel}: {e}"));
+        assert!(body.contains(from), "{rel} holds {from:?}");
+        std::fs::write(&path, body.replace(from, to)).unwrap();
+        let failed = failed_clauses(&judge());
+        std::fs::write(&path, &body).unwrap();
+        let want: Vec<String> = clause.iter().map(|c| c.to_string()).collect();
+        assert_eq!(failed, want, "{rel}: {from:?} -> {to:?}");
     }
 }
 

@@ -105,9 +105,25 @@ fn write(path: &Path, body: &str) {
     std::fs::write(path, body).unwrap();
 }
 
+/// An executable script at `path` created by `install -m 0755` in a child process (the body is written beside it
+/// first): a file this process wrote itself could still be open for writing in a child another check thread is
+/// forking, and executing it would then fail with ETXTBSY (review r2 C2-3; c21b `b300ae0d`).
 fn write_exe(path: &Path, body: &str) {
-    write(path, body);
-    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let dir = path.parent().unwrap();
+    let source = dir.join(format!(
+        ".{}.install-source",
+        path.file_name().unwrap().to_str().unwrap()
+    ));
+    write(&source, body);
+    let st = Command::new("install")
+        .arg("-m")
+        .arg("0755")
+        .arg(&source)
+        .arg(path)
+        .stdin(Stdio::null())
+        .status()
+        .unwrap();
+    assert!(st.success(), "install {}", path.display());
 }
 
 fn copy_file(src: &Path, dst: &Path) {
@@ -193,6 +209,11 @@ fn names_option(listing: &str, opt: &str) -> bool {
 }
 
 /// A usage error of the parser: exit 2 with a usage block on stderr (argparse `usage: …`, clap `Usage: …`).
+/// Limit (review r2 P2-N8): this reads the word `usage` in the block, a wording the contract does not fix (L3). The
+/// probes with a control stay fail-closed when a port drops the word: `assert_parser_takes` (and the lifecycle probe)
+/// also require an unknown-option control to be a usage error, so that control fails instead of every probe passing.
+/// The bare `!usage_error(..)` checks of domain refusals would lose that half (they keep their nonzero exit and, where
+/// a writer is refused, the absence of the write); a port that changes the word changes these checks (test_delta).
 fn usage_error(out: &Output) -> bool {
     out.status.code() == Some(2) && text(&out.stderr).to_ascii_lowercase().contains("usage")
 }
@@ -2004,11 +2025,12 @@ fn campaign_init_lifecycle_options_reach_the_parser() {
 }
 
 /// The writers that read a campaign document and write it again keep the keys they do not know (types.md 4절
-/// 「영속 문서」 4, the campaign state's only writer): the declaration through `--assign-set --apply` (top level, a node,
-/// another node's assignment item, `budgets`; the re-assigned node's list is the new declaration and is written whole),
-/// the cell status through `--cell-set` (top level, `measurement`), a phase status
-/// through `--phase-set` (top level; `proof` is each call's new observation and is written whole), the evidence
-/// pointers through `--evidence-add` (top level, a pointer).
+/// 「영속 문서」 1·6, the campaign state's only writer): the declaration through `--assign-set --apply` (top level, a node,
+/// another node's assignment item, `budgets`), the cell status through `--cell-set` (top level, `measurement`), a phase
+/// status through `--phase-set` (top level), the evidence pointers through `--evidence-add` (top level, a pointer).
+/// The objects a writer builds anew and writes whole are out of this check (types.md 4절 3 (a)): the re-assigned
+/// node's `assignments` list of `--assign-set` (`campaign_write.rs` `assign_set`) and the `proof` object of
+/// `--phase-set` (`write_phase`); no key is injected there and their dropping is neither pinned nor refused here.
 #[test]
 fn campaign_init_writers_keep_unknown_keys() {
     let c = Checkout::new("ci-keys");
@@ -2173,17 +2195,10 @@ fn campaign_template_validator_exit_codes() {
     );
     c.open();
     // A main-only declaration: a sub's acceptance (P4) needs the relay ledger of a delegated build, out of this check.
-    let main_only = DECL
-        .replace(
-            r#", {"node_id": "sub1", "role": "sub", "topology": "single", "hw": "gpu"}"#,
-            "",
-        )
-        .replace(
-            r#", "sub1": [{"cell": "c2", "mode": "AUTO"}, {"cell": "c3", "mode": "AUTO"}]"#,
-            "",
-        );
-    assert!(!main_only.contains("sub1"));
-    write(&c.repo.join("campaigns/c-test/campaign.yaml"), &main_only);
+    write(
+        &c.repo.join("campaigns/c-test/campaign.yaml"),
+        &main_only_declaration(),
+    );
     write(
         &c.repo.join("campaigns/c-test/cells/c1/config.yaml"),
         "{}\n",
@@ -2243,6 +2258,327 @@ fn campaign_template_validator_exit_codes() {
             "campaign_template_validator option {opt}"
         );
     }
+}
+
+/// `--cell-materialize <cell>` derives `test_device_total_gib` only when the memory-model owner, the explorer's
+/// `recipe_cmd.rs`, exists in the checkout (`campaign_write.rs` `device_total_gib`; consumers.md 「소스 본문·경로 결합」,
+/// existence only): with that file a discrete manifest (`gpu_memory_model: discrete`, `gpu_vram_mib: 2048`) gives the
+/// line `test_device_total_gib: 2.0` in the cell's `config.yaml` (the line recipe.sh reads); without it the value is
+/// `미상` (not derived), the blank stays and the cell is refused, nothing written. The other blanks are `--set` here.
+#[test]
+fn campaign_init_cell_materialize_reads_the_memory_model_owner() {
+    let owner = ".claude/skills/vllm-recipe-explorer/rust/runtime/src/recipe_cmd.rs";
+    let materialize = |with_owner: bool| {
+        let c = Checkout::new(if with_owner {
+            "materialize-owner"
+        } else {
+            "materialize-no-owner"
+        });
+        c.open();
+        write(
+            &c.repo.join("output/single/manifest.yaml"),
+            "topology: single\ngpu_model: GPU-X\ngpu_memory_model: discrete\ngpu_vram_mib: 2048\n\
+             model_source: managed\nnas_model_path: /nas\n",
+        );
+        write(
+            &c.repo.join("output/single/configs/c1.yaml"),
+            "model: /models/m\nmax-model-len: 4096\ngpu-memory-utilization: 0.5\nserved-model-name: m\n",
+        );
+        if with_owner {
+            copy_file(&root().join(owner), &c.repo.join(owner));
+        }
+        let out = c.ci(&[
+            "--cell-materialize",
+            "c1",
+            "--utc",
+            UTC,
+            "--set",
+            "tiktoken_host_path=null",
+            "--set",
+            "vram_budget_gb=1",
+            "--set",
+            "per_card_vram_gib=2",
+            "--set",
+            "ple_mode=none",
+            "--set",
+            "control_variable=contract",
+            "--set",
+            "concurrency_requirement=null",
+            "--set",
+            "typical_request_tokens=null",
+        ]);
+        let config =
+            std::fs::read_to_string(c.repo.join("campaigns/c-test/cells/c1/config.yaml")).ok();
+        (out, config)
+    };
+    let (out, config) = materialize(true);
+    assert_rc(&out, 0, "--cell-materialize with the memory-model owner");
+    let config = config.expect("config.yaml is written");
+    assert!(
+        config
+            .lines()
+            .any(|l| l.trim_end() == "test_device_total_gib: 2.0"
+                || l.starts_with("test_device_total_gib: 2.0 ")),
+        "{config}"
+    );
+    let (out, config) = materialize(false);
+    assert_ne!(
+        out.status.code(),
+        Some(0),
+        "without the owner the blank stays: {}",
+        text(&out.stderr)
+    );
+    assert!(!usage_error(&out), "{}", text(&out.stderr));
+    assert_eq!(config, None, "nothing is written for a refused cell");
+}
+
+/// The main-only filled declaration the validator passes (a sub's acceptance needs a relay ledger, out of these checks).
+fn main_only_declaration() -> String {
+    let main_only = DECL
+        .replace(
+            r#", {"node_id": "sub1", "role": "sub", "topology": "single", "hw": "gpu"}"#,
+            "",
+        )
+        .replace(
+            r#", "sub1": [{"cell": "c2", "mode": "AUTO"}, {"cell": "c3", "mode": "AUTO"}]"#,
+            "",
+        );
+    assert!(!main_only.contains("sub1"));
+    main_only
+}
+
+/// campaign_template_validator keeps the refusal of the closed places of the campaign schema (types.md 4절 「영속 문서」
+/// 2·6, `campaigns/_template/campaign.schema.json` `additionalProperties: false`, read by `campaign_validator.rs`): a
+/// key the schema does not list at the top level (a name without the `_` of the notes), in a `node`, in `matrix`, in
+/// an `assignment` item, in a `hint_target` and in its `approval` makes `--campaign` exit 1 (the violation on stderr,
+/// nothing on stdout),
+/// where the same declaration without it is exit 0; the validator never writes, so the declaration keeps its bytes.
+/// The open places stay open (exit 0): a `_`-prefixed top-level note (taken off before the schema check), a key in
+/// `budgets`, `budgets.bench_pins` and `topology_sections`. (campaign_init's own trial validation of `--assign-set`
+/// refuses only the violations a change adds, `campaign_write.rs` `assign_set`; a closed-place key already in the
+/// declaration does not stop it, so its refusal is not reachable through the writer's options.)
+#[test]
+fn campaign_template_validator_refuses_unknown_keys_in_closed_places() {
+    let c = Checkout::new("validator-closed");
+    c.open();
+    write(
+        &c.repo.join("campaigns/c-test/cells/c1/config.yaml"),
+        "{}\n",
+    );
+    let decl = c.repo.join("campaigns/c-test/campaign.yaml");
+    let base = main_only_declaration().replace(
+        r#""hint_targets": []"#,
+        r#""hint_targets": [{"node_id": "main", "cells": ["c1"], "approval": {"approved_by": "contract", "approved_utc": "2026-11-18T00:00:00Z", "source": "declaration-popup"}}]"#,
+    );
+    assert!(base.contains(r#""approved_by": "contract""#));
+    let judge = |body: &str, what: &str| {
+        write(&decl, body);
+        let out = c.validator(&["--campaign", "campaigns/c-test/campaign.yaml"]);
+        assert_eq!(
+            std::fs::read_to_string(&decl).unwrap(),
+            body,
+            "{what}: the validator does not write"
+        );
+        out
+    };
+    assert_rc(
+        &judge(&base, "control"),
+        0,
+        "the declaration without an unknown key",
+    );
+    let edit = |anchor: &str, insert: &str| {
+        assert_eq!(base.matches(anchor).count(), 1, "{anchor}");
+        base.replacen(anchor, &format!("{anchor}{insert}"), 1)
+    };
+    let closed = [
+        (
+            "top level",
+            edit(r#"{"schema_version": 1, "#, r#""contract_unknown": 1, "#),
+        ),
+        (
+            "node",
+            edit(
+                r#"{"node_id": "main", "role": "main", "#,
+                r#""contract_unknown": 1, "#,
+            ),
+        ),
+        (
+            "matrix",
+            edit(r#""matrix": {"#, r#""contract_unknown": 1, "#),
+        ),
+        (
+            "assignment",
+            edit(r#""main": [{"cell": "c1", "#, r#""contract_unknown": 1, "#),
+        ),
+        (
+            "hint_target",
+            edit(
+                r#"{"node_id": "main", "cells": ["c1"], "#,
+                r#""contract_unknown": 1, "#,
+            ),
+        ),
+        (
+            "hint_approval",
+            edit(r#""approval": {"#, r#""contract_unknown": 1, "#),
+        ),
+    ];
+    for (place, body) in &closed {
+        let out = judge(body, place);
+        assert_rc(&out, 1, &format!("an unknown key in the closed {place}"));
+        assert!(
+            out.stdout.is_empty() && !out.stderr.is_empty(),
+            "{place}: the violation is reported on stderr, nothing on stdout: {:?} / {:?}",
+            text(&out.stdout),
+            text(&out.stderr)
+        );
+    }
+    let open = [
+        (
+            "a _ note",
+            edit(r#"{"schema_version": 1, "#, r#""_contract_note": "n", "#),
+        ),
+        (
+            "budgets",
+            edit(r#""budgets": {"#, r#""contract_open": 1, "#),
+        ),
+        (
+            "budgets.bench_pins",
+            edit(r#""budgets": {"#, r#""bench_pins": {"contract_open": 1}, "#),
+        ),
+        (
+            "topology_sections",
+            edit(r#""single": {"#, r#""contract_open": 1"#),
+        ),
+    ];
+    for (place, body) in &open {
+        assert_rc(
+            &judge(body, place),
+            0,
+            &format!("an unknown key in the open {place}"),
+        );
+    }
+}
+
+/// The manifest block `scan_node --topology single --emit-manifest` writes (stdout after the JSON envelope and the
+/// `# ===== manifest 기입 블록` line) has the line shapes its readers grep (consumers.tsv scan_node rows of
+/// node_identity.sh and role-contract `identity.rs`, consumers.md 「영속 데이터」 manifest lines): exactly one top-level
+/// `self_role: main` line, exactly one `- role: main` node item, the top-level `topology: single` and the Flag lines
+/// `terraforming:` / `  complete: true`. Written to `output/single/manifest.yaml`, the real `node_identity.sh --resolve`
+/// and this crate's `node_identity_resolve` (the port of the same chain) both resolve it to `main`. The scan runs in
+/// a scratch git checkout on branch `single-node` with stand-ins for `nvidia-smi` and `nvcc` first on PATH (no GPU and
+/// no network are used; the rest of the host facts are read as they are and not pinned). `--emit-sub-manifest`
+/// writes nothing in the base (`scan_node_cli.rs` boundary exit), so the sub's `self_role:` line is the writer
+/// render_sub_env's (terraforming checks), not pinned here.
+#[test]
+fn scan_node_manifest_block_line_shape() {
+    let s = scratch("scan-manifest");
+    let repo = s.0.join("repo");
+    copy_file(
+        &root().join(TS).join("scan_node.sh"),
+        &repo.join(TS).join("scan_node.sh"),
+    );
+    let git = |args: &[&str]| {
+        let mut cmd = Command::new("git");
+        cmd.args([
+            "-c",
+            "user.name=contract",
+            "-c",
+            "user.email=contract@example.invalid",
+        ])
+        .args(args)
+        .current_dir(&repo);
+        let out = clean(cmd).output().unwrap();
+        assert_rc(&out, 0, &format!("git {args:?}"));
+    };
+    git(&["init", "-q", "-b", "single-node"]);
+    git(&["commit", "-q", "--allow-empty", "-m", "init"]);
+    let fake = s.0.join("fake-bin");
+    write_exe(
+        &fake.join("nvidia-smi"),
+        "#!/bin/sh\ncase \"$*\" in\n\
+         \"-L\") echo 'GPU 0: NVIDIA GB10 (UUID: GPU-contract)';;\n\
+         \"--query-gpu=name --format=csv,noheader\") echo 'NVIDIA GB10';;\n\
+         \"--query-gpu=driver_version --format=csv,noheader\") echo '580.95.05';;\n\
+         \"--query-gpu=memory.total,compute_cap --format=csv,noheader,nounits\") echo '[N/A], 12.1';;\n\
+         *) echo \"contract nvidia-smi stand-in: $*\" >&2; exit 9;;\nesac\n",
+    );
+    write_exe(
+        &fake.join("nvcc"),
+        "#!/bin/sh\necho 'Cuda compilation tools, release 13.0, V13.0.88'\n",
+    );
+    let path = format!(
+        "{}:{}",
+        fake.display(),
+        std::env::var("PATH").unwrap_or_default()
+    );
+    let out = bash(
+        &repo.join(TS).join("scan_node.sh"),
+        &os(&[
+            "--topology",
+            "single",
+            "--emit-manifest",
+            "--model-source",
+            "managed",
+        ]),
+        &repo,
+        &[
+            ("SCAN_NODE_BIN", OsStr::new(env!("CARGO_BIN_EXE_scan_node"))),
+            ("PATH", OsStr::new(&path)),
+        ],
+    );
+    assert_rc(&out, 0, "scan_node --emit-manifest");
+    let so = text(&out.stdout);
+    let (envelope, block) = so
+        .split_once("\n# ===== manifest 기입 블록")
+        .unwrap_or_else(|| panic!("no manifest block: {so}"));
+    let doc = Json::parse(envelope.trim_end())
+        .unwrap_or_else(|e| panic!("the envelope before the block is not JSON ({e}): {envelope}"));
+    assert_eq!(doc.at("gate").at("status").str(), Some("ok"));
+    let block = block
+        .split_once('\n')
+        .map(|(_, rest)| rest)
+        .unwrap_or_default();
+    let lines: Vec<&str> = block.lines().collect();
+    let count = |pred: &dyn Fn(&str) -> bool| lines.iter().filter(|l| pred(l)).count();
+    assert_eq!(
+        count(&|l| l.starts_with("self_role:")),
+        1,
+        "one top-level self_role line:\n{block}"
+    );
+    assert!(lines.contains(&"self_role: main"), "{block}");
+    let main_item = |l: &str| {
+        let t = l.trim_start();
+        t.strip_prefix('-')
+            .map(str::trim_start)
+            .and_then(|t| t.strip_prefix("role:"))
+            .map(str::trim_start)
+            .and_then(|t| t.strip_prefix("main"))
+            .is_some_and(|rest| rest.is_empty() || rest.starts_with([' ', '\t', '#']))
+    };
+    assert_eq!(count(&main_item), 1, "one `- role: main` item:\n{block}");
+    assert!(lines.contains(&"  - role: main"), "{block}");
+    assert!(lines.contains(&"topology: single"), "{block}");
+    assert!(
+        lines.contains(&"terraforming:") && lines.contains(&"  complete: true"),
+        "{block}"
+    );
+
+    let target = s.0.join("target-checkout");
+    write(&target.join("output/single/manifest.yaml"), block);
+    let mut cmd = Command::new("bash");
+    cmd.arg(root().join(TS).join("node_blackbox/node_identity.sh"))
+        .arg("--resolve")
+        .arg("--repo")
+        .arg(&target)
+        .current_dir(&s.0);
+    let out = clean(cmd).output().unwrap();
+    assert_rc(&out, 0, "node_identity.sh --resolve");
+    assert_eq!(text(&out.stdout), "main\n");
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_node_identity_resolve"));
+    cmd.arg("--repo").arg(&target).current_dir(&s.0);
+    let out = clean(cmd).output().unwrap();
+    assert_rc(&out, 0, "node_identity_resolve");
+    assert_eq!(text(&out.stdout), "main\n");
 }
 
 /// node_identity_resolve, the private helper of the node-identity lookup (`--repo <repo>`): exit 0 with the node id as
