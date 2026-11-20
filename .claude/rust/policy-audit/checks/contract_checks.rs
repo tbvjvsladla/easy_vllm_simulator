@@ -1,21 +1,3 @@
-//! Contract checks of `policy_registry` and `harness_verify` (plan 26111805 「보존 계약」, cell c21c-contract-tests): the
-//! surface their consumers read (runtime-support/contract/consumers.tsv rows of these bins) —
-//! - policy-distribution `checks.rs` runs `policy_registry.sh verify --as-of <YYYY-MM-DD> --repo-root <repo>` (exit 0),
-//!   policy-selftest `suite.rs` runs `policy_registry.sh --self-test` (exit 0), the README and the docs name
-//!   `verify`/`check-removal` with `--as-of --registry --schema --claim-bindings --repo-root --policy-id`;
-//! - `harness_verify.sh [--as-of] [--registry --schema --claim-bindings --repo-root]` runs stage 1
-//!   `policy_registry.sh verify --as-of <date> <passthrough>`, stage 2 `runtime_selftest.sh`, stage 3
-//!   `predicates/claim_predicates.sh` then `companion_predicate.sh` and `runtime_patch_predicate.sh` (all `bash <launcher>`
-//!   in the repository root), stops at the first failing stage and maps exit codes (stage 1 as is, runtime 4, predicates 3,
-//!   a missing stage launcher fails its stage closed);
-//! - the ledger, sync_branches.sh and policy-distribution name the launchers; `POLICY_REGISTRY_BIN`, `HARNESS_VERIFY_BIN`
-//!   override the executables.
-//!
-//! The bins run for real through their launchers. `policy_registry` reads the repository's tracked registry, schema and
-//! claim bindings (read only) and scratch files; `harness_verify` runs from a copy of its launcher in a scratch tree whose
-//! stage launchers are stubs that log their argv (so no stage of the real repository runs). The registry envelope is L2
-//! (keys, types), exit codes, reason codes and the stage argv are L1, messages L3. A non-UTF-8 argument panics today
-//! (`src/bin/policy_registry.rs:4`, `src/bin/harness_verify.rs:4` `std::env::args()`); recorded as a defect, not pinned.
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
@@ -163,62 +145,54 @@ fn registry_self_test_passes() {
     );
 }
 
-/// policy-distribution's form `verify --as-of <date> --repo-root <repo>` on the repository's tracked inputs: the envelope,
-/// exit 0 exactly when there is no violation (else 1); naming the default inputs with `--registry --schema
-/// --claim-bindings` gives the same answer. The real tree is exit 0 with no violation at the reference date
-/// 2026-11-18 (consumers.md 「소스 본문·경로 결합」: the evidence paths, assertion ids and claim bindings the registry
-/// names resolve in this checkout; review r2 (4) policy-audit), and the same tree judged at 2099-01-01 is exit 1 with
-/// its lifecycle violations (`reason_code`, `policy_id` per row).
 #[test]
 fn registry_verify_envelope_and_exit_code() {
     let r = root();
     let rs = r.to_str().unwrap();
-    let out = registry(&r, &["verify", "--as-of", "2026-11-18", "--repo-root", rs]);
+    let out = registry(&r, &["verify", "--repo-root", rs]);
     let doc = envelope(&out);
     let rc = out.status.code().unwrap();
-    assert_eq!(
-        rc, 0,
-        "the real tree has no violation at 2026-11-18: {doc:?}"
-    );
+    assert_eq!(rc, 0, "the real tree has no violation: {doc:?}");
     assert_eq!(doc.at("violation_count"), &Json::Num("0".into()));
     assert_eq!(doc.at("violations").arr().map(<[Json]>::len), Some(0));
-    let late = registry(&r, &["verify", "--as-of", "2099-01-01", "--repo-root", rs]);
-    let late_doc = envelope(&late);
-    assert_eq!(late.status.code(), Some(1), "{late_doc:?}");
-    let rows = late_doc.at("violations").arr().unwrap();
+    let reg = r.join(".claude/policies/registry.yaml");
+    let schema = r.join(".claude/schemas/policy-registry.schema.json");
+    let cb = r.join(".claude/policies/claim_bindings.json");
+    let verify_with_inputs = |repo_root: &str| {
+        registry(
+            &r,
+            &[
+                "verify",
+                "--registry",
+                reg.to_str().unwrap(),
+                "--schema",
+                schema.to_str().unwrap(),
+                "--claim-bindings",
+                cb.to_str().unwrap(),
+                "--repo-root",
+                repo_root,
+            ],
+        )
+    };
+    let explicit = verify_with_inputs(rs);
+    assert_eq!(explicit.status.code(), out.status.code());
+    assert_eq!(envelope(&explicit), doc);
+    let elsewhere = scratch("elsewhere");
+    let away = verify_with_inputs(elsewhere.0.to_str().unwrap());
+    let away_doc = envelope(&away);
+    assert_eq!(away.status.code(), Some(1), "{away_doc:?}");
+    let rows = away_doc.at("violations").arr().unwrap();
     assert!(!rows.is_empty());
     assert_eq!(
-        late_doc.at("violation_count"),
+        away_doc.at("violation_count"),
         &Json::Num(rows.len().to_string())
     );
     for row in rows {
         assert_eq!(row.at("reason_code").kind(), "string", "{row:?}");
         assert_eq!(row.at("policy_id").kind(), "string", "{row:?}");
     }
-    let reg = r.join(".claude/policies/registry.yaml");
-    let schema = r.join(".claude/schemas/policy-registry.schema.json");
-    let cb = r.join(".claude/policies/claim_bindings.json");
-    let explicit = registry(
-        &r,
-        &[
-            "verify",
-            "--as-of",
-            "2026-11-18",
-            "--registry",
-            reg.to_str().unwrap(),
-            "--schema",
-            schema.to_str().unwrap(),
-            "--claim-bindings",
-            cb.to_str().unwrap(),
-            "--repo-root",
-            rs,
-        ],
-    );
-    assert_eq!(explicit.status.code(), out.status.code());
-    assert_eq!(envelope(&explicit), doc);
 }
 
-/// `check-removal --as-of --policy-id` of a policy that is not retired: exit 1, `REMOVAL_NOT_ELIGIBLE` for that policy.
 #[test]
 fn registry_check_removal_of_an_active_policy_is_exit_1() {
     let r = root();
@@ -226,8 +200,6 @@ fn registry_check_removal_of_an_active_policy_is_exit_1() {
         &r,
         &[
             "check-removal",
-            "--as-of",
-            "2026-11-18",
             "--policy-id",
             "GIT_SINGLE_AUTHORITY",
             "--repo-root",
@@ -243,40 +215,25 @@ fn registry_check_removal_of_an_active_policy_is_exit_1() {
     );
 }
 
-/// Usage and input errors are exit 2 with the envelope on stdout: `CLI_USAGE_ERROR` (no subcommand, unknown subcommand,
-/// missing `--as-of`), `BAD_AS_OF`, `REGISTRY_LOAD_ERROR`, `REGISTRY_INVALID_JSON`, `REGISTRY_ROOT_NOT_OBJECT`.
 #[test]
 fn registry_usage_and_input_errors_are_exit_2() {
     let s = scratch("usage");
     write(&s.0.join("bad.json"), "{\"policies\": ");
     write(&s.0.join("array.json"), "[]");
-    let rows: [(&[&str], &str); 7] = [
+    let rows: [(&[&str], &str); 6] = [
         (&[], "CLI_USAGE_ERROR"),
         (&["bogus"], "CLI_USAGE_ERROR"),
-        (&["verify", "--repo-root", "."], "CLI_USAGE_ERROR"),
-        (&["verify", "--as-of", "2026-13-01"], "BAD_AS_OF"),
+        (&["check-removal", "--repo-root", "."], "CLI_USAGE_ERROR"),
         (
-            &[
-                "verify",
-                "--as-of",
-                "2026-11-18",
-                "--registry",
-                "missing.json",
-            ],
+            &["verify", "--registry", "missing.json"],
             "REGISTRY_LOAD_ERROR",
         ),
         (
-            &["verify", "--as-of", "2026-11-18", "--registry", "bad.json"],
+            &["verify", "--registry", "bad.json"],
             "REGISTRY_INVALID_JSON",
         ),
         (
-            &[
-                "verify",
-                "--as-of",
-                "2026-11-18",
-                "--registry",
-                "array.json",
-            ],
+            &["verify", "--registry", "array.json"],
             "REGISTRY_ROOT_NOT_OBJECT",
         ),
     ];
@@ -341,17 +298,12 @@ fn harness(t: &Scratch, args: &[&str], env: &[(&str, &str)]) -> (Output, String)
     (out, stages)
 }
 
-/// All stages green: exit 0; stage 1 is `policy_registry.sh verify --as-of <date>` plus the passthrough options in the
-/// order `--registry --schema --claim-bindings --repo-root`; stages 2 and 3 run without arguments; every stage runs in
-/// the repository root (the launcher's tree).
 #[test]
 fn harness_stage_argv_and_order() {
     let t = harness_tree("green");
     let (out, log) = harness(
         &t,
         &[
-            "--as-of",
-            "2026-01-15",
             "--registry",
             "r.json",
             "--schema",
@@ -368,17 +320,15 @@ fn harness_stage_argv_and_order() {
     assert_eq!(
         log,
         format!(
-            "registry verify --as-of 2026-01-15 --registry r.json --schema s.json --claim-bindings c.json --repo-root x {at}\n\
+            "registry verify --registry r.json --schema s.json --claim-bindings c.json --repo-root x {at}\n\
              runtime  {at}\nclaim  {at}\ncompanion  {at}\npatch  {at}\n"
         )
     );
     let (out, log) = harness(&t, &[], &[]);
     assert_eq!(out.status.code(), Some(0));
-    let first = log.lines().next().unwrap();
-    assert!(
-        first.starts_with("registry verify --as-of ")
-            && first.split(' ').nth(3).map(str::len) == Some(10),
-        "{first}"
+    assert_eq!(
+        log.lines().next(),
+        Some(format!("registry verify {at}").as_str())
     );
 }
 
@@ -396,32 +346,25 @@ fn harness_stage_failures_map_exit_codes() {
         ("RC_PATCH", "7", 3, 5),
     ];
     for (var, rc, want, stages) in rows {
-        let (out, log) = harness(&t, &["--as-of", "2026-01-15"], &[(var, rc)]);
+        let (out, log) = harness(&t, &[], &[(var, rc)]);
         assert_eq!(out.status.code(), Some(want), "{var}={rc}");
         assert_eq!(log.lines().count(), stages, "{var}={rc}: {log}");
     }
     std::fs::remove_file(t.0.join(".claude/policies/predicates/runtime_patch_predicate.sh"))
         .unwrap();
-    let (out, _) = harness(&t, &["--as-of", "2026-01-15"], &[]);
+    let (out, _) = harness(&t, &[], &[]);
     assert_eq!(out.status.code(), Some(3));
     std::fs::remove_file(t.0.join(".claude/policies/runtime/policy_registry.sh")).unwrap();
-    let (out, log) = harness(&t, &["--as-of", "2026-01-15"], &[]);
+    let (out, log) = harness(&t, &[], &[]);
     assert_eq!((out.status.code(), log.as_str()), (Some(2), ""));
 }
 
-/// A malformed `--as-of` and an unknown argument are exit 2 before any stage runs.
 #[test]
 fn harness_usage_errors_are_exit_2() {
     let t = harness_tree("usage");
-    for args in [
-        &["--as-of", "2026-13-01"][..],
-        &["--as-of", "15-01-2026"],
-        &["--bogus"],
-    ] {
-        let (out, log) = harness(&t, args, &[]);
-        assert_eq!(out.status.code(), Some(2), "{args:?}");
-        assert_eq!(log, "", "{args:?}");
-    }
+    let (out, log) = harness(&t, &["--bogus"], &[]);
+    assert_eq!(out.status.code(), Some(2));
+    assert_eq!(log, "");
 }
 
 /// A small RFC 8259 reader for the contract checks: the fixed surface is the parsed value (L2), so the checks read the

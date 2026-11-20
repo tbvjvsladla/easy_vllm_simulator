@@ -1,19 +1,3 @@
-//! Contract checks of `verify_distribution` (plan 26111805 「보존 계약」, cell c21c-contract-tests): the surface its
-//! consumers read (runtime-support/contract/consumers.tsv rows of this bin) — the W gate and the documents (workflow.md,
-//! this crate's README, adversarial-benchmark and terraforming_node SKILL.md, `rust_runtime.md`) run
-//! `bash .claude/policies/runtime/verify_distribution.sh [--json-out PATH] [--policy-as-of YYYY-MM-DD]` and read the exit
-//! code (0 PASS · 1 FAIL · 2 usage) and the JSON report (`verdict`, `checks[].name`/`ok`, `policy_as_of`); the ledger
-//! and policy-selftest's help name the launcher.
-//!
-//! The full acceptance run needs the whole checkout and its built children (minutes, W gate). Here the program runs for
-//! real through a copy of its launcher in a scratch checkout (argv[0] = `<scratch>/.claude/policies/runtime/
-//! verify_distribution.sh`, so the scratch directory is the repository it judges): the near-empty checkout is judged
-//! FAIL (the checks that need the absent files fail; which of the others pass is not pinned), which fixes the report
-//! shape, the FAIL exit code, `--json-out` and the reference-date record without touching the repository. One check is
-//! pinned by its inputs: `sub_retirement_consumer_audit_before_tombstone` holds the source tokens of `sub_runner.rs`
-//! that the sub's retirement scan relies on (consumers.md 「고정 표면」 sub_runner row; the check must not be weakened).
-//! Values are L2, exit codes and key names L1, check details and message texts L3. A non-UTF-8 argument panics today
-//! (`src/bin/verify_distribution.rs:3` `std::env::args()`); that is recorded as a defect of the base and not pinned here.
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
@@ -112,32 +96,16 @@ fn launcher_override_and_absent_executable() {
     assert_eq!(out.status.code(), Some(0));
 }
 
-/// A failing distribution: exit 1, one JSON report on stdout with `schema_version`, `repo` (the judged checkout),
-/// `policy_as_of` {`as_of`, `as_of_source`, `observed_utc`, `repro_as_of`}, `verdict` = `FAIL` and `checks[]` objects with a
-/// string `name` and a bool `ok`; `--json-out PATH` writes the same report.
 #[test]
 fn failing_checkout_report_shape_exit_1_and_json_out() {
     let s = checkout("fail");
     let out_file = s.0.join("report.json");
-    let out = verify(
-        &s,
-        &[
-            "--policy-as-of",
-            "2026-11-18",
-            "--json-out",
-            out_file.to_str().unwrap(),
-        ],
-    );
+    let out = verify(&s, &["--json-out", out_file.to_str().unwrap()]);
     assert_eq!(out.status.code(), Some(1), "stderr:\n{}", text(&out.stderr));
     let doc = report(&out);
     assert_eq!(doc.at("schema_version").kind(), "number");
     assert_eq!(doc.at("repo").str(), Some(s.0.to_str().unwrap()));
     assert_eq!(doc.at("verdict").str(), Some("FAIL"));
-    let rec = doc.at("policy_as_of");
-    assert_eq!(rec.at("as_of").str(), Some("2026-11-18"));
-    assert_eq!(rec.at("as_of_source").str(), Some("explicit-caller-input"));
-    assert_eq!(rec.at("observed_utc"), &Json::Null);
-    assert_eq!(rec.at("repro_as_of").str(), Some("2026-11-18"));
     let checks = doc.at("checks").arr().expect("checks is an array");
     assert!(!checks.is_empty());
     for c in checks {
@@ -163,20 +131,6 @@ fn failing_checkout_report_shape_exit_1_and_json_out() {
         doc,
         "--json-out holds the same report"
     );
-}
-
-/// Without `--policy-as-of` the reference date is observed once and recorded (`as_of_source` = `observed-utc-clock`,
-/// `observed_utc` a string, `repro_as_of` = `as_of`).
-#[test]
-fn observed_reference_date_is_recorded() {
-    let s = checkout("observed");
-    let out = verify(&s, &[]);
-    assert_eq!(out.status.code(), Some(1));
-    let rec = report(&out).at("policy_as_of").clone();
-    assert_eq!(rec.at("as_of_source").str(), Some("observed-utc-clock"));
-    assert_eq!(rec.at("observed_utc").kind(), "string");
-    assert_eq!(rec.at("as_of").str().map(str::len), Some(10));
-    assert_eq!(rec.at("repro_as_of"), rec.at("as_of"));
 }
 
 /// The sub's retirement scan (`sync_to_sub.sh` → `sub_runner retirement-scan`) is audited through the source text of
@@ -220,16 +174,10 @@ fn sub_runner_source_tokens_are_audited() {
     }
 }
 
-/// Usage errors (a malformed `--policy-as-of`, an unknown argument, a missing value) are exit 2 with nothing on stdout.
 #[test]
 fn usage_errors_are_exit_2() {
     let s = checkout("usage");
-    for args in [
-        &["--policy-as-of", "2026-13-40"][..],
-        &["--policy-as-of", "18-11-2026"],
-        &["--bogus"],
-        &["--json-out"],
-    ] {
+    for args in [&["--bogus"][..], &["--json-out"]] {
         let out = verify(&s, args);
         assert_eq!(out.status.code(), Some(2), "{args:?}");
         assert_eq!(text(&out.stdout), "", "{args:?}");

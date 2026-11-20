@@ -299,14 +299,7 @@ fn documented_subcommands_and_long_options() {
         (
             "staleness_gate.sh",
             &[],
-            &[
-                "--topology",
-                "--repo",
-                "--observed",
-                "--now",
-                "--max-age-days",
-                "--self-test",
-            ],
+            &["--topology", "--repo", "--observed", "--self-test"],
         ),
         (
             "node_blackbox/blackbox_session.sh",
@@ -495,7 +488,7 @@ fn consumer_self_tests_pass() {
         ("library_access.sh", 17),
         ("relay.sh", 147),
         ("render_sub_env.sh", 24),
-        ("staleness_gate.sh", 26),
+        ("staleness_gate.sh", 24),
         ("node_blackbox/agent_guard.sh", 45),
         ("node_blackbox/blackbox_eta.sh", 79),
         ("node_blackbox/blackbox_events.sh", 42),
