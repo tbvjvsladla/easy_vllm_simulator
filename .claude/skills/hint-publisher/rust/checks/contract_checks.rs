@@ -8,7 +8,12 @@
 //!   [--record-missing]` (exit `EXIT_LOCAL_TAG_OBJECT_MISSING` read from `src/catalog.rs`, the fetch hint line on
 //!   stderr, `hints/index.json` rows `object: absent-local`) and `catalog classify --index --rc` (`<rc> <absent n>`);
 //! - policy-predicates `companion.rs`: the closed list of launchers in `scripts/`, their override variables and the
-//!   exported `HINT_SKILL_DIR`.
+//!   exported `HINT_SKILL_DIR`;
+//! - policy-selftest `hint_suite.rs` (gate relay): `verify`/`push` ask the completion gate first and relay its refusal
+//!   JSON with its exit code; an unreadable gate output is a refusal JSON with `HINT_GATE_OUTPUT_UNREADABLE`;
+//! - hint's own reading of other bins' surfaces (consumers.md 「계약 시험에 반영할 것」): `evidence_publisher` through
+//!   its `.sh` launcher, the native serve proof's `pip_freeze_paths` keys, the blackbox session documents and events
+//!   (through the crate's `hint_api` ELF, see the section below).
 //!
 //! The bins run for real (through the launchers where the consumers do), in scratch directories and throwaway local
 //! git repositories (the "remote" is a bare repository on disk). Values (L2) and exit codes, codes and marker
@@ -283,6 +288,123 @@ fn catalog_derive_and_classify_for_the_closing_sequence() {
     assert_eq!(classify("0").split_whitespace().collect::<Vec<_>>(), [missing.to_string().as_str(), "1"]);
 }
 
+/// `catalog classify --index I --rc R` as `closing_sequence.sh:227-236` reads it (`read -r rc n`): for `--rc 0` the
+/// second field is the number of `object: absent-local` rows, `0` included; an unreadable index leaves it empty
+/// ("cannot classify" is not "0 absent"); for any other rc there is no second field. Exit 0 in every case.
+#[test]
+fn catalog_classify_fields_for_the_closing_sequence() {
+    let missing = exit_local_tag_object_missing().to_string();
+    let s = scratch("classify");
+    let index = s.0.join("index.json");
+    let classify = |rc: &str| {
+        let out = hint(&s.0, &["catalog", "classify", "--index", index.to_str().unwrap(), "--rc", rc]);
+        assert_eq!(out.status.code(), Some(0), "{}", text(&out.stderr));
+        text(&out.stdout).split_whitespace().map(str::to_string).collect::<Vec<_>>()
+    };
+    write(&index, r#"{"schema": 5, "hints": [{"tag": "hint/0.31.0/m-one/gb10-x/r1", "object": "present"}]}"#);
+    assert_eq!(classify("0"), [missing.clone(), "0".to_string()], "no absent row is the count 0");
+    write(
+        &index,
+        r#"{"schema": 5, "hints": [{"tag": "hint/0.31.0/m-one/gb10-x/r1", "object": "absent-local"}, {"tag": "hint/0.30.0/o/h100/r2"}]}"#,
+    );
+    assert_eq!(classify("0"), [missing.clone(), "1".to_string()]);
+    assert_eq!(classify("1"), [missing.clone()], "a non-zero rc has no count field");
+    std::fs::remove_file(&index).unwrap();
+    assert_eq!(classify("0"), [missing], "an unreadable index leaves the count field empty");
+}
+
+/// A repository with one annotated hint tag whose footer binds `manifest_ref`, a central-authority flag, a bare remote
+/// `fx` and a stand-in completion gate launcher (`completion_gate.sh`: records its arguments, prints `$GATE_OUT`, exits
+/// `$GATE_RC`). Returns (scratch, repo, tag).
+fn gate_fixture(tag: &str) -> (Scratch, PathBuf, String) {
+    let s = scratch(tag);
+    let (repo, bare) = (s.0.join("repo"), s.0.join("remote.git"));
+    std::fs::create_dir_all(&repo).unwrap();
+    std::fs::create_dir_all(&bare).unwrap();
+    git(&repo, &["init", "-q", "-b", "main"]);
+    git(&repo, &["commit", "-q", "--allow-empty", "-m", "base"]);
+    git(&bare, &["init", "-q", "--bare", "-b", "main"]);
+    git(&repo, &["remote", "add", "fx", bare.to_str().unwrap()]);
+    write(&repo.join("hints/.central_authority"), "contract\n");
+    write(
+        &repo.join(".claude/policies/runtime/completion_gate.sh"),
+        "#!/bin/bash\nprintf '%s\\n' \"$@\" > \"$GATE_ARGV\"\nprintf '%s' \"$GATE_OUT\"\nexit \"$GATE_RC\"\n",
+    );
+    let anchor = String::from_utf8(Command::new("git").arg("-C").arg(&repo).args(["rev-parse", "HEAD"]).output().unwrap().stdout).unwrap();
+    let name = "hint/0.31.0/m-one/gb10-x/r1".to_string();
+    let mut fields = hintlib::value::J::dict();
+    for (k, v) in [
+        ("version", hintlib::tag::FOOTER_VERSION),
+        ("tag", name.as_str()),
+        ("topology", "single"),
+        ("anchor", anchor.trim()),
+        ("manifest_ref", "docs/_evidence/work_manifest.json"),
+        ("bench_ref", "../benchmark/benchmark_contract.yaml"),
+        ("bench_kind", "certificate"),
+    ] {
+        fields.set(k, v);
+    }
+    let message = hintlib::tag::annotation("contract fixture brief", &fields).unwrap();
+    let msg = s.0.join("annotation.txt");
+    write(&msg, &message);
+    git(&repo, &["tag", "-a", "-F", msg.to_str().unwrap(), "--cleanup=verbatim", &name, "HEAD"]);
+    (s, repo, name)
+}
+
+/// The promotion-gate relay (policy-selftest `hint_suite.rs` `gate_denied`): `verify --tag` and `push --tag --remote
+/// --apply` ask the gate first — `completion_gate.sh authorize --manifest <repo>/<manifest_ref> --mode promotion --action
+/// hint_verify|hint_push --repo-root <repo>`; a refusal is the gate's JSON on stdout as it was printed, with the gate's
+/// exit code, and nothing is pushed. A gate output that is not JSON is `HINT_GATE_OUTPUT_UNREADABLE`: a refusal JSON
+/// (`allowed: false`, that reason code, the action) on stdout, exit 2.
+#[test]
+fn gate_refusal_relayed_by_verify_and_push() {
+    let (s, repo, name) = gate_fixture("gate");
+    let r = repo.to_str().unwrap();
+    let argv = s.0.join("gate_argv.txt");
+    let run = |args: &[&str], out: &str, rc: &str| {
+        Command::new("bash")
+            .arg(skill().join("scripts/hint.sh"))
+            .args(args)
+            .env("HINT_BIN", env!("CARGO_BIN_EXE_hint"))
+            .env("GATE_ARGV", &argv)
+            .env("GATE_OUT", out)
+            .env("GATE_RC", rc)
+            .current_dir(&repo)
+            .output()
+            .unwrap()
+    };
+    let manifest = format!("{r}/docs/_evidence/work_manifest.json");
+    for (sub, action) in [("verify", "hint_verify"), ("push", "hint_push")] {
+        let deny = format!(
+            "{{\"allowed\": false, \"action\": \"{action}\", \"exit_code\": 3, \"reason_codes\": [\"RUNTIME_FUNCTIONAL_SMOKE_NOT_PASSED\"]}}\n"
+        );
+        let args: Vec<&str> = match sub {
+            "verify" => vec!["--repo", r, "verify", "--tag", &name],
+            _ => vec!["--repo", r, "push", "--tag", &name, "--remote", "fx", "--apply"],
+        };
+        let out = run(&args, &deny, "3");
+        assert_eq!(out.status.code(), Some(3), "{sub}: {}{}", text(&out.stdout), text(&out.stderr));
+        assert_eq!(Json::parse(&text(&out.stdout)).unwrap(), Json::parse(&deny).unwrap(), "{sub}: the gate JSON is relayed");
+        let called: Vec<String> = std::fs::read_to_string(&argv).unwrap().lines().map(str::to_string).collect();
+        assert_eq!(
+            called,
+            ["authorize", "--manifest", &manifest, "--mode", "promotion", "--action", action, "--repo-root", r],
+            "{sub}: the gate's arguments"
+        );
+        std::fs::remove_file(&argv).unwrap();
+
+        let out = run(&args, "not a JSON document", "0");
+        assert_eq!(out.status.code(), Some(2), "{sub}: {}{}", text(&out.stdout), text(&out.stderr));
+        let doc = Json::parse(&text(&out.stdout)).unwrap_or_else(|e| panic!("{sub}: {e}: {}", text(&out.stdout)));
+        assert_eq!(doc.at("allowed"), &Json::Bool(false), "{sub}");
+        assert_eq!(doc.at("action").str(), Some(action), "{sub}");
+        assert_eq!(doc.at("reason_codes").strs(), ["HINT_GATE_OUTPUT_UNREADABLE"], "{sub}");
+        assert!(text(&out.stderr).lines().any(|l| l.starts_with("[hint] FAIL HINT_GATE_OUTPUT_UNREADABLE:")), "{sub}");
+    }
+    let remote_tags = Command::new("git").arg("-C").arg(s.0.join("remote.git")).args(["tag", "--list"]).output().unwrap();
+    assert_eq!(text(&remote_tags.stdout), "", "a refused push pushes nothing");
+}
+
 /// policy-distribution runs `hint.sh --self-test` and needs exit 0 (the self-test's isolated E2E also drives the gate
 /// relay: the gate's deny JSON on stdout with its exit code, and an unreadable gate output).
 #[test]
@@ -318,8 +440,9 @@ fn bench_report() -> String {
 }
 
 /// `render_bench_section`: `--selftest` is exit 0 (policy-distribution); `--report R --out S` then `--verify
-/// --section S --report R` is exit 0 with `[render_bench_section] VERIFY PASS` on stdout; a touched number is exit 1
-/// with `[render_bench_section] FAIL` on stderr; an unknown option is exit 2.
+/// --section S --report R` is exit 0 (the documents' "diff 0"); a touched number is exit 1 with nothing on stdout and the
+/// reason on stderr (its wording is free); an option no document names is a usage error, exit 2. The documented
+/// `--verify --all --hints-dir` is not fixed (the parser refuses it: a defect candidate, contract_tests.tsv).
 #[test]
 fn render_bench_section_selftest_and_verify() {
     let s = scratch("rbs");
@@ -342,14 +465,231 @@ fn render_bench_section_selftest_and_verify() {
     assert_eq!(out.status.code(), Some(0), "{}", text(&out.stderr));
     let out = rbs(&["--verify", "--section", sec, "--report", r]);
     assert_eq!(out.status.code(), Some(0), "{}", text(&out.stderr));
-    assert!(text(&out.stdout).lines().any(|l| l.starts_with("[render_bench_section] VERIFY PASS")), "{}", text(&out.stdout));
     let touched = std::fs::read_to_string(&section).unwrap().replace("22.26", "99.99");
     std::fs::write(&section, touched).unwrap();
     let out = rbs(&["--verify", "--section", sec, "--report", r]);
     assert_eq!(out.status.code(), Some(1));
     assert_eq!(text(&out.stdout), "");
-    assert!(text(&out.stderr).starts_with("[render_bench_section] FAIL"), "{}", text(&out.stderr));
-    assert_eq!(rbs(&["--verify", "--all"]).status.code(), Some(2));
+    assert!(!text(&out.stderr).trim().is_empty(), "the reason is on stderr");
+    let out = rbs(&["--verify", "--no-such-option"]);
+    assert_eq!(out.status.code(), Some(2));
+    assert_eq!(text(&out.stdout), "");
+}
+
+// ── hint's side of other bins' surfaces ─────────────────────────────────────────────────────────────────────────────
+// consumers.md 「계약 시험에 반영할 것」 hint-publisher: the evidence layer starts `evidence_publisher` through its `.sh`
+// launcher (core.rs `REL_EVIDENCE_PUBLISHER` is the `.py` name, `owner_launcher` swaps it), checks the native serve
+// proof's `pip_freeze_paths` keys and reads the blackbox session data. The `hint` CLI reaches these only inside a full
+// `publish` (fake docker, every owner ELF — policy-selftest `hint_suite_cases.rs::green_on_this_checkout`); here the
+// crate's `hint_api` ELF drives the same library paths one call per request line.
+
+/// A JSON string literal.
+fn q(s: &str) -> String {
+    let mut out = String::from("\"");
+    for c in s.chars() {
+        match c {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\n' => out.push_str("\\n"),
+            c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04x}", c as u32)),
+            c => out.push(c),
+        }
+    }
+    out.push('"');
+    out
+}
+
+/// `{"__path__": p}` (the bridge's path argument).
+fn qpath(p: &Path) -> String {
+    format!("{{\"__path__\": {}}}", q(p.to_str().unwrap()))
+}
+
+/// One `hint_api` process: each request a line on stdin, one parsed response per request, exit 0. `HINT_SKILL_DIR`
+/// points into the scratch directory so no owner script of this checkout is found or run.
+fn hint_api(s: &Scratch, requests: &[String]) -> Vec<Json> {
+    use std::io::Write;
+    let mut child = Command::new(env!("CARGO_BIN_EXE_hint_api"))
+        .env("HINT_SKILL_DIR", s.0.join("no-skill/skills/hint-publisher"))
+        .current_dir(&s.0)
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut input = requests.join("\n");
+    input.push('\n');
+    child.stdin.take().unwrap().write_all(input.as_bytes()).unwrap();
+    let out = child.wait_with_output().unwrap();
+    assert_eq!(out.status.code(), Some(0), "{}", text(&out.stderr));
+    let rows: Vec<Json> = text(&out.stdout).lines().map(|l| Json::parse(l).unwrap_or_else(|e| panic!("{e}: {l}"))).collect();
+    assert_eq!(rows.len(), requests.len(), "{}", text(&out.stdout));
+    rows
+}
+
+fn value(r: &Json) -> &Json {
+    assert_eq!(r.at("kind").str(), Some("value"), "{r:?}");
+    r.at("value")
+}
+
+/// The `HintError` code of an exception response.
+fn error_code(r: &Json) -> String {
+    assert_eq!(r.at("kind").str(), Some("exception"), "{r:?}");
+    r.at("code").str().unwrap_or_else(|| panic!("{r:?}")).to_string()
+}
+
+const PUBLISHER_SH: &str = ".claude/policies/runtime/evidence_publisher.sh";
+
+/// `evidence_publisher <sub> --repo-root <repo> <args…>` starts `.claude/policies/runtime/evidence_publisher.sh` (the
+/// `.sh` beside the `.py` name; the `.py` is never run) with cwd = the repository: its stdout JSON comes back with the
+/// exit code (an empty stdout = `{}`), a stdout that is not JSON is `HINT_PUBLISHER_OUTPUT_UNREADABLE`, an exit code
+/// outside the accepted set is `HINT_PUBLISHER_FAILED` with that code, and without the launcher nothing runs:
+/// `HINT_OWNER_LAUNCHER_MISSING`.
+#[test]
+fn evidence_publisher_is_started_through_its_sh_launcher() {
+    let s = scratch("publisher");
+    let repo = s.0.join("repo");
+    let launcher = repo.join(PUBLISHER_SH);
+    let set = |out: &str, rc: i32| {
+        write(&launcher, &format!("#!/bin/bash\nprintf '%s\\n' \"$PWD\" \"$@\" > \"$PWD/../argv.txt\"\nprintf '%s' {}\nexit {rc}\n", q(out)));
+    };
+    let call = |id: &str, accept: &str| {
+        format!(
+            "{{\"id\": {}, \"fn\": \"evidence._publisher\", \"args\": [{}, \"append-raw\", \"--topic\", \"t1\", \"--kind\", \"simlog\"], \"kwargs\": {{\"accept\": {accept}}}}}",
+            q(id),
+            qpath(&repo)
+        )
+    };
+    let doc = r#"{"reason_codes": ["PUB_OK"], "messages": {"PUB_OK": "m"}}"#;
+
+    set(doc, 0);
+    let rows = hint_api(&s, &[call("a", "[0]")]);
+    let v = value(&rows[0]).arr().unwrap();
+    assert_eq!(v[0], Json::Num("0".into()));
+    assert_eq!(v[1], Json::parse(doc).unwrap(), "the publisher's stdout JSON");
+    let argv: Vec<String> = std::fs::read_to_string(s.0.join("argv.txt")).unwrap().lines().map(str::to_string).collect();
+    let r = repo.to_str().unwrap();
+    assert_eq!(argv, [r, "append-raw", "--repo-root", r, "--topic", "t1", "--kind", "simlog"], "cwd and arguments");
+
+    set("", 0);
+    assert_eq!(value(&hint_api(&s, &[call("b", "[0]")])[0]).arr().unwrap()[1], Json::Obj(Vec::new()), "empty stdout = {{}}");
+
+    set("not json", 0);
+    assert_eq!(error_code(&hint_api(&s, &[call("c", "[0]")])[0]), "HINT_PUBLISHER_OUTPUT_UNREADABLE");
+
+    set(doc, 3);
+    let rows = hint_api(&s, &[call("d", "[0]"), call("e", "[0, 3]")]);
+    assert_eq!(error_code(&rows[0]), "HINT_PUBLISHER_FAILED");
+    assert_eq!(rows[0].at("exit_code"), &Json::Num("3".into()));
+    assert_eq!(value(&rows[1]).arr().unwrap()[0], Json::Num("3".into()), "an accepted non-zero code is a value");
+
+    std::fs::remove_file(&launcher).unwrap();
+    std::fs::remove_file(s.0.join("argv.txt")).unwrap();
+    let py = repo.join(".claude/policies/runtime/evidence_publisher.py");
+    write(&py, "#!/bin/bash\ntouch \"$PWD/../py-ran\"\n");
+    assert_eq!(error_code(&hint_api(&s, &[call("f", "[0]")])[0]), "HINT_OWNER_LAUNCHER_MISSING");
+    assert!(!s.0.join("py-ran").exists() && !s.0.join("argv.txt").exists(), "nothing ran");
+}
+
+/// The native serve proof (upstream `native_multinode_serve`, consumers.tsv `e1.rs` row): `pip_freeze_paths` must be
+/// exactly the two keys `main` and `sub`, each a preserved regular file under the repository; with them the evidence
+/// carries both paths, any other key set is `HINT_NATIVE_EVIDENCE_MISSING`.
+#[test]
+fn native_serve_proof_needs_exactly_main_and_sub_pip_freeze_paths() {
+    let s = scratch("native");
+    let repo = s.0.join("repo");
+    let keep = "output/multi/benchlog/native_c1-a";
+    for f in ["native-install.sh", "pip-freeze-main.txt", "pip-freeze-sub.txt"] {
+        write(&repo.join(keep).join(f), "x\n");
+    }
+    let node = r#"{"root_absent": true, "owned_processes": [], "owned_gpu_processes": [], "unknown": []}"#;
+    write(
+        &repo.join(keep).join("cleanup.json"),
+        &format!(
+            r#"{{"kind": "native_multinode_cleanup_attestation", "plane": "native", "status": "PASS", "errors": [], "evidence_preserved": true, "run_id": "r1", "nodes": {{"main": {node}, "sub": {node}}}}}"#
+        ),
+    );
+    let proof = |freezes: &str| {
+        format!(
+            r#"{{"plane": "native", "kind": "native_multinode_serve_proof", "status": "PASS", "cell": "c1-a", "run_id": "r1",
+            "health": {{"ok": true}}, "inference": {{"ok": true, "completion_text_len": 5}},
+            "endpoints": {{"health": {{"http_status": 200}}, "inference": {{"http_status": 200}}}},
+            "native_install_path": "{keep}/native-install.sh", "cleanup_attestation_path": "{keep}/cleanup.json",
+            "pip_freeze_paths": {freezes}}}"#
+        )
+        .replace('\n', " ")
+    };
+    let call = |id: &str, freezes: &str| {
+        format!(
+            "{{\"id\": {}, \"fn\": \"evidence._native_producer_evidence\", \"args\": [{}, \"multi\", \"c1-a\", {}, \"output/multi/benchlog/serve_proof_c1-a.json\"]}}",
+            q(id),
+            qpath(&repo),
+            proof(freezes)
+        )
+    };
+    let both = format!(r#"{{"main": "{keep}/pip-freeze-main.txt", "sub": "{keep}/pip-freeze-sub.txt"}}"#);
+    let only_main = format!(r#"{{"main": "{keep}/pip-freeze-main.txt"}}"#);
+    let extra = format!(r#"{{"main": "{keep}/pip-freeze-main.txt", "sub": "{keep}/pip-freeze-sub.txt", "sub2": "{keep}/pip-freeze-sub.txt"}}"#);
+    let rows = hint_api(&s, &[call("ok", &both), call("main", &only_main), call("extra", &extra), call("none", "null")]);
+    let ev = value(&rows[0]);
+    assert_eq!(ev.at("plane").str(), Some("native"));
+    let paths = ev.at("pip_freeze_paths");
+    assert_eq!(paths.keys(), ["main", "sub"]);
+    assert_eq!(paths.at("main").str(), Some(format!("{keep}/pip-freeze-main.txt").as_str()));
+    assert_eq!(paths.at("sub").str(), Some(format!("{keep}/pip-freeze-sub.txt").as_str()));
+    for r in &rows[1..] {
+        assert_eq!(error_code(r), "HINT_NATIVE_EVIDENCE_MISSING", "{r:?}");
+    }
+}
+
+/// Blackbox session data (terraforming `blackbox_session`, consumers.tsv `e2.rs` row): a session document
+/// `docs/logs/<node>/sessions/<session_id>.json` counts only when its `session_id` is its file name and `started_utc`
+/// (and `stopped_utc`, when not null) are UTC times; an event belongs to the cell when its `kind` is `serve_start` or
+/// `serve_stop`, its `session_id` names such a document whose `config_file`·`topology` are the cell's and whose
+/// `started_utc`/`stopped_utc` is the event time, and its `source` (when present) is `blackbox_session`.
+#[test]
+fn blackbox_session_documents_and_events_hint_reads() {
+    let s = scratch("session");
+    let repo = s.0.join("repo");
+    let sid = "serve-c1-a-20260101T000000Z";
+    let sessions = repo.join("docs/logs/n1/sessions");
+    write(
+        &sessions.join(format!("{sid}.json")),
+        &format!(
+            r#"{{"session_id": "{sid}", "started_utc": "2026-01-01T00:00:00Z", "stopped_utc": "2026-01-01T01:00:00Z", "config_file": "c1-a", "topology": "multi"}}"#
+        ),
+    );
+    write(&sessions.join("serve-c1-a-other.json"), &format!(r#"{{"session_id": "{sid}", "started_utc": "2026-01-01T00:00:00Z"}}"#));
+    let docs = format!("{{\"__call__\": {{\"fn\": \"evidence._node_session_docs\", \"args\": [{}, \"n1\"]}}}}", qpath(&repo));
+    let ev = r#"{"cell": "c1-a", "topology": "multi", "sweep": {"index": {"meta": {"config_name": "c1-a"}}}}"#;
+    let event = |id: &str, fields: &str, ts: &str| {
+        format!(
+            "{{\"id\": {}, \"fn\": \"evidence._session_event_is_cell\", \"args\": [{{{fields}}}, {}, {ev}, {docs}]}}",
+            q(id),
+            q(ts)
+        )
+    };
+    let start = format!(r#""kind": "serve_start", "session_id": "{sid}", "source": "blackbox_session", "topology": "multi""#);
+    let stop = format!(r#""kind": "serve_stop", "session_id": "{sid}""#);
+    let rows = hint_api(
+        &s,
+        &[
+            format!("{{\"id\": \"docs\", \"fn\": \"evidence._node_session_docs\", \"args\": [{}, \"n1\"]}}", qpath(&repo)),
+            event("start", &start, "2026-01-01T00:00:00Z"),
+            event("stop", &stop, "2026-01-01T01:00:00Z"),
+            event("start-late", &start, "2026-01-01T00:00:01Z"),
+            event("other-source", &start.replace("blackbox_session", "other_tool"), "2026-01-01T00:00:00Z"),
+            event("other-kind", &start.replace("serve_start", "serve_ready"), "2026-01-01T00:00:00Z"),
+        ],
+    );
+    let found = value(&rows[0]);
+    let doc = found.at(sid);
+    assert_eq!(doc.at("config_file").str(), Some("c1-a"));
+    assert_eq!(doc.at("_source").str(), Some(format!("docs/logs/n1/sessions/{sid}.json").as_str()));
+    assert_eq!(found.at("serve-c1-a-other"), &Json::Null, "a document whose session_id is not its name does not count");
+    let want = [("start", true), ("stop", true), ("start-late", false), ("other-source", false), ("other-kind", false)];
+    for (r, (id, is)) in rows[1..].iter().zip(want) {
+        assert_eq!(value(r), &Json::Bool(is), "{id}");
+    }
 }
 
 /// A small RFC 8259 reader for the contract checks: the fixed surface is the parsed value (L2), so the checks read the

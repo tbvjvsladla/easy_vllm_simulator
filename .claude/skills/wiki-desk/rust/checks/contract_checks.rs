@@ -3,9 +3,10 @@
 //! `yaml11_oracle` row. The binary is started for real; the checks read values (L2) and exit codes (L1), not texts.
 //!
 //! Fixed here: no argument and the flat mapping on stdin; stdout = one JSON array of `[key, value]` string pairs in
-//! first-insertion order; a scalar that YAML 1.1 reads as a string is the string itself, any other resolution is
-//! `"!!<tag> <raw>"`; exit 0 with nothing on stderr; an unsupported or unreadable input is a non-zero exit with nothing
-//! on stdout (the consumer throws on a non-zero exit).
+//! document order; a scalar that resolves to a string is the string itself, any other resolution is `"!!<tag> <raw>"`
+//! (fixed only for scalars YAML 1.1 and 1.2 resolve alike — the oracle's PyYAML 1.1 rules change with c45); exit 0 with
+//! nothing on stderr; an unsupported or unreadable input is a non-zero exit with nothing on stdout (the consumer throws
+//! on a non-zero exit).
 use std::io::Write;
 use std::process::{Command, Stdio};
 
@@ -57,21 +58,23 @@ fn quoted_ambiguous_scalars_come_back_as_the_same_strings() {
     assert_eq!(pairs(&out), want);
 }
 
-/// Plain scalars: a `str` resolution is the text itself, any other is `!!<tag> <raw>`; a repeated key keeps its first
-/// position and takes the last value; comments, blank lines and a leading `---` are not rows.
+/// Plain scalars: a `str` resolution is the text itself, any other is `!!<tag> <raw>`; rows keep the document order;
+/// comments, blank lines and a leading `---` are not rows. Only scalars that YAML 1.1 and the 1.2 core schema resolve
+/// alike are fixed here; the 1.1-only resolutions (`yes`, leading-zero octal, timestamps, a repeated key) are not a
+/// consumer surface (types.md 5절, c45).
 #[test]
-fn plain_scalars_show_their_yaml11_resolution() {
-    let text = "---\n# c\nplain: word\nflag: yes\nnum: 017\nempty:\n\nwhen: 2026-10-14\nkey: first\nquoted: 'yes'\nkey: last\n";
+fn plain_scalars_show_their_resolution() {
+    let text = "---\n# c\nplain: word\nflag: true\nnum: 42\nratio: 2.5\nempty:\n\ntilde: ~\nquoted: 'yes'\n";
     let (code, out, err) = oracle(text.as_bytes());
     assert_eq!(code, Some(0), "stderr: {err}");
     let got = pairs(&out);
     let want = [
         ("plain", "word"),
-        ("flag", "!!bool yes"),
-        ("num", "!!int 017"),
+        ("flag", "!!bool true"),
+        ("num", "!!int 42"),
+        ("ratio", "!!float 2.5"),
         ("empty", "!!null "),
-        ("when", "!!timestamp 2026-10-14"),
-        ("key", "last"),
+        ("tilde", "!!null ~"),
         ("quoted", "yes"),
     ];
     assert_eq!(got, want.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect::<Vec<_>>());

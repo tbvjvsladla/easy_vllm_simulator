@@ -2,7 +2,9 @@
 //! through the launchers they call — consumers.tsv rows of `py_boundary_guard` (pre-commit hook), `inline_python_scan`
 //! (policy-distribution `check --repo .`, W gate) and `crate_allow` (campaign check `deps-allow`). The bins run for
 //! real against throwaway git repositories; the checks fix exit codes, marker and finding line prefixes, the
-//! stdout/stderr split and the launcher override variables, not message texts.
+//! stdout/stderr split and the launcher override variables, not message texts. `crate_allow` also: the harness-package
+//! rule for source-less packages (`path-unknown`), and exit 2 for no tracked lock and for a non-UTF-8 argument
+//! (contract consumers.md 「계약 시험에 반영할 것」, c20 3회차).
 //!
 //! `py_exec_trap` has no consumer outside its own checks (consumers.tsv: golden(test) rows only) and is not fixed here.
 use std::path::{Path, PathBuf};
@@ -52,19 +54,47 @@ fn code(o: &Output) -> Option<i32> {
     o.status.code()
 }
 
-/// Every launcher refuses an absent executable with exit 2 and starts nothing (the hook fails closed on it).
+const LAUNCHERS: [(&str, &str); 3] = [
+    (".claude/policies/runtime/py_boundary_guard.sh", "PY_BOUNDARY_GUARD_BIN"),
+    (".claude/rust/py-boundary-guard/inline_python_scan.sh", "INLINE_PYTHON_SCAN_BIN"),
+    (".claude/rust/py-boundary-guard/crate_allow.sh", "CRATE_ALLOW_BIN"),
+];
+
+/// Every launcher refuses an absent executable with exit 2 and starts nothing (the hook fails closed on it). The probe is
+/// `--help`, which every real bin answers with exit 0, so the 2 comes from the absent override, not from the bin.
 #[test]
 fn launchers_exist_and_an_absent_executable_is_exit_2() {
     let r = repo("absent");
-    for (launcher, var) in [
-        (".claude/policies/runtime/py_boundary_guard.sh", "PY_BOUNDARY_GUARD_BIN"),
-        (".claude/rust/py-boundary-guard/inline_python_scan.sh", "INLINE_PYTHON_SCAN_BIN"),
-        (".claude/rust/py-boundary-guard/crate_allow.sh", "CRATE_ALLOW_BIN"),
-    ] {
+    for (launcher, var) in LAUNCHERS {
         assert!(root().join(launcher).is_file(), "{launcher}");
-        let out = launch(launcher, var, "/nonexistent/evs-contract-bin", &r.0, &["check"]);
+        let out = launch(launcher, var, "/nonexistent/evs-contract-bin", &r.0, &["--help"]);
         assert_eq!(code(&out), Some(2), "{launcher}");
         assert_eq!(text(&out.stdout), "", "{launcher}");
+    }
+}
+
+/// The `env` ELF of this host, found on `PATH` (the launchers start only an ELF): a stand-in whose output shows which
+/// executable a launcher started.
+fn env_elf() -> PathBuf {
+    let path = std::env::var_os("PATH").expect("PATH");
+    std::env::split_paths(&path)
+        .map(|d| d.join("env"))
+        .filter_map(|p| std::fs::canonicalize(p).ok())
+        .find(|p| std::fs::read(p).map(|b| b.starts_with(b"\x7fELF")).unwrap_or(false))
+        .expect("an `env` ELF on PATH")
+}
+
+/// The override variable names the executable the launcher starts, with the arguments passed on unchanged: a symlink to
+/// the `env` ELF as `<VAR>` runs `printf` and its words reach stdout (no real bin of the crate prints them).
+#[test]
+fn launcher_override_runs_the_named_executable() {
+    let r = repo("override");
+    let stand_in = r.0.join("stand-in-elf");
+    std::os::unix::fs::symlink(env_elf(), &stand_in).unwrap();
+    for (launcher, var) in LAUNCHERS {
+        let out = launch(launcher, var, stand_in.to_str().unwrap(), &r.0, &["printf", "%s|%s", var, "--repo"]);
+        assert_eq!(code(&out), Some(0), "{launcher}: {}", text(&out.stderr));
+        assert_eq!(text(&out.stdout), format!("{var}|--repo"), "{launcher}");
     }
 }
 
@@ -131,9 +161,11 @@ fn inline_python_scan_check_exit_codes() {
 
 const CRATES_IO: &str = "registry+https://github.com/rust-lang/crates.io-index";
 
-/// A repository whose one tracked lock pins `syn 3.0.9`, listed, noticed and present in the repository's cargo home.
+/// A repository whose one tracked lock (beside its tracked manifest, package `a 0.1.0`) pins `syn 3.0.9`, listed,
+/// noticed and present in the repository's cargo home.
 fn crate_repo(tag: &str, listed_version: &str) -> Repo {
     let r = repo(tag);
+    write(&r.0, "a/Cargo.toml", "[package]\nname = \"a\"\nversion = \"0.1.0\"\nedition = \"2021\"\n");
     write(
         &r.0,
         "a/Cargo.lock",
@@ -156,7 +188,7 @@ fn crate_repo(tag: &str, listed_version: &str) -> Repo {
         ".claude/runtime/rust/cargo/registry/src/index.crates.io-0000000000000000/syn-3.0.9/Cargo.toml",
         "[package]\nname = \"syn\"\nversion = \"3.0.9\"\nlicense = \"MIT OR Apache-2.0\"\n",
     );
-    git(&r.0, &["add", "a/Cargo.lock"]);
+    git(&r.0, &["add", "a/Cargo.lock", "a/Cargo.toml"]);
     r
 }
 
@@ -182,4 +214,84 @@ fn crate_allow_check_marker_and_findings() {
 
     assert_eq!(code(&crate_allow(&ok, &["check", "--bogus"])), Some(2));
     assert_eq!(code(&crate_allow(&ok, &[])), Some(2));
+}
+
+/// A source-less (path) package passes only as a harness package — the `[package]` name and version of a tracked
+/// `Cargo.toml` beside a tracked `Cargo.lock`; any other is `DEPS-VIOLATION path-unknown <crate>@<version>`, exit 1:
+/// a package no manifest declares, one whose manifest is not tracked, one whose tracked manifest has no tracked lock
+/// beside it.
+#[test]
+fn crate_allow_path_package_needs_a_tracked_manifest_beside_its_lock() {
+    let lock_with_b = format!(
+        "version = 4\n\n[[package]]\nname = \"a\"\nversion = \"0.1.0\"\n\n[[package]]\nname = \"b\"\nversion = \"0.2.0\"\n\n\
+         [[package]]\nname = \"syn\"\nversion = \"3.0.9\"\nsource = \"{CRATES_IO}\"\nchecksum = \"00\"\n"
+    );
+    let unknown = |r: &Repo, case: &str| {
+        let out = crate_allow(r, &["check"]);
+        let so = text(&out.stdout);
+        assert_eq!(code(&out), Some(1), "{case}: {so}{}", text(&out.stderr));
+        assert!(so.lines().any(|l| l.starts_with("DEPS-VIOLATION path-unknown b@0.2.0")), "{case}: {so}");
+        assert!(!so.lines().any(|l| l.contains("a@0.1.0")), "{case}: the harness package a passes: {so}");
+        assert!(!so.contains("DEPS-ALLOW-PASS"), "{case}: {so}");
+    };
+
+    let none = crate_repo("path-none", "3.0.9");
+    write(&none.0, "a/Cargo.lock", &lock_with_b);
+    unknown(&none, "no manifest declares b");
+
+    let untracked = crate_repo("path-untracked", "3.0.9");
+    write(&untracked.0, "a/Cargo.lock", &lock_with_b);
+    write(&untracked.0, "b/Cargo.toml", "[package]\nname = \"b\"\nversion = \"0.2.0\"\n");
+    write(&untracked.0, "b/Cargo.lock", "version = 4\n\n[[package]]\nname = \"b\"\nversion = \"0.2.0\"\n");
+    unknown(&untracked, "b's manifest and lock are not tracked");
+
+    let lockless = crate_repo("path-lockless", "3.0.9");
+    write(&lockless.0, "a/Cargo.lock", &lock_with_b);
+    write(&lockless.0, "b/Cargo.toml", "[package]\nname = \"b\"\nversion = \"0.2.0\"\n");
+    git(&lockless.0, &["add", "b/Cargo.toml"]);
+    unknown(&lockless, "b's tracked manifest has no tracked lock beside it");
+
+    // the same package with its own tracked manifest and lock is a harness package: pass
+    write(&lockless.0, "b/Cargo.lock", "version = 4\n\n[[package]]\nname = \"b\"\nversion = \"0.2.0\"\n");
+    git(&lockless.0, &["add", "b/Cargo.lock"]);
+    let out = crate_allow(&lockless, &["check"]);
+    assert_eq!(code(&out), Some(0), "{}{}", text(&out.stdout), text(&out.stderr));
+    assert_eq!(text(&out.stdout).lines().last(), Some("DEPS-ALLOW-PASS"));
+}
+
+/// Input errors are exit 2 with no marker and no finding line: a repository without any tracked `Cargo.lock` (nothing
+/// to check is not a pass) and an argument that is not UTF-8.
+#[test]
+fn crate_allow_no_tracked_lock_and_non_utf8_argument_are_exit_2() {
+    let r = crate_repo("no-lock", "3.0.9");
+    git(&r.0, &["rm", "-q", "--cached", "a/Cargo.lock"]);
+    let out = crate_allow(&r, &["check"]);
+    assert_eq!(code(&out), Some(2), "{}{}", text(&out.stdout), text(&out.stderr));
+    assert!(!text(&out.stdout).contains("DEPS-"), "{}", text(&out.stdout));
+    assert!(!out.stderr.is_empty());
+
+    // the argument names a readable copy of the allowlist: only its non-UTF-8 name makes it an input error
+    use std::os::unix::ffi::OsStrExt;
+    let ok = crate_repo("non-utf8", "3.0.9");
+    let mut name = ok.0.clone().into_os_string();
+    name.push(std::ffi::OsStr::from_bytes(b"/allow-\xff\xfe.tsv"));
+    std::fs::copy(ok.0.join(".claude/rust/py-boundary-guard/crate_allowlist.tsv"), &name).unwrap();
+    let run = |allowlist: &std::ffi::OsStr| {
+        Command::new("bash")
+            .arg(root().join(".claude/rust/py-boundary-guard/crate_allow.sh"))
+            .arg("check")
+            .arg("--allowlist")
+            .arg(allowlist)
+            .env("CRATE_ALLOW_BIN", env!("CARGO_BIN_EXE_crate_allow"))
+            .current_dir(&ok.0)
+            .output()
+            .unwrap()
+    };
+    let utf8 = ok.0.join("allow-copy.tsv");
+    std::fs::copy(&name, &utf8).unwrap();
+    assert_eq!(code(&run(utf8.as_os_str())), Some(0), "the same table under a UTF-8 name passes");
+    let out = run(&name);
+    assert_eq!(code(&out), Some(2), "{}{}", text(&out.stdout), text(&out.stderr));
+    assert_eq!(text(&out.stdout), "");
+    assert!(!out.stderr.is_empty());
 }

@@ -5,8 +5,13 @@
 //!
 //! Fixed here: `compare` with `--stage`, `--case`, `--repo`, `--raw-dir`, `--na-list`; `na-list --tree --out`;
 //! exit 0 = no mismatch (last stdout line `PARITY-<STAGE>-PASS python_exec=0`), 1 = mismatch (`MISMATCH <id> …`
-//! lines, last line `compare: <bad>/<n> cases mismatch python_exec=<n>`), 2 = usage or input error (message on
+//! lines, last line `compare: <bad>/<n> cases mismatch python_exec=<n>`), 2 = usage or input error (a message on
 //! stderr, stdout empty).
+//!
+//! Limit: the pass marker is fixed on a run where every case is not applicable (no case program runs). A pass after
+//! real case runs needs `parity`'s own `strace -f`, which cannot attach under the campaign's M fence (safe_run traces
+//! the whole test with `strace -f`; a nested tracer gets `PTRACE_TRACEME: Operation not permitted`), so it is not
+//! checked here; the W gate `parity compare --stage all --repo "$PWD"` runs it for real.
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
@@ -51,7 +56,8 @@ fn first_case_id(stage: &str) -> String {
 }
 
 /// The pass path of `compare --stage all --repo`: every case is listed as not applicable to the tree (`na-list`
-/// generates the list from the empty tree), so no case runs; exit 0 and the marker is the last line.
+/// generates the list from the empty tree), so no case runs; exit 0 and the marker is the last line (see the module
+/// notes for the limit).
 #[test]
 fn compare_all_pass_marker_and_exit_0() {
     let s = scratch("pass");
@@ -89,7 +95,7 @@ fn compare_mismatch_lines_and_exit_1() {
     assert!(raw.join(&id).join("exit_code").is_file(), "the raw outcome is written under --raw-dir");
 }
 
-/// Usage and input errors: exit 2, the reason on stderr, nothing on stdout.
+/// Usage and input errors: exit 2, a reason on stderr (its wording is free), nothing on stdout.
 #[test]
 fn usage_errors_exit_2_on_stderr() {
     let s = scratch("usage");
@@ -104,7 +110,7 @@ fn usage_errors_exit_2_on_stderr() {
         let out = parity(&s, args);
         assert_eq!(out.status.code(), Some(2), "{args:?}");
         assert_eq!(text(&out.stdout), "", "{args:?}");
-        assert!(text(&out.stderr).starts_with("parity: "), "{args:?}: {}", text(&out.stderr));
+        assert!(!text(&out.stderr).trim().is_empty(), "{args:?}: the reason is on stderr");
     }
 }
 
