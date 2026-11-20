@@ -24,7 +24,7 @@
 | `reads` | 소비자가 읽는 것: `exit:<구분하는 코드>`, `stdout-json:<키>`, `stdout-text:<무엇>`, `stderr:<무엇>`, `merged-output`, `file:<bin이 쓴 경로>`, `source-text:<토큰>`(bin의 소스 파일 본문을 대조), `exec`, `path-only`(경로만 적음), `test`, `comment`, `agent-instruction`(에이전트가 읽는 명령), `golden(…)`, `path-record` |
 | `fixed` | `yes`(기계 소비 — 고정 표면), `argv`(문서가 적은 명령행 — 서브커맨드·플래그가 고정), `path`(경로 이름만 고정), `golden`(재기준선 가능), `?` |
 | `basis` | `checked` = 사람(검토 에이전트)이 소비자 코드를 읽고 채운 행, `auto` = 아래 규칙으로 뽑은 행(`invocation`·`reads`는 어림) |
-| `note` | 기계로 파싱되는 문자열(reason code, 표 머리, 표식 줄) 등. 3회차에 더하거나 고친 행은 `r3:`로 시작한다 |
+| `note` | 기계로 파싱되는 문자열(reason code, 표 머리, 표식 줄) 등. 3회차에 더하거나 고친 행은 `r3:`로 시작한다. g-nc 위로 옮길 때(h38) 지운 `--as-of`·`--policy-as-of` 표면에 맞춰 고친 행은 `nc:`로 시작한다(c24 CKG-031) |
 
 뽑은 규칙(재현용):
 - 1회차 자동 규칙은 셋이다.
