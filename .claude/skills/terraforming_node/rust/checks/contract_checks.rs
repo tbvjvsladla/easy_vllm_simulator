@@ -742,6 +742,21 @@ fn blackbox_session_budget_declaration() {
         .find(|e| e.at("kind").str() == Some("budget_declare"))
         .unwrap_or_else(|| panic!("no budget_declare: {events:?}"));
     assert_eq!(declared.at("source").str(), Some("blackbox_session"));
+    // the declaration's numbers (e2.rs `_EVENT_DETAIL_FIELDS`; `mem_total_mib` is the runner's measurement, :529-538)
+    assert_eq!(declared.at("label").str(), Some("model-a"));
+    for (key, value) in [
+        ("floor_mib", "997000"),
+        ("weights_mib", "1000"),
+        ("kv_mib", "1000"),
+        ("overhead_mib", "1000"),
+        ("mem_total_mib", "1000000"),
+    ] {
+        assert_eq!(
+            declared.at(key),
+            &Json::Num(value.into()),
+            "{key}: {declared:?}"
+        );
+    }
     // clear-budget removes the declaration
     assert_eq!(bs(&["clear-budget", "--now", now]).status.code(), Some(0));
     assert_eq!(bs(&["budget-status", "--now", now]).status.code(), Some(3));
