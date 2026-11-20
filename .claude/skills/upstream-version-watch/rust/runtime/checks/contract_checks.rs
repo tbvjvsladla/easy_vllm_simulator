@@ -15,8 +15,14 @@
 //! - hint-publisher `a2.rs`·`a3/collect.rs`, policy-predicates `claims_owner.rs`, multinode_serve_smoke.sh:
 //!   `slave_forward prefix|json`, `forwards[]`, `sub_recipe`, `[slave-forward] FAIL(<code>):` on stderr;
 //! - policy-predicates `claims_text.rs`·`runtime_patch.rs`, sync_to_sub.sh: `validate_runtime_patch stamp|verify`;
-//! - closing_sequence.sh·sync_branches.sh: `layer_ledger` subcommands, JSON on stdout, plain lines, exit codes;
-//! - closing_sequence.sh: `push_branches --repo --remote --branch…` exit 0 / non-zero.
+//! - closing_sequence.sh·sync_branches.sh: `layer_ledger` subcommands, JSON on stdout, plain lines, exit codes
+//!   (`validate` 0 `valid` / 5 `rejected`, `divergence` 0 `clean`), and `append`·`merge` keep the ledger's unknown keys;
+//! - closing_sequence.sh: `push_branches --repo --remote --branch…` exit 0 / non-zero;
+//! - sync_to_sub.sh: the main's ELFs it delivers to the sub (`SUB_ELF_REL`, `SUB_ELF_NAMES`) and runs there — `sub_runner`
+//!   `prune-empty-dirs`·`validate-names`·`retirement-scan` (argv, stdin, stdout lines, exit codes; policy-distribution's
+//!   source tokens), `regen_build_patches_src unbundle|verify --root`; the main's `native_multinode_serve`: `native_remote -`
+//!   (base64 JSON request on stdin, the eleven operations, result keys, refusals);
+//! - text arguments that are not UTF-8: exit 2 where base refuses them (closed choices).
 //!
 //! The bins run for real in scratch directories and throwaway local git repositories (a "remote" is a bare repository
 //! on disk). Values (L2) and exit codes, option names, line shapes and codes (L1) are fixed; message texts are not (L3).
@@ -471,19 +477,36 @@ fn documented_subcommands_and_long_options() {
     );
 }
 
+/// The check lines of a self-test's merged output: (`[PASS] …` or `PASS …` lines, `[FAIL] …` or `FAIL …` lines).
+fn check_lines(out: &str) -> (usize, usize) {
+    let starts = |l: &str, word: &str| {
+        l.starts_with(&format!("[{word}]")) || l.starts_with(&format!("{word} "))
+    };
+    let lines: Vec<&str> = out.lines().map(str::trim_start).collect();
+    (
+        lines.iter().filter(|l| starts(l, "PASS")).count(),
+        lines.iter().filter(|l| starts(l, "FAIL")).count(),
+    )
+}
+
 /// policy-distribution runs these self-tests through the launchers and needs exit 0; smoke_clone.sh also greps the
-/// merged output of `render_dockerfile.sh --self-test` for `self-test OK|render` (case-insensitive).
+/// merged output of `render_dockerfile.sh --self-test` for `self-test OK|render` (case-insensitive). A self-test that
+/// prints one line per check keeps at least the checks it has at base (the second column; 0 = it prints no check lines)
+/// and prints no failed check — a shrunken self-test still exits 0, so its exit code alone would not show it.
 #[test]
 fn consumer_self_tests_pass() {
     let s = scratch("selftest");
     let rt = runtime_root(&s);
-    for launcher in [
-        scripts("budget_preflight.sh"),
-        scripts("layer_ledger.sh"),
-        scripts("push_branches.sh"),
-        scripts("render_dockerfile.sh"),
-        scripts("slave_forward.sh"),
-        ".claude/skills/terraforming_node/scripts/node_role_contract.sh".to_string(),
+    for (launcher, min_checks) in [
+        (scripts("budget_preflight.sh"), 47),
+        (scripts("layer_ledger.sh"), 0),
+        (scripts("push_branches.sh"), 0),
+        (scripts("render_dockerfile.sh"), 0),
+        (scripts("slave_forward.sh"), 0),
+        (
+            ".claude/skills/terraforming_node/scripts/node_role_contract.sh".to_string(),
+            33,
+        ),
     ] {
         let out = launch(&rt, &s.0, &launcher, &["--self-test"]);
         let merged = format!("{}{}", text(&out.stdout), text(&out.stderr));
@@ -492,6 +515,8 @@ fn consumer_self_tests_pass() {
             Some(0),
             "{launcher} --self-test:\n{merged}"
         );
+        let (passed, failed) = check_lines(&merged);
+        assert!(passed >= min_checks && failed == 0, "{launcher} --self-test: {passed} passed (base {min_checks}), {failed} failed:\n{merged}");
         if launcher.ends_with("render_dockerfile.sh") {
             let low = merged.to_lowercase();
             assert!(
@@ -877,9 +902,12 @@ fn budget_preflight_json_render_and_exit_4() {
 const SINGLE_WITH_SUB: &str = "topology: single\ngpus_per_node: 1\nterraforming:\n  complete: true\n  branch_verified: true\nnodes:\n  - role: main\n    host: main.invalid\n    ssh_user: u\n    work_dir: /w\n  - role: sub\n    host: sub.invalid\n    ssh_user: u\n    work_dir: /w\n";
 
 /// `node_role_contract evaluate --manifest M --topology T --field F --format value|json` (terraforming
-/// `bootstrap_canary.rs`, sync_to_sub.sh): exit 0; `value` prints the bare value; `json` prints `{"<field>": {"value",
-/// "source"}}` (or `{"<field>": null}` when the field does not apply — the canary falls back to the top level); a single
-/// sub is `delivery_plane` = `dormant` (a2a-agent), a multi sub `active`.
+/// `bootstrap_canary.rs`, sync_to_sub.sh): exit 0; `json` prints `{"<field>": {"value", "source"}}`, or
+/// `{"<field>": null}` when the field does not apply (the canary then falls back to the top level) — which one it is,
+/// per manifest and field, is the table below; `value` prints the bare value (an empty line for null). sync_to_sub.sh
+/// compares `delivery_plane` with `active` (a single sub, a2a-agent, is dormant; a multi sub, ray-worker, is active),
+/// reads its source through `inline_json delivery-source`, and splits the `tool_plane` value on every character outside
+/// `[A-Za-z0-9-]` into skill names (none = no such character) — they must be the json value's names.
 #[test]
 fn node_role_contract_evaluate_value_and_json() {
     let s = scratch("role");
@@ -889,7 +917,12 @@ fn node_role_contract_evaluate_value_and_json() {
     write(&none, "topology: single\ngpus_per_node: 1\nterraforming:\n  complete: true\n  branch_verified: true\nnodes: []\n");
     let sub = s.0.join("sub.yaml");
     write(&sub, SINGLE_WITH_SUB);
-    let eval = |m: &Path, field: &str, format: &str| {
+    let multi = s.0.join("multi.yaml");
+    write(
+        &multi,
+        &SINGLE_WITH_SUB.replace("topology: single", "topology: multi"),
+    );
+    let eval = |m: &Path, topology: &str, field: &str, format: &str| {
         let out = launch(
             &rt,
             &s.0,
@@ -899,7 +932,7 @@ fn node_role_contract_evaluate_value_and_json() {
                 "--manifest",
                 m.to_str().unwrap(),
                 "--topology",
-                "single",
+                topology,
                 "--field",
                 field,
                 "--format",
@@ -914,62 +947,94 @@ fn node_role_contract_evaluate_value_and_json() {
         );
         text(&out.stdout)
     };
-    for m in [&none, &sub] {
-        for field in ["delivery_plane", "tool_plane", "sub_mode"] {
-            let doc = Json::parse(&eval(m, field, "json")).unwrap();
-            assert_eq!(doc.keys(), [field]);
-            let v = doc.at(field);
-            if v != &Json::Null {
-                assert_eq!(v.at("source").kind(), "string", "{field}");
-                v.at("value");
-            }
-            let value = eval(m, field, "value");
-            if let Some(Json::Str(want)) = v.get("value") {
-                assert_eq!(
-                    value.trim_end(),
-                    want,
-                    "{field}: value prints the json value"
-                );
-            }
+    // (manifest, topology, field, the JSON type of `value`, or None when the field is null; `value` when it is a string)
+    let table: [(&Path, &str, &str, Option<&str>, Option<&str>); 9] = [
+        (
+            &none,
+            "single",
+            "delivery_plane",
+            Some("string"),
+            Some("dormant"),
+        ),
+        (&none, "single", "tool_plane", Some("array"), None),
+        (&none, "single", "sub_mode", None, None),
+        (
+            &sub,
+            "single",
+            "delivery_plane",
+            Some("string"),
+            Some("dormant"),
+        ),
+        (&sub, "single", "tool_plane", Some("array"), None),
+        (
+            &sub,
+            "single",
+            "sub_mode",
+            Some("string"),
+            Some("a2a-agent"),
+        ),
+        (
+            &multi,
+            "multi",
+            "delivery_plane",
+            Some("string"),
+            Some("active"),
+        ),
+        (&multi, "multi", "tool_plane", Some("array"), None),
+        (
+            &multi,
+            "multi",
+            "sub_mode",
+            Some("string"),
+            Some("ray-worker"),
+        ),
+    ];
+    for (m, topology, field, kind, want) in table {
+        let doc = Json::parse(&eval(m, topology, field, "json")).unwrap();
+        assert_eq!(doc.keys(), [field], "{m:?} {field}");
+        let v = doc.at(field);
+        let value = eval(m, topology, field, "value");
+        let Some(kind) = kind else {
+            assert_eq!(v, &Json::Null, "{m:?} {field}: null");
+            assert_eq!(value.trim_end(), "", "{m:?} {field}: value of null");
+            continue;
+        };
+        assert_eq!(v.keys().len(), 2, "{m:?} {field}: {v:?}");
+        assert_eq!(v.at("source").kind(), "string", "{m:?} {field}");
+        assert!(!v.at("source").str().unwrap().is_empty(), "{m:?} {field}");
+        assert_eq!(v.at("value").kind(), kind, "{m:?} {field}");
+        if let Some(w) = want {
+            assert_eq!(v.at("value").str(), Some(w), "{m:?} {field}");
+            assert_eq!(
+                value,
+                format!("{w}\n"),
+                "{m:?} {field}: value prints the json value"
+            );
+        } else {
+            let names: Vec<&str> = value
+                .split(|c: char| !(c.is_ascii_alphanumeric() || c == '-'))
+                .filter(|t| !t.is_empty())
+                .collect();
+            assert_eq!(
+                names,
+                v.at("value").strs(),
+                "{m:?} {field}: the shell's skill names"
+            );
         }
     }
-    let doc = Json::parse(&eval(&sub, "sub_mode", "json")).unwrap();
-    assert_eq!(
-        doc.at("sub_mode").at("value").str(),
-        Some("a2a-agent"),
-        "{doc:?}"
-    );
-    // sync_to_sub.sh compares the value with `active` and reads the source through `inline_json delivery-source`: a
-    // single sub (a2a-agent) is dormant, a multi sub (ray-worker) is active
-    assert_eq!(eval(&sub, "delivery_plane", "value"), "dormant\n");
-    let multi = s.0.join("multi.yaml");
-    write(
-        &multi,
-        &SINGLE_WITH_SUB.replace("topology: single", "topology: multi"),
-    );
-    let out = launch(
-        &rt,
-        &s.0,
-        launcher,
-        &[
-            "evaluate",
-            "--manifest",
-            multi.to_str().unwrap(),
-            "--topology",
-            "multi",
-            "--field",
-            "delivery_plane",
-            "--format",
-            "value",
-        ],
-    );
-    assert_eq!(
-        (out.status.code(), text(&out.stdout).as_str()),
-        (Some(0), "active\n"),
-        "{}",
-        text(&out.stderr)
-    );
-    let json = eval(&sub, "delivery_plane", "json");
+    assert!(Json::parse(&eval(&none, "single", "tool_plane", "json"))
+        .unwrap()
+        .at("tool_plane")
+        .at("value")
+        .strs()
+        .is_empty());
+    assert!(!Json::parse(&eval(&sub, "single", "tool_plane", "json"))
+        .unwrap()
+        .at("tool_plane")
+        .at("value")
+        .strs()
+        .is_empty());
+    let json = eval(&sub, "single", "delivery_plane", "json");
     let source = Json::parse(&json)
         .unwrap()
         .at("delivery_plane")
@@ -985,6 +1050,59 @@ fn node_role_contract_evaluate_value_and_json() {
         Some(&json),
     );
     assert_eq!(text(&out.stdout), format!("{source}\n"));
+}
+
+/// A text argument that is not UTF-8 (types.md 2절): where base already refuses it — an option with closed choices — the
+/// refusal is a usage error, exit 2 with nothing on stdout; the same command line with a valid choice is not exit 2.
+#[test]
+fn non_utf8_choice_arguments_are_usage_errors() {
+    use std::ffi::{OsStr, OsString};
+    use std::os::unix::ffi::OsStrExt;
+    let s = scratch("nonutf8");
+    let rt = runtime_root(&s);
+    let manifest = s.0.join("m.yaml");
+    write(&manifest, "topology: single\nnodes: []\n");
+    let m = manifest.to_str().unwrap();
+    let role = ".claude/skills/terraforming_node/scripts/node_role_contract.sh";
+    for (launcher, args, option, valid) in [
+        (
+            role,
+            vec!["evaluate", "--manifest", m, "--topology", "single"],
+            "--field",
+            "sub_mode",
+        ),
+        (
+            role,
+            vec!["evaluate", "--manifest", m, "--field", "sub_mode"],
+            "--topology",
+            "single",
+        ),
+    ] {
+        let run = |value: &OsStr| {
+            let mut all: Vec<OsString> = args.iter().map(OsString::from).collect();
+            all.extend([OsString::from(option), value.to_os_string()]);
+            Command::new("bash")
+                .arg(root().join(launcher))
+                .args(&all)
+                .env("EASY_VLLM_UPSTREAM_RUNTIME_ROOT", &rt)
+                .current_dir(&s.0)
+                .stdin(Stdio::null())
+                .output()
+                .unwrap()
+        };
+        let out = run(OsStr::from_bytes(b"\xff"));
+        assert_eq!(
+            (out.status.code(), text(&out.stdout).as_str()),
+            (Some(2), ""),
+            "{launcher} {option}: {}",
+            text(&out.stderr)
+        );
+        assert_ne!(
+            run(OsStr::new(valid)).status.code(),
+            Some(2),
+            "{launcher} {option} {valid}"
+        );
+    }
 }
 
 const CLUSTER_MANIFEST: &str = "topology: multi\ngpus_per_node: 1\ncpu_arch: aarch64\nterraforming:\n  complete: true\n  branch_verified: true\ninterconnect:\n  type: RoCE v2\n  hca_devices: [rocep1s0f1]\n  gid_index: 3\n  socket_iface: enp1s0f1np1\n  mtu: 9000\n  bandwidth_gbps: null\n  platform_preset: dgx-spark-gb10\nnodes:\n  - role: main\n    host: main.invalid\n    ssh_user: u\n    work_dir: /w\n  - role: sub\n    host: sub.invalid\n    ssh_user: u\n    work_dir: /w\n";
@@ -1007,7 +1125,8 @@ fn env_lines(out: &str) -> Vec<(String, String)> {
 
 /// `render_dockerfile`: `--cluster-envfile --manifest M` and `--nccl-envfile --manifest M` print an envfile on stdout
 /// (`KEY=VALUE` lines and `#` comments; claims_owner asserts `MAX_JOBS=4`), `--out F` writes it to F (sync_to_sub.sh);
-/// `--env-tier KEY` prints `{"tier", "detail"}`; a manifest without the Flag is exit 4 for `--canonical-kind compose`.
+/// `--env-tier KEY` prints `{"tier", "detail"}` for any key; a manifest without the Flag is exit 4 for
+/// `--canonical-kind compose`.
 #[test]
 fn render_dockerfile_envfiles_env_tier_and_flag_gate() {
     let s = scratch("render");
@@ -1052,25 +1171,28 @@ fn render_dockerfile_envfiles_env_tier_and_flag_gate() {
             "{flag}"
         );
     }
-    for key in ["NCCL_IB_HCA", "MAX_JOBS", "NO_SUCH_KEY_XYZ"] {
+    // --env-tier KEY (hint-publisher a2.rs): exit 0 for every key, `tier` from the closed set, `detail` a string for the
+    // env and preset tiers and null for an invariant or an unknown key
+    for (key, tier, detail) in [
+        ("NCCL_IB_HCA", "env", "string"),
+        ("MAX_JOBS", "preset", "string"),
+        ("NCCL_DEBUG", "invariant", "null"),
+        ("NO_SUCH_KEY_XYZ", "unknown", "null"),
+    ] {
         let out = rd(&["--env-tier", key]);
-        if out.status.code() == Some(0) {
-            let doc = Json::parse(&text(&out.stdout)).unwrap();
-            assert_eq!(doc.at("tier").kind(), "string", "{key}");
-            assert!(
-                matches!(doc.at("detail").kind(), "string" | "null"),
-                "{key}"
-            );
-            if key != "NO_SUCH_KEY_XYZ" {
-                assert_eq!(doc.at("detail").kind(), "string", "{key}");
-            }
-        } else {
-            assert_ne!(key, "MAX_JOBS");
-            assert!(
-                text(&out.stderr).contains(": "),
-                "{key}: the reason after the first ': '"
-            );
-        }
+        assert_eq!(out.status.code(), Some(0), "{key}: {}", text(&out.stderr));
+        let doc = Json::parse(&text(&out.stdout)).unwrap();
+        assert_eq!(doc.keys().len(), 2, "{key}: {doc:?}");
+        let got = doc
+            .at("tier")
+            .str()
+            .unwrap_or_else(|| panic!("{key}: {doc:?}"));
+        assert!(
+            ["env", "preset", "invariant", "unknown"].contains(&got),
+            "{key}: {got}"
+        );
+        assert_eq!(got, tier, "{key}");
+        assert_eq!(doc.at("detail").kind(), detail, "{key}");
     }
     let flagless = s.0.join("flagless.yaml");
     write(
@@ -1256,12 +1378,20 @@ fn ledger_repo(s: &Scratch) -> PathBuf {
     repo
 }
 
-/// `layer_ledger` (closing_sequence.sh, sync_branches.sh): `sync-point` and `divergence` print one JSON object on stdout
-/// (divergence: `status`, `basis`, `base`, `sync_point`, `absorbed` when there is one, read through `inline_json
-/// divergence-summary`; messages stay on stderr); `emit-skeleton` prints an
-/// entry, `validate --entry-file` accepts it, `entry-id` and `utc-to-kst` print one plain line; exit 0.
+/// A closing-sequence entry an author has filled in: every required field, one classification row.
+const FILLED_ENTRY: &str = r#"{"entry_id": "sync-202611180300", "utc": "2026-11-18T03:00:00Z", "departure": "single-node", "departure_commit": "0123456789abcdef0123456789abcdef01234567", "approved_by": "reviewer", "approved_utc": "2026-11-18T03:10:00Z", "_reach": "multi-node vs HEAD", "classification": [{"file": "a.txt", "verdict": "common_promote", "reason": "shared text", "provenance": "agent-judged"}]}"#;
+
+/// `layer_ledger` (closing_sequence.sh, sync_branches.sh):
+/// - `sync-point` and `divergence` print one JSON object on stdout; messages stay on stderr. sync_branches.sh:521-548 runs
+///   `divergence --repo --branch --counterpart --ledger-ref`, reads it through `inline_json divergence-summary` (status,
+///   basis, base, sync_point.status, absorbed) and goes on only on `clean`: a branch whose counterpart is the same commit
+///   is exit 0 and `clean`.
+/// - closing_sequence.sh:137 runs the launcher itself (no `bash`) as `validate --entry-file F` and stops on non-zero: the
+///   skeleton `emit-skeleton` prints, its `<FILL…>` placeholders left, is exit 5 with `status` `rejected` and the problems;
+///   an entry with every field filled is exit 0 with `valid`. `entry-id` and `utc-to-kst` print one plain line.
 #[test]
 fn layer_ledger_closing_sequence_subcommands() {
+    use std::os::unix::fs::PermissionsExt;
     let s = scratch("ledger");
     let rt = runtime_root(&s);
     let repo = ledger_repo(&s);
@@ -1295,21 +1425,22 @@ fn layer_ledger_closing_sequence_subcommands() {
         "single-node",
         "--counterpart",
         "multi-node",
+        "--ledger-ref",
+        "multi-node",
     ]);
     let doc = Json::parse(&text(&out.stdout))
         .unwrap_or_else(|e| panic!("{e}: {}{}", text(&out.stdout), text(&out.stderr)));
+    assert_eq!(out.status.code(), Some(0), "{doc:?} {}", text(&out.stderr));
+    assert_eq!(doc.at("status").str(), Some("clean"), "{doc:?}");
+    assert_eq!(doc.at("basis").kind(), "string");
     assert!(
-        matches!(out.status.code(), Some(0) | Some(5)),
-        "{doc:?} {}",
-        text(&out.stderr)
+        matches!(doc.at("base").kind(), "string" | "null"),
+        "{doc:?}"
     );
-    for key in ["status", "basis", "base", "sync_point"] {
-        doc.at(key);
-    }
+    assert_eq!(doc.at("sync_point").at("status").kind(), "string");
     if let Some(a) = doc.get("absorbed") {
         assert!(matches!(a, Json::Arr(_) | Json::Obj(_)), "{a:?}");
     }
-    // sync_branches.sh reads it through `inline_json divergence-summary`: status, basis, base12, sync_point.status, absorbed n
     let line = launch_in(
         &rt,
         &repo,
@@ -1320,8 +1451,10 @@ fn layer_ledger_closing_sequence_subcommands() {
     let summary = text(&line.stdout);
     let fields: Vec<&str> = summary.trim_end_matches('\n').split('\t').collect();
     assert_eq!(fields.len(), 5, "{summary:?}");
-    assert_eq!(Some(fields[0]), doc.at("status").str());
+    assert_eq!(fields[0], "clean");
+    assert_eq!(Some(fields[1]), doc.at("basis").str());
     assert_eq!(Some(fields[3]), doc.at("sync_point").at("status").str());
+    // emit-skeleton: the entry fields closing_sequence.sh's author fills, placeholders `<FILL…>` in them
     let out = ll(&[
         "emit-skeleton",
         "--repo",
@@ -1338,22 +1471,52 @@ fn layer_ledger_closing_sequence_subcommands() {
         text(&out.stdout),
         text(&out.stderr)
     );
-    let entry = s.0.join("entry.json");
-    Json::parse(&text(&out.stdout)).unwrap();
-    // the skeleton leaves the injected time to the entry's author (`<FILL: …>`); closing_sequence.sh prints the skeleton
-    // and reads the authored entry file with entry-id and utc-to-kst
     let skeleton = text(&out.stdout);
-    let filled: String = skeleton
-        .lines()
-        .map(|l| match (l.find("\"<FILL"), l.rfind('"')) {
-            (Some(a), Some(b)) if b > a && l[a..].contains("시각") => {
-                format!("{}\"2026-11-18T03:00:00Z\"{}", &l[..a], &l[b + 1..])
-            }
-            _ => l.to_string(),
-        })
-        .collect::<Vec<_>>()
-        .join("\n");
-    write(&entry, &filled);
+    let doc = Json::parse(&skeleton).unwrap();
+    for key in [
+        "entry_id",
+        "utc",
+        "departure",
+        "departure_commit",
+        "approved_by",
+        "approved_utc",
+    ] {
+        assert_eq!(doc.at(key).kind(), "string", "{key}");
+    }
+    assert_eq!(doc.at("departure").str(), Some("single-node"));
+    assert!(doc.at("utc").str().unwrap().starts_with("<FILL"), "{doc:?}");
+    doc.at("classification").arr().unwrap();
+    // validate, run as closing_sequence.sh runs it: the launcher is executable
+    let launcher = root().join(scripts("layer_ledger.sh"));
+    assert_ne!(
+        std::fs::metadata(&launcher).unwrap().permissions().mode() & 0o111,
+        0,
+        "closing_sequence.sh executes {launcher:?}"
+    );
+    let validate = |entry: &Path| {
+        let out = Command::new(&launcher)
+            .args(["validate", "--entry-file", entry.to_str().unwrap()])
+            .env("EASY_VLLM_UPSTREAM_RUNTIME_ROOT", &rt)
+            .current_dir(&repo)
+            .stdin(Stdio::null())
+            .output()
+            .unwrap();
+        let doc = Json::parse(&text(&out.stdout))
+            .unwrap_or_else(|e| panic!("{e}: {}{}", text(&out.stdout), text(&out.stderr)));
+        (out.status.code(), doc)
+    };
+    let raw = s.0.join("skeleton.json");
+    write(&raw, &skeleton);
+    let (rc, doc) = validate(&raw);
+    assert_eq!(rc, Some(5), "{doc:?}");
+    assert_eq!(doc.at("status").str(), Some("rejected"));
+    assert!(!doc.at("problems").strs().is_empty());
+    let entry = s.0.join("entry.json");
+    write(&entry, FILLED_ENTRY);
+    let (rc, doc) = validate(&entry);
+    assert_eq!(rc, Some(0), "{doc:?}");
+    assert_eq!(doc.at("status").str(), Some("valid"));
+    assert!(doc.at("problems").strs().is_empty());
     for sub in ["entry-id", "utc-to-kst"] {
         let out = ll(&[sub, "--entry-file", entry.to_str().unwrap()]);
         let so = text(&out.stdout);
@@ -1365,15 +1528,113 @@ fn layer_ledger_closing_sequence_subcommands() {
         );
         assert_eq!(so.lines().count(), 1, "{sub}: {so:?}");
     }
-    let out = ll(&["validate", "--entry-file", entry.to_str().unwrap()]);
-    assert!(
-        matches!(out.status.code(), Some(0) | Some(5)),
+    assert_eq!(ll(&["no-such-subcommand"]).status.code(), Some(2));
+}
+
+/// The ledger's one writer (types.md 4절 「영속 문서」 4, consumers.md 「영속 데이터」): `append --repo R --entry-file F`
+/// (closing_sequence.sh:154, exit 0 `appended`) and `merge --repo R --from-ref REF` (closing_sequence.sh:268, exit 0
+/// `merged`) rewrite the whole file, and keys outside the schema — at the top, in an entry, in a classification row, like
+/// the ledger's `_reach`·`_execution_note`·`_note`·`_approval_source` — stay as they were read.
+#[test]
+fn layer_ledger_append_and_merge_keep_unknown_keys() {
+    let s = scratch("ledger-keys");
+    let rt = runtime_root(&s);
+    let repo = ledger_repo(&s);
+    let r = repo.to_str().unwrap();
+    let ledger = repo.join(".claude/policies/branch_layer_ledger.json");
+    let prior = r#"{"entry_id": "sync-202611010000", "utc": "2026-11-01T00:00:00Z", "departure": "multi-node", "departure_commit": "1111111111111111111111111111111111111111", "approved_by": "reviewer", "approved_utc": "2026-11-01T00:10:00Z", "_reach": "r", "_execution_note": "by hand", "_note": "n", "classification": [{"file": "b.txt", "verdict": "branch_only", "reason": "local", "provenance": "agent-judged", "_row_note": [1, 2]}]}"#;
+    let other = r#"{"entry_id": "sync-202611050000", "utc": "2026-11-05T00:00:00Z", "departure": "multi-node", "departure_commit": "2222222222222222222222222222222222222222", "approved_by": "reviewer", "approved_utc": "2026-11-05T00:10:00Z", "_approval_source": "chat", "classification": [{"file": "c.txt", "verdict": "common_promote", "reason": "shared", "provenance": "agent-judged"}]}"#;
+    // the counterpart branch carries one more entry for merge
+    git(&repo, &["checkout", "-q", "multi-node"]);
+    write(
+        &ledger,
+        &format!(
+            r#"{{"schema_version": 1, "_ledger_note": {{"kept": true}}, "entries": [{prior}, {other}]}}"#
+        ),
+    );
+    git(&repo, &["commit", "-qam", "ledger on multi-node"]);
+    git(&repo, &["checkout", "-q", "single-node"]);
+    write(
+        &ledger,
+        &format!(
+            r#"{{"schema_version": 1, "_ledger_note": {{"kept": true}}, "entries": [{prior}]}}"#
+        ),
+    );
+    let entry = s.0.join("entry.json");
+    write(&entry, FILLED_ENTRY);
+    let ll = |args: &[&str]| launch(&rt, &repo, &scripts("layer_ledger.sh"), args);
+    let read = || Json::parse(&std::fs::read_to_string(&ledger).unwrap()).unwrap();
+    let entry_by_id = |doc: &Json, id: &str| {
+        doc.at("entries")
+            .arr()
+            .unwrap()
+            .iter()
+            .find(|e| e.at("entry_id").str() == Some(id))
+            .cloned()
+            .unwrap_or_else(|| panic!("{id}"))
+    };
+    let out = ll(&[
+        "append",
+        "--repo",
+        r,
+        "--entry-file",
+        entry.to_str().unwrap(),
+    ]);
+    assert_eq!(
+        out.status.code(),
+        Some(0),
         "{}{}",
         text(&out.stdout),
         text(&out.stderr)
     );
-    Json::parse(&text(&out.stdout)).unwrap();
-    assert_eq!(ll(&["no-such-subcommand"]).status.code(), Some(2));
+    assert_eq!(
+        Json::parse(&text(&out.stdout)).unwrap().at("status").str(),
+        Some("appended")
+    );
+    let doc = read();
+    assert!(
+        doc.at("_ledger_note")
+            .same(&Json::parse(r#"{"kept": true}"#).unwrap()),
+        "{doc:?}"
+    );
+    assert!(
+        entry_by_id(&doc, "sync-202611010000").same(&Json::parse(prior).unwrap()),
+        "the earlier entry is unchanged: {doc:?}"
+    );
+    assert!(
+        entry_by_id(&doc, "sync-202611180300").same(&Json::parse(FILLED_ENTRY).unwrap()),
+        "the appended entry, `_reach` with it: {doc:?}"
+    );
+    let out = ll(&["merge", "--repo", r, "--from-ref", "multi-node"]);
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "{}{}",
+        text(&out.stdout),
+        text(&out.stderr)
+    );
+    let res = Json::parse(&text(&out.stdout)).unwrap();
+    assert_eq!(res.at("status").str(), Some("merged"));
+    assert_eq!(res.at("added"), &Json::Num("1".into()));
+    let doc = read();
+    assert!(
+        doc.at("_ledger_note")
+            .same(&Json::parse(r#"{"kept": true}"#).unwrap()),
+        "{doc:?}"
+    );
+    assert_eq!(doc.at("entries").arr().unwrap().len(), 3);
+    assert!(
+        entry_by_id(&doc, "sync-202611010000").same(&Json::parse(prior).unwrap()),
+        "{doc:?}"
+    );
+    assert!(
+        entry_by_id(&doc, "sync-202611050000").same(&Json::parse(other).unwrap()),
+        "the merged entry, `_approval_source` with it: {doc:?}"
+    );
+    assert!(
+        entry_by_id(&doc, "sync-202611180300").same(&Json::parse(FILLED_ENTRY).unwrap()),
+        "{doc:?}"
+    );
 }
 
 /// closing_sequence.sh: `push_branches --repo R --remote X --branch A --branch B` pushes the named branches (exit 0) and is
@@ -1499,7 +1760,8 @@ fn sha256_of(path: &Path) -> String {
 
 /// sync_to_sub.sh: `regen_build_patches_src modules-kind --manifest P` (exit 0 = script modules), `modules-files
 /// --manifest P` (one file name per line, then `PROVENANCE.json`), `verify --root R` (exit 0 / non-zero on a changed
-/// payload) and `bundle --root R --out F` (the last stdout line is the bundle's sha256).
+/// payload) and `bundle --root R --out F` (the last stdout line is the bundle's sha256) on the main; on the sub, the
+/// delivered ELF's `unbundle --root --bundle --expect-sha256` and `verify --root`.
 #[test]
 fn regen_build_patches_src_delivery_subcommands() {
     let s = scratch("regen");
@@ -1571,6 +1833,52 @@ fn regen_build_patches_src_delivery_subcommands() {
         sha256_of(&bundle),
         "the last stdout line is the bundle's sha256"
     );
+    // the sub side (sync_to_sub.sh:1475-1494, the delivered ELF in the sub work tree, paths relative to it): `unbundle
+    // --root R --bundle B --expect-sha256 S` lays the payload out and verifies it, `verify --root R` checks it again; a
+    // bundle that is not the expected sha256 is refused and the payload stays
+    let (work, rel) = sub_work_tree(&s);
+    let port = "output/single/source_port";
+    write(
+        &work.join(port).join("PROVENANCE.json"),
+        &std::fs::read_to_string(&fprov).unwrap(),
+    );
+    let remote_bundle = work.join(port).join("bundle.tar.gz");
+    std::fs::copy(&bundle, &remote_bundle).unwrap();
+    let rb_sub = |args: &[&str]| sub_call(&work, &rel, "regen_build_patches_src", args, None);
+    let out = rb_sub(&[
+        "unbundle",
+        "--root",
+        port,
+        "--bundle",
+        remote_bundle.to_str().unwrap(),
+        "--expect-sha256",
+        &last,
+    ]);
+    assert_eq!(out.status.code(), Some(0), "{}", text(&out.stderr));
+    assert_eq!(
+        std::fs::read_to_string(work.join(port).join("files/a/x.py")).unwrap(),
+        "x = 1\n"
+    );
+    assert_eq!(rb_sub(&["verify", "--root", port]).status.code(), Some(0));
+    let wrong = "0".repeat(64);
+    assert_ne!(
+        rb_sub(&[
+            "unbundle",
+            "--root",
+            port,
+            "--bundle",
+            remote_bundle.to_str().unwrap(),
+            "--expect-sha256",
+            &wrong
+        ])
+        .status
+        .code(),
+        Some(0)
+    );
+    assert_eq!(
+        std::fs::read_to_string(work.join(port).join("files/a/x.py")).unwrap(),
+        "x = 1\n"
+    );
     write(&fm.join("files/a/x.py"), "x = 2\n");
     assert_ne!(
         rb(&["verify", "--root", fm.to_str().unwrap()])
@@ -1589,6 +1897,611 @@ fn regen_build_patches_src_delivery_subcommands() {
         .status
         .code(),
         Some(0)
+    );
+}
+
+/// The value of `NAME="…"` and the words of `NAME=(…)` (comment after `#` dropped) on their sync_to_sub.sh lines.
+fn sync_to_sub_assignment(name: &str) -> String {
+    let body = std::fs::read_to_string(skill().join("scripts/sync_to_sub.sh")).unwrap();
+    let line = body
+        .lines()
+        .find(|l| l.starts_with(&format!("{name}=")))
+        .unwrap_or_else(|| panic!("sync_to_sub.sh lacks {name}="));
+    let value = &line[name.len() + 1..];
+    let value = value.split(" #").next().unwrap().trim_end();
+    value
+        .trim_matches('"')
+        .trim_start_matches('(')
+        .trim_end_matches(')')
+        .to_string()
+}
+
+/// This build's executable of a delivered sub-node ELF.
+fn sub_elf(bin: &str) -> &'static str {
+    match bin {
+        "sub_runner" => env!("CARGO_BIN_EXE_sub_runner"),
+        "regen_build_patches_src" => env!("CARGO_BIN_EXE_regen_build_patches_src"),
+        "inline_json" => env!("CARGO_BIN_EXE_inline_json"),
+        "native_remote" => env!("CARGO_BIN_EXE_native_remote"),
+        other => panic!("no delivered bin {other}"),
+    }
+}
+
+/// A sub work tree as sync_to_sub.sh leaves it: the main's ELFs `SUB_ELF_NAMES` under `SUB_ELF_REL` (the consumer's
+/// own values, fixed here: the main's `native_multinode_serve` runs `<work_dir>/SUB_REMOTE_REL`).
+fn sub_work_tree(s: &Scratch) -> (PathBuf, String) {
+    let rel = sync_to_sub_assignment("SUB_ELF_REL");
+    assert_eq!(
+        rel,
+        ".claude/skills/upstream-version-watch/rust/runtime/target/release"
+    );
+    let names = sync_to_sub_assignment("SUB_ELF_NAMES");
+    assert_eq!(
+        names.split_whitespace().collect::<Vec<_>>(),
+        [
+            "sub_runner",
+            "regen_build_patches_src",
+            "inline_json",
+            "native_remote"
+        ]
+    );
+    assert_eq!(
+        upstream_runtime::native_multinode::SUB_REMOTE_REL,
+        format!("{rel}/native_remote")
+    );
+    let work = s.0.join("sub-work");
+    let dir = work.join(&rel);
+    std::fs::create_dir_all(&dir).unwrap();
+    for name in names.split_whitespace() {
+        std::os::unix::fs::symlink(sub_elf(name), dir.join(name)).unwrap();
+    }
+    (work, rel)
+}
+
+/// The sub-side call of sync_to_sub.sh (`sub_runner_run`, `sub_run`): `cd '<SUB_WORK_DIR>' && '<SUB_ELF_REL>/<bin>' <args>`
+/// in a shell, stdin given (`/dev/null` when none), stdout and stderr apart.
+fn sub_call(work: &Path, rel: &str, bin: &str, args: &[&str], stdin: Option<&str>) -> Output {
+    use std::io::Write;
+    let mut c = Command::new("bash");
+    c.arg("-c")
+        .arg(format!("cd '{}' && '{rel}/{bin}' \"$@\"", work.display()))
+        .arg("sub-call")
+        .args(args);
+    c.stdin(if stdin.is_some() {
+        Stdio::piped()
+    } else {
+        Stdio::null()
+    })
+    .stdout(Stdio::piped())
+    .stderr(Stdio::piped());
+    let mut child = c.spawn().unwrap();
+    if let Some(input) = stdin {
+        child
+            .stdin
+            .take()
+            .unwrap()
+            .write_all(input.as_bytes())
+            .unwrap();
+    }
+    child.wait_with_output().unwrap()
+}
+
+/// The non-empty lines of an output, sorted (the walks print in directory order).
+fn line_set(out: &str) -> Vec<String> {
+    let mut v: Vec<String> = out
+        .lines()
+        .filter(|l| !l.is_empty())
+        .map(str::to_string)
+        .collect();
+    v.sort();
+    v
+}
+
+/// sync_to_sub.sh runs the delivered `sub_runner` on the sub (:886-891, :1090, :1111, :2001):
+/// - `prune-empty-dirs ROOT SKIP POST` (SKIP·POST `:`-joined names): removes every empty directory below ROOT, deepest
+///   first, except under a SKIP top entry and below a POST top directory; stdout one removed path (relative to ROOT) per
+///   line, nothing when none; exit 0, 9 when a removal fails; a ROOT that is not a directory is exit 0 with nothing.
+/// - `validate-names ROOT SKIP POST`: stdout one path per line whose name holds a byte ≤ 0x20 or 0x7f (outside the SKIP
+///   top entries, not below the subdirectories of a POST top directory); nothing when every name is clean; exit 0.
+/// - `retirement-scan STALE`, stdin the active surface (paths relative to the work tree, one per line): stdout first line
+///   the number of regular files it classified, then one `<path>:<line number>:<line>` per reference to STALE that is not
+///   the owner path `.claude/skills/upstream-version-watch/<STALE>` (Rust `checks/` files and the parity fixtures are
+///   counted, not read); an empty list or a symbolic link in it is exit 1.
+/// - a wrong argument count is exit 2. policy-distribution `checks.rs:735-739` matches three tokens of the source.
+#[test]
+fn sub_runner_delivered_subcommands() {
+    use std::os::unix::fs::PermissionsExt;
+    let s = scratch("subrunner");
+    let (work, rel) = sub_work_tree(&s);
+    let sr = |args: &[&str], stdin: Option<&str>| sub_call(&work, &rel, "sub_runner", args, stdin);
+    let root = work.join("output/single");
+    let r = root.to_str().unwrap();
+    let (skip, post) = ("manifest.yaml:cache", "build_patches:build_patches_src");
+    for d in [
+        "a/b/c",
+        "a/keep",
+        "empty_top",
+        "cache/tmp",
+        "build_patches/sub",
+        "build_patches_src/x/y",
+    ] {
+        std::fs::create_dir_all(root.join(d)).unwrap();
+    }
+    write(&root.join("a/keep/file.txt"), "x\n");
+    let out = sr(&["prune-empty-dirs", r, skip, post], None);
+    assert_eq!(out.status.code(), Some(0), "{}", text(&out.stderr));
+    assert_eq!(line_set(&text(&out.stdout)), ["a/b", "a/b/c", "empty_top"]);
+    for (d, kept) in [
+        ("a/b", false),
+        ("empty_top", false),
+        ("a/keep", true),
+        ("cache/tmp", true),
+        ("build_patches/sub", true),
+        ("build_patches_src/x/y", true),
+    ] {
+        assert_eq!(root.join(d).is_dir(), kept, "{d}");
+    }
+    let out = sr(&["prune-empty-dirs", r, skip, post], None);
+    assert_eq!(
+        (out.status.code(), line_set(&text(&out.stdout))),
+        (Some(0), Vec::<String>::new())
+    );
+    let out = sr(
+        &[
+            "prune-empty-dirs",
+            work.join("output/absent").to_str().unwrap(),
+            skip,
+            post,
+        ],
+        None,
+    );
+    assert_eq!(
+        (out.status.code(), text(&out.stdout).as_str()),
+        (Some(0), "")
+    );
+    assert_eq!(
+        sr(&["prune-empty-dirs", r, skip], None).status.code(),
+        Some(2)
+    );
+    // a removal the file system refuses (a read-only parent; the check runs where this process cannot write it either)
+    let locked = root.join("locked");
+    std::fs::create_dir_all(locked.join("inner")).unwrap();
+    std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o555)).unwrap();
+    if std::fs::create_dir(locked.join("probe")).is_err() {
+        let out = sr(&["prune-empty-dirs", r, skip, post], None);
+        assert_eq!(out.status.code(), Some(9), "{}", text(&out.stderr));
+    }
+    std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let _ = std::fs::remove_dir(locked.join("probe"));
+
+    // validate-names
+    write(&root.join("ok.txt"), "x\n");
+    write(&root.join("bad name.txt"), "x\n");
+    write(&root.join("tab\there/inner name"), "x\n");
+    write(&root.join("cache/skipped name"), "x\n");
+    write(&root.join("build_patches/top level.sh"), "x\n");
+    write(&root.join("build_patches/sub/below post"), "x\n");
+    std::fs::create_dir_all(root.join("build_patches/dir name")).unwrap();
+    let out = sr(&["validate-names", r, skip, post], None);
+    assert_eq!(out.status.code(), Some(0), "{}", text(&out.stderr));
+    assert_eq!(
+        line_set(&text(&out.stdout)),
+        [
+            "bad name.txt",
+            "build_patches/top level.sh",
+            "tab\there",
+            "tab\there/inner name"
+        ]
+    );
+    let clean = work.join("output/multi");
+    write(&clean.join("a/b.txt"), "x\n");
+    let out = sr(
+        &["validate-names", clean.to_str().unwrap(), skip, post],
+        None,
+    );
+    assert_eq!(
+        (out.status.code(), line_set(&text(&out.stdout))),
+        (Some(0), Vec::<String>::new())
+    );
+    let out = sr(
+        &[
+            "validate-names",
+            work.join("output/absent").to_str().unwrap(),
+            skip,
+            post,
+        ],
+        None,
+    );
+    assert_eq!(
+        (out.status.code(), text(&out.stdout).as_str()),
+        (Some(0), "")
+    );
+    assert_eq!(sr(&["validate-names", r], None).status.code(), Some(2));
+
+    // retirement-scan
+    let stale = "scripts/old_tool.sh";
+    write(
+        &work.join("docs/a.md"),
+        "intro\nsee scripts/old_tool.sh here\n",
+    );
+    write(
+        &work.join("docs/crlf.md"),
+        "x\r\nrun scripts/old_tool.sh\r\n",
+    );
+    write(&work.join("docs/owner.md"), "canonical .claude/skills/upstream-version-watch/scripts/old_tool.sh\nalso ./.claude/skills/upstream-version-watch/scripts/old_tool.sh\n");
+    write(
+        &work.join("docs/other.md"),
+        "scripts/old_tool.sh.bak xscripts/old_tool.sh\n",
+    );
+    write(
+        &work.join(".claude/rust/policy-gate/checks/t.rs"),
+        "// scripts/old_tool.sh\n",
+    );
+    write(
+        &work.join(".claude/rust/parity/cases/c.json"),
+        "\"scripts/old_tool.sh\"\n",
+    );
+    std::fs::create_dir_all(work.join("docs/dir")).unwrap();
+    let list = "docs/a.md\ndocs/crlf.md\ndocs/owner.md\ndocs/other.md\n.claude/rust/policy-gate/checks/t.rs\n.claude/rust/parity/cases/c.json\ndocs/absent.md\ndocs/dir\n";
+    let out = sr(&["retirement-scan", stale], Some(list));
+    assert_eq!(out.status.code(), Some(0), "{}", text(&out.stderr));
+    let so = text(&out.stdout);
+    let mut lines = so.lines();
+    assert_eq!(lines.next(), Some("6"), "{so:?}");
+    let mut hits: Vec<&str> = lines.filter(|l| !l.is_empty()).collect();
+    hits.sort();
+    assert_eq!(
+        hits,
+        [
+            "docs/a.md:2:see scripts/old_tool.sh here",
+            "docs/crlf.md:2:run scripts/old_tool.sh"
+        ]
+    );
+    let out = sr(
+        &["retirement-scan", stale],
+        Some("docs/owner.md\ndocs/other.md\n"),
+    );
+    assert_eq!(
+        (out.status.code(), line_set(&text(&out.stdout))),
+        (Some(0), vec!["2".to_string()])
+    );
+    let out = sr(&["retirement-scan", stale], Some("\n"));
+    assert_eq!(
+        out.status.code(),
+        Some(1),
+        "an empty surface list is a derivation failure"
+    );
+    std::os::unix::fs::symlink(work.join("docs/a.md"), work.join("docs/link.md")).unwrap();
+    let out = sr(
+        &["retirement-scan", stale],
+        Some("docs/a.md\ndocs/link.md\n"),
+    );
+    assert_eq!(out.status.code(), Some(1), "a symbolic link in the surface");
+    assert_eq!(sr(&["retirement-scan"], Some(list)).status.code(), Some(2));
+    assert_eq!(sr(&["no-such-subcommand"], None).status.code(), Some(2));
+
+    let source =
+        std::fs::read_to_string(skill().join("rust/runtime/src/bin/sub_runner.rs")).unwrap();
+    for token in [
+        "let owner = format!(",
+        "while lo > 0 && is_chars(cs[lo - 1])",
+        "if token != owner",
+    ] {
+        assert!(
+            source.contains(token),
+            "policy-distribution matches {token:?} in sub_runner.rs"
+        );
+    }
+}
+
+/// Standard base64 (with padding) of a request, as the main's `Ssh` runner sends it.
+fn base64(data: &[u8]) -> String {
+    const A: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::new();
+    for chunk in data.chunks(3) {
+        let b = [
+            chunk[0],
+            *chunk.get(1).unwrap_or(&0),
+            *chunk.get(2).unwrap_or(&0),
+        ];
+        let n = (u32::from(b[0]) << 16) | (u32::from(b[1]) << 8) | u32::from(b[2]);
+        for i in 0..4 {
+            out.push(if i <= chunk.len() {
+                A[(n >> (18 - 6 * i)) as usize & 63] as char
+            } else {
+                '='
+            });
+        }
+    }
+    out
+}
+
+/// A JSON string literal.
+fn js(text: &str) -> String {
+    let mut out = String::from("\"");
+    for c in text.chars() {
+        match c {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04x}", c as u32)),
+            c => out.push(c),
+        }
+    }
+    out.push('"');
+    out
+}
+
+/// The main's `native_multinode_serve` drives its sub through the delivered `native_remote` (native_multinode.rs:739-760,
+/// `native_multinode/remote.rs`): `ssh … '<SUB_WORK_DIR>/<SUB_REMOTE_REL> -'` with stdin one base64 line of a JSON object —
+/// the call's own keys and `op`·`root`·`run_id` (the root's last name)·`marker`·`created_by`. One request is one
+/// operation; exit 0 with the result object on stdout, or a refusal: non-zero with nothing on stdout and the reason on
+/// stderr (the main carries its tail). The eleven operations of the main's allowlist all answer here, every one of them
+/// on this machine and below a scratch root: `init`·`put`·`text`·`exists`·`remove_owned_tree` on the owned root (the
+/// marker file guards every mutating one), `run`·`start`·`stop` on short local programs, `tree` on this process,
+/// `gpu`·`ports` on stand-in `nvidia-smi`·`ss` programs on `PATH`. Result keys: `ok`; `rc`·`out`·`err`; the identity
+/// `node`·`role`·`pid`·`pgid`·`starttime`·`log_rel`; `node`·`role`·`pid`·`term_status`·`starttime_match`; `text`;
+/// `processes` (rows `pid`·`ppid`·`pgid`·`starttime`·`argv`, or the GPU lines); `ports`; `exists`.
+#[test]
+fn native_remote_stdin_request_protocol() {
+    use std::os::unix::fs::PermissionsExt;
+    use upstream_runtime::native_multinode::{CREATED_BY, MARKER, SUB_REMOTE_REL};
+    let s = scratch("remote");
+    let (work, _) = sub_work_tree(&s);
+    let runs = s.0.join("runs");
+    let root = runs.join("run-20261119");
+    let rs = root.to_str().unwrap();
+    let stand_in = s.0.join("stand-in");
+    std::fs::create_dir_all(&stand_in).unwrap();
+    for (name, body) in [
+        ("nvidia-smi", "#!/bin/sh\nprintf '4242, vllm, 1024\\n'\n"),
+        ("ss", "#!/bin/sh\nprintf 'LISTEN 0 4096 127.0.0.1:8000 0.0.0.0:*\\nLISTEN 0 128 [::]:22 [::]:*\\n'\n"),
+    ] {
+        write(&stand_in.join(name), body);
+        std::fs::set_permissions(stand_in.join(name), std::fs::Permissions::from_mode(0o755)).unwrap();
+    }
+    let call_raw = |stdin: &str, path: Option<&Path>| {
+        use std::io::Write;
+        let mut c = Command::new(work.join(SUB_REMOTE_REL));
+        c.arg("-");
+        if let Some(p) = path {
+            c.env("PATH", p);
+        }
+        c.current_dir(&s.0)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+        let mut child = c.spawn().unwrap();
+        child
+            .stdin
+            .take()
+            .unwrap()
+            .write_all(stdin.as_bytes())
+            .unwrap();
+        child.wait_with_output().unwrap()
+    };
+    let request = |root: &str, fields: &str| {
+        let run_id = Path::new(root).file_name().unwrap().to_str().unwrap();
+        let sep = if fields.is_empty() { "" } else { ", " };
+        format!(
+            r#"{{{fields}{sep}"root": {}, "run_id": {}, "marker": {}, "created_by": {}}}"#,
+            js(root),
+            js(run_id),
+            js(MARKER),
+            js(CREATED_BY)
+        )
+    };
+    let send = |root: &str, fields: &str, path: Option<&Path>| {
+        call_raw(&base64(request(root, fields).as_bytes()), path)
+    };
+    let ok = |fields: &str| {
+        let out = send(rs, fields, None);
+        assert_eq!(
+            out.status.code(),
+            Some(0),
+            "{fields}: {}",
+            text(&out.stderr)
+        );
+        Json::parse(&text(&out.stdout))
+            .unwrap_or_else(|e| panic!("{fields}: {e}: {}", text(&out.stdout)))
+    };
+    let refused = |out: Output, what: &str| {
+        assert!(
+            matches!(out.status.code(), Some(c) if c != 0),
+            "{what}: {:?}",
+            out.status
+        );
+        assert_eq!(text(&out.stdout), "", "{what}");
+        assert!(
+            !text(&out.stderr).trim().is_empty(),
+            "{what}: a reason on stderr"
+        );
+    };
+    let is_ok = |doc: &Json| {
+        assert!(
+            doc.same(&Json::parse(r#"{"ok": true}"#).unwrap()),
+            "{doc:?}"
+        )
+    };
+
+    assert!(ok(r#""op": "exists""#).same(&Json::parse(r#"{"exists": false}"#).unwrap()));
+    is_ok(&ok(r#""op": "init", "ensure_parent": true"#));
+    assert!(root.join(MARKER).is_file());
+    refused(
+        send(rs, r#""op": "init", "ensure_parent": true"#, None),
+        "init of an existing root",
+    );
+    assert!(ok(r#""op": "exists""#).same(&Json::parse(r#"{"exists": true}"#).unwrap()));
+    is_ok(&ok(&format!(
+        r#""op": "put", "rel": "bin/tool.sh", "data": {}, "mode": 493"#,
+        js(&base64(b"hello\n"))
+    )));
+    assert_eq!(
+        std::fs::read_to_string(root.join("bin/tool.sh")).unwrap(),
+        "hello\n"
+    );
+    assert_eq!(
+        std::fs::metadata(root.join("bin/tool.sh"))
+            .unwrap()
+            .permissions()
+            .mode()
+            & 0o777,
+        0o755
+    );
+    refused(
+        send(
+            rs,
+            &format!(
+                r#""op": "put", "rel": "bin/tool.sh", "data": {}, "mode": 493"#,
+                js(&base64(b"x"))
+            ),
+            None,
+        ),
+        "put over a file",
+    );
+    assert!(ok(r#""op": "text", "rel": "bin/tool.sh""#)
+        .same(&Json::parse(r#"{"text": "hello\n"}"#).unwrap()));
+    refused(
+        send(rs, r#""op": "text", "rel": "../outside""#, None),
+        "a path escaping the root",
+    );
+    refused(
+        send(rs, r#""op": "text", "rel": "/etc/hostname""#, None),
+        "an absolute path",
+    );
+    let doc = ok(
+        r#""op": "run", "argv": ["sh", "-c", "printf out; printf err >&2; exit 3"], "timeout": 30"#,
+    );
+    assert!(
+        doc.same(&Json::parse(r#"{"rc": 3, "out": "out", "err": "err"}"#).unwrap()),
+        "{doc:?}"
+    );
+    let me = std::process::id().to_string();
+    let doc = ok(&format!(r#""op": "tree", "pids": [{me}], "pgids": []"#));
+    let rows = doc.at("processes").arr().unwrap();
+    assert!(
+        rows.iter().any(|r| r.at("pid") == &Json::Num(me.clone())),
+        "{doc:?}"
+    );
+    for row in rows {
+        assert_eq!(row.keys().len(), 5, "{row:?}");
+        for (key, kind) in [
+            ("pid", "number"),
+            ("ppid", "number"),
+            ("pgid", "number"),
+            ("starttime", "string"),
+            ("argv", "string"),
+        ] {
+            assert_eq!(row.at(key).kind(), kind, "{key}");
+        }
+    }
+    // start a short-lived local program in its own session, then stop it by its identity
+    let identity = ok(
+        r#""op": "start", "argv": ["sleep", "30"], "log_rel": "logs/sleep.log", "role": "probe", "node": "sub""#,
+    );
+    assert_eq!(identity.keys().len(), 6, "{identity:?}");
+    for (key, kind) in [
+        ("node", "string"),
+        ("role", "string"),
+        ("pid", "number"),
+        ("pgid", "number"),
+        ("starttime", "string"),
+        ("log_rel", "string"),
+    ] {
+        assert_eq!(identity.at(key).kind(), kind, "{key}");
+    }
+    assert_eq!(
+        (
+            identity.at("node").str(),
+            identity.at("role").str(),
+            identity.at("log_rel").str()
+        ),
+        (Some("sub"), Some("probe"), Some("logs/sleep.log"))
+    );
+    assert!(root.join("logs/sleep.log").is_file());
+    let row = |j: &Json| match j {
+        Json::Obj(m) => format!(
+            "{{{}}}",
+            m.iter()
+                .map(|(k, v)| format!(
+                    "{}: {}",
+                    js(k),
+                    match v {
+                        Json::Str(t) => js(t),
+                        Json::Num(n) => n.clone(),
+                        other => panic!("{other:?}"),
+                    }
+                ))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+        other => panic!("{other:?}"),
+    };
+    let doc = ok(&format!(
+        r#""op": "stop", "identity": {}, "wait": 10, "pid_only": false"#,
+        row(&identity)
+    ));
+    assert_eq!(doc.keys().len(), 5, "{doc:?}");
+    assert_eq!(doc.at("pid"), identity.at("pid"));
+    assert_eq!(doc.at("term_status").str(), Some("term-exited"), "{doc:?}");
+    assert_eq!(doc.at("starttime_match"), &Json::Bool(true));
+    let doc = ok(
+        r#""op": "stop", "identity": {"node": "sub", "role": "gone", "pid": 2147483647, "pgid": 2147483647, "starttime": "1"}, "wait": 1"#,
+    );
+    assert_eq!(doc.at("term_status").str(), Some("already-gone"), "{doc:?}");
+    // gpu and ports read their host tools from PATH: stand-ins here
+    let out = send(rs, r#""op": "gpu""#, Some(&stand_in));
+    assert_eq!(out.status.code(), Some(0), "{}", text(&out.stderr));
+    assert!(Json::parse(&text(&out.stdout))
+        .unwrap()
+        .same(&Json::parse(r#"{"processes": ["4242, vllm, 1024"]}"#).unwrap()));
+    let out = send(rs, r#""op": "ports""#, Some(&stand_in));
+    assert_eq!(out.status.code(), Some(0), "{}", text(&out.stderr));
+    assert!(Json::parse(&text(&out.stdout))
+        .unwrap()
+        .same(&Json::parse(r#"{"ports": [22, 8000]}"#).unwrap()));
+    let empty_path = s.0.join("empty-path");
+    std::fs::create_dir_all(&empty_path).unwrap();
+    refused(
+        send(rs, r#""op": "gpu""#, Some(&empty_path)),
+        "gpu without its tool",
+    );
+    // the owned-root guard: a wrong marker, a root whose name is not the run id
+    write(&runs.join("other/").join(MARKER), "{}\n");
+    refused(
+        send(
+            runs.join("other").to_str().unwrap(),
+            &format!(
+                r#""op": "put", "rel": "x", "data": {}, "mode": 420"#,
+                js(&base64(b"x"))
+            ),
+            None,
+        ),
+        "a wrong marker",
+    );
+    let mismatched = request(rs, r#""op": "remove_owned_tree""#)
+        .replace("\"run_id\": \"run-20261119\"", "\"run_id\": \"run-other\"");
+    refused(
+        call_raw(&base64(mismatched.as_bytes()), None),
+        "a root that is not the run id",
+    );
+    assert!(root.is_dir());
+    is_ok(&ok(r#""op": "remove_owned_tree""#));
+    assert!(!root.exists());
+    assert!(ok(r#""op": "exists""#).same(&Json::parse(r#"{"exists": false}"#).unwrap()));
+    // requests the runner refuses: an operation outside the allowlist, a request that is not base64 or not JSON, a
+    // missing request key
+    refused(
+        send(rs, r#""op": "rm_rf""#, None),
+        "an operation outside the allowlist",
+    );
+    refused(call_raw("not base64 !!\n", None), "not base64");
+    refused(call_raw(&base64(b"not json"), None), "not JSON");
+    refused(
+        call_raw(
+            &base64(br#"{"op": "exists", "run_id": "x", "marker": "m", "created_by": "c"}"#),
+            None,
+        ),
+        "no root",
     );
 }
 
@@ -1659,6 +2572,20 @@ mod json {
                 Json::Str(_) => "string",
                 Json::Arr(_) => "array",
                 Json::Obj(_) => "object",
+            }
+        }
+        /// The same parsed value, object keys in any order (key order is not part of an L2 value).
+        pub fn same(&self, other: &Json) -> bool {
+            match (self, other) {
+                (Json::Obj(a), Json::Obj(b)) => {
+                    a.len() == b.len()
+                        && a.iter()
+                            .all(|(k, v)| b.iter().any(|(k2, v2)| k == k2 && v.same(v2)))
+                }
+                (Json::Arr(a), Json::Arr(b)) => {
+                    a.len() == b.len() && a.iter().zip(b).all(|(x, y)| x.same(y))
+                }
+                _ => self == other,
             }
         }
         /// A list of strings (e.g. `reason_codes`), failing the check on any other shape.

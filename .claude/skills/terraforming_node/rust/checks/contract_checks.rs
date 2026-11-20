@@ -15,7 +15,13 @@
 //!   before any write, and reaches the manifest check (exit 3) when the rules match;
 //! - multinode_serve_smoke.sh: `regen_envelope --node-dir staleness --now --max-age-days` (merged output, warning only);
 //! - verify_node_blackbox.sh: `bb_capture_proven <OUT>` prints the carried proof or `null`;
-//! - build_rust_packages.sh: `rust_package_check METADATA_JSON CRATE_DIR` exit 0 / 1 and its summary line.
+//! - build_rust_packages.sh: `rust_package_check METADATA_JSON CRATE_DIR` exit 0 / 1 and its summary line;
+//! - install_node_blackbox.sh·verify_node_blackbox.sh: the installed daemon copies (`/usr/local/sbin/easy-vllm-bb-*`) run
+//!   without a launcher — the units' argv, cwd `/`, no owner path — and their `--self-test`;
+//! - wiki-desk `accessor.ts`·`gateway.ts`: `library_access --revoke` rewrites the manifest's `library` block lines and drops
+//!   the `wiki-desk-gateway:<id>` line of authorized_keys;
+//! - relay's ledgers keep the keys relay does not own when it rewrites them (`--supervise-step`);
+//! - text arguments that are not UTF-8: exit 2 where base refuses them (closed choices).
 //!
 //! The bins run for real (through the launchers where the consumers do) in scratch directories. Values (L2) and exit
 //! codes, option names, line shapes and keys (L1) are fixed; message texts are not (L3).
@@ -445,52 +451,67 @@ fn documented_subcommands_and_long_options() {
     );
 }
 
+/// The check lines of a self-test's merged output: (`[PASS] …` or `PASS …` lines, `[FAIL] …` or `FAIL …` lines).
+fn check_lines(out: &str) -> (usize, usize) {
+    let starts = |l: &str, word: &str| {
+        l.starts_with(&format!("[{word}]")) || l.starts_with(&format!("{word} "))
+    };
+    let lines: Vec<&str> = out.lines().map(str::trim_start).collect();
+    (
+        lines.iter().filter(|l| starts(l, "PASS")).count(),
+        lines.iter().filter(|l| starts(l, "FAIL")).count(),
+    )
+}
+
+/// Exit 0 and, for a self-test that prints one line per check, at least the checks it has at base and no failed one
+/// (a shrunken self-test still exits 0, so its exit code alone would not show it; 0 = no check lines are printed).
+fn assert_self_test(what: &str, out: &Output, min_checks: usize) {
+    let merged = format!("{}{}", text(&out.stdout), text(&out.stderr));
+    assert_eq!(out.status.code(), Some(0), "{what}:\n{merged}");
+    let (passed, failed) = check_lines(&merged);
+    assert!(
+        passed >= min_checks && failed == 0,
+        "{what}: {passed} passed (base {min_checks}), {failed} failed:\n{merged}"
+    );
+}
+
 /// policy-distribution, policy-selftest and verify_node_blackbox.sh run these through the launchers and need exit 0.
-/// (`blackbox_collect --self-test` reads the live container and GPU state of the host and is not run here.)
+/// (`blackbox_collect --self-test` runs in `blackbox_daemons_run_as_installed`, away from the host's container and GPU
+/// tools.)
 #[test]
 fn consumer_self_tests_pass() {
     let s = scratch("selftest");
-    for launcher in [
-        "agent_control.sh",
-        "bootstrap_canary.sh",
-        "check_sub_hint_equip.sh",
-        "library_access.sh",
-        "relay.sh",
-        "render_sub_env.sh",
-        "staleness_gate.sh",
-        "node_blackbox/agent_guard.sh",
-        "node_blackbox/blackbox_eta.sh",
-        "node_blackbox/blackbox_events.sh",
-        "node_blackbox/blackbox_session.sh",
-        "node_blackbox/blackbox_thermal.sh",
-        "node_blackbox/logs_lifecycle.sh",
-        "node_blackbox/regen_envelope.sh",
-        "node_blackbox/seed_from_journal.sh",
+    for (launcher, min_checks) in [
+        ("agent_control.sh", 0),
+        ("bootstrap_canary.sh", 10),
+        ("check_sub_hint_equip.sh", 22),
+        ("library_access.sh", 17),
+        ("relay.sh", 147),
+        ("render_sub_env.sh", 24),
+        ("staleness_gate.sh", 26),
+        ("node_blackbox/agent_guard.sh", 45),
+        ("node_blackbox/blackbox_eta.sh", 79),
+        ("node_blackbox/blackbox_events.sh", 42),
+        ("node_blackbox/blackbox_session.sh", 69),
+        ("node_blackbox/blackbox_thermal.sh", 46),
+        ("node_blackbox/logs_lifecycle.sh", 29),
+        ("node_blackbox/regen_envelope.sh", 37),
+        ("node_blackbox/seed_from_journal.sh", 13),
     ] {
-        let out = launch(&s.0, launcher, &["--self-test"]);
-        assert_eq!(
-            out.status.code(),
-            Some(0),
-            "{launcher} --self-test:\n{}{}",
-            text(&out.stdout),
-            text(&out.stderr)
+        assert_self_test(
+            &format!("{launcher} --self-test"),
+            &launch(&s.0, launcher, &["--self-test"]),
+            min_checks,
         );
     }
-    for driver in [
-        "selftest_bootstrap_permissions.sh",
-        "selftest_campaign_lifecycle.sh",
-        "selftest_claude_native_events.sh",
-        "selftest_harness_switch.sh",
-        "selftest_sub_hint_write_scopes.sh",
+    for (driver, min_checks) in [
+        ("selftest_bootstrap_permissions.sh", 85),
+        ("selftest_campaign_lifecycle.sh", 103),
+        ("selftest_claude_native_events.sh", 49),
+        ("selftest_harness_switch.sh", 147),
+        ("selftest_sub_hint_write_scopes.sh", 62),
     ] {
-        let out = launch(&s.0, driver, &[]);
-        assert_eq!(
-            out.status.code(),
-            Some(0),
-            "{driver}:\n{}{}",
-            text(&out.stdout),
-            text(&out.stderr)
-        );
+        assert_self_test(driver, &launch(&s.0, driver, &[]), min_checks);
     }
 }
 
@@ -670,6 +691,50 @@ fn blackbox_session_budget_declaration() {
         text(&out.stdout),
         text(&out.stderr)
     );
+    // the data hint-publisher `e2.rs` reads: the session file (`session_id`, `started_utc`, `stopped_utc`,
+    // `config_file`, `topology`) and the node's events (`kind` serve_start / serve_stop with `session_id`, `source` =
+    // blackbox_session and, on the start, `topology`; budget_declare with the same `source`)
+    let session =
+        Json::parse(&std::fs::read_to_string(node.join("sessions/sess-1.json")).unwrap()).unwrap();
+    for (key, value) in [
+        ("session_id", "sess-1"),
+        ("started_utc", now),
+        ("stopped_utc", "2026-11-18T03:10:00Z"),
+        ("config_file", "cfg-1"),
+        ("topology", "single"),
+    ] {
+        assert_eq!(session.at(key).str(), Some(value), "{key}: {session:?}");
+    }
+    let mut events = Vec::new();
+    for e in std::fs::read_dir(node.join("events")).unwrap().flatten() {
+        if e.path().extension().is_some_and(|x| x == "jsonl") {
+            for line in std::fs::read_to_string(e.path())
+                .unwrap()
+                .lines()
+                .filter(|l| !l.trim().is_empty())
+            {
+                events.push(Json::parse(line).unwrap());
+            }
+        }
+    }
+    for kind in ["serve_start", "serve_stop"] {
+        let ev = events
+            .iter()
+            .find(|e| e.at("kind").str() == Some(kind))
+            .unwrap_or_else(|| panic!("no {kind}: {events:?}"));
+        assert_eq!(ev.at("session_id").str(), Some("sess-1"), "{kind}");
+        assert_eq!(ev.at("source").str(), Some("blackbox_session"), "{kind}");
+    }
+    let start = events
+        .iter()
+        .find(|e| e.at("kind").str() == Some("serve_start"))
+        .unwrap();
+    assert_eq!(start.at("topology").str(), Some("single"));
+    let declared = events
+        .iter()
+        .find(|e| e.at("kind").str() == Some("budget_declare"))
+        .unwrap_or_else(|| panic!("no budget_declare: {events:?}"));
+    assert_eq!(declared.at("source").str(), Some("blackbox_session"));
     // clear-budget removes the declaration
     assert_eq!(bs(&["clear-budget", "--now", now]).status.code(), Some(0));
     assert_eq!(bs(&["budget-status", "--now", now]).status.code(), Some(3));
@@ -826,16 +891,13 @@ fn eta_and_thermal_params_files() {
 
 /// upstream `branch_sync_selftest.rs` S6: in a tree whose topology rules declare `multi`, `render_sub_env --topology single`
 /// is exit 5 with `TOPOLOGY_RULES_MISMATCH` on stderr and writes nothing; `--topology multi` passes the guard and reaches
-/// the manifest check (exit 3). The tree is a copy (the launcher, the 4-way predicate's launcher, the rules file); the
-/// executables are this build and the policy-gate build of the repository (`TOPOLOGY_PARITY_BIN`).
+/// the manifest check (exit 3). The tree is a copy (the launcher, the rules file); the executables are this build's. The
+/// guard reads the rules file in-process: neither path runs the 4-way predicate (`topology_parity`).
 #[test]
 fn render_sub_env_topology_rules_guard() {
     let s = scratch("render");
     let tree = s.0.join("tree");
-    for rel in [
-        ".claude/skills/terraforming_node/scripts/render_sub_env.sh",
-        ".claude/policies/runtime/topology_parity.sh",
-    ] {
+    for rel in [".claude/skills/terraforming_node/scripts/render_sub_env.sh"] {
         let to = tree.join(rel);
         std::fs::create_dir_all(to.parent().unwrap()).unwrap();
         std::fs::copy(root().join(rel), &to).unwrap();
@@ -870,10 +932,6 @@ fn render_sub_env_topology_rules_guard() {
                 absent.to_str().unwrap(),
             ])
             .env("TERRAFORMING_BIN_DIR", bin_dir())
-            .env(
-                "TOPOLOGY_PARITY_BIN",
-                root().join(".claude/rust/policy-gate/target/release/topology_parity"),
-            )
             .env("GIT_CEILING_DIRECTORIES", std::env::temp_dir())
             .env_remove("TERRAFORMING_OWNER_PATH")
             .current_dir(&s.0)
@@ -1009,6 +1067,452 @@ fn rust_package_check_summary_and_failure() {
     assert_eq!(text(&out.stdout), "");
 }
 
+/// The first `name` on this process's `PATH`.
+fn on_path(name: &str) -> PathBuf {
+    let path = std::env::var_os("PATH").unwrap();
+    std::env::split_paths(&path)
+        .map(|d| d.join(name))
+        .find(|p| p.is_file())
+        .unwrap_or_else(|| panic!("{name} on PATH"))
+}
+
+/// The effective user id of this process (`/proc/self/status`).
+fn euid() -> u32 {
+    let status = std::fs::read_to_string("/proc/self/status").unwrap();
+    let line = status.lines().find(|l| l.starts_with("Uid:")).unwrap();
+    line.split_whitespace().nth(2).unwrap().parse().unwrap()
+}
+
+/// Lines with their runs of blanks made one space.
+fn squeezed(body: &str) -> Vec<String> {
+    body.lines()
+        .map(|l| l.split_whitespace().collect::<Vec<_>>().join(" "))
+        .collect()
+}
+
+/// install_node_blackbox.sh copies the daemons' ELFs into its `$BIN` (`install -m 0755 … $BIN/easy-vllm-bb-<name>`,
+/// :255-263) and its systemd units start the copies with no launcher (:332, :383, :406-407); verify_node_blackbox.sh
+/// :232-245 runs each installed copy's `--self-test` from `/` (exit 0 = deployed). The installer's lines are fixed as it
+/// writes them, then each is run the way the unit runs it: the ELF copied (not linked) into a scratch `sbin/`, cwd `/`,
+/// argv[0] the installed path, neither `TERRAFORMING_OWNER_PATH` nor `TERRAFORMING_BIN_DIR` — the copy's place does not
+/// lead to the repository — and a scratch node directory as the installer prepares it (`samples`·`events`·`rollup`).
+/// `PATH` holds only `date` (the lifecycle units' `$(date -u …)`): the host's container, GPU and journal tools are not
+/// reached, and the samplers record those columns as absent. The collector (`--interval 1`, a `Restart=always` service)
+/// records samples until it is interrupted (SIGINT ends it with exit 0); lifecycle then regen run through `sh -c` with
+/// the units' command text, and regen writes the node's `envelope.json`.
+#[test]
+fn blackbox_daemons_run_as_installed() {
+    let s = scratch("installed");
+    let installer = squeezed(
+        &std::fs::read_to_string(skill().join("scripts/node_blackbox/install_node_blackbox.sh"))
+            .unwrap(),
+    );
+    let has = |line: &str| installer.iter().any(|l| l == line);
+    for line in [
+        r#"LIFECYCLE_BIN="$RUST_REL/logs_lifecycle""#,
+        r#"run install -m 0755 "$RUST_REL/blackbox_collect" "$BIN/easy-vllm-bb-collect""#,
+        r#"run install -m 0755 "$RUST_REL/blackbox_eta" "$BIN/easy-vllm-bb-eta""#,
+        r#"run install -m 0755 "$RUST_REL/blackbox_events" "$BIN/easy-vllm-bb-events""#,
+        r#"run install -m 0755 "$LIFECYCLE_BIN" "$BIN/easy-vllm-bb-lifecycle""#,
+        r#"run install -m 0755 "$RUST_REL/regen_envelope" "$BIN/easy-vllm-bb-regen-envelope""#,
+        "ExecStart=$BIN/easy-vllm-bb-collect --node-dir $NODE_DIR --interval 1",
+        "ExecStart=$BIN/easy-vllm-bb-events --node-dir $NODE_DIR",
+        r#"ExecStart=/bin/sh -c '$BIN/easy-vllm-bb-lifecycle --node-dir $NODE_DIR --now "\$(date -u +%%Y-%%m-%%dT%%H:%%M:%%SZ)" --apply'"#,
+        r#"ExecStart=/bin/sh -c '$BIN/easy-vllm-bb-regen-envelope --node-dir $NODE_DIR regen --now "\$(date -u +%%Y-%%m-%%dT%%H:%%M:%%SZ)"'"#,
+    ] {
+        assert!(has(line), "install_node_blackbox.sh lacks: {line}");
+    }
+    let verifier = squeezed(
+        &std::fs::read_to_string(skill().join("scripts/node_blackbox/verify_node_blackbox.sh"))
+            .unwrap(),
+    )
+    .join("\n");
+    assert!(verifier.contains("for _b in easy-vllm-bb-eta easy-vllm-bb-collect easy-vllm-bb-events \\\neasy-vllm-bb-lifecycle easy-vllm-bb-regen-envelope; do"), "verify_node_blackbox.sh: the installed copies");
+    assert!(
+        verifier.contains(r#"( cd / && "$_d" --self-test >/dev/null 2>&1 )"#),
+        "verify_node_blackbox.sh: the self-test from /"
+    );
+
+    let sbin = s.0.join("sbin");
+    let tools = s.0.join("tools");
+    std::fs::create_dir_all(&sbin).unwrap();
+    std::fs::create_dir_all(&tools).unwrap();
+    std::os::unix::fs::symlink(on_path("date"), tools.join("date")).unwrap();
+    for (name, exe) in [
+        ("collect", env!("CARGO_BIN_EXE_blackbox_collect")),
+        ("eta", env!("CARGO_BIN_EXE_blackbox_eta")),
+        ("events", env!("CARGO_BIN_EXE_blackbox_events")),
+        ("lifecycle", env!("CARGO_BIN_EXE_logs_lifecycle")),
+        ("regen-envelope", env!("CARGO_BIN_EXE_regen_envelope")),
+    ] {
+        std::fs::copy(exe, sbin.join(format!("easy-vllm-bb-{name}"))).unwrap();
+    }
+    // (the installed eta copy has one check fewer than through its launcher: the legacy-watchdog cross-check needs the
+    // repository and reports itself skipped)
+    let installed = |cmd: &mut Command| {
+        cmd.current_dir("/")
+            .env_remove("TERRAFORMING_OWNER_PATH")
+            .env_remove("TERRAFORMING_BIN_DIR")
+            .env("PATH", &tools)
+            .stdin(Stdio::null());
+    };
+    for (name, min_checks) in [
+        ("eta", 78),
+        ("collect", 47),
+        ("events", 42),
+        ("lifecycle", 29),
+        ("regen-envelope", 37),
+    ] {
+        let mut c = Command::new(sbin.join(format!("easy-vllm-bb-{name}")));
+        installed(c.arg("--self-test"));
+        assert_self_test(
+            &format!("installed easy-vllm-bb-{name} --self-test"),
+            &c.output().unwrap(),
+            min_checks,
+        );
+    }
+
+    let node = s.0.join("node");
+    for d in ["samples", "events", "rollup"] {
+        std::fs::create_dir_all(node.join(d)).unwrap();
+    }
+    let n = node.to_str().unwrap();
+    // the collector unit: samples every second until stopped
+    if euid() == 0 {
+        eprintln!("blackbox_daemons_run_as_installed: as root the collector would also write the kernel log (/dev/kmsg); its unit command is not run");
+    } else {
+        let log = s.0.join("collect.log");
+        let mut c = Command::new(sbin.join("easy-vllm-bb-collect"));
+        installed(c.args(["--node-dir", n, "--interval", "1"]));
+        let mut child = c
+            .stdout(std::fs::File::create(&log).unwrap())
+            .stderr(std::fs::File::create(s.0.join("collect.err")).unwrap())
+            .spawn()
+            .unwrap();
+        let sampled = || {
+            std::fs::read_dir(node.join("samples"))
+                .unwrap()
+                .flatten()
+                .any(|e| std::fs::read_to_string(e.path()).is_ok_and(|t| t.lines().count() >= 2))
+        };
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
+        while !sampled()
+            && std::time::Instant::now() < deadline
+            && child.try_wait().unwrap().is_none()
+        {
+            std::thread::sleep(std::time::Duration::from_millis(100));
+        }
+        let rows_seen = sampled();
+        let kill = Command::new(on_path("kill"))
+            .args(["-INT", &child.id().to_string()])
+            .status()
+            .unwrap();
+        assert!(kill.success());
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
+        let status = loop {
+            if let Some(st) = child.try_wait().unwrap() {
+                break st;
+            }
+            assert!(
+                std::time::Instant::now() < deadline,
+                "the collector did not stop on SIGINT"
+            );
+            std::thread::sleep(std::time::Duration::from_millis(100));
+        };
+        assert!(
+            rows_seen,
+            "no sample row: {}",
+            std::fs::read_to_string(s.0.join("collect.err")).unwrap_or_default()
+        );
+        assert_eq!(
+            status.code(),
+            Some(0),
+            "{}",
+            std::fs::read_to_string(s.0.join("collect.err")).unwrap_or_default()
+        );
+        let day = std::fs::read_dir(node.join("samples"))
+            .unwrap()
+            .flatten()
+            .next()
+            .unwrap()
+            .path();
+        assert!(
+            std::fs::read_to_string(&day).unwrap().starts_with("ts,"),
+            "{day:?}"
+        );
+    }
+    // the events unit (oneshot)
+    let mut c = Command::new(sbin.join("easy-vllm-bb-events"));
+    installed(c.args(["--node-dir", n]));
+    let out = c.output().unwrap();
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "{}{}",
+        text(&out.stdout),
+        text(&out.stderr)
+    );
+    // the lifecycle unit's two ExecStart lines, in order, through sh -c with the unit's command text
+    for unit_command in [
+        format!(
+            r#"{}/easy-vllm-bb-lifecycle --node-dir {n} --now "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --apply"#,
+            sbin.display()
+        ),
+        format!(
+            r#"{}/easy-vllm-bb-regen-envelope --node-dir {n} regen --now "$(date -u +%Y-%m-%dT%H:%M:%SZ)""#,
+            sbin.display()
+        ),
+    ] {
+        let mut c = Command::new(on_path("sh"));
+        installed(c.arg("-c").arg(&unit_command));
+        let out = c.output().unwrap();
+        assert_eq!(
+            out.status.code(),
+            Some(0),
+            "{unit_command}: {}{}",
+            text(&out.stdout),
+            text(&out.stderr)
+        );
+    }
+    let envelope =
+        Json::parse(&std::fs::read_to_string(node.join("envelope.json")).unwrap()).unwrap();
+    assert_eq!(envelope.kind(), "object");
+}
+
+/// `library_access --revoke --approved-by WHO --node ID --topology T` (the main withdraws a sub's library access point,
+/// SKILL.md §2.7.8): drops the line of the main's `~/.ssh/authorized_keys` that ends with the marker
+/// `wiki-desk-gateway:<id>` (other lines stay) and rewrites the manifest's top-level `library` block — the lines wiki-desk
+/// `accessor.ts` reads with its own YAML subset parser: two-space keys, path values as JSON strings, `access_points.<id>`
+/// with `identity_file`·`known_hosts` — after the rest of the manifest, which stays; stdout `{"mode": "revoke",
+/// "node_id", "approved_by"}`. Without `--approved-by` it stops (exit 3) and changes nothing. The tree is a copy of the
+/// launcher (the repository is found from it); `HOME` is a scratch directory.
+#[test]
+fn library_access_revoke_rewrites_the_block_and_the_marked_line() {
+    let s = scratch("library");
+    let tree = s.0.join("tree");
+    let launcher = tree.join(".claude/skills/terraforming_node/scripts/library_access.sh");
+    std::fs::create_dir_all(launcher.parent().unwrap()).unwrap();
+    std::fs::copy(skill().join("scripts/library_access.sh"), &launcher).unwrap();
+    let home = s.0.join("home");
+    let keys = home.join(".ssh/authorized_keys");
+    let kept_key = "ssh-ed25519 AAAAkeep me@main";
+    let other_gateway = r#"command="node /w/repo/.claude/skills/wiki-desk/src/gateway.ts --node sub2",restrict ssh-ed25519 AAAAsub2 wiki-desk-gateway:sub2"#;
+    let gateway = r#"command="node /w/repo/.claude/skills/wiki-desk/src/gateway.ts --node sub",restrict ssh-ed25519 AAAAsub wiki-desk-gateway:sub"#;
+    write(&keys, &format!("{kept_key}\n{gateway}\n{other_gateway}\n"));
+    let rest = "# manifest fixture\ntopology: single\ngpus_per_node: 1\nnodes:\n  - role: main\n    host: main.invalid\n    ssh_user: u\n    work_dir: /w/repo\n  - role: sub\n    host: sub.invalid\n    ssh_user: u\n    work_dir: /w/sub\n    node_id: sub\n";
+    let block = "library:\n  transport: local\n  wiki_dir: __llm-wiki\n  repo_root: \"/w/repo\"\n  access_points:\n    sub:\n      identity_file: \"/h/.ssh/k\"\n      known_hosts: \"/h/.ssh/kh\"\n    sub2:\n      identity_file: \"/h/.ssh/k2\"\n      known_hosts: \"/h/.ssh/kh2\"\n";
+    let manifest = tree.join("output/single/manifest.yaml");
+    write(
+        &manifest,
+        &format!("{rest}{block}terraforming:\n  complete: true\n"),
+    );
+    let la = |args: &[&str]| {
+        Command::new("bash")
+            .arg(&launcher)
+            .args(args)
+            .env("TERRAFORMING_BIN_DIR", bin_dir())
+            .env_remove("TERRAFORMING_OWNER_PATH")
+            .env("HOME", &home)
+            .env("GIT_CEILING_DIRECTORIES", std::env::temp_dir())
+            .current_dir(&s.0)
+            .stdin(Stdio::null())
+            .output()
+            .unwrap()
+    };
+    let before = (
+        std::fs::read_to_string(&manifest).unwrap(),
+        std::fs::read_to_string(&keys).unwrap(),
+    );
+    let out = la(&["--revoke", "--node", "sub", "--topology", "single"]);
+    assert_eq!(
+        out.status.code(),
+        Some(3),
+        "no approval: {}{}",
+        text(&out.stdout),
+        text(&out.stderr)
+    );
+    assert_eq!(
+        (
+            std::fs::read_to_string(&manifest).unwrap(),
+            std::fs::read_to_string(&keys).unwrap()
+        ),
+        before
+    );
+    assert_eq!(
+        la(&["--revoke", "--node", "sub"]).status.code(),
+        Some(2),
+        "no --topology"
+    );
+    let out = la(&[
+        "--revoke",
+        "--approved-by",
+        "reviewer",
+        "--node",
+        "sub",
+        "--topology",
+        "single",
+    ]);
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "{}{}",
+        text(&out.stdout),
+        text(&out.stderr)
+    );
+    let doc = Json::parse(&text(&out.stdout)).unwrap();
+    assert!(
+        doc.same(
+            &Json::parse(r#"{"mode": "revoke", "node_id": "sub", "approved_by": "reviewer"}"#)
+                .unwrap()
+        ),
+        "{doc:?}"
+    );
+    assert_eq!(
+        std::fs::read_to_string(&keys).unwrap(),
+        format!("{kept_key}\n{other_gateway}\n")
+    );
+    let after = std::fs::read_to_string(&manifest).unwrap();
+    let lines: Vec<&str> = after.lines().collect();
+    let at = lines
+        .iter()
+        .position(|l| l.starts_with("library:"))
+        .unwrap_or_else(|| panic!("{after}"));
+    let outside: Vec<&str> = lines[..at]
+        .iter()
+        .copied()
+        .filter(|l| !l.is_empty())
+        .collect();
+    let mut want_outside: Vec<&str> = rest.lines().collect();
+    want_outside.extend(["terraforming:", "  complete: true"]);
+    assert_eq!(
+        outside, want_outside,
+        "the rest of the manifest stays, before the block"
+    );
+    assert_eq!(
+        &lines[at + 1..],
+        [
+            "  transport: local",
+            "  wiki_dir: __llm-wiki",
+            "  repo_root: \"/w/repo\"",
+            "  access_points:",
+            "    sub2:",
+            "      identity_file: \"/h/.ssh/k2\"",
+            "      known_hosts: \"/h/.ssh/kh2\""
+        ],
+        "{after}"
+    );
+}
+
+/// relay's ledgers `campaigns/<id>/relay/<ctx>.json` are rewritten whole by relay (types.md 4절 「영속 문서」 4), and keys
+/// that are not relay's own — at the top, in an attempt — stay as read. `relay --supervise-step <camp> --utc T` takes one
+/// supervisor step (without `--apply` it dispatches nothing): it appends to `supervisor_steps` an entry with `action`,
+/// `reason` and `utc`, and the ledger's `revision` goes up by one. The tree holds copies of what relay reads (its launcher,
+/// agent_control.sh for the runner table, the request schema); with no campaign_init.sh in it the campaign's lifecycle
+/// is unknown and the step is a `hold`.
+#[test]
+fn relay_supervise_step_keeps_unknown_ledger_keys() {
+    let s = scratch("relay");
+    let tree = s.0.join("tree");
+    for rel in [
+        ".claude/skills/terraforming_node/scripts/relay.sh",
+        ".claude/skills/terraforming_node/scripts/agent_control.sh",
+        ".claude/schemas/agent-control-request.schema.json",
+    ] {
+        let to = tree.join(rel);
+        std::fs::create_dir_all(to.parent().unwrap()).unwrap();
+        std::fs::copy(root().join(rel), &to).unwrap();
+    }
+    write(&tree.join("campaigns/ACTIVE"), "c1\n");
+    let ledger = tree.join("campaigns/c1/relay/ctx-1.json");
+    let original = r#"{"schema_version": 1, "context_id": "ctx-1", "campaign_id": "c1", "campaign_node": "sub", "campaign_context_kind": "cell", "campaign_cell": "cell-a", "revision": 3, "attempts": [{"attempt": 1, "status": "completed", "phase": "serve", "_attempt_note": {"k": [1, 2]}}], "_note": "kept", "_x": {"nested": true}}"#;
+    write(&ledger, original);
+    let out = Command::new("bash")
+        .arg(tree.join(".claude/skills/terraforming_node/scripts/relay.sh"))
+        .args(["--supervise-step", "c1", "--utc", "2026-11-19T03:00:00Z"])
+        .env("TERRAFORMING_BIN_DIR", bin_dir())
+        .env_remove("TERRAFORMING_OWNER_PATH")
+        .env("GIT_CEILING_DIRECTORIES", std::env::temp_dir())
+        .current_dir(&s.0)
+        .stdin(Stdio::null())
+        .output()
+        .unwrap();
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "{}{}",
+        text(&out.stdout),
+        text(&out.stderr)
+    );
+    let doc = Json::parse(&std::fs::read_to_string(&ledger).unwrap()).unwrap();
+    let was = Json::parse(original).unwrap();
+    for (key, value) in match &was {
+        Json::Obj(m) => m.clone(),
+        _ => unreachable!(),
+    } {
+        if key != "revision" {
+            assert!(doc.at(&key).same(&value), "{key}: {doc:?}");
+        }
+    }
+    assert_eq!(doc.at("revision"), &Json::Num("4".into()));
+    let steps = doc.at("supervisor_steps").arr().unwrap();
+    assert_eq!(steps.len(), 1, "{doc:?}");
+    assert_eq!(steps[0].at("action").str(), Some("hold"), "{doc:?}");
+    assert_eq!(steps[0].at("reason").kind(), "string");
+    assert_eq!(steps[0].at("utc").str(), Some("2026-11-19T03:00:00Z"));
+}
+
+/// A text argument that is not UTF-8 (types.md 2절): where base already refuses it — an option with closed choices — the
+/// refusal is a usage error, exit 2 with nothing on stdout; the same command line with a valid choice is not exit 2.
+#[test]
+fn non_utf8_choice_arguments_are_usage_errors() {
+    use std::ffi::{OsStr, OsString};
+    use std::os::unix::ffi::OsStrExt;
+    let s = scratch("nonutf8");
+    let node = s.0.join("node");
+    std::fs::create_dir_all(&node).unwrap();
+    let (n, r) = (node.to_str().unwrap(), s.0.to_str().unwrap());
+    for (launcher, args, option, valid) in [
+        (
+            "node_blackbox/blackbox_session.sh",
+            vec!["--node-dir", n, "budget-defaults"],
+            "--field",
+            "ttl_s",
+        ),
+        (
+            "staleness_gate.sh",
+            vec!["--repo", r],
+            "--topology",
+            "single",
+        ),
+    ] {
+        let run = |value: &OsStr| {
+            let mut all: Vec<OsString> = args.iter().map(OsString::from).collect();
+            all.extend([OsString::from(option), value.to_os_string()]);
+            Command::new("bash")
+                .arg(skill().join("scripts").join(launcher))
+                .args(&all)
+                .env("TERRAFORMING_BIN_DIR", bin_dir())
+                .env_remove("TERRAFORMING_OWNER_PATH")
+                .current_dir(&s.0)
+                .stdin(Stdio::null())
+                .output()
+                .unwrap()
+        };
+        let out = run(OsStr::from_bytes(b"\xff"));
+        assert_eq!(
+            (out.status.code(), text(&out.stdout).as_str()),
+            (Some(2), ""),
+            "{launcher} {option}: {}",
+            text(&out.stderr)
+        );
+        assert_ne!(
+            run(OsStr::new(valid)).status.code(),
+            Some(2),
+            "{launcher} {option} {valid}"
+        );
+    }
+}
+
 /// A small RFC 8259 reader for the contract checks: the fixed surface is the parsed value (L2), so the checks read the
 /// output as JSON instead of comparing bytes. Numbers keep their source text; no dependency of the crate is used.
 mod json {
@@ -1076,6 +1580,20 @@ mod json {
                 Json::Str(_) => "string",
                 Json::Arr(_) => "array",
                 Json::Obj(_) => "object",
+            }
+        }
+        /// The same parsed value, object keys in any order (key order is not part of an L2 value).
+        pub fn same(&self, other: &Json) -> bool {
+            match (self, other) {
+                (Json::Obj(a), Json::Obj(b)) => {
+                    a.len() == b.len()
+                        && a.iter()
+                            .all(|(k, v)| b.iter().any(|(k2, v2)| k == k2 && v.same(v2)))
+                }
+                (Json::Arr(a), Json::Arr(b)) => {
+                    a.len() == b.len() && a.iter().zip(b).all(|(x, y)| x.same(y))
+                }
+                _ => self == other,
             }
         }
         /// A list of strings (e.g. `reason_codes`), failing the check on any other shape.

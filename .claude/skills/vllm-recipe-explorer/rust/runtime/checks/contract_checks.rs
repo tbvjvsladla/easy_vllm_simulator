@@ -9,7 +9,8 @@
 //!   simulate` in an unterraformed tree is exit 4 (the Flag gate fires before the config is read);
 //! - adversarial-benchmark `campaign_write.rs`: `escalation_predicate --symptom … --json` exits 0 or 1 (both are
 //!   verdicts) with the predicate keys on stdout;
-//! - upstream `smoke_model.rs`: `rope_scaling_translate --model-dir --target-len --json` keys.
+//! - upstream `smoke_model.rs`: `rope_scaling_translate --model-dir --target-len --json` keys;
+//! - text arguments that are not UTF-8: exit 2 where base refuses them (closed choices).
 //!
 //! The bins run for real (through the launchers where the consumers do) in scratch directories. Values (L2) and exit
 //! codes, option names and marker lines (L1) are fixed; message texts are not (L3).
@@ -259,30 +260,93 @@ fn documented_subcommands_and_long_options() {
     }
 }
 
-/// policy-distribution runs these through the launchers and needs exit 0.
+/// The check lines of a self-test's merged output: (`[PASS] …` or `PASS …` lines, `[FAIL] …` or `FAIL …` lines).
+fn check_lines(out: &str) -> (usize, usize) {
+    let starts = |l: &str, word: &str| {
+        l.starts_with(&format!("[{word}]")) || l.starts_with(&format!("{word} "))
+    };
+    let lines: Vec<&str> = out.lines().map(str::trim_start).collect();
+    (
+        lines.iter().filter(|l| starts(l, "PASS")).count(),
+        lines.iter().filter(|l| starts(l, "FAIL")).count(),
+    )
+}
+
+/// policy-distribution runs these through the launchers and needs exit 0. A self-test that prints one line per check
+/// keeps at least the checks it has at base (the third column; 0 = it prints no check lines) and prints no failed check —
+/// a shrunken self-test still exits 0, so its exit code alone would not show it.
 #[test]
 fn consumer_self_tests_pass() {
     let s = scratch("selftest");
     let rt = runtime_root(&s);
-    for (launcher, args) in [
-        ("escalation_predicate.sh", &["--self-test"][..]),
-        ("estimate_vram.sh", &["--self-test"]),
-        ("parse_model_config.sh", &["--self-test"]),
-        ("preload_ram_gate.sh", &["--self-test"]),
-        ("rope_scaling_translate.sh", &["--self-test"]),
-        ("run_trial.sh", &["--self-test"]),
-        ("selftest_gmu_roles_batch.sh", &[]),
-        ("gen_recipe_set.sh", &["--check-parity"]),
+    for (launcher, args, min_checks) in [
+        ("escalation_predicate.sh", &["--self-test"][..], 10),
+        ("estimate_vram.sh", &["--self-test"], 0),
+        ("parse_model_config.sh", &["--self-test"], 0),
+        ("preload_ram_gate.sh", &["--self-test"], 10),
+        ("rope_scaling_translate.sh", &["--self-test"], 11),
+        ("run_trial.sh", &["--self-test"], 0),
+        ("selftest_gmu_roles_batch.sh", &[], 89),
+        ("gen_recipe_set.sh", &["--check-parity"], 0),
     ] {
         let out = launch(&rt, &s.0, launcher, args);
-        assert_eq!(
-            out.status.code(),
-            Some(0),
-            "{launcher} {args:?}:\n{}{}",
-            text(&out.stdout),
-            text(&out.stderr)
+        let merged = format!("{}{}", text(&out.stdout), text(&out.stderr));
+        assert_eq!(out.status.code(), Some(0), "{launcher} {args:?}:\n{merged}");
+        let (passed, failed) = check_lines(&merged);
+        assert!(
+            passed >= min_checks && failed == 0,
+            "{launcher} {args:?}: {passed} passed (base {min_checks}), {failed} failed:\n{merged}"
         );
     }
+}
+
+/// A text argument that is not UTF-8 (types.md 2절): where base already refuses it — an option with closed choices — the
+/// refusal is a usage error, exit 2 with nothing on stdout (and nothing written); the same command line with a valid
+/// choice is not exit 2 (here: exit 1, the inputs do not exist).
+#[test]
+fn non_utf8_choice_arguments_are_usage_errors() {
+    use std::ffi::{OsStr, OsString};
+    use std::os::unix::ffi::OsStrExt;
+    let s = scratch("nonutf8");
+    let rt = runtime_root(&s);
+    let (absent, repo) = (s.0.join("absent.json"), s.0.join("repo"));
+    let (a, r) = (absent.to_str().unwrap(), repo.to_str().unwrap());
+    let args = [
+        "--parsed",
+        a,
+        "--recipe",
+        a,
+        "--name",
+        "n",
+        "--repo",
+        r,
+        "--port",
+        "8000",
+        "--served-model-name",
+        "m",
+    ];
+    let run = |value: &OsStr| {
+        let mut all: Vec<OsString> = args.iter().map(OsString::from).collect();
+        all.extend([OsString::from("--topology"), value.to_os_string()]);
+        Command::new("bash")
+            .arg(skill().join("scripts/gen_recipe_set.sh"))
+            .args(&all)
+            .env("EASY_VLLM_RECIPE_RUNTIME_ROOT", &rt)
+            .env("GIT_CEILING_DIRECTORIES", std::env::temp_dir())
+            .current_dir(&s.0)
+            .stdin(Stdio::null())
+            .output()
+            .unwrap()
+    };
+    let out = run(OsStr::from_bytes(b"\xff"));
+    assert_eq!(
+        (out.status.code(), text(&out.stdout).as_str()),
+        (Some(2), ""),
+        "{}",
+        text(&out.stderr)
+    );
+    assert!(!repo.exists());
+    assert_ne!(run(OsStr::new("single")).status.code(), Some(2));
 }
 
 /// The Flag gate (policy:TERRAFORM_FLAG_GATE): in a tree without `output/<topology>/manifest.yaml` (a fresh clone, the
