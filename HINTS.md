@@ -112,7 +112,7 @@ arch·recipe 의 모양이 다릅니다.
 에 있습니다.
 
 <!-- HINTS:BEGIN derived — `hint.sh catalog derive` 가 이 구간만 다시 쓴다(손으로 고치지 마라 · 구간 밖은 사람이 쓰는 서사다) -->
-> 원격 `github-ssh` 의 발행 태그 **95건** · 모델 18종에서 파생 · 생성 `2026-11-19T20:24:11` KST.
+> 원격 `github-ssh` 의 발행 태그 **95건** · 모델 18종에서 파생 · 생성 `2026-11-21T06:54:24` KST.
 
 ### `deepseek-v4.1-flash-exl3-2.0bpw-sfxnz` (4)
 

@@ -18,6 +18,14 @@ path = "src/inline_python_scan.rs"
 name = "verdict_clock_scan"
 path = "src/verdict_clock_scan.rs"
 
+[[bin]]
+name = "crate_allow"
+path = "src/crate_allow/main.rs"
+
+[[test]]
+name = "crate_allow_checks"
+path = "checks/crate_allow_checks.rs"
+
 [[test]]
 name = "guard_checks"
 path = "checks/guard_checks.rs"
@@ -33,6 +41,10 @@ path = "checks/rs_scan_checks.rs"
 [[test]]
 name = "verdict_clock_checks"
 path = "checks/verdict_clock_checks.rs"
+
+[[test]]
+name = "contract_checks"
+path = "checks/contract_checks.rs"
 
 [dependencies]
 syn = { version = "3.0.9", default-features = false, features = ["clone-impls", "full", "parsing", "printing", "visit"] }

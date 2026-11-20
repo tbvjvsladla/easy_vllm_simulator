@@ -695,3 +695,13 @@ path = "checks/turn_budget_stream_fixes.rs"
 [[test]]
 name = "turn_budget_original_cases"
 path = "checks/turn_budget_original_cases.rs"
+
+# Contract checks of the fixed surface (plan 26111805, cell c21c-contract-tests): the bench pipeline bins, and the
+# campaign, manifest, scan, turn-budget and topology bins this crate builds for terraforming_node and the policies.
+[[test]]
+name = "contract_checks"
+path = "checks/contract_checks.rs"
+
+[[test]]
+name = "contract_checks_campaign"
+path = "checks/contract_checks_campaign.rs"

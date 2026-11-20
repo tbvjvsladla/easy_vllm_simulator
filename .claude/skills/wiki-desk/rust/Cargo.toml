@@ -4,9 +4,16 @@ version = "0.1.0"
 edition = "2021"
 description = "wiki-desk check oracle: reproduces PyYAML 6.0.1 safe_load implicit-scalar resolution for a flat mapping (plan_26111707). std-only."
 publish = false
+# `tests/` is a scratch name in this repository; integration checks live in `checks/`.
+autotests = false
 
 [[bin]]
 name = "yaml11_oracle"
 path = "src/main.rs"
+
+# Contract checks of the fixed surface (plan 26111805, cell c21-contract-tests).
+[[test]]
+name = "contract_checks"
+path = "checks/contract_checks.rs"
 
 [dependencies]

@@ -47,6 +47,11 @@ path = "checks/tf_checks.rs"
 name = "hint_checks"
 path = "checks/hint_checks.rs"
 
+# Contract checks of the fixed surface (plan 26111805, cell c21c-contract-tests).
+[[test]]
+name = "contract_checks"
+path = "checks/contract_checks.rs"
+
 [dependencies]
 # Python-compatible JSON reader (json.loads of registry.yaml / claim_bindings.json / settings templates).
 agent-runtime-support = { path = "../runtime-support" }

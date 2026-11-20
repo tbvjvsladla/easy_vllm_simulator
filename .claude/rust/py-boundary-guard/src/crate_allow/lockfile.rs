@@ -1,0 +1,226 @@
+//! The `[[package]]` entries of a `Cargo.lock` (format versions 3 and 4): name, version and source. Dependency lists
+//! and checksums are not read; the check only asks which packages a lock pins and where each comes from.
+//!
+//! Fail closed: a `name`, `version` or `source` line whose value is not a basic string (`key = "…"`, the only
+//! spelling Cargo writes), the same one of those keys twice in one package, a package without name or version, and
+//! a lock without any package are input errors. A `source` line that cannot be read would otherwise turn an external
+//! package into a path package.
+//!
+//! Table headers are read only in the spelling Cargo writes: a line that starts with `[` must be exactly one of
+//! `KNOWN_HEADERS`, at the start of the line. `[[ package ]]`, a header followed by a comment, an indented header
+//! and any other table are input errors — read loosely, such a line would hide a package or give its keys to the
+//! package above it.
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LockedPackage {
+    pub name: String,
+    pub version: String,
+    /// `None` for a path package of this repository; `Some("registry+…")` and the like for an external one.
+    pub source: Option<String>,
+}
+
+/// The two spellings of the crates.io index that Cargo writes into a lock.
+const CRATES_IO_SOURCES: [&str; 2] = [
+    "registry+https://github.com/rust-lang/crates.io-index",
+    "sparse+https://index.crates.io/",
+];
+
+impl LockedPackage {
+    pub fn is_external(&self) -> bool {
+        self.source.is_some()
+    }
+
+    pub fn is_from_crates_io(&self) -> bool {
+        self.source
+            .as_deref()
+            .is_some_and(|s| CRATES_IO_SOURCES.contains(&s))
+    }
+}
+
+/// `key = "value"` with the basic-string escapes Cargo writes (`\"`, `\\`). Other lines give `None`.
+pub fn string_field(line: &str) -> Option<(&str, String)> {
+    let (key, rest) = line.split_once('=')?;
+    let quoted = rest.trim().strip_prefix('"')?.strip_suffix('"')?;
+    let mut value = String::with_capacity(quoted.len());
+    let mut chars = quoted.chars();
+    while let Some(c) = chars.next() {
+        if c == '\\' {
+            value.push(chars.next()?);
+        } else {
+            value.push(c);
+        }
+    }
+    Some((key.trim(), value))
+}
+
+#[derive(Default)]
+struct PartialPackage {
+    name: Option<String>,
+    version: Option<String>,
+    source: Option<String>,
+    first_line: usize,
+}
+
+/// The table headers Cargo writes into a lock (format versions 1–4).
+const KNOWN_HEADERS: [&str; 3] = ["[[package]]", "[metadata]", "[[patch.unused]]"];
+
+/// The package keys the check reads; each must be readable and appear at most once per package.
+const READ_KEYS: [&str; 3] = ["name", "version", "source"];
+
+impl PartialPackage {
+    fn slot(&mut self, key: &str) -> Option<&mut Option<String>> {
+        match key {
+            "name" => Some(&mut self.name),
+            "version" => Some(&mut self.version),
+            "source" => Some(&mut self.source),
+            _ => None,
+        }
+    }
+
+    fn finish(self) -> Result<LockedPackage, String> {
+        match (self.name, self.version) {
+            (Some(name), Some(version)) => Ok(LockedPackage {
+                name,
+                version,
+                source: self.source,
+            }),
+            _ => Err(format!(
+                "[[package]] at line {} has no name or no version",
+                self.first_line
+            )),
+        }
+    }
+}
+
+/// All `[[package]]` entries in file order (see the module notes for the input errors).
+pub fn parse(text: &str) -> Result<Vec<LockedPackage>, String> {
+    let mut packages = Vec::new();
+    let mut current: Option<PartialPackage> = None;
+    for (index, raw) in text.lines().enumerate() {
+        let line = raw.trim_end_matches('\r');
+        if line.trim_start().starts_with('[') {
+            if !KNOWN_HEADERS.contains(&line) {
+                return Err(format!(
+                    "line {}: a table header other than {} as Cargo writes it (spacing, indentation, a comment or \
+                     another table): {}",
+                    index + 1,
+                    KNOWN_HEADERS.join(", "),
+                    line.trim()
+                ));
+            }
+            if let Some(done) = current.take() {
+                packages.push(done.finish()?);
+            }
+            if line == "[[package]]" {
+                current = Some(PartialPackage {
+                    first_line: index + 1,
+                    ..PartialPackage::default()
+                });
+            }
+            continue;
+        }
+        let Some(pkg) = current.as_mut() else {
+            continue;
+        };
+        let Some(key) = line
+            .split_once('=')
+            .map(|(k, _)| k.trim())
+            .filter(|k| READ_KEYS.contains(k))
+        else {
+            continue;
+        };
+        let first_line = pkg.first_line;
+        let Some((_, value)) = string_field(line) else {
+            return Err(format!(
+                "line {}: the {key} value of the [[package]] at line {first_line} is not a basic string",
+                index + 1
+            ));
+        };
+        let slot = pkg.slot(key).expect("READ_KEYS are slots");
+        if slot.is_some() {
+            return Err(format!(
+                "line {}: a second {key} in the [[package]] at line {first_line}",
+                index + 1
+            ));
+        }
+        *slot = Some(value);
+    }
+    if let Some(done) = current {
+        packages.push(done.finish()?);
+    }
+    if packages.is_empty() {
+        return Err("no [[package]] entry".to_string());
+    }
+    Ok(packages)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse;
+
+    const LOCK: &str = "# This file is automatically @generated by Cargo.\nversion = 4\n\n[[package]]\nname = \"local\"\nversion = \"0.1.0\"\ndependencies = [\n \"syn\",\n]\n\n[[package]]\nname = \"syn\"\nversion = \"3.0.9\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"d78c\"\n\n[metadata]\nname = \"not a package\"\n";
+
+    #[test]
+    fn path_and_registry_packages() {
+        let pkgs = parse(LOCK).unwrap();
+        assert_eq!(pkgs.len(), 2);
+        assert_eq!(
+            (pkgs[0].name.as_str(), pkgs[0].is_external()),
+            ("local", false)
+        );
+        assert_eq!(
+            (pkgs[1].name.as_str(), pkgs[1].version.as_str()),
+            ("syn", "3.0.9")
+        );
+        assert!(pkgs[1].is_from_crates_io());
+    }
+
+    #[test]
+    fn a_package_without_a_version_is_an_error() {
+        assert!(parse("[[package]]\nname = \"x\"\n").is_err());
+    }
+
+    #[test]
+    fn unreadable_or_repeated_keys_and_an_empty_lock_are_errors() {
+        let literal = "[[package]]\nname = \"x\"\nversion = \"1.0.0\"\nsource = 'registry+https://github.com/rust-lang/crates.io-index'\n";
+        assert!(parse(literal).is_err(), "a literal-string source");
+        assert!(
+            parse("[[package]]\nname = \"x\"\nversion = \"1.0.0\"\nversion = \"1.0.1\"\n").is_err(),
+            "a second version"
+        );
+        assert!(parse("version = 4\n\n[metadata]\n").is_err(), "no package");
+        let deps = "[[package]]\nname = \"x\"\nversion = \"1.0.0\"\ndependencies = [\n \"g 0.1.0 (git+https://example.invalid/g?branch=main#0)\",\n]\n";
+        assert_eq!(
+            parse(deps).unwrap().len(),
+            1,
+            "an '=' inside a dependency entry is not a key"
+        );
+    }
+
+    #[test]
+    fn header_spellings_cargo_does_not_write_are_errors() {
+        let pkg = "name = \"x\"\nversion = \"1.0.0\"\n";
+        assert!(parse(&format!(
+            "[[package]]\n{pkg}\n[metadata]\n\n[[patch.unused]]\n{pkg}"
+        ))
+        .is_ok());
+        for header in [
+            "[[ package ]]",
+            "[[package]] # a comment",
+            "  [[package]]",
+            "[[package]] ",
+            "[workspace]",
+            "[package]",
+        ] {
+            let text = format!("[[package]]\n{pkg}\n{header}\n{pkg}");
+            let err = parse(&text).expect_err(header);
+            assert!(err.starts_with("line 5: a table header"), "{header}: {err}");
+        }
+    }
+
+    #[test]
+    fn a_git_source_is_external_but_not_crates_io() {
+        let pkgs = parse("[[package]]\nname = \"g\"\nversion = \"1.0.0\"\nsource = \"git+https://example.invalid/g#abc\"\n").unwrap();
+        assert!(pkgs[0].is_external() && !pkgs[0].is_from_crates_io());
+    }
+}

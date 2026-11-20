@@ -35,6 +35,11 @@ path = "checks/pyast_cases.rs"
 name = "hint_suite_cases"
 path = "checks/hint_suite_cases.rs"
 
+# Contract checks of the fixed surface (plan 26111805, cell c21c-contract-tests).
+[[test]]
+name = "contract_checks"
+path = "checks/contract_checks.rs"
+
 [dependencies]
 # Python json.dumps writers, str semantics and the topology parity library (path dependencies, read-only).
 agent-runtime-support = { path = "../runtime-support" }

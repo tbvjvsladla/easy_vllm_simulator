@@ -10,4 +10,9 @@ autotests = false
 name = "parity"
 path = "src/main.rs"
 
+# Contract checks of the fixed surface (plan 26111805, cell c21-contract-tests).
+[[test]]
+name = "contract_checks"
+path = "checks/contract_checks.rs"
+
 [dependencies]

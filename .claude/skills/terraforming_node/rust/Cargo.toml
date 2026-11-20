@@ -156,3 +156,7 @@ path = "src/bin/selftest_sub_hint_write_scopes.rs"
 [[test]]
 name = "install_request_owner"
 path = "checks/install_request_owner.rs"
+
+[[test]]
+name = "contract_checks"
+path = "checks/contract_checks.rs"

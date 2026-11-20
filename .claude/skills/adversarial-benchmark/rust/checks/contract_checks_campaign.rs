@@ -1,0 +1,2860 @@
+//! Contract checks of the campaign, Flag-gate, scan, turn-budget and topology bins this crate builds for terraforming_node
+//! and the policies (plan 26111805 「보존 계약」, cell c21c-contract-tests): what their consumers read
+//! (runtime-support/contract/consumers.tsv L1·L2 rows of campaign_init, campaign_template_validator, manifest_contract,
+//! scan_node, turn_budget, topology_parity and node_identity_resolve) —
+//! - every consumer starts a bin through its launcher (`terraforming_node/scripts/*.sh`,
+//!   `.claude/policies/runtime/topology_parity.sh`); the launchers honour the override variables (`CAMPAIGN_READ_BIN`,
+//!   `CAMPAIGN_VALIDATOR_BIN`, `MANIFEST_CONTRACT_BIN`, `SCAN_NODE_BIN`, `TURN_BUDGET_BIN`, `TOPOLOGY_PARITY_BIN`) and the
+//!   availability checks (`*_VALIDATE_ONLY=1`), export the owner path the programs derive the checkout root from, and
+//!   refuse an absent executable with exit 2 and nothing on stdout;
+//! - broad_search.sh·sweep_bench.sh·lite_bench.sh·fetch_sub_docs.sh·single_serve_up.sh·multinode_serve_smoke.sh,
+//!   hint-publisher `evidence/e4.rs`, terraforming `relay/core.rs` and its lifecycle self-test, recipe
+//!   `run_trial_session.rs`: the `campaign_init` read shapes (`--active`, `--derive`, `--assigned-cells`,
+//!   `--lockset-precheck` JSON with exit 0/2, `--grounding-check`), the writers (`--phase-set`, `--cell-set`,
+//!   `--write-brief`, `--escalation-add`, `--assign-set`), the relay shapes (`--emit-slice [--out]`, `--lifecycle` JSON,
+//!   `--sub-echo` and its `[campaign_init] APPLIED ` line), hint-publisher's `--evidence-relocate`, fetch_sub_docs.sh's
+//!   `--import-sub`, the `--resume-brief` first line, the `--verify-purge-gate` reason lines, usage exit 2; the options
+//!   the consumers pass are probed by running the parser with them (a prefix-abbreviating parser could take `--out` for
+//!   `--outcome`), and the writers keep the keys they do not know (types.md 4절);
+//! - policy-distribution `checks.rs`: the self-tests (`--selftest`, `--self-test`, `--p1-self-check`) need exit 0;
+//! - run_bench.sh·lite_bench.sh, policy-predicates `claims_owner.rs`·`claims_tf.rs`: the Flag gate `--topology --repo
+//!   --require-flag|--json`, exit 0 = Flag, 3 = no manifest, 4 = Flag not issued; native_health_probes.sh: the private
+//!   bridge (`"protocol": "manifest-contract-bridge/1"`, the typed wire `{"t": "int", "sign": "+", "hex": "1"}`) and the
+//!   `turn_budget --self-test` `[PASS]` lines;
+//! - closing_sequence.sh·sync_to_sub.sh (the launcher run directly, without `bash`): `topology_parity evaluate --repo
+//!   --expect --format json|value`, JSON `verdict`·`topology`·`reason_codes`·`legs_judged`·`legs_checked`·`reasons`,
+//!   exit 0 / 2 / 5.
+//!
+//! The bins run for real in scratch directories: a scratch checkout holds copies of the launchers (their location names
+//! the checkout root) and of the tracked campaign skeleton; topology_parity reads throwaway local git repositories.
+//! Values (L2) and exit codes, option names, line shapes and codes (L1) are fixed; message texts are not (L3).
+use std::ffi::OsStr;
+use std::os::unix::ffi::OsStrExt;
+use std::os::unix::fs::PermissionsExt;
+use std::path::{Path, PathBuf};
+use std::process::{Command, Output, Stdio};
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+use json::Json;
+
+/// The terraforming_node launchers (repository-relative).
+const TS: &str = ".claude/skills/terraforming_node/scripts";
+const TOPOLOGY_PARITY_SH: &str = ".claude/policies/runtime/topology_parity.sh";
+const UTC: &str = "2026-11-18T00:00:00Z";
+
+/// The plumbing variables a launcher reads or exports: never inherited from the environment of the check run.
+const PLUMBING: &[&str] = &[
+    "CAMPAIGN_READ_BIN",
+    "CAMPAIGN_READ_VALIDATE_ONLY",
+    "CAMPAIGN_READ_COMPAT_OWNER",
+    "CAMPAIGN_VALIDATOR_BIN",
+    "CAMPAIGN_VALIDATOR_VALIDATE_ONLY",
+    "CAMPAIGN_VALIDATOR_COMPAT_OWNER",
+    "MANIFEST_CONTRACT_BIN",
+    "MANIFEST_CONTRACT_VALIDATE_ONLY",
+    "MANIFEST_CONTRACT_COMPAT_OWNER",
+    "MANIFEST_CONTRACT_CALLER_ENV",
+    "MANIFEST_CONTRACT_BRIDGE",
+    "MANIFEST_CONTRACT_BRIDGE_REQUEST",
+    "MANIFEST_CONTRACT_PUBLIC_ARGV0",
+    "SCAN_NODE_BIN",
+    "SCAN_NODE_VALIDATE_ONLY",
+    "SCAN_NODE_OWNER_PATH",
+    "SCAN_NODE_CALLER_ENV",
+    "SCAN_NODE_BRIDGE",
+    "TURN_BUDGET_BIN",
+    "TURN_BUDGET_VALIDATE_ONLY",
+    "TURN_BUDGET_OWNER_PATH",
+    "TOPOLOGY_PARITY_BIN",
+    "EASY_VLLM_SOURCE_ROOT",
+    "GIT_DIR",
+    "GIT_WORK_TREE",
+    "GIT_INDEX_FILE",
+];
+
+/// The repository root (this crate is `.claude/skills/adversarial-benchmark/rust/`).
+fn root() -> PathBuf {
+    std::fs::canonicalize(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../..")).unwrap()
+}
+
+struct Scratch(PathBuf);
+impl Drop for Scratch {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
+fn scratch(tag: &str) -> Scratch {
+    static N: AtomicUsize = AtomicUsize::new(0);
+    let n = N.fetch_add(1, Ordering::SeqCst);
+    let p = std::env::temp_dir().join(format!(
+        "adversarial-contract-campaign-{tag}-{}-{n}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&p);
+    std::fs::create_dir_all(&p).unwrap();
+    Scratch(std::fs::canonicalize(&p).unwrap())
+}
+
+fn text(b: &[u8]) -> String {
+    String::from_utf8_lossy(b).into_owned()
+}
+
+fn write(path: &Path, body: &str) {
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+    std::fs::write(path, body).unwrap();
+}
+
+/// An executable script at `path` created by `install -m 0755` in a child process (the body is written beside it
+/// first): a file this process wrote itself could still be open for writing in a child another check thread is
+/// forking, and executing it would then fail with ETXTBSY (review r2 C2-3; c21b `b300ae0d`).
+fn write_exe(path: &Path, body: &str) {
+    let dir = path.parent().unwrap();
+    let source = dir.join(format!(
+        ".{}.install-source",
+        path.file_name().unwrap().to_str().unwrap()
+    ));
+    write(&source, body);
+    let st = Command::new("install")
+        .arg("-m")
+        .arg("0755")
+        .arg(&source)
+        .arg(path)
+        .stdin(Stdio::null())
+        .status()
+        .unwrap();
+    assert!(st.success(), "install {}", path.display());
+}
+
+fn copy_file(src: &Path, dst: &Path) {
+    std::fs::create_dir_all(dst.parent().unwrap()).unwrap();
+    std::fs::copy(src, dst).unwrap();
+}
+
+fn copy_tree(src: &Path, dst: &Path) {
+    std::fs::create_dir_all(dst).unwrap();
+    for e in std::fs::read_dir(src).unwrap() {
+        let e = e.unwrap();
+        let d = dst.join(e.file_name());
+        if e.file_type().unwrap().is_dir() {
+            copy_tree(&e.path(), &d);
+        } else {
+            std::fs::copy(e.path(), &d).unwrap();
+        }
+    }
+}
+
+/// A command with stdin closed and no inherited launcher plumbing.
+fn clean(mut cmd: Command) -> Command {
+    cmd.stdin(Stdio::null());
+    for name in PLUMBING {
+        cmd.env_remove(name);
+    }
+    cmd
+}
+
+/// `bash <launcher> <args>` in `cwd` with the given environment.
+fn bash(launcher: &Path, args: &[&OsStr], cwd: &Path, env: &[(&str, &OsStr)]) -> Output {
+    let mut cmd = Command::new("bash");
+    cmd.arg(launcher).args(args).current_dir(cwd);
+    let mut cmd = clean(cmd);
+    for (k, v) in env {
+        cmd.env(k, v);
+    }
+    cmd.output().unwrap()
+}
+
+fn os<'a>(args: &[&'a str]) -> Vec<&'a OsStr> {
+    args.iter().map(|a| OsStr::new(*a)).collect()
+}
+
+/// The whole stdout as one JSON document.
+fn stdout_json(out: &Output) -> Json {
+    let so = text(&out.stdout);
+    Json::parse(&so).unwrap_or_else(|e| {
+        panic!(
+            "stdout is not one JSON document ({e}):\n{so}\nstderr:\n{}",
+            text(&out.stderr)
+        )
+    })
+}
+
+fn num(v: &Json) -> &str {
+    match v {
+        Json::Num(n) => n,
+        other => panic!("not a number: {other:?}"),
+    }
+}
+
+fn assert_rc(out: &Output, rc: i32, what: &str) {
+    assert_eq!(
+        out.status.code(),
+        Some(rc),
+        "{what}\nstdout:\n{}\nstderr:\n{}",
+        text(&out.stdout),
+        text(&out.stderr)
+    );
+}
+
+/// `opt` appears in `listing` as a whole option or subcommand token: the bytes around it are not part of a name, so
+/// `--out` is not found inside `--outcome` and `--void-reason` not inside `--void-reason-source`. This reads the help
+/// listing only (the documents' names); the options the consumers pass are probed by running the parser with them.
+fn names_option(listing: &str, opt: &str) -> bool {
+    let part = |c: u8| c.is_ascii_alphanumeric() || c == b'-' || c == b'_';
+    let b = listing.as_bytes();
+    listing.match_indices(opt).any(|(at, _)| {
+        let end = at + opt.len();
+        (at == 0 || !part(b[at - 1])) && (end == b.len() || !part(b[end]))
+    })
+}
+
+/// A usage error of the parser: exit 2 with a usage block on stderr (argparse `usage: …`, clap `Usage: …`).
+/// Limit (review r2 P2-N8): this reads the word `usage` in the block, a wording the contract does not fix (L3). The
+/// probes with a control stay fail-closed when a port drops the word: `assert_parser_takes` (and the lifecycle probe)
+/// also require an unknown-option control to be a usage error, so that control fails instead of every probe passing.
+/// The bare `!usage_error(..)` checks of domain refusals would lose that half (they keep their nonzero exit and, where
+/// a writer is refused, the absence of the write); a port that changes the word changes these checks (test_delta).
+fn usage_error(out: &Output) -> bool {
+    out.status.code() == Some(2) && text(&out.stderr).to_ascii_lowercase().contains("usage")
+}
+
+/// The first executable ELF of that name on PATH (a stand-in for a launcher that only starts an ELF).
+fn elf_on_path(name: &str) -> PathBuf {
+    let path = std::env::var_os("PATH").expect("PATH");
+    for dir in std::env::split_paths(&path) {
+        let p = dir.join(name);
+        if let Ok(bytes) = std::fs::read(&p) {
+            if bytes.starts_with(b"\x7fELF") {
+                return p;
+            }
+        }
+    }
+    panic!("no ELF {name} on PATH");
+}
+
+/// `KEY=VALUE` lines of an `env` dump.
+fn env_value<'a>(dump: &'a str, key: &str) -> Option<&'a str> {
+    dump.lines()
+        .find_map(|l| l.strip_prefix(key).and_then(|r| r.strip_prefix('=')))
+}
+
+struct Launcher {
+    rel: &'static str,
+    var: &'static str,
+    bin: &'static str,
+    validate_only: Option<&'static str>,
+    /// The launcher refuses a non-ELF executable (exit 2).
+    elf_only: bool,
+}
+
+fn launchers() -> [Launcher; 6] {
+    [
+        Launcher {
+            rel: ".claude/skills/terraforming_node/scripts/campaign_init.sh",
+            var: "CAMPAIGN_READ_BIN",
+            bin: env!("CARGO_BIN_EXE_campaign_init"),
+            validate_only: Some("CAMPAIGN_READ_VALIDATE_ONLY"),
+            elf_only: false,
+        },
+        Launcher {
+            rel: ".claude/skills/terraforming_node/scripts/campaign_template_validator.sh",
+            var: "CAMPAIGN_VALIDATOR_BIN",
+            bin: env!("CARGO_BIN_EXE_campaign_template_validator"),
+            validate_only: Some("CAMPAIGN_VALIDATOR_VALIDATE_ONLY"),
+            elf_only: false,
+        },
+        Launcher {
+            rel: ".claude/skills/terraforming_node/scripts/manifest_contract.sh",
+            var: "MANIFEST_CONTRACT_BIN",
+            bin: env!("CARGO_BIN_EXE_manifest_contract"),
+            validate_only: Some("MANIFEST_CONTRACT_VALIDATE_ONLY"),
+            elf_only: false,
+        },
+        Launcher {
+            rel: ".claude/skills/terraforming_node/scripts/scan_node.sh",
+            var: "SCAN_NODE_BIN",
+            bin: env!("CARGO_BIN_EXE_scan_node"),
+            validate_only: Some("SCAN_NODE_VALIDATE_ONLY"),
+            elf_only: true,
+        },
+        Launcher {
+            rel: ".claude/skills/terraforming_node/scripts/turn_budget.sh",
+            var: "TURN_BUDGET_BIN",
+            bin: env!("CARGO_BIN_EXE_turn_budget"),
+            validate_only: Some("TURN_BUDGET_VALIDATE_ONLY"),
+            elf_only: false,
+        },
+        Launcher {
+            rel: TOPOLOGY_PARITY_SH,
+            var: "TOPOLOGY_PARITY_BIN",
+            bin: env!("CARGO_BIN_EXE_topology_parity"),
+            validate_only: None,
+            elf_only: true,
+        },
+    ]
+}
+
+/// The launchers the consumers and documents name exist; an absent override executable is exit 2 with nothing on stdout;
+/// `<NAME>_VALIDATE_ONLY=1` (fetch_sub_docs.sh, broad_search.sh, run_bench.sh, lite_bench.sh) is exit 0 with no output
+/// when the executable is there and exit 2 when it is not; the ELF-only launchers refuse a non-ELF executable with 2;
+/// closing_sequence.sh and sync_to_sub.sh run `topology_parity.sh` directly (its executable bit).
+#[test]
+fn launchers_overrides_validate_only_and_absent_executable() {
+    let s = scratch("launchers");
+    let not_elf = s.0.join("not_elf");
+    write_exe(&not_elf, "#!/bin/sh\necho stub\n");
+    for l in launchers() {
+        let path = root().join(l.rel);
+        assert!(path.is_file(), "{}", l.rel);
+        let out = bash(
+            &path,
+            &os(&["--help"]),
+            &s.0,
+            &[(l.var, OsStr::new("/nonexistent/contract-check/bin"))],
+        );
+        assert_rc(&out, 2, l.rel);
+        assert!(
+            out.stdout.is_empty(),
+            "{}: stdout of an absent executable",
+            l.rel
+        );
+        if let Some(vo) = l.validate_only {
+            let out = bash(
+                &path,
+                &[],
+                &s.0,
+                &[(l.var, OsStr::new(l.bin)), (vo, OsStr::new("1"))],
+            );
+            assert_rc(&out, 0, vo);
+            assert!(
+                out.stdout.is_empty() && out.stderr.is_empty(),
+                "{vo}: availability check has no output"
+            );
+            let out = bash(
+                &path,
+                &[],
+                &s.0,
+                &[
+                    (l.var, OsStr::new("/nonexistent/contract-check/bin")),
+                    (vo, OsStr::new("1")),
+                ],
+            );
+            assert_rc(&out, 2, vo);
+        }
+        if l.elf_only {
+            let out = bash(
+                &path,
+                &os(&["--help"]),
+                &s.0,
+                &[(l.var, not_elf.as_os_str())],
+            );
+            assert_rc(&out, 2, l.rel);
+            assert!(
+                out.stdout.is_empty(),
+                "{}: a non-ELF executable is not started",
+                l.rel
+            );
+        }
+    }
+    let tp = root().join(TOPOLOGY_PARITY_SH);
+    assert_ne!(
+        std::fs::metadata(&tp).unwrap().permissions().mode() & 0o111,
+        0,
+        "topology_parity.sh is run without bash"
+    );
+    let mut cmd = Command::new(&tp);
+    cmd.arg("--self-test").current_dir(&s.0);
+    let out = clean(cmd)
+        .env("TOPOLOGY_PARITY_BIN", env!("CARGO_BIN_EXE_topology_parity"))
+        .output()
+        .unwrap();
+    assert_rc(&out, 0, "topology_parity.sh --self-test run directly");
+}
+
+/// The launchers hand the arguments through unchanged and export what the programs read: `CAMPAIGN_READ_COMPAT_OWNER`,
+/// `CAMPAIGN_VALIDATOR_COMPAT_OWNER`, `TURN_BUDGET_OWNER_PATH`, `SCAN_NODE_OWNER_PATH` (= the launcher's own path unless
+/// the caller set it), `MANIFEST_CONTRACT_CALLER_ENV=1` with the `MANIFEST_CONTRACT_CALLER_<suffix>` carriers and
+/// `MANIFEST_CONTRACT_COMPAT_OWNER`, `SCAN_NODE_CALLER_ENV=1`; a validate-only value other than 1 is not handed on; the
+/// manifest bridge (`MANIFEST_CONTRACT_BRIDGE`) reaches the program untouched, an inherited validate-only included.
+#[test]
+fn launchers_export_owner_paths_and_pass_arguments() {
+    let s = scratch("exports");
+    let stub = s.0.join("stub.sh");
+    write_exe(
+        &stub,
+        "#!/bin/sh\nenv\nfor a in \"$@\"; do printf 'ARG:%s\\n' \"$a\"; done\n",
+    );
+    let ts = root().join(TS);
+    let run = |launcher: &str, env: &[(&str, &OsStr)]| -> String {
+        let out = bash(&ts.join(launcher), &os(&["--x", "a b"]), &s.0, env);
+        assert_rc(&out, 0, launcher);
+        text(&out.stdout)
+    };
+    let owner = |name: &str| ts.join(name).to_str().unwrap().to_string();
+    for (launcher, var, owner_var, vo) in [
+        (
+            "campaign_init.sh",
+            "CAMPAIGN_READ_BIN",
+            "CAMPAIGN_READ_COMPAT_OWNER",
+            "CAMPAIGN_READ_VALIDATE_ONLY",
+        ),
+        (
+            "campaign_template_validator.sh",
+            "CAMPAIGN_VALIDATOR_BIN",
+            "CAMPAIGN_VALIDATOR_COMPAT_OWNER",
+            "CAMPAIGN_VALIDATOR_VALIDATE_ONLY",
+        ),
+        (
+            "turn_budget.sh",
+            "TURN_BUDGET_BIN",
+            "TURN_BUDGET_OWNER_PATH",
+            "TURN_BUDGET_VALIDATE_ONLY",
+        ),
+        (
+            "manifest_contract.sh",
+            "MANIFEST_CONTRACT_BIN",
+            "MANIFEST_CONTRACT_COMPAT_OWNER",
+            "MANIFEST_CONTRACT_VALIDATE_ONLY",
+        ),
+    ] {
+        let dump = run(launcher, &[(var, stub.as_os_str()), (vo, OsStr::new("0"))]);
+        assert_eq!(
+            env_value(&dump, owner_var),
+            Some(owner(launcher).as_str()),
+            "{launcher}: {owner_var}"
+        );
+        assert_eq!(
+            env_value(&dump, vo),
+            None,
+            "{launcher}: {vo} other than 1 is not handed on"
+        );
+        let args: Vec<&str> = dump
+            .lines()
+            .filter_map(|l| l.strip_prefix("ARG:"))
+            .collect();
+        assert_eq!(args, ["--x", "a b"], "{launcher}: arguments");
+        let dump = run(
+            launcher,
+            &[
+                (var, stub.as_os_str()),
+                (owner_var, OsStr::new("/caller/owner")),
+            ],
+        );
+        assert_eq!(
+            env_value(&dump, owner_var),
+            Some("/caller/owner"),
+            "{launcher}: a caller's {owner_var} is kept"
+        );
+        if launcher == "manifest_contract.sh" {
+            assert_eq!(env_value(&dump, "MANIFEST_CONTRACT_CALLER_ENV"), Some("1"));
+            assert_eq!(
+                env_value(&dump, "MANIFEST_CONTRACT_CALLER_COMPAT_OWNER"),
+                Some("/caller/owner")
+            );
+            let dump = run(launcher, &[(var, stub.as_os_str())]);
+            assert_eq!(env_value(&dump, "MANIFEST_CONTRACT_CALLER_ENV"), Some("1"));
+            assert_eq!(
+                env_value(&dump, "MANIFEST_CONTRACT_CALLER_COMPAT_OWNER"),
+                None,
+                "carrier absent = caller had it unset"
+            );
+            let dump = run(
+                launcher,
+                &[
+                    (var, stub.as_os_str()),
+                    ("MANIFEST_CONTRACT_BRIDGE", OsStr::new("1")),
+                    (vo, OsStr::new("1")),
+                ],
+            );
+            assert_eq!(
+                env_value(&dump, "MANIFEST_CONTRACT_BRIDGE"),
+                Some("1"),
+                "the bridge reaches the program"
+            );
+            assert_eq!(
+                env_value(&dump, vo),
+                Some("1"),
+                "the bridge keeps an inherited {vo}"
+            );
+            assert_eq!(env_value(&dump, "MANIFEST_CONTRACT_CALLER_ENV"), None);
+        }
+    }
+    // scan_node.sh starts only an ELF: a copy of `env` stands for the program.
+    let fake = s.0.join("scan_node");
+    copy_file(&elf_on_path("env"), &fake);
+    let out = bash(
+        &ts.join("scan_node.sh"),
+        &[],
+        &s.0,
+        &[("SCAN_NODE_BIN", fake.as_os_str())],
+    );
+    assert_rc(&out, 0, "scan_node.sh with an env stand-in");
+    let dump = text(&out.stdout);
+    assert_eq!(
+        env_value(&dump, "SCAN_NODE_OWNER_PATH"),
+        Some(owner("scan_node.sh").as_str())
+    );
+    assert_eq!(env_value(&dump, "SCAN_NODE_CALLER_ENV"), Some("1"));
+}
+
+const VALID_MANIFEST: &str =
+    "topology: single\ngpus_per_node: 1\nmodel_source: managed\nnodes: []\nterraforming:\n  complete: true\n  branch_verified: true\n";
+
+fn manifest_contract(cwd: &Path, args: &[&OsStr]) -> Output {
+    bash(
+        &root().join(TS).join("manifest_contract.sh"),
+        args,
+        cwd,
+        &[(
+            "MANIFEST_CONTRACT_BIN",
+            OsStr::new(env!("CARGO_BIN_EXE_manifest_contract")),
+        )],
+    )
+}
+
+/// The Flag gate (run_bench.sh·lite_bench.sh `--topology --repo --require-flag`, claims_owner.rs·claims_tf.rs
+/// `--json`/`--require-flag`, policy-distribution `checks.rs` `--self-test`): exit 0 = Flag issued, 3 = no manifest,
+/// 4 = a manifest without the Flag, 2 = usage (a non-UTF-8 choice included); `--json` prints one object (`flag`,
+/// `reason`, `topology`, `redirect` when absent; `exit_code`, `gpus_per_node`, `manifest_tp`, `model_source`,
+/// `manifest_path` when issued) and nothing on stderr.
+#[test]
+fn manifest_contract_flag_gate_exit_codes_and_json() {
+    let s = scratch("flag");
+    let absent = s.0.join("absent");
+    std::fs::create_dir_all(&absent).unwrap();
+    let present = s.0.join("present");
+    write(&present.join("output/single/manifest.yaml"), VALID_MANIFEST);
+    let unissued = s.0.join("unissued");
+    write(
+        &unissued.join("output/single/manifest.yaml"),
+        &VALID_MANIFEST.replace("complete: true", "complete: false"),
+    );
+    let gate = |repo: &Path, topology: &str, extra: &[&str]| {
+        let mut args = vec![
+            OsStr::new("--topology"),
+            OsStr::new(topology),
+            OsStr::new("--repo"),
+            repo.as_os_str(),
+        ];
+        args.extend(extra.iter().map(OsStr::new));
+        manifest_contract(&s.0, &args)
+    };
+
+    let out = gate(&absent, "single", &["--json"]);
+    assert_rc(&out, 3, "absent --json");
+    assert!(out.stderr.is_empty(), "--json keeps stderr empty");
+    let doc = stdout_json(&out);
+    assert_eq!(doc.at("flag"), &Json::Bool(false));
+    assert_eq!(doc.at("topology").str(), Some("single"));
+    assert_eq!(doc.at("reason").kind(), "string");
+    assert_eq!(doc.at("redirect").kind(), "string");
+    for extra in [&["--require-flag"][..], &[]] {
+        let out = gate(&absent, "single", extra);
+        assert_rc(&out, 3, "absent");
+        assert!(out.stdout.is_empty(), "the reason goes to stderr");
+        assert!(!out.stderr.is_empty());
+    }
+    assert_rc(
+        &gate(&present, "multi", &["--require-flag"]),
+        3,
+        "no output/multi manifest",
+    );
+
+    assert_rc(
+        &gate(&present, "single", &["--require-flag"]),
+        0,
+        "Flag issued",
+    );
+    let out = gate(&present, "single", &["--require-flag", "--json"]);
+    assert_rc(&out, 0, "Flag issued --json");
+    assert!(out.stderr.is_empty());
+    let doc = stdout_json(&out);
+    assert_eq!(doc.at("flag"), &Json::Bool(true));
+    assert_eq!(num(doc.at("exit_code")), "0");
+    assert_eq!(doc.at("topology").str(), Some("single"));
+    assert_eq!(num(doc.at("gpus_per_node")), "1");
+    assert_eq!(num(doc.at("manifest_tp")), "1");
+    assert_eq!(doc.at("model_source").str(), Some("managed"));
+    assert_eq!(doc.at("manifest_path").kind(), "string");
+    assert_eq!(doc.at("nodes").kind(), "array");
+
+    assert_rc(
+        &gate(&unissued, "single", &["--require-flag"]),
+        4,
+        "a manifest without the Flag",
+    );
+
+    let out = gate(&present, "triple", &[]);
+    assert_rc(&out, 2, "--topology outside the choices");
+    assert!(out.stdout.is_empty());
+    let out = manifest_contract(
+        &s.0,
+        &[
+            OsStr::new("--topology"),
+            OsStr::from_bytes(b"sin\xffgle"),
+            OsStr::new("--repo"),
+            present.as_os_str(),
+        ],
+    );
+    assert_rc(&out, 2, "non-UTF-8 --topology");
+    assert!(out.stdout.is_empty());
+
+    let out = manifest_contract(&s.0, &os(&["--self-test"]));
+    assert_rc(&out, 0, "--self-test");
+    let out = manifest_contract(&s.0, &os(&["--help"]));
+    assert_rc(&out, 0, "--help");
+    let help = text(&out.stdout);
+    for opt in [
+        "--topology",
+        "--repo",
+        "--require-flag",
+        "--json",
+        "--self-test",
+    ] {
+        assert!(names_option(&help, opt), "manifest_contract option {opt}");
+    }
+}
+
+/// native_health_probes.sh: the private bridge (`MANIFEST_CONTRACT_BRIDGE=1`, `MANIFEST_CONTRACT_BRIDGE_REQUEST=<0600
+/// file>`, stdin closed) answers `manifest_tp` with the typed wire the probe matches by regex — `"protocol":
+/// "manifest-contract-bridge/1"`, `"status": "raised"` + `"cls": "ValueError"` for `{}`, `"status": "returned"` +
+/// `"value": {"t": "int", "sign": "+", "hex": "1"}` (spacing included) for `{gpus_per_node: 1}` on `single`; an
+/// unreadable request is exit 2; the probe script itself passes against this build.
+#[test]
+fn manifest_contract_private_bridge_and_health_probe() {
+    let s = scratch("bridge");
+    let single = r#"{"t":"str","utf8_surrogatepass_hex":"73696e676c65","codepoints":6}"#;
+    let gpus =
+        r#"{"t":"str","utf8_surrogatepass_hex":"677075735f7065725f6e6f6465","codepoints":13}"#;
+    let one = r#"{"t":"int","sign":"+","hex":"1"}"#;
+    let ask = |request: &str, extra: &[(&str, &OsStr)]| {
+        let req = s.0.join("request");
+        std::fs::write(&req, request).unwrap();
+        std::fs::set_permissions(&req, std::fs::Permissions::from_mode(0o600)).unwrap();
+        let mut env = vec![
+            ("MANIFEST_CONTRACT_BRIDGE", OsStr::new("1")),
+            ("MANIFEST_CONTRACT_BRIDGE_REQUEST", req.as_os_str()),
+            (
+                "MANIFEST_CONTRACT_BIN",
+                OsStr::new(env!("CARGO_BIN_EXE_manifest_contract")),
+            ),
+        ];
+        env.extend_from_slice(extra);
+        bash(
+            &root().join(TS).join("manifest_contract.sh"),
+            &[],
+            &s.0,
+            &env,
+        )
+    };
+    let out = ask(
+        &format!(
+            r#"{{"v":1,"op":"manifest_tp","args":[{{"t":"dict","id":1,"pairs":[]}},{single}]}}"#
+        ),
+        &[],
+    );
+    assert_rc(&out, 0, "bridge manifest_tp({})");
+    let raw = text(&out.stdout);
+    for needle in [
+        r#""protocol": "manifest-contract-bridge/1""#,
+        r#""status": "raised""#,
+        r#""cls": "ValueError""#,
+    ] {
+        assert!(raw.contains(needle), "{needle} in {raw}");
+    }
+    let doc = stdout_json(&out);
+    assert_eq!(doc.at("protocol").str(), Some("manifest-contract-bridge/1"));
+    assert_eq!(doc.at("answer").at("status").str(), Some("raised"));
+
+    let request = format!(
+        r#"{{"v":1,"op":"manifest_tp","args":[{{"t":"dict","id":1,"pairs":[[{gpus},{one}]]}},{single}]}}"#
+    );
+    let out = ask(
+        &request,
+        &[("MANIFEST_CONTRACT_VALIDATE_ONLY", OsStr::new("1"))],
+    );
+    assert_rc(&out, 0, "bridge manifest_tp({gpus_per_node: 1}, single)");
+    let raw = text(&out.stdout);
+    assert!(raw.contains(r#""status": "returned""#), "{raw}");
+    assert!(
+        raw.contains(r#""value": {"t": "int", "sign": "+", "hex": "1"}"#),
+        "typed int wire: {raw}"
+    );
+    let doc = stdout_json(&out);
+    assert_eq!(doc.at("answer").at("value").at("hex").str(), Some("1"));
+
+    let out = ask("not json", &[]);
+    assert_rc(&out, 2, "unreadable bridge request");
+    assert!(out.stdout.is_empty());
+
+    // The probe script as build_rust.sh runs it, pointed at this build (`<crate>/target/release/<bin>`).
+    let crate_dir = s.0.join("crate");
+    let release = crate_dir.join("target/release");
+    std::fs::create_dir_all(&release).unwrap();
+    std::os::unix::fs::symlink(
+        env!("CARGO_BIN_EXE_manifest_contract"),
+        release.join("manifest_contract"),
+    )
+    .unwrap();
+    std::os::unix::fs::symlink(
+        env!("CARGO_BIN_EXE_turn_budget"),
+        release.join("turn_budget"),
+    )
+    .unwrap();
+    let probe = root().join(".claude/skills/adversarial-benchmark/scripts/native_health_probes.sh");
+    let mut cmd = Command::new("bash");
+    cmd.arg(&probe).arg(&crate_dir).current_dir(&s.0);
+    let out = clean(cmd).output().unwrap();
+    assert_rc(&out, 0, "native_health_probes.sh");
+}
+
+fn turn_budget(cwd: &Path, args: &[&str]) -> Output {
+    bash(
+        &root().join(TS).join("turn_budget.sh"),
+        &os(args),
+        cwd,
+        &[(
+            "TURN_BUDGET_BIN",
+            OsStr::new(env!("CARGO_BIN_EXE_turn_budget")),
+        )],
+    )
+}
+
+/// turn_budget (native_health_probes.sh, policy-distribution `checks.rs`, sub_agent_env.md): `--self-test` is exit 0 with
+/// `[PASS]` lines and no `[FAIL]` line; `--caps` prints `{max_turns, timeout_seconds, source}`; a declaration
+/// `--max-turns --timeout-seconds --source` prints the declared values; a refused declaration is exit 1 with nothing on
+/// stdout; a usage error is exit 2.
+#[test]
+fn turn_budget_self_test_caps_and_declaration() {
+    let s = scratch("turn-budget");
+    let out = turn_budget(&s.0, &["--self-test"]);
+    assert_rc(&out, 0, "--self-test");
+    let so = text(&out.stdout);
+    assert!(so.contains("[PASS]") && !so.contains("[FAIL]"), "{so}");
+
+    let out = turn_budget(&s.0, &["--caps"]);
+    assert_rc(&out, 0, "--caps");
+    let doc = stdout_json(&out);
+    assert_eq!(doc.at("max_turns").kind(), "number");
+    assert_eq!(doc.at("timeout_seconds").kind(), "number");
+    assert_eq!(doc.at("source").kind(), "string");
+
+    let out = turn_budget(
+        &s.0,
+        &[
+            "--max-turns",
+            "10",
+            "--timeout-seconds",
+            "600",
+            "--source",
+            "contract",
+        ],
+    );
+    assert_rc(&out, 0, "declaration");
+    let doc = stdout_json(&out);
+    assert_eq!(num(doc.at("max_turns")), "10");
+    assert_eq!(num(doc.at("timeout_seconds")), "600");
+    assert_eq!(doc.at("source").str(), Some("contract"));
+
+    for args in [
+        &["--max-turns", "10", "--timeout-seconds", "600"][..],
+        &[
+            "--max-turns",
+            "0",
+            "--timeout-seconds",
+            "600",
+            "--source",
+            "x",
+        ],
+    ] {
+        let out = turn_budget(&s.0, args);
+        assert_rc(&out, 1, "refused declaration");
+        assert!(out.stdout.is_empty(), "{args:?}");
+    }
+    let out = turn_budget(&s.0, &["--max-turns", "abc", "--source", "x"]);
+    assert_rc(&out, 2, "usage");
+    assert!(out.stdout.is_empty());
+    let out = turn_budget(&s.0, &["--help"]);
+    assert_rc(&out, 0, "--help");
+    let help = text(&out.stdout);
+    for opt in [
+        "--max-turns",
+        "--timeout-seconds",
+        "--source",
+        "--caps",
+        "--self-test",
+    ] {
+        assert!(names_option(&help, opt), "turn_budget option {opt}");
+    }
+}
+
+/// scan_node (policy-distribution `checks.rs`): `--self-test` and `--p1-self-check` are exit 0 (no hardware, no host
+/// scan); the long options the documents and the sub-manifest path name are part of the parser. The scanning shapes
+/// (host probes, `--peer-ssh`, `--check-egress`) touch the hardware or the network and are not started here.
+#[test]
+fn scan_node_self_tests_and_options() {
+    let s = scratch("scan-node");
+    let scan = |args: &[&str]| {
+        bash(
+            &root().join(TS).join("scan_node.sh"),
+            &os(args),
+            &s.0,
+            &[("SCAN_NODE_BIN", OsStr::new(env!("CARGO_BIN_EXE_scan_node")))],
+        )
+    };
+    assert_rc(&scan(&["--self-test"]), 0, "--self-test");
+    assert_rc(&scan(&["--p1-self-check"]), 0, "--p1-self-check");
+    let out = scan(&["--help"]);
+    assert_rc(&out, 0, "--help");
+    let help = text(&out.stdout);
+    for opt in [
+        "--topology",
+        "--peer-ip",
+        "--peer-port",
+        "--peer-ssh",
+        "--compose",
+        "--env-interconnect",
+        "--bandwidth-gbps",
+        "--per-port-gbps",
+        "--per-port-floor",
+        "--bw-floor",
+        "--emit-manifest",
+        "--manifest",
+        "--check-egress",
+        "--sub-work-dir",
+        "--model-source",
+        "--emit-sub-manifest",
+        "--self-test",
+    ] {
+        assert!(names_option(&help, opt), "scan_node option {opt}");
+    }
+}
+
+/// A throwaway git repository on `branch` with one tracked `*.topology.md` layer file declaring `layer`.
+fn parity_repo(s: &Scratch, branch: &str, layer: &str) -> PathBuf {
+    let repo = s.0.join("repo");
+    write(
+        &repo.join(".claude/rules/strategy.topology.md"),
+        &format!("# strategy\n\n**topology: {layer}** · layer: topology\n"),
+    );
+    let git = |args: &[&str]| {
+        let mut cmd = Command::new("git");
+        cmd.args([
+            "-c",
+            "user.name=contract",
+            "-c",
+            "user.email=contract@example.invalid",
+            "-c",
+            "commit.gpgsign=false",
+            "-c",
+            "core.hooksPath=/dev/null",
+        ])
+        .args(args)
+        .current_dir(&repo);
+        let out = clean(cmd).output().unwrap();
+        assert!(out.status.success(), "git {args:?}: {}", text(&out.stderr));
+    };
+    git(&["init", "-q"]);
+    git(&["symbolic-ref", "HEAD", &format!("refs/heads/{branch}")]);
+    git(&["add", ".claude/rules/strategy.topology.md"]);
+    git(&["commit", "-q", "-m", "layer"]);
+    repo
+}
+
+/// `topology_parity.sh evaluate …` run directly (no `bash`), as closing_sequence.sh and sync_to_sub.sh do.
+fn parity(cwd: &Path, args: &[&OsStr]) -> Output {
+    let mut cmd = Command::new(root().join(TOPOLOGY_PARITY_SH));
+    cmd.args(args).current_dir(cwd);
+    clean(cmd)
+        .env("TOPOLOGY_PARITY_BIN", env!("CARGO_BIN_EXE_topology_parity"))
+        .output()
+        .unwrap()
+}
+
+fn parity_args<'a>(repo: &'a Path, extra: &[&'a str]) -> Vec<&'a OsStr> {
+    let mut args = vec![
+        OsStr::new("evaluate"),
+        OsStr::new("--repo"),
+        repo.as_os_str(),
+    ];
+    args.extend(extra.iter().map(|a| OsStr::new(*a)));
+    args
+}
+
+/// The JSON verdict: keys and types sync_to_sub.sh (`inline_json parity-summary`) reads, and the `legs` object whose
+/// legs carry a string `status` (resolve_topology reads `legs.manifest.status`·`path`, consumers.tsv r4 topology_parity
+/// row; its PASS path is `resolve_topology_stdout_and_exit_codes`).
+fn parity_verdict(out: &Output) -> Json {
+    let doc = stdout_json(out);
+    match doc.at("legs") {
+        Json::Obj(legs) => {
+            for (name, leg) in legs {
+                assert_eq!(leg.at("status").kind(), "string", "legs.{name}: {doc:?}");
+            }
+        }
+        other => panic!("legs is not an object: {other:?}"),
+    }
+    assert!(
+        ["PASS", "RED"].contains(&doc.at("verdict").str().unwrap()),
+        "{doc:?}"
+    );
+    assert!(["string", "null"].contains(&doc.at("topology").kind()));
+    doc.at("reason_codes").strs();
+    doc.at("reasons").strs();
+    doc.at("legs_judged").strs();
+    assert_eq!(doc.at("legs_checked").kind(), "number");
+    let rc = out.status.code().unwrap();
+    assert_eq!(
+        doc.at("verdict").str() == Some("PASS"),
+        rc == 0,
+        "verdict PASS iff exit 0"
+    );
+    doc
+}
+
+fn sorted(mut v: Vec<String>) -> Vec<String> {
+    v.sort();
+    v
+}
+
+/// `evaluate --repo --expect --format json|value` (sync_to_sub.sh, closing_sequence.sh): PASS is exit 0 with `verdict`
+/// PASS, the topology, `legs_checked`/`legs_judged` naming the legs read, empty `reason_codes`; a contract violation is
+/// exit 5 with `verdict` RED and the reason codes (`EXPECT_MISMATCH`, `MANIFEST_MISMATCH`, `BRANCH_UNKNOWN`); `--format
+/// value` prints the bare topology line on PASS and nothing on stdout on RED (the reason on stderr); usage is exit 2.
+#[test]
+fn topology_parity_evaluate_json_value_and_exit_codes() {
+    let s = scratch("parity");
+    let repo = parity_repo(&s, "single-node", "single");
+
+    let out = parity(&s.0, &parity_args(&repo, &["--format", "json"]));
+    assert_rc(&out, 0, "two legs");
+    assert!(
+        out.stderr.is_empty(),
+        "diagnostics only on stderr; none on PASS"
+    );
+    let doc = parity_verdict(&out);
+    assert_eq!(doc.at("verdict").str(), Some("PASS"));
+    assert_eq!(doc.at("topology").str(), Some("single"));
+    assert_eq!(num(doc.at("legs_checked")), "2");
+    assert_eq!(sorted(doc.at("legs_judged").strs()), ["branch", "layer"]);
+    assert!(doc.at("reason_codes").strs().is_empty());
+    assert_eq!(
+        stdout_json(&parity(&s.0, &parity_args(&repo, &[]))),
+        doc,
+        "json is the default format"
+    );
+
+    let out = parity(&s.0, &parity_args(&repo, &["--format", "value"]));
+    assert_rc(&out, 0, "value");
+    assert_eq!(text(&out.stdout), "single\n");
+
+    let out = parity(
+        &s.0,
+        &parity_args(&repo, &["--expect", "multi", "--format", "json"]),
+    );
+    assert_rc(&out, 5, "--expect multi on single-node");
+    let doc = parity_verdict(&out);
+    assert_eq!(doc.at("verdict").str(), Some("RED"));
+    assert!(
+        doc.at("reason_codes")
+            .strs()
+            .contains(&"EXPECT_MISMATCH".to_string()),
+        "{doc:?}"
+    );
+
+    write(
+        &repo.join("output/single/manifest.yaml"),
+        "topology: single\ngpus_per_node: 1\n",
+    );
+    let out = parity(
+        &s.0,
+        &parity_args(&repo, &["--expect", "single", "--format", "json"]),
+    );
+    assert_rc(&out, 0, "three legs");
+    let doc = parity_verdict(&out);
+    assert_eq!(num(doc.at("legs_checked")), "3");
+    assert_eq!(
+        sorted(doc.at("legs_judged").strs()),
+        ["branch", "layer", "manifest"]
+    );
+
+    write(
+        &repo.join("output/single/manifest.yaml"),
+        "topology: multi\n",
+    );
+    let out = parity(&s.0, &parity_args(&repo, &["--format", "json"]));
+    assert_rc(&out, 5, "manifest mismatch");
+    let doc = parity_verdict(&out);
+    assert!(
+        doc.at("reason_codes")
+            .strs()
+            .contains(&"MANIFEST_MISMATCH".to_string()),
+        "{doc:?}"
+    );
+    assert!(!doc.at("reasons").strs().is_empty());
+    let out = parity(&s.0, &parity_args(&repo, &["--format", "value"]));
+    assert_rc(&out, 5, "value on RED");
+    assert!(out.stdout.is_empty(), "no topology line on RED");
+    assert!(!out.stderr.is_empty());
+    std::fs::remove_dir_all(repo.join("output")).unwrap();
+
+    let mut cmd = Command::new("git");
+    cmd.args(["checkout", "-q", "-b", "elsewhere"])
+        .current_dir(&repo);
+    assert!(clean(cmd).output().unwrap().status.success());
+    let out = parity(&s.0, &parity_args(&repo, &["--format", "json"]));
+    assert_rc(&out, 5, "unknown branch");
+    let doc = parity_verdict(&out);
+    assert_eq!(doc.at("reason_codes").strs(), ["BRANCH_UNKNOWN"]);
+    assert_eq!(doc.at("topology"), &Json::Null);
+
+    for bad in [&b"triple"[..], &b"sin\xffgle"[..]] {
+        let mut args = parity_args(&repo, &["--expect"]);
+        args.push(OsStr::from_bytes(bad));
+        let out = parity(&s.0, &args);
+        assert_rc(&out, 2, "--expect outside the choices");
+        assert!(out.stdout.is_empty());
+    }
+    let out = parity(&s.0, &parity_args(&repo, &["--format", "yaml"]));
+    assert_rc(&out, 2, "--format outside the choices");
+    assert!(out.stdout.is_empty());
+}
+
+/// The fourth leg (the active campaign's `control_variables.topology`, read when the campaign writer's launcher is in the
+/// checkout): a multi-node checkout agreeing on all four legs is PASS with `legs_checked` 4 and `--format value` = `multi`;
+/// a campaign declared for the other topology is exit 5 with `CAMPAIGN_MISMATCH`.
+#[test]
+fn topology_parity_four_legs_and_campaign_mismatch() {
+    let s = scratch("parity4");
+    let repo = parity_repo(&s, "multi-node", "multi");
+    write(
+        &repo.join("output/multi/manifest.yaml"),
+        "topology: multi\n",
+    );
+    copy_file(
+        &root().join(TS).join("campaign_init.sh"),
+        &repo.join(TS).join("campaign_init.sh"),
+    );
+    write(&repo.join("campaigns/ACTIVE"), "c1\n");
+    let decl = |t: &str| {
+        format!(
+            r#"{{"id": "c1", "control_variables": {{"topology": "{t}"}}, "nodes": [{{"node_id": "main", "topology": "{t}"}}]}}"#
+        )
+    };
+    write(&repo.join("campaigns/c1/campaign.yaml"), &decl("multi"));
+    let out = parity(
+        &s.0,
+        &parity_args(&repo, &["--expect", "multi", "--format", "json"]),
+    );
+    assert_rc(&out, 0, "four legs");
+    let doc = parity_verdict(&out);
+    assert_eq!(doc.at("topology").str(), Some("multi"));
+    assert_eq!(num(doc.at("legs_checked")), "4");
+    assert_eq!(
+        sorted(doc.at("legs_judged").strs()),
+        ["branch", "campaign", "layer", "manifest"]
+    );
+    let out = parity(&s.0, &parity_args(&repo, &["--format", "value"]));
+    assert_rc(&out, 0, "value");
+    assert_eq!(text(&out.stdout), "multi\n");
+
+    write(&repo.join("campaigns/c1/campaign.yaml"), &decl("single"));
+    let out = parity(&s.0, &parity_args(&repo, &["--format", "json"]));
+    assert_rc(&out, 5, "campaign mismatch");
+    let doc = parity_verdict(&out);
+    assert!(
+        doc.at("reason_codes")
+            .strs()
+            .contains(&"CAMPAIGN_MISMATCH".to_string()),
+        "{doc:?}"
+    );
+}
+
+/// A scratch checkout for the campaign writer and the template validator: the two launchers (their location names the
+/// checkout root), the tracked campaign skeleton, the schema engine's launcher the declaration validator asks for, and a
+/// single-node manifest.
+struct Checkout {
+    _s: Scratch,
+    repo: PathBuf,
+}
+
+const DECL: &str = r#"{"schema_version": 1, "id": "c-test", "plan_ref": "docs/plan/p.md", "declared_utc": "2026-11-18T00:00:00Z",
+ "nodes": [{"node_id": "main", "role": "main", "topology": "single", "hw": "gpu"}, {"node_id": "sub1", "role": "sub", "topology": "single", "hw": "gpu"}],
+ "matrix": {"versions": ["0.31.0"], "models": ["m"]},
+ "assignments": {"main": [{"cell": "c1", "mode": "AUTO"}], "sub1": [{"cell": "c2", "mode": "AUTO"}, {"cell": "c3", "mode": "AUTO"}]},
+ "budgets": {"smoke_budget_overhead_mib": 1, "ready_max_seconds": 1, "repeats": 3},
+ "control_variables": {"model": "m", "vllm_version": "0.31.0", "topology": "single", "target_gpu": "g"},
+ "revisions": [], "hint_targets": [], "topology_sections": {"single": {}, "multi": {}}}
+"#;
+
+impl Checkout {
+    fn new(tag: &str) -> Checkout {
+        let s = scratch(tag);
+        let repo = s.0.join("repo");
+        let real = root();
+        for name in ["campaign_init.sh", "campaign_template_validator.sh"] {
+            copy_file(&real.join(TS).join(name), &repo.join(TS).join(name));
+        }
+        copy_tree(
+            &real.join("campaigns/_template"),
+            &repo.join("campaigns/_template"),
+        );
+        copy_file(
+            &real.join("campaigns/README.md"),
+            &repo.join("campaigns/README.md"),
+        );
+        let gate = ".claude/policies/runtime/completion_gate.sh";
+        copy_file(&real.join(gate), &repo.join(gate));
+        write(
+            &repo.join("output/single/manifest.yaml"),
+            "topology: single\n",
+        );
+        Checkout { _s: s, repo }
+    }
+    fn ci_os(&self, args: &[&OsStr], env: &[(&str, &OsStr)]) -> Output {
+        let mut all = vec![(
+            "CAMPAIGN_READ_BIN",
+            OsStr::new(env!("CARGO_BIN_EXE_campaign_init")),
+        )];
+        all.extend_from_slice(env);
+        bash(
+            &self.repo.join(TS).join("campaign_init.sh"),
+            args,
+            &self.repo,
+            &all,
+        )
+    }
+    /// `bash campaign_init.sh <args>` in the checkout.
+    fn ci(&self, args: &[&str]) -> Output {
+        self.ci_os(&os(args), &[])
+    }
+    fn ok(&self, args: &[&str]) -> Output {
+        let out = self.ci(args);
+        assert_rc(&out, 0, &format!("campaign_init {args:?}"));
+        out
+    }
+    fn validator(&self, args: &[&str]) -> Output {
+        bash(
+            &self.repo.join(TS).join("campaign_template_validator.sh"),
+            &os(args),
+            &self.repo,
+            &[(
+                "CAMPAIGN_VALIDATOR_BIN",
+                OsStr::new(env!("CARGO_BIN_EXE_campaign_template_validator")),
+            )],
+        )
+    }
+    /// Opens `c-test` (`--init --apply` from the skeleton) and fills its declaration: main → c1, sub1 → c2, c3.
+    fn open(&self) {
+        self.ok(&[
+            "--init",
+            "c-test",
+            "--plan-ref",
+            "docs/plan/p.md",
+            "--utc",
+            UTC,
+            "--approved-by",
+            "contract",
+            "--apply",
+        ]);
+        write(&self.repo.join("campaigns/c-test/campaign.yaml"), DECL);
+    }
+    fn path(&self, rel: &str) -> String {
+        self.repo.join(rel).to_str().unwrap().to_string()
+    }
+    fn json_file(&self, rel: &str) -> Json {
+        let body =
+            std::fs::read_to_string(self.repo.join(rel)).unwrap_or_else(|e| panic!("{rel}: {e}"));
+        Json::parse(&body).unwrap_or_else(|e| panic!("{rel} is not JSON ({e}): {body}"))
+    }
+}
+
+/// One stdout line (the shell consumers capture it with `$(…)`), nothing on stderr.
+fn one_line(out: &Output) -> String {
+    let so = text(&out.stdout);
+    assert!(out.stderr.is_empty(), "stderr: {}", text(&out.stderr));
+    let line = so
+        .strip_suffix('\n')
+        .unwrap_or_else(|| panic!("no line: {so:?}"));
+    assert!(!line.contains('\n'), "{so:?}");
+    line.to_string()
+}
+
+/// The read shapes the scripts capture (broad_search.sh, sweep_bench.sh, fetch_sub_docs.sh, single_serve_up.sh,
+/// run_trial_session.rs): `--active` prints the active id (`_bootstrap` when none); `--assigned-cells <node>` the
+/// comma-separated cells; `--derive sweep|cell-status|config|lockset` one absolute path; `--lockset-precheck --cell`
+/// one JSON object (`status` not_applicable|passed = exit 0, refused = exit 2, `campaign_id`, `cell`, `lockset`,
+/// `provenance`, `reason`); `--grounding-check` exit 0 without an active campaign and non-zero (the callers' STOP) when
+/// the active campaign has no grounding record; `--lifecycle` JSON `line` + `campaigns`.
+#[test]
+fn campaign_init_read_shapes_and_lockset_precheck() {
+    let c = Checkout::new("ci-read");
+    assert_eq!(one_line(&c.ok(&["--active"])), "_bootstrap");
+    let out = c.ok(&["--lockset-precheck", "--cell", "c1"]);
+    let doc = stdout_json(&out);
+    assert_eq!(doc.at("status").str(), Some("not_applicable"));
+    assert_eq!(doc.at("campaign_id").str(), Some("_bootstrap"));
+    assert_eq!(doc.at("cell").str(), Some("c1"));
+    assert_eq!(doc.at("lockset"), &Json::Null);
+    assert_eq!(doc.at("reason").kind(), "string");
+    c.ok(&["--grounding-check"]);
+    let doc = stdout_json(&c.ok(&["--lifecycle"]));
+    assert_eq!(doc.at("line").kind(), "string");
+    assert_eq!(doc.at("campaigns").kind(), "object");
+
+    c.open();
+    assert_eq!(one_line(&c.ok(&["--active"])), "c-test");
+    assert_eq!(one_line(&c.ok(&["--assigned-cells", "main"])), "c1");
+    assert_eq!(one_line(&c.ok(&["--assigned-cells", "sub1"])), "c2,c3");
+    let sweep = c.path("campaigns/c-test/sweeps/s1.json");
+    assert_eq!(
+        one_line(&c.ok(&["--derive", "sweep", "--sweep", "s1"])),
+        sweep
+    );
+    assert_eq!(
+        one_line(&c.ok(&[
+            "--derive",
+            "sweep",
+            "--sweep",
+            "s1",
+            "--campaign-id",
+            "c-test"
+        ])),
+        sweep
+    );
+    for (kind, file) in [
+        ("cell-status", "cell.status.json"),
+        ("config", "config.yaml"),
+        ("lockset", "lockset.json"),
+    ] {
+        let line = one_line(&c.ok(&["--derive", kind, "--cell", "c1"]));
+        assert_eq!(
+            line,
+            c.path(&format!("campaigns/c-test/cells/c1/{file}")),
+            "--derive {kind}"
+        );
+    }
+
+    for extra in [&[][..], &["--campaign-id", "c-test"]] {
+        let mut args = vec!["--lockset-precheck", "--cell", "c1"];
+        args.extend_from_slice(extra);
+        let out = c.ci(&args);
+        assert_rc(&out, 2, "lockset absent");
+        assert!(
+            !out.stderr.is_empty(),
+            "the refusal reason is on stderr too"
+        );
+        let doc = stdout_json(&out);
+        assert_eq!(doc.at("status").str(), Some("refused"));
+        assert_eq!(doc.at("campaign_id").str(), Some("c-test"));
+        assert_eq!(
+            doc.at("lockset").str(),
+            Some("campaigns/c-test/cells/c1/lockset.json")
+        );
+        assert_eq!(doc.at("provenance"), &Json::Null);
+        assert_eq!(doc.at("reason").kind(), "string");
+    }
+    write(
+        &c.repo.join("campaigns/c-test/cells/c1/lockset.json"),
+        r#"{"provenance": "hand-authored"}"#,
+    );
+    let doc = stdout_json(&c.ok(&["--lockset-precheck", "--cell", "c1"]));
+    assert_eq!(doc.at("status").str(), Some("passed"));
+    assert_eq!(doc.at("provenance").str(), Some("hand-authored"));
+    assert_eq!(doc.at("reason"), &Json::Null);
+
+    let out = c.ci(&["--grounding-check"]);
+    assert_ne!(
+        out.status.code(),
+        Some(0),
+        "an active campaign without a grounding record stops the caller"
+    );
+}
+
+/// The writers the phase scripts and hint-publisher call (`--phase-set build|serve|bench|publish`, `--cell-set`,
+/// `--escalation-add`, `--write-brief`) are exit 0 and write the status, cell, candidate and brief files other readers
+/// parse (L2 keys); a refused write is non-zero. The relay shapes (terraforming `relay/core.rs`): `--emit-slice <node>
+/// --campaign-id --utc` prints the node's slice (`id`, `plan_ref`, only that node's `assignments`, `self_role`,
+/// `_assignment_revision` null or `{rev}` after `--assign-set`); `--lifecycle <id>` prints `campaign_id`, `state`,
+/// `close_reason`. The lifecycle self-test reads `--resume-brief` (first line `상태: `) and `--verify-purge-gate`
+/// (non-zero, reason lines `  - `).
+#[test]
+fn campaign_init_writers_relay_and_brief_shapes() {
+    let c = Checkout::new("ci-write");
+    c.open();
+    c.ok(&[
+        "--phase-set",
+        "bench",
+        "--node",
+        "main",
+        "--cell",
+        "c1",
+        "--state",
+        "running",
+        "--proof-predicate",
+        "p",
+        "--proof-source",
+        "s",
+        "--started-utc",
+        UTC,
+        "--authored-by",
+        "main",
+    ]);
+    let doc = c.json_file("campaigns/c-test/phases/main/bench.status.json");
+    assert_eq!(doc.at("phase").str(), Some("bench"));
+    assert_eq!(doc.at("state").str(), Some("running"));
+    assert_eq!(doc.at("node_id").str(), Some("main"));
+    assert_eq!(doc.at("cell_id").str(), Some("c1"));
+    assert_eq!(doc.at("proof").at("ok"), &Json::Bool(false));
+    c.ok(&[
+        "--campaign-id",
+        "c-test",
+        "--phase-set",
+        "publish",
+        "--node",
+        "main",
+        "--cell",
+        "c1",
+        "--state",
+        "done",
+        "--proof-predicate",
+        "p",
+        "--proof-ok",
+        "--proof-source",
+        "s",
+        "--ended-utc",
+        UTC,
+        "--authored-by",
+        "main",
+    ]);
+    let doc = c.json_file("campaigns/c-test/phases/main/publish.status.json");
+    assert_eq!(doc.at("state").str(), Some("done"));
+    assert_eq!(doc.at("proof").at("ok"), &Json::Bool(true));
+    for (phase, state, proof) in [
+        ("serve", "done", &["--proof-ok"][..]),
+        ("build", "failed", &[]),
+    ] {
+        let mut args = vec![
+            "--phase-set",
+            phase,
+            "--node",
+            "main",
+            "--state",
+            state,
+            "--cell",
+            "c1",
+            "--proof-predicate",
+            "p",
+            "--proof-source",
+            "s",
+            "--started-utc",
+            UTC,
+            "--ended-utc",
+            UTC,
+            "--authored-by",
+            "main",
+        ];
+        args.extend_from_slice(proof);
+        c.ok(&args);
+        assert_eq!(
+            c.json_file(&format!("campaigns/c-test/phases/main/{phase}.status.json"))
+                .at("state")
+                .str(),
+            Some(state)
+        );
+    }
+    let out = c.ci(&[
+        "--phase-set",
+        "bench",
+        "--node",
+        "main",
+        "--cell",
+        "c1",
+        "--state",
+        "unknown-state",
+        "--proof-predicate",
+        "p",
+        "--proof-source",
+        "s",
+        "--started-utc",
+        UTC,
+    ]);
+    assert_ne!(
+        out.status.code(),
+        Some(0),
+        "a state outside the enum is refused"
+    );
+
+    c.ok(&[
+        "--cell-set",
+        "c1",
+        "--outcome",
+        "measurement_void",
+        "--utc",
+        UTC,
+    ]);
+    let doc = c.json_file("campaigns/c-test/cells/c1/cell.status.json");
+    assert_eq!(doc.at("cell_id").str(), Some("c1"));
+    assert_eq!(doc.at("cell_outcome").str(), Some("measurement_void"));
+
+    c.ok(&[
+        "--escalation-add",
+        "--cell",
+        "c1",
+        "--node",
+        "main",
+        "--utc",
+        UTC,
+        "--window-start-utc",
+        UTC,
+        "--window-end-utc",
+        UTC,
+        "--symptom",
+        "contract",
+    ]);
+    let lines =
+        std::fs::read_to_string(c.repo.join("campaigns/c-test/escalation_candidates.jsonl"))
+            .unwrap();
+    assert_eq!(lines.lines().count(), 1);
+    assert_eq!(
+        Json::parse(lines.lines().next().unwrap()).unwrap().kind(),
+        "object"
+    );
+
+    c.ok(&["--write-brief", "--node", "main", "--utc", UTC]);
+    let brief = c.json_file("docs/logs/main/campaign_brief.json");
+    assert_eq!(brief.at("campaign_id").str(), Some("c-test"));
+    assert_eq!(brief.at("generated_utc").str(), Some(UTC));
+    let cells = brief.at("cells").arr().unwrap();
+    assert_eq!(cells[0].at("cell_id").str(), Some("c1"));
+
+    let slice = |c: &Checkout| {
+        let out = c.ok(&[
+            "--emit-slice",
+            "sub1",
+            "--campaign-id",
+            "c-test",
+            "--utc",
+            UTC,
+        ]);
+        assert!(out.stderr.is_empty());
+        stdout_json(&out)
+    };
+    let doc = slice(&c);
+    assert_eq!(doc.at("id").str(), Some("c-test"));
+    assert_eq!(doc.at("plan_ref").str(), Some("docs/plan/p.md"));
+    assert_eq!(doc.at("assignments").keys(), ["sub1"]);
+    assert_eq!(doc.at("self_role").str(), Some("sub"));
+    assert_eq!(doc.at("_assignment_revision"), &Json::Null);
+    let nodes = doc.at("nodes").arr().unwrap();
+    assert_eq!(nodes.len(), 1, "the slice holds that node only: {nodes:?}");
+    assert_eq!(nodes[0].at("node_id").str(), Some("sub1"));
+    c.ok(&[
+        "--assign-set",
+        "sub1",
+        "--assign-cells",
+        "c2",
+        "--assign-reason",
+        "r",
+        "--assign-evidence",
+        "e",
+        "--assign-approved-by",
+        "contract",
+        "--utc",
+        UTC,
+        "--apply",
+    ]);
+    let doc = slice(&c);
+    assert_eq!(doc.at("_assignment_revision").at("rev").kind(), "number");
+
+    let doc = stdout_json(&c.ok(&["--lifecycle", "c-test"]));
+    assert_eq!(doc.at("campaign_id").str(), Some("c-test"));
+    assert_eq!(doc.at("state").str(), Some("active"));
+    assert_eq!(doc.at("close_reason"), &Json::Null);
+    assert!(doc.get("sub_convergence").is_some());
+    let doc = stdout_json(&c.ok(&["--lifecycle"]));
+    assert!(doc.at("line").str().unwrap().starts_with("상태: "));
+    assert_eq!(
+        doc.at("campaigns").at("c-test").at("state").str(),
+        Some("active")
+    );
+
+    let out = c.ok(&["--resume-brief"]);
+    assert!(
+        text(&out.stdout)
+            .lines()
+            .next()
+            .unwrap()
+            .starts_with("상태: "),
+        "{}",
+        text(&out.stdout)
+    );
+    let out = c.ci(&["--verify-purge-gate", "c-test"]);
+    assert_ne!(
+        out.status.code(),
+        Some(0),
+        "purge gate closed without evidence"
+    );
+    let merged = format!("{}{}", text(&out.stdout), text(&out.stderr));
+    assert!(merged.lines().any(|l| l.starts_with("  - ")), "{merged}");
+}
+
+/// Usage errors are exit 2 with nothing on stdout (a non-UTF-8 argument included); policy-distribution `checks.rs`
+/// needs `--selftest` exit 0; the long options the documents name are listed by `--help` (exit 0) as whole tokens. The
+/// options the scripts, the relay and hint-publisher pass are probed by running the writer with them
+/// (`campaign_init_consumer_flags_reach_their_options`).
+#[test]
+fn campaign_init_usage_options_and_selftest() {
+    let c = Checkout::new("ci-usage");
+    for args in [
+        vec![OsStr::new("--bogus")],
+        vec![OsStr::new("--active"), OsStr::from_bytes(b"\xff")],
+    ] {
+        let out = c.ci_os(&args, &[]);
+        assert_rc(&out, 2, "usage error");
+        assert!(out.stdout.is_empty());
+    }
+    assert_rc(&c.ci(&["--selftest"]), 0, "--selftest");
+    let out = c.ok(&["--help"]);
+    let help = text(&out.stdout);
+    for opt in [
+        "--active",
+        "--derive",
+        "--cell",
+        "--sweep",
+        "--campaign-id",
+        "--verify-purge-gate",
+        "--close",
+        "--init",
+        "--plan-ref",
+        "--from-slice",
+        "--ground",
+        "--grounding-check",
+        "--lockset-precheck",
+        "--assigned-cells",
+        "--emit-slice",
+        "--out",
+        "--import-sub",
+        "--write-brief",
+        "--apply",
+        "--selftest",
+        "--suspend-current",
+        "--derived-from",
+        "--preempt",
+        "--release",
+        "--suspend",
+        "--resume-campaign",
+        "--accept-drift",
+        "--abandon",
+        "--reason",
+        "--summary-testlog",
+        "--answer-query",
+        "--sub-echo",
+        "--control",
+        "--lifecycle",
+        "--phase-set",
+        "--node",
+        "--state",
+        "--proof-predicate",
+        "--proof-ok",
+        "--proof-source",
+        "--started-utc",
+        "--ended-utc",
+        "--cell-set",
+        "--cell-materialize",
+        "--outcome",
+        "--sweep-state",
+        "--escalation-add",
+        "--symptom",
+        "--events",
+        "--window-start-utc",
+        "--window-end-utc",
+        "--authored-by",
+        "--void-reason",
+        "--void-reason-source",
+        "--lite-raw",
+        "--reentry-decide",
+        "--decision",
+        "--route",
+        "--axis-citation",
+        "--next-intent",
+        "--evidence-add",
+        "--kind",
+        "--path",
+        "--assign-set",
+        "--assign-cells",
+        "--assign-reason",
+        "--assign-evidence",
+        "--assign-approved-by",
+        "--slice-update",
+        "--revise",
+        "--hint-approve",
+        "--cells",
+        "--approved-by",
+        "--source",
+        "--utc",
+        "--resume-brief",
+    ] {
+        assert!(names_option(&help, opt), "campaign_init option {opt}");
+    }
+}
+
+/// Replaces the first `anchor` of the file by `anchor` + `insert` (a fixture edit of a JSON document's text).
+fn inject(path: &Path, anchor: &str, insert: &str) {
+    let body = std::fs::read_to_string(path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
+    assert!(
+        body.contains(anchor),
+        "{anchor:?} not in {}:\n{body}",
+        path.display()
+    );
+    std::fs::write(path, body.replacen(anchor, &format!("{anchor}{insert}"), 1)).unwrap();
+}
+
+/// The options the consumers pass reach their own action in the prefix-abbreviating parser (`campaign_args.rs`), probed
+/// by running the writer with them and reading what it wrote:
+/// - broad_search.sh:610-628 `--cell-set --outcome --axis-citation --next-intent --utc --sweep-state [--lite-raw
+///   --void-reason --void-reason-source]` writes those values to `cell.status.json` (`lite_gate` only with `--lite-raw`);
+///   `--void-reason` without `--void-reason-source` is refused, so `--void-reason` is not taken for
+///   `--void-reason-source`;
+/// - `--emit-slice <node> --campaign-id --utc --out PATH` writes the slice to PATH and not to stdout (`--out` is not
+///   `--outcome`);
+/// - `--ground --utc` writes the grounding record `--grounding-check` then accepts (`--ground` is not
+///   `--grounding-check`);
+/// - `--escalation-add --cell --node --utc --window-start-utc --window-end-utc --symptom --events` is exit 0;
+///   `--evidence-add --kind --path --node` and hint-publisher's `--campaign-id --evidence-relocate --kind --path --to
+///   --relocate-reason --utc` move the pointer; fetch_sub_docs.sh `--campaign-id --import-sub <mirror> --utc` reads the
+///   mirror's brief;
+/// - the relay's `--sub-echo <camp> --node --control --utc --apply` prints the `[campaign_init] APPLIED ` line it strips
+///   and records the echo (the `--rev` shape of a reslice echo is not fixed: see the cell record);
+/// - `--suspend <camp>` is a value option: a missing `--release` is a refusal, not the usage error `--suspend-current
+///   <camp>` would be.
+#[test]
+fn campaign_init_consumer_flags_reach_their_options() {
+    let c = Checkout::new("ci-probe");
+    c.open();
+    // fetch_sub_docs.sh: the mirror holds a sub's brief (written before this checkout's own journey grows)
+    c.ok(&["--write-brief", "--node", "sub1", "--utc", UTC]);
+    let mirror = c.repo.join("sync_staging/sub_docs/sub1");
+    copy_file(
+        &c.repo.join("docs/logs/sub1/campaign_brief.json"),
+        &mirror.join("logs/sub1/campaign_brief.json"),
+    );
+    c.ok(&[
+        "--campaign-id",
+        "c-test",
+        "--import-sub",
+        "sync_staging/sub_docs/sub1",
+        "--utc",
+        UTC,
+    ]);
+
+    let cell_status = "campaigns/c-test/cells/c1/cell.status.json";
+    let out = c.ci(&[
+        "--cell-set",
+        "c1",
+        "--outcome",
+        "measurement_void",
+        "--utc",
+        UTC,
+        "--void-reason",
+        "R1",
+    ]);
+    assert_ne!(
+        out.status.code(),
+        Some(0),
+        "--void-reason needs --void-reason-source"
+    );
+    assert!(
+        !usage_error(&out),
+        "a refusal, not a usage error: {}",
+        text(&out.stderr)
+    );
+    assert!(
+        !c.repo.join(cell_status).exists(),
+        "a refused write leaves no cell status"
+    );
+    c.ok(&[
+        "--cell-set",
+        "c1",
+        "--outcome",
+        "measurement_void",
+        "--axis-citation",
+        "AX",
+        "--next-intent",
+        "NI",
+        "--utc",
+        UTC,
+        "--sweep-state",
+        "campaigns/c-test/sweeps/s1.json",
+        "--void-reason",
+        "R1",
+        "--void-reason-source",
+        "S1",
+    ]);
+    let doc = c.json_file(cell_status);
+    assert_eq!(doc.at("cell_outcome").str(), Some("measurement_void"));
+    assert_eq!(doc.at("void_reason").str(), Some("R1"));
+    assert_eq!(doc.at("void_reason_source").str(), Some("S1"));
+    assert_eq!(doc.at("axis_citation").str(), Some("AX"));
+    assert_eq!(doc.at("next_intent").str(), Some("NI"));
+    assert!(doc.get("lite_gate").is_none(), "no lite raw given: {doc:?}");
+    let raw = c.repo.join("lite_raw.json");
+    std::fs::copy(
+        root().join(
+            ".claude/skills/adversarial-benchmark/fixtures/lite_raw_d1_connection_refused.json",
+        ),
+        &raw,
+    )
+    .unwrap();
+    c.ok(&[
+        "--cell-set",
+        "c1",
+        "--outcome",
+        "measurement_void",
+        "--lite-raw",
+        raw.to_str().unwrap(),
+        "--utc",
+        UTC,
+    ]);
+    assert_eq!(
+        c.json_file(cell_status).at("lite_gate").kind(),
+        "object",
+        "--lite-raw reaches the lite gate"
+    );
+
+    let slice = c.repo.join("slice.json");
+    let out = c.ok(&[
+        "--emit-slice",
+        "sub1",
+        "--campaign-id",
+        "c-test",
+        "--utc",
+        UTC,
+        "--out",
+        slice.to_str().unwrap(),
+    ]);
+    assert!(
+        Json::parse(&text(&out.stdout)).is_err(),
+        "the slice goes to --out, not to stdout: {}",
+        text(&out.stdout)
+    );
+    let doc = Json::parse(&std::fs::read_to_string(&slice).unwrap()).unwrap();
+    assert_eq!(doc.at("id").str(), Some("c-test"));
+    assert_eq!(doc.at("assignments").keys(), ["sub1"]);
+
+    assert_ne!(c.ci(&["--grounding-check"]).status.code(), Some(0));
+    c.ok(&["--ground", "--utc", UTC]);
+    c.ok(&["--grounding-check"]);
+
+    let events = c.repo.join("events.jsonl");
+    write(&events, "{\"kind\": \"x\"}\n");
+    c.ok(&[
+        "--escalation-add",
+        "--cell",
+        "c1",
+        "--node",
+        "main",
+        "--utc",
+        UTC,
+        "--window-start-utc",
+        UTC,
+        "--window-end-utc",
+        UTC,
+        "--symptom",
+        "s1",
+        "--events",
+        events.to_str().unwrap(),
+    ]);
+
+    let (old, new) = (
+        "docs/testlog/testlog_26010100_a.md",
+        "docs/testlog/testlog_26010100_b.md",
+    );
+    write(&c.repo.join(old), "x\n");
+    c.ok(&[
+        "--evidence-add",
+        "--kind",
+        "testlog",
+        "--path",
+        old,
+        "--utc",
+        UTC,
+        "--campaign-id",
+        "c-test",
+        "--node",
+        "main",
+    ]);
+    std::fs::rename(c.repo.join(old), c.repo.join(new)).unwrap();
+    c.ok(&[
+        "--campaign-id",
+        "c-test",
+        "--evidence-relocate",
+        "--kind",
+        "testlog",
+        "--path",
+        old,
+        "--to",
+        new,
+        "--relocate-reason",
+        "rename",
+        "--utc",
+        UTC,
+    ]);
+    let pointers = c.json_file("campaigns/c-test/evidence_pointers.json");
+    let items = pointers.at("pointers").arr().unwrap();
+    assert_eq!(items.len(), 1, "{pointers:?}");
+    assert_eq!(items[0].at("path").str(), Some(new));
+    assert_eq!(
+        items[0].at("relocated").arr().unwrap()[0].at("from").str(),
+        Some(old)
+    );
+
+    let out = c.ci(&[
+        "--suspend",
+        "c-test",
+        "--reason",
+        "r",
+        "--utc",
+        UTC,
+        "--approved-by",
+        "contract",
+        "--apply",
+    ]);
+    assert_ne!(
+        out.status.code(),
+        Some(0),
+        "a suspension without --release is refused"
+    );
+    assert!(
+        !usage_error(&out),
+        "--suspend takes the campaign id: {}",
+        text(&out.stderr)
+    );
+
+    // The relay echoes a sub's acknowledgement of the last transition: a suspension that named sub1.
+    let journey = c.repo.join("campaigns/c-test/journey.jsonl");
+    let mut lines = std::fs::read_to_string(&journey).unwrap();
+    lines.push_str(&format!(
+        "{{\"kind\": \"campaign_suspended\", \"lifecycle_v\": 1, \"source\": \"campaign_init\", \"utc\": \"{UTC}\", \"sub_nodes\": [\"sub1\"], \"released\": []}}\n"
+    ));
+    std::fs::write(&journey, lines).unwrap();
+    let out = c.ok(&[
+        "--sub-echo",
+        "c-test",
+        "--node",
+        "sub1",
+        "--control",
+        "suspend",
+        "--utc",
+        UTC,
+        "--apply",
+    ]);
+    let so = text(&out.stdout);
+    assert!(
+        so.lines()
+            .any(|l| l.starts_with("[campaign_init] APPLIED ")),
+        "{so}"
+    );
+    let doc = stdout_json(&c.ok(&["--lifecycle", "c-test"]));
+    assert_eq!(doc.at("state").str(), Some("suspended"));
+    assert_eq!(doc.at("sub_echoed").strs(), ["sub1"]);
+}
+
+/// terraforming's lifecycle self-test (`selftests/campaign_lifecycle.rs`) and the documents drive the transitions with
+/// `--init --plan-ref --derived-from|--suspend-current|--preempt`, `--suspend --release --reason`, `--resume-campaign
+/// --accept-drift`, `--abandon --summary-testlog`, `--close`, `--slice-update -`, `--revise --revise-set --revise-reason
+/// --revise-evidence --revise-approved-by`, `--answer-query --query-decision`, `--verify-purge-gate`, `--hint-approve
+/// --cells --node --source`, `--reentry-decide --decision --route`, `--cell-materialize`, `--approved-by --utc`. Each
+/// option reaches the parser: the line is answered by the writer (a refusal of this fixture's state, or a write), never
+/// a usage error, while the same line with that option renamed to an unknown one is. (A transition that would write a
+/// parked devlog needs the document-naming owner, absent here; the writes themselves are the self-test's.)
+#[test]
+fn campaign_init_lifecycle_options_reach_the_parser() {
+    let c = Checkout::new("ci-lifecycle");
+    c.open();
+    let takes = |args: &[&str], probed: &[&str]| {
+        let out = c.ci(args);
+        assert!(
+            !usage_error(&out),
+            "{args:?} is a usage error:\n{}",
+            text(&out.stderr)
+        );
+        for name in probed {
+            let at = args
+                .iter()
+                .position(|a| a == name)
+                .unwrap_or_else(|| panic!("{name} not in {args:?}"));
+            let mut control = args.to_vec();
+            control[at] = "--contract-no-such-option";
+            let out = c.ci(&control);
+            assert!(
+                usage_error(&out),
+                "{control:?}: an unknown option must be a usage error: {:?}\n{}",
+                out.status,
+                text(&out.stderr)
+            );
+        }
+    };
+    let init = ["--init", "c2", "--plan-ref", "docs/plan/p.md", "--utc", UTC];
+    for extra in [
+        &["--derived-from", "c-test"][..],
+        &["--suspend-current"],
+        &["--preempt"],
+    ] {
+        let mut args = init.to_vec();
+        args.extend_from_slice(extra);
+        takes(&args, &["--init", "--plan-ref", extra[0]]);
+    }
+    takes(
+        &[
+            "--suspend",
+            "c-test",
+            "--release",
+            "none",
+            "--reason",
+            "r",
+            "--utc",
+            UTC,
+            "--approved-by",
+            "a",
+        ],
+        &["--suspend", "--release", "--reason", "--approved-by"],
+    );
+    takes(
+        &[
+            "--resume-campaign",
+            "c-test",
+            "--accept-drift",
+            "--utc",
+            UTC,
+            "--approved-by",
+            "a",
+        ],
+        &["--resume-campaign", "--accept-drift"],
+    );
+    takes(
+        &[
+            "--abandon",
+            "c-test",
+            "--reason",
+            "r",
+            "--summary-testlog",
+            "docs/testlog/t.md",
+            "--utc",
+            UTC,
+            "--approved-by",
+            "a",
+        ],
+        &["--abandon", "--summary-testlog"],
+    );
+    takes(
+        &[
+            "--close",
+            "c-test",
+            "--summary-testlog",
+            "docs/testlog/t.md",
+            "--utc",
+            UTC,
+            "--approved-by",
+            "a",
+        ],
+        &["--close"],
+    );
+    takes(&["--slice-update", "-", "--utc", UTC], &["--slice-update"]);
+    takes(
+        &[
+            "--answer-query",
+            "c-test",
+            "--query-decision",
+            "keep",
+            "--utc",
+            UTC,
+            "--approved-by",
+            "a",
+        ],
+        &["--answer-query", "--query-decision"],
+    );
+    takes(&["--verify-purge-gate", "c-test"], &["--verify-purge-gate"]);
+    takes(
+        &[
+            "--reentry-decide",
+            "c1",
+            "--decision",
+            "approve",
+            "--route",
+            "explorer",
+            "--approved-by",
+            "a",
+            "--utc",
+            UTC,
+        ],
+        &["--reentry-decide", "--decision", "--route"],
+    );
+    takes(
+        &["--cell-materialize", "c1", "--utc", UTC],
+        &["--cell-materialize"],
+    );
+    takes(
+        &[
+            "--hint-approve",
+            "--cells",
+            "c1",
+            "--node",
+            "main",
+            "--approved-by",
+            "a",
+            "--source",
+            "declaration-popup",
+            "--utc",
+            UTC,
+        ],
+        &["--hint-approve", "--cells", "--source"],
+    );
+    takes(
+        &[
+            "--revise",
+            "--revise-set",
+            "budgets.repeats=4",
+            "--revise-reason",
+            "r",
+            "--revise-evidence",
+            "e",
+            "--revise-approved-by",
+            "a",
+            "--utc",
+            UTC,
+        ],
+        &[
+            "--revise",
+            "--revise-set",
+            "--revise-reason",
+            "--revise-evidence",
+            "--revise-approved-by",
+        ],
+    );
+}
+
+/// The writers that read a campaign document and write it again keep the keys they do not know (types.md 4절
+/// 「영속 문서」 1·6, the campaign state's only writer): the declaration through `--assign-set --apply` (top level, a node,
+/// another node's assignment item, `budgets`), the cell status through `--cell-set` (top level, `measurement`), a phase
+/// status through `--phase-set` (top level), the evidence pointers through `--evidence-add` (top level, a pointer).
+/// The objects a writer builds anew and writes whole are out of this check (types.md 4절 3 (a)): the re-assigned
+/// node's `assignments` list of `--assign-set` (`campaign_write.rs` `assign_set`) and the `proof` object of
+/// `--phase-set` (`write_phase`); no key is injected there and their dropping is neither pinned nor refused here.
+#[test]
+fn campaign_init_writers_keep_unknown_keys() {
+    let c = Checkout::new("ci-keys");
+    c.open();
+    let decl = c.repo.join("campaigns/c-test/campaign.yaml");
+    inject(&decl, "{", r#""_contract_top": "keep-top", "#);
+    inject(
+        &decl,
+        r#""role": "sub", "#,
+        r#""_contract_node": "keep-node", "#,
+    );
+    inject(
+        &decl,
+        r#""main": [{"cell": "c1", "#,
+        r#""_contract_item": "keep-item", "#,
+    );
+    inject(&decl, r#""budgets": {"#, r#""_contract_nested": 7, "#);
+    c.ok(&[
+        "--assign-set",
+        "sub1",
+        "--assign-cells",
+        "c2",
+        "--assign-reason",
+        "r",
+        "--assign-evidence",
+        "e",
+        "--assign-approved-by",
+        "contract",
+        "--utc",
+        UTC,
+        "--apply",
+    ]);
+    let doc = c.json_file("campaigns/c-test/campaign.yaml");
+    assert_eq!(doc.at("_contract_top").str(), Some("keep-top"));
+    let sub = doc
+        .at("nodes")
+        .arr()
+        .unwrap()
+        .iter()
+        .find(|n| n.at("node_id").str() == Some("sub1"))
+        .unwrap();
+    assert_eq!(sub.at("_contract_node").str(), Some("keep-node"));
+    // sub1's list is the new assignment the call declares; main's item is re-written as it was.
+    let items = doc.at("assignments").at("sub1").arr().unwrap();
+    assert_eq!(items.len(), 1, "{items:?}");
+    assert_eq!(items[0].at("cell").str(), Some("c2"));
+    let main = doc.at("assignments").at("main").arr().unwrap();
+    assert_eq!(main[0].at("cell").str(), Some("c1"));
+    assert_eq!(main[0].at("_contract_item").str(), Some("keep-item"));
+    assert_eq!(num(doc.at("budgets").at("_contract_nested")), "7");
+
+    let cell = c.repo.join("campaigns/c-test/cells/c1/cell.status.json");
+    c.ok(&[
+        "--cell-set",
+        "c1",
+        "--outcome",
+        "measurement_void",
+        "--utc",
+        UTC,
+    ]);
+    inject(&cell, "{", r#""_contract_top": "keep-top", "#);
+    inject(
+        &cell,
+        r#""measurement": {"#,
+        r#""_contract_item": "keep-item", "#,
+    );
+    c.ok(&["--cell-set", "c1", "--outcome", "measured", "--utc", UTC]);
+    let doc = c.json_file("campaigns/c-test/cells/c1/cell.status.json");
+    assert_eq!(doc.at("cell_outcome").str(), Some("measured"));
+    assert_eq!(doc.at("_contract_top").str(), Some("keep-top"));
+    assert_eq!(
+        doc.at("measurement").at("_contract_item").str(),
+        Some("keep-item")
+    );
+
+    let phase = c
+        .repo
+        .join("campaigns/c-test/phases/main/bench.status.json");
+    let phase_set = |state: &str, proof: &[&str]| {
+        let mut args = vec![
+            "--phase-set",
+            "bench",
+            "--node",
+            "main",
+            "--cell",
+            "c1",
+            "--state",
+            state,
+            "--proof-predicate",
+            "p",
+            "--proof-source",
+            "s",
+            "--started-utc",
+            UTC,
+            "--authored-by",
+            "main",
+        ];
+        args.extend_from_slice(proof);
+        c.ok(&args);
+    };
+    phase_set("running", &[]);
+    inject(&phase, "{", r#""_contract_top": "keep-top", "#);
+    phase_set("done", &["--proof-ok", "--ended-utc", UTC]);
+    let doc = c.json_file("campaigns/c-test/phases/main/bench.status.json");
+    assert_eq!(doc.at("state").str(), Some("done"));
+    assert_eq!(doc.at("_contract_top").str(), Some("keep-top"));
+
+    let pointers = c.repo.join("campaigns/c-test/evidence_pointers.json");
+    let add = |rel: &str| {
+        write(&c.repo.join(rel), "x\n");
+        c.ok(&[
+            "--evidence-add",
+            "--kind",
+            "testlog",
+            "--path",
+            rel,
+            "--utc",
+            UTC,
+            "--campaign-id",
+            "c-test",
+            "--node",
+            "main",
+        ]);
+    };
+    add("docs/testlog/testlog_26010100_a.md");
+    inject(&pointers, "{", r#""_contract_top": "keep-top", "#);
+    inject(
+        &pointers,
+        r#""kind": "testlog","#,
+        r#" "_contract_item": "keep-item","#,
+    );
+    add("docs/testlog/testlog_26010100_c.md");
+    let doc = c.json_file("campaigns/c-test/evidence_pointers.json");
+    assert_eq!(doc.at("_contract_top").str(), Some("keep-top"));
+    let items = doc.at("pointers").arr().unwrap();
+    assert_eq!(items.len(), 2, "{doc:?}");
+    let first = items
+        .iter()
+        .find(|p| p.at("path").str() == Some("docs/testlog/testlog_26010100_a.md"))
+        .unwrap();
+    assert_eq!(first.at("_contract_item").str(), Some("keep-item"));
+}
+
+/// campaign_template_validator (policy-distribution `checks.rs` `--selftest`, fetch_sub_docs.sh `--acceptance`, the
+/// documents' `--campaign`·`--instance`·`--template`): exit 0 = pass, 1 = violations (a placeholder skeleton, a missing
+/// declaration, an instance whose acceptance predicates fail), 2 = usage; `--acceptance` judges P4·P5·P6 only (exit
+/// 0 once the main phase carries a time and the cell its provenance; fetch_sub_docs.sh only shows the result).
+#[test]
+fn campaign_template_validator_exit_codes() {
+    let c = Checkout::new("validator");
+    assert_rc(&c.validator(&["--selftest"]), 0, "--selftest");
+    assert_rc(&c.validator(&["--template"]), 0, "--template");
+    assert_rc(
+        &c.validator(&["--campaign", "campaigns/_template/campaign.yaml"]),
+        1,
+        "placeholders",
+    );
+    assert_rc(
+        &c.validator(&["--campaign", "campaigns/absent/campaign.yaml"]),
+        1,
+        "missing declaration",
+    );
+    c.open();
+    // A main-only declaration: a sub's acceptance (P4) needs the relay ledger of a delegated build, out of this check.
+    write(
+        &c.repo.join("campaigns/c-test/campaign.yaml"),
+        &main_only_declaration(),
+    );
+    write(
+        &c.repo.join("campaigns/c-test/cells/c1/config.yaml"),
+        "{}\n",
+    );
+    assert_rc(
+        &c.validator(&["--campaign", "campaigns/c-test/campaign.yaml"]),
+        0,
+        "a filled declaration",
+    );
+    assert_rc(
+        &c.validator(&["--acceptance", "campaigns/c-test"]),
+        1,
+        "--acceptance: no phase time, no cell provenance",
+    );
+    write(
+        &c.repo.join("campaigns/c-test/cells/c1/lockset.json"),
+        r#"{"provenance": "hand-authored"}"#,
+    );
+    c.ok(&[
+        "--phase-set",
+        "bench",
+        "--node",
+        "main",
+        "--cell",
+        "c1",
+        "--state",
+        "running",
+        "--proof-predicate",
+        "p",
+        "--proof-source",
+        "s",
+        "--started-utc",
+        UTC,
+        "--authored-by",
+        "main",
+    ]);
+    assert_rc(
+        &c.validator(&["--acceptance", "campaigns/c-test"]),
+        0,
+        "--acceptance",
+    );
+    let out = c.validator(&["--bogus"]);
+    assert_rc(&out, 2, "usage");
+    assert!(out.stdout.is_empty());
+    let out = c.validator(&["--help"]);
+    assert_rc(&out, 0, "--help");
+    let help = text(&out.stdout);
+    for opt in [
+        "--campaign",
+        "--instance",
+        "--template",
+        "--acceptance",
+        "--selftest",
+    ] {
+        assert!(
+            names_option(&help, opt),
+            "campaign_template_validator option {opt}"
+        );
+    }
+}
+
+/// `--cell-materialize <cell>` derives `test_device_total_gib` only when the memory-model owner, the explorer's
+/// `recipe_cmd.rs`, exists in the checkout (`campaign_write.rs` `device_total_gib`; consumers.md 「소스 본문·경로 결합」,
+/// existence only): with that file a discrete manifest (`gpu_memory_model: discrete`, `gpu_vram_mib: 2048`) gives the
+/// line `test_device_total_gib: 2.0` in the cell's `config.yaml` (the line recipe.sh reads); without it the value is
+/// `미상` (not derived), the blank stays and the cell is refused, nothing written. The other blanks are `--set` here.
+#[test]
+fn campaign_init_cell_materialize_reads_the_memory_model_owner() {
+    let owner = ".claude/skills/vllm-recipe-explorer/rust/runtime/src/recipe_cmd.rs";
+    let materialize = |with_owner: bool| {
+        let c = Checkout::new(if with_owner {
+            "materialize-owner"
+        } else {
+            "materialize-no-owner"
+        });
+        c.open();
+        write(
+            &c.repo.join("output/single/manifest.yaml"),
+            "topology: single\ngpu_model: GPU-X\ngpu_memory_model: discrete\ngpu_vram_mib: 2048\n\
+             model_source: managed\nnas_model_path: /nas\n",
+        );
+        write(
+            &c.repo.join("output/single/configs/c1.yaml"),
+            "model: /models/m\nmax-model-len: 4096\ngpu-memory-utilization: 0.5\nserved-model-name: m\n",
+        );
+        if with_owner {
+            copy_file(&root().join(owner), &c.repo.join(owner));
+        }
+        let out = c.ci(&[
+            "--cell-materialize",
+            "c1",
+            "--utc",
+            UTC,
+            "--set",
+            "tiktoken_host_path=null",
+            "--set",
+            "vram_budget_gb=1",
+            "--set",
+            "per_card_vram_gib=2",
+            "--set",
+            "ple_mode=none",
+            "--set",
+            "control_variable=contract",
+            "--set",
+            "concurrency_requirement=null",
+            "--set",
+            "typical_request_tokens=null",
+        ]);
+        let config =
+            std::fs::read_to_string(c.repo.join("campaigns/c-test/cells/c1/config.yaml")).ok();
+        (out, config)
+    };
+    let (out, config) = materialize(true);
+    assert_rc(&out, 0, "--cell-materialize with the memory-model owner");
+    let config = config.expect("config.yaml is written");
+    assert!(
+        config
+            .lines()
+            .any(|l| l.trim_end() == "test_device_total_gib: 2.0"
+                || l.starts_with("test_device_total_gib: 2.0 ")),
+        "{config}"
+    );
+    let (out, config) = materialize(false);
+    assert_ne!(
+        out.status.code(),
+        Some(0),
+        "without the owner the blank stays: {}",
+        text(&out.stderr)
+    );
+    assert!(!usage_error(&out), "{}", text(&out.stderr));
+    assert_eq!(config, None, "nothing is written for a refused cell");
+}
+
+/// The main-only filled declaration the validator passes (a sub's acceptance needs a relay ledger, out of these checks).
+fn main_only_declaration() -> String {
+    let main_only = DECL
+        .replace(
+            r#", {"node_id": "sub1", "role": "sub", "topology": "single", "hw": "gpu"}"#,
+            "",
+        )
+        .replace(
+            r#", "sub1": [{"cell": "c2", "mode": "AUTO"}, {"cell": "c3", "mode": "AUTO"}]"#,
+            "",
+        );
+    assert!(!main_only.contains("sub1"));
+    main_only
+}
+
+/// campaign_template_validator keeps the refusal of the closed places of the campaign schema (types.md 4절 「영속 문서」
+/// 2·6, `campaigns/_template/campaign.schema.json` `additionalProperties: false`, read by `campaign_validator.rs`): a
+/// key the schema does not list at the top level (a name without the `_` of the notes), in a `node`, in `matrix`, in
+/// an `assignment` item, in a `hint_target` and in its `approval` makes `--campaign` exit 1 (the violation on stderr,
+/// nothing on stdout),
+/// where the same declaration without it is exit 0; the validator never writes, so the declaration keeps its bytes.
+/// The open places stay open (exit 0): a `_`-prefixed top-level note (taken off before the schema check), a key in
+/// `budgets`, `budgets.bench_pins` and `topology_sections`. (campaign_init's own trial validation of `--assign-set`
+/// refuses only the violations a change adds, `campaign_write.rs` `assign_set`; a closed-place key already in the
+/// declaration does not stop it, so its refusal is not reachable through the writer's options.)
+#[test]
+fn campaign_template_validator_refuses_unknown_keys_in_closed_places() {
+    let c = Checkout::new("validator-closed");
+    c.open();
+    write(
+        &c.repo.join("campaigns/c-test/cells/c1/config.yaml"),
+        "{}\n",
+    );
+    let decl = c.repo.join("campaigns/c-test/campaign.yaml");
+    let base = main_only_declaration().replace(
+        r#""hint_targets": []"#,
+        r#""hint_targets": [{"node_id": "main", "cells": ["c1"], "approval": {"approved_by": "contract", "approved_utc": "2026-11-18T00:00:00Z", "source": "declaration-popup"}}]"#,
+    );
+    assert!(base.contains(r#""approved_by": "contract""#));
+    let judge = |body: &str, what: &str| {
+        write(&decl, body);
+        let out = c.validator(&["--campaign", "campaigns/c-test/campaign.yaml"]);
+        assert_eq!(
+            std::fs::read_to_string(&decl).unwrap(),
+            body,
+            "{what}: the validator does not write"
+        );
+        out
+    };
+    assert_rc(
+        &judge(&base, "control"),
+        0,
+        "the declaration without an unknown key",
+    );
+    let edit = |anchor: &str, insert: &str| {
+        assert_eq!(base.matches(anchor).count(), 1, "{anchor}");
+        base.replacen(anchor, &format!("{anchor}{insert}"), 1)
+    };
+    let closed = [
+        (
+            "top level",
+            edit(r#"{"schema_version": 1, "#, r#""contract_unknown": 1, "#),
+        ),
+        (
+            "node",
+            edit(
+                r#"{"node_id": "main", "role": "main", "#,
+                r#""contract_unknown": 1, "#,
+            ),
+        ),
+        (
+            "matrix",
+            edit(r#""matrix": {"#, r#""contract_unknown": 1, "#),
+        ),
+        (
+            "assignment",
+            edit(r#""main": [{"cell": "c1", "#, r#""contract_unknown": 1, "#),
+        ),
+        (
+            "hint_target",
+            edit(
+                r#"{"node_id": "main", "cells": ["c1"], "#,
+                r#""contract_unknown": 1, "#,
+            ),
+        ),
+        (
+            "hint_approval",
+            edit(r#""approval": {"#, r#""contract_unknown": 1, "#),
+        ),
+    ];
+    for (place, body) in &closed {
+        let out = judge(body, place);
+        assert_rc(&out, 1, &format!("an unknown key in the closed {place}"));
+        assert!(
+            out.stdout.is_empty() && !out.stderr.is_empty(),
+            "{place}: the violation is reported on stderr, nothing on stdout: {:?} / {:?}",
+            text(&out.stdout),
+            text(&out.stderr)
+        );
+    }
+    let open = [
+        (
+            "a _ note",
+            edit(r#"{"schema_version": 1, "#, r#""_contract_note": "n", "#),
+        ),
+        (
+            "budgets",
+            edit(r#""budgets": {"#, r#""contract_open": 1, "#),
+        ),
+        (
+            "budgets.bench_pins",
+            edit(r#""budgets": {"#, r#""bench_pins": {"contract_open": 1}, "#),
+        ),
+        (
+            "topology_sections",
+            edit(r#""single": {"#, r#""contract_open": 1"#),
+        ),
+    ];
+    for (place, body) in &open {
+        assert_rc(
+            &judge(body, place),
+            0,
+            &format!("an unknown key in the open {place}"),
+        );
+    }
+}
+
+/// The manifest block `scan_node --topology single --emit-manifest` writes (stdout after the JSON envelope and the
+/// `# ===== manifest 기입 블록` line) has the line shapes its readers grep (consumers.tsv scan_node rows of
+/// node_identity.sh and role-contract `identity.rs`, consumers.md 「영속 데이터」 manifest lines): exactly one top-level
+/// `self_role: main` line, exactly one `- role: main` node item, the top-level `topology: single` and the Flag lines
+/// `terraforming:` / `  complete: true`. Written to `output/single/manifest.yaml`, the real `node_identity.sh --resolve`
+/// and this crate's `node_identity_resolve` (the port of the same chain, given classify_cell's `--repo --source-owner`)
+/// both resolve it to `main`. The scan runs in
+/// a scratch git checkout on branch `single-node` with stand-ins for `nvidia-smi` and `nvcc` first on PATH (no GPU and
+/// no network are used; the rest of the host facts are read as they are and not pinned). `--emit-sub-manifest`
+/// writes nothing in the base (`scan_node_cli.rs` boundary exit), so the sub's `self_role:` line is the writer
+/// render_sub_env's (terraforming checks), not pinned here.
+#[test]
+fn scan_node_manifest_block_line_shape() {
+    let s = scratch("scan-manifest");
+    let repo = s.0.join("repo");
+    copy_file(
+        &root().join(TS).join("scan_node.sh"),
+        &repo.join(TS).join("scan_node.sh"),
+    );
+    let git = |args: &[&str]| {
+        let mut cmd = Command::new("git");
+        cmd.args([
+            "-c",
+            "user.name=contract",
+            "-c",
+            "user.email=contract@example.invalid",
+        ])
+        .args(args)
+        .current_dir(&repo);
+        let out = clean(cmd).output().unwrap();
+        assert_rc(&out, 0, &format!("git {args:?}"));
+    };
+    git(&["init", "-q", "-b", "single-node"]);
+    git(&["commit", "-q", "--allow-empty", "-m", "init"]);
+    let fake = s.0.join("fake-bin");
+    write_exe(
+        &fake.join("nvidia-smi"),
+        "#!/bin/sh\ncase \"$*\" in\n\
+         \"-L\") echo 'GPU 0: NVIDIA GB10 (UUID: GPU-contract)';;\n\
+         \"--query-gpu=name --format=csv,noheader\") echo 'NVIDIA GB10';;\n\
+         \"--query-gpu=driver_version --format=csv,noheader\") echo '580.95.05';;\n\
+         \"--query-gpu=memory.total,compute_cap --format=csv,noheader,nounits\") echo '[N/A], 12.1';;\n\
+         *) echo \"contract nvidia-smi stand-in: $*\" >&2; exit 9;;\nesac\n",
+    );
+    write_exe(
+        &fake.join("nvcc"),
+        "#!/bin/sh\necho 'Cuda compilation tools, release 13.0, V13.0.88'\n",
+    );
+    let path = format!(
+        "{}:{}",
+        fake.display(),
+        std::env::var("PATH").unwrap_or_default()
+    );
+    let out = bash(
+        &repo.join(TS).join("scan_node.sh"),
+        &os(&[
+            "--topology",
+            "single",
+            "--emit-manifest",
+            "--model-source",
+            "managed",
+        ]),
+        &repo,
+        &[
+            ("SCAN_NODE_BIN", OsStr::new(env!("CARGO_BIN_EXE_scan_node"))),
+            ("PATH", OsStr::new(&path)),
+        ],
+    );
+    assert_rc(&out, 0, "scan_node --emit-manifest");
+    let so = text(&out.stdout);
+    let (envelope, block) = so
+        .split_once("\n# ===== manifest 기입 블록")
+        .unwrap_or_else(|| panic!("no manifest block: {so}"));
+    let doc = Json::parse(envelope.trim_end())
+        .unwrap_or_else(|e| panic!("the envelope before the block is not JSON ({e}): {envelope}"));
+    assert_eq!(doc.at("gate").at("status").str(), Some("ok"));
+    let block = block
+        .split_once('\n')
+        .map(|(_, rest)| rest)
+        .unwrap_or_default();
+    let lines: Vec<&str> = block.lines().collect();
+    let count = |pred: &dyn Fn(&str) -> bool| lines.iter().filter(|l| pred(l)).count();
+    assert_eq!(
+        count(&|l| l.starts_with("self_role:")),
+        1,
+        "one top-level self_role line:\n{block}"
+    );
+    assert!(lines.contains(&"self_role: main"), "{block}");
+    let main_item = |l: &str| {
+        let t = l.trim_start();
+        t.strip_prefix('-')
+            .map(str::trim_start)
+            .and_then(|t| t.strip_prefix("role:"))
+            .map(str::trim_start)
+            .and_then(|t| t.strip_prefix("main"))
+            .is_some_and(|rest| rest.is_empty() || rest.starts_with([' ', '\t', '#']))
+    };
+    assert_eq!(count(&main_item), 1, "one `- role: main` item:\n{block}");
+    assert!(lines.contains(&"  - role: main"), "{block}");
+    assert!(lines.contains(&"topology: single"), "{block}");
+    assert!(
+        lines.contains(&"terraforming:") && lines.contains(&"  complete: true"),
+        "{block}"
+    );
+
+    let target = s.0.join("target-checkout");
+    write(&target.join("output/single/manifest.yaml"), block);
+    let mut cmd = Command::new("bash");
+    cmd.arg(root().join(TS).join("node_blackbox/node_identity.sh"))
+        .arg("--resolve")
+        .arg("--repo")
+        .arg(&target)
+        .current_dir(&s.0);
+    let out = clean(cmd).output().unwrap();
+    assert_rc(&out, 0, "node_identity.sh --resolve");
+    assert_eq!(text(&out.stdout), "main\n");
+    // the argv classify_cell's owner lookup gives it (`classify_cell_owner.rs` `--repo <repo> --source-owner <path>`)
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_node_identity_resolve"));
+    cmd.arg("--repo")
+        .arg(&target)
+        .arg("--source-owner")
+        .arg(root().join(TS).join("node_blackbox/node_identity.sh"))
+        .current_dir(&s.0);
+    let out = clean(cmd).output().unwrap();
+    assert_rc(&out, 0, "node_identity_resolve");
+    assert_eq!(text(&out.stdout), "main\n");
+}
+
+/// node_identity_resolve, the private helper of the node-identity lookup (`--repo <repo>`): exit 0 with the node id as
+/// one stdout line, 1 = fail-loud (nothing on stdout, the reason on stderr), 2 = its own usage error.
+#[test]
+fn node_identity_resolve_private_interface() {
+    let s = scratch("node-identity");
+    let run = |args: &[&OsStr]| {
+        let mut cmd = Command::new(env!("CARGO_BIN_EXE_node_identity_resolve"));
+        cmd.args(args).current_dir(&s.0);
+        clean(cmd).output().unwrap()
+    };
+    let out = run(&[]);
+    assert_rc(&out, 2, "no --repo");
+    assert!(out.stdout.is_empty());
+    let empty = s.0.join("empty");
+    std::fs::create_dir_all(&empty).unwrap();
+    let out = run(&[OsStr::new("--repo"), empty.as_os_str()]);
+    assert_rc(&out, 1, "unresolvable");
+    assert!(out.stdout.is_empty() && !out.stderr.is_empty());
+    let sub = s.0.join("sub");
+    write(
+        &sub.join("output/single/manifest.yaml"),
+        "topology: single\nself_role: sub\n",
+    );
+    let out = run(&[OsStr::new("--repo"), sub.as_os_str()]);
+    assert_rc(&out, 0, "resolved");
+    let so = text(&out.stdout);
+    assert!(
+        so.ends_with('\n') && so.trim_end().lines().count() == 1 && !so.trim().is_empty(),
+        "{so:?}"
+    );
+}
+
+/// A small RFC 8259 reader for the contract checks: the fixed surface is the parsed value (L2), so the checks read the
+/// output as JSON instead of comparing bytes. Numbers keep their source text; no dependency of the crate is used.
+mod json {
+    // Each crate's checks use a different part of this shared reader.
+    #![allow(dead_code)]
+
+    #[derive(Debug, Clone, PartialEq)]
+    pub enum Json {
+        Null,
+        Bool(bool),
+        Num(String),
+        Str(String),
+        Arr(Vec<Json>),
+        Obj(Vec<(String, Json)>),
+    }
+
+    impl Json {
+        pub fn parse(text: &str) -> Result<Json, String> {
+            let mut r = Reader {
+                b: text.as_bytes(),
+                i: 0,
+            };
+            let v = r.value()?;
+            r.ws();
+            if r.i != r.b.len() {
+                return Err(format!("text after the JSON value at byte {}", r.i));
+            }
+            Ok(v)
+        }
+        pub fn get(&self, key: &str) -> Option<&Json> {
+            match self {
+                Json::Obj(m) => m.iter().find(|(k, _)| k == key).map(|(_, v)| v),
+                _ => None,
+            }
+        }
+        /// `self[key]`, failing the check when the key is absent.
+        pub fn at(&self, key: &str) -> &Json {
+            self.get(key)
+                .unwrap_or_else(|| panic!("key {key:?} missing in {self:?}"))
+        }
+        pub fn keys(&self) -> Vec<&str> {
+            match self {
+                Json::Obj(m) => m.iter().map(|(k, _)| k.as_str()).collect(),
+                _ => Vec::new(),
+            }
+        }
+        pub fn str(&self) -> Option<&str> {
+            match self {
+                Json::Str(s) => Some(s),
+                _ => None,
+            }
+        }
+        pub fn arr(&self) -> Option<&[Json]> {
+            match self {
+                Json::Arr(a) => Some(a),
+                _ => None,
+            }
+        }
+        /// The JSON type name: null, bool, number, string, array, object.
+        pub fn kind(&self) -> &'static str {
+            match self {
+                Json::Null => "null",
+                Json::Bool(_) => "bool",
+                Json::Num(_) => "number",
+                Json::Str(_) => "string",
+                Json::Arr(_) => "array",
+                Json::Obj(_) => "object",
+            }
+        }
+        /// A list of strings (e.g. `reason_codes`), failing the check on any other shape.
+        pub fn strs(&self) -> Vec<String> {
+            let items = self
+                .arr()
+                .unwrap_or_else(|| panic!("not an array: {self:?}"));
+            items
+                .iter()
+                .map(|v| {
+                    v.str()
+                        .unwrap_or_else(|| panic!("not a string: {v:?}"))
+                        .to_string()
+                })
+                .collect()
+        }
+    }
+
+    struct Reader<'a> {
+        b: &'a [u8],
+        i: usize,
+    }
+
+    impl Reader<'_> {
+        fn ws(&mut self) {
+            while self.i < self.b.len() && matches!(self.b[self.i], b' ' | b'\t' | b'\n' | b'\r') {
+                self.i += 1;
+            }
+        }
+        fn eat(&mut self, lit: &str) -> Result<(), String> {
+            if self.b[self.i..].starts_with(lit.as_bytes()) {
+                self.i += lit.len();
+                Ok(())
+            } else {
+                Err(format!("expected {lit:?} at byte {}", self.i))
+            }
+        }
+        fn value(&mut self) -> Result<Json, String> {
+            self.ws();
+            match self.b.get(self.i) {
+                None => Err("unexpected end of input".into()),
+                Some(b'{') => {
+                    self.i += 1;
+                    let mut m = Vec::new();
+                    self.ws();
+                    if self.b.get(self.i) == Some(&b'}') {
+                        self.i += 1;
+                        return Ok(Json::Obj(m));
+                    }
+                    loop {
+                        self.ws();
+                        let k = self.string()?;
+                        self.ws();
+                        self.eat(":")?;
+                        let v = self.value()?;
+                        m.push((k, v));
+                        self.ws();
+                        match self.b.get(self.i) {
+                            Some(b',') => self.i += 1,
+                            Some(b'}') => {
+                                self.i += 1;
+                                return Ok(Json::Obj(m));
+                            }
+                            _ => return Err(format!("expected ',' or '}}' at byte {}", self.i)),
+                        }
+                    }
+                }
+                Some(b'[') => {
+                    self.i += 1;
+                    let mut a = Vec::new();
+                    self.ws();
+                    if self.b.get(self.i) == Some(&b']') {
+                        self.i += 1;
+                        return Ok(Json::Arr(a));
+                    }
+                    loop {
+                        a.push(self.value()?);
+                        self.ws();
+                        match self.b.get(self.i) {
+                            Some(b',') => self.i += 1,
+                            Some(b']') => {
+                                self.i += 1;
+                                return Ok(Json::Arr(a));
+                            }
+                            _ => return Err(format!("expected ',' or ']' at byte {}", self.i)),
+                        }
+                    }
+                }
+                Some(b'"') => Ok(Json::Str(self.string()?)),
+                Some(b't') => self.eat("true").map(|_| Json::Bool(true)),
+                Some(b'f') => self.eat("false").map(|_| Json::Bool(false)),
+                Some(b'n') => self.eat("null").map(|_| Json::Null),
+                Some(c) if *c == b'-' || c.is_ascii_digit() => {
+                    let start = self.i;
+                    while self.i < self.b.len()
+                        && matches!(
+                            self.b[self.i],
+                            b'-' | b'+' | b'.' | b'e' | b'E' | b'0'..=b'9'
+                        )
+                    {
+                        self.i += 1;
+                    }
+                    let t = std::str::from_utf8(&self.b[start..self.i])
+                        .unwrap()
+                        .to_string();
+                    t.parse::<f64>()
+                        .map_err(|e| format!("bad number {t:?}: {e}"))?;
+                    Ok(Json::Num(t))
+                }
+                Some(c) => Err(format!("unexpected byte {c:#x} at {}", self.i)),
+            }
+        }
+        fn hex4(&mut self) -> Result<u32, String> {
+            let h = self.b.get(self.i..self.i + 4).ok_or("short \\u escape")?;
+            let v = u32::from_str_radix(std::str::from_utf8(h).map_err(|e| e.to_string())?, 16)
+                .map_err(|e| e.to_string())?;
+            self.i += 4;
+            Ok(v)
+        }
+        fn string(&mut self) -> Result<String, String> {
+            self.eat("\"")?;
+            let mut out = Vec::new();
+            loop {
+                let c = *self.b.get(self.i).ok_or("unterminated string")?;
+                self.i += 1;
+                match c {
+                    b'"' => return String::from_utf8(out).map_err(|e| e.to_string()),
+                    b'\\' => {
+                        let e = *self.b.get(self.i).ok_or("unterminated escape")?;
+                        self.i += 1;
+                        let ch = match e {
+                            b'"' => '"',
+                            b'\\' => '\\',
+                            b'/' => '/',
+                            b'b' => '\u{8}',
+                            b'f' => '\u{c}',
+                            b'n' => '\n',
+                            b'r' => '\r',
+                            b't' => '\t',
+                            b'u' => {
+                                let hi = self.hex4()?;
+                                let code = if (0xD800..0xDC00).contains(&hi) {
+                                    self.eat("\\u")?;
+                                    let lo = self.hex4()?;
+                                    0x10000 + ((hi - 0xD800) << 10) + (lo - 0xDC00)
+                                } else {
+                                    hi
+                                };
+                                char::from_u32(code).ok_or("lone surrogate")?
+                            }
+                            _ => return Err(format!("bad escape at byte {}", self.i)),
+                        };
+                        let mut buf = [0u8; 4];
+                        out.extend_from_slice(ch.encode_utf8(&mut buf).as_bytes());
+                    }
+                    c if c < 0x20 => return Err(format!("control byte in string at {}", self.i)),
+                    c => out.push(c),
+                }
+            }
+        }
+    }
+}

@@ -333,3 +333,8 @@ path = "checks/wheelhouse_checks.rs"
 [[test]]
 name = "native_multinode_checks"
 path = "checks/native_multinode_checks.rs"
+
+# Contract checks of the fixed surface (plan 26111805, cell c21b-contract-tests).
+[[test]]
+name = "contract_checks"
+path = "checks/contract_checks.rs"

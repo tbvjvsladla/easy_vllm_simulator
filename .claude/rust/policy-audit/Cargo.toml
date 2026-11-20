@@ -38,6 +38,10 @@ path = "checks/harness_checks.rs"
 name = "schema_v3_checks"
 path = "checks/schema_v3_checks.rs"
 
+[[test]]
+name = "contract_checks"
+path = "checks/contract_checks.rs"
+
 [dependencies]
 agent-runtime-support = { path = "../runtime-support" }
 upstream-runtime = { path = "../../skills/upstream-version-watch/rust/runtime" }
