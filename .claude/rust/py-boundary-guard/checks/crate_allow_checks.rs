@@ -1,5 +1,7 @@
 //! crate_allow (plan 26111805 D2·D9, cell c20): temporary git repositories with tracked locks, an allowlist, a notice
 //! and a fake Cargo home; the real binary, its exit code (0/1/2) and its finding lines.
+use std::ffi::OsStr;
+use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
@@ -66,7 +68,10 @@ fn notice(rows: &[(&str, &str, &str)]) -> String {
     text
 }
 
-/// A repository whose one tracked lock pins `syn 3.0.9` (and a path package), fully listed, noticed and downloaded.
+const HARNESS_MANIFEST: &str = "[package]\nname = \"a\"\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[dependencies]\nsyn = { version = \"3.0.9\" }\n";
+
+/// A repository whose one tracked lock pins `syn 3.0.9` and the harness package `a 0.1.0` (its tracked `a/Cargo.toml`
+/// sits beside the lock), fully listed, noticed and downloaded.
 fn clean_repo(name: &str) -> Repo {
     let dir = std::env::temp_dir().join(format!("crate-allow-{}-{}", name, std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
@@ -88,7 +93,8 @@ fn clean_repo(name: &str) -> Repo {
         &notice(&[("syn", "3.0.9", "MIT OR Apache-2.0")]),
     );
     downloaded(&dir, "syn", "3.0.9", "MIT OR Apache-2.0");
-    git(&dir, &["add", "a/Cargo.lock"]);
+    write(&dir, "a/Cargo.toml", HARNESS_MANIFEST);
+    git(&dir, &["add", "a/Cargo.lock", "a/Cargo.toml"]);
     Repo(dir)
 }
 
@@ -128,9 +134,55 @@ fn listed_noticed_and_downloaded_release_passes_with_the_marker_last() {
     );
     assert_eq!(text.lines().last(), Some("DEPS-ALLOW-PASS"));
     assert!(
-        text.contains("1 tracked Cargo.lock · 1 external releases pinned"),
+        text.contains("1 tracked Cargo.lock · 1 external releases pinned · 1 path packages, 1 harness manifests"),
         "{text}"
     );
+}
+
+#[test]
+fn a_path_package_must_be_a_tracked_manifest_beside_a_tracked_lock() {
+    // A source-less package that no manifest declares (a vendored copy named only in the lock).
+    let repo = clean_repo("path-stray");
+    write(
+        &repo.0,
+        "a/Cargo.lock",
+        &lock(&[
+            ("a", "0.1.0", None),
+            ("vendored", "1.0.0", None),
+            ("syn", "3.0.9", Some(CRATES_IO)),
+        ]),
+    );
+    assert_violation(&check(&repo), "path-unknown", "vendored@1.0.0");
+
+    // The manifest beside the lock declares another version than the lock pins.
+    let repo = clean_repo("path-version");
+    write(&repo.0, "a/Cargo.toml", &HARNESS_MANIFEST.replace("0.1.0", "0.2.0"));
+    git(&repo.0, &["add", "a/Cargo.toml"]);
+    assert_violation(&check(&repo), "path-unknown", "a@0.1.0");
+
+    // A tracked manifest without its own tracked lock is not a harness package.
+    let repo = clean_repo("path-vendored");
+    write(
+        &repo.0,
+        "a/Cargo.lock",
+        &lock(&[
+            ("a", "0.1.0", None),
+            ("v", "1.0.0", None),
+            ("syn", "3.0.9", Some(CRATES_IO)),
+        ]),
+    );
+    write(
+        &repo.0,
+        "a/vendor/v/Cargo.toml",
+        "[package]\nname = \"v\"\nversion = \"1.0.0\"\n",
+    );
+    git(&repo.0, &["add", "a/vendor/v/Cargo.toml"]);
+    assert_violation(&check(&repo), "path-unknown", "v@1.0.0");
+
+    // The manifest of the lock's own crate untracked: its package is unknown too.
+    let repo = clean_repo("path-untracked");
+    git(&repo.0, &["rm", "-q", "--cached", "a/Cargo.toml"]);
+    assert_violation(&check(&repo), "path-unknown", "a@0.1.0");
 }
 
 #[test]
@@ -247,6 +299,104 @@ fn git_source_is_refused_even_when_listed() {
         &lock(&[("syn", "3.0.9", Some("git+https://example.invalid/syn#0"))]),
     );
     assert_violation(&check(&repo), "source", "syn@3.0.9");
+}
+
+fn assert_exit_2(out: &Output, stderr_has: &str) {
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert_eq!(out.status.code(), Some(2), "{}{err}", stdout(out));
+    assert!(err.contains(stderr_has), "'{stderr_has}' not in: {err}");
+    assert!(!stdout(out).contains("DEPS-ALLOW-PASS"));
+}
+
+#[test]
+fn unreadable_or_repeated_lock_keys_exit_2() {
+    let repo = clean_repo("literal-source");
+    write(
+        &repo.0,
+        "a/Cargo.lock",
+        &lock(&[("a", "0.1.0", None)]).replace(
+            "version = \"0.1.0\"\n",
+            "version = \"0.1.0\"\n\n[[package]]\nname = \"syn\"\nversion = \"3.0.9\"\nsource = 'registry+https://github.com/rust-lang/crates.io-index'\n",
+        ),
+    );
+    assert_exit_2(&check(&repo), "the source value of the [[package]]");
+
+    let repo = clean_repo("twice");
+    write(
+        &repo.0,
+        "a/Cargo.lock",
+        &lock(&[("a", "0.1.0", None), ("syn", "3.0.9", Some(CRATES_IO))])
+            .replace("version = \"3.0.9\"\n", "version = \"3.0.9\"\nversion = \"3.0.8\"\n"),
+    );
+    assert_exit_2(&check(&repo), "a second version");
+
+    let repo = clean_repo("empty-lock");
+    write(&repo.0, "a/Cargo.lock", "version = 4\n");
+    assert_exit_2(&check(&repo), "no [[package]] entry");
+}
+
+#[test]
+fn no_tracked_lock_exits_2() {
+    let repo = clean_repo("nolock");
+    git(&repo.0, &["rm", "-q", "--cached", "a/Cargo.lock"]);
+    assert_exit_2(&check(&repo), "no tracked Cargo.lock");
+}
+
+#[test]
+fn unreadable_harness_manifest_exits_2() {
+    let repo = clean_repo("workspace-version");
+    write(
+        &repo.0,
+        "a/Cargo.toml",
+        "[package]\nname = \"a\"\nversion.workspace = true\n",
+    );
+    assert_exit_2(&check(&repo), "a/Cargo.toml: no [package] name or no [package] version");
+}
+
+#[test]
+fn a_second_notice_row_for_a_release_exits_2() {
+    let repo = clean_repo("notice-twice");
+    write(
+        &repo.0,
+        NOTICE_REL,
+        &notice(&[
+            ("syn", "3.0.9", "MIT OR Apache-2.0"),
+            ("syn", "3.0.9", "MIT OR Apache-2.0"),
+        ]),
+    );
+    assert_exit_2(&check(&repo), "syn@3.0.9 has a row already");
+}
+
+#[test]
+fn non_utf8_arguments_and_tracked_lock_paths_exit_2() {
+    let repo = clean_repo("non-utf8-arg");
+    let mut bad = repo.0.clone().into_os_string();
+    bad.push(OsStr::from_bytes(b"/\xff"));
+    let out = Command::new(bin())
+        .args(["check", "--repo"])
+        .arg(&bad)
+        .output()
+        .unwrap();
+    assert_exit_2(&out, "an argument is not UTF-8");
+    let out = Command::new(bin())
+        .arg(OsStr::from_bytes(b"ch\xffck"))
+        .output()
+        .unwrap();
+    assert_exit_2(&out, "an argument is not UTF-8");
+
+    let repo = clean_repo("non-utf8-lock");
+    let odd = repo.0.join(OsStr::from_bytes(b"\xffb"));
+    std::fs::create_dir_all(&odd).unwrap();
+    std::fs::write(odd.join("Cargo.lock"), lock(&[("syn", "3.0.9", Some(CRATES_IO))])).unwrap();
+    let s = Command::new("git")
+        .arg("-C")
+        .arg(&repo.0)
+        .args(["add", "--"])
+        .arg(odd.join("Cargo.lock"))
+        .status()
+        .unwrap();
+    assert!(s.success(), "git add of a non-UTF-8 path");
+    assert_exit_2(&check(&repo), "a tracked Cargo.lock path is not UTF-8");
 }
 
 #[test]

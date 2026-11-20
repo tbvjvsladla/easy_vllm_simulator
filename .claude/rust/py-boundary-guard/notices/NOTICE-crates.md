@@ -7,7 +7,8 @@
 - 검사: `bash .claude/rust/py-boundary-guard/crate_allow.sh check`는 모든 추적 `Cargo.lock`의 외부 패키지가 이 표에 같은 판·`license`로
   있는지 본다. `license`는 패키지 manifest의 SPDX 식 그대로다.
 - 패키지를 처음 들이는 cell은 `Cargo.lock`을 바꾸는 같은 커밋에서 이 표에 행을 더한다. 승인된 허용 목록
-  (`crate_allowlist.tsv`)에 있으나 아직 어느 lock에도 없는 판은 여기 적지 않는다.
+  (`crate_allowlist.tsv`)에 있으나 아직 어느 lock에도 없는 판은 여기 적지 않는다. 허용 목록 머리 주석도 같은 규칙이다.
+- 검사기는 `crate`·`version`·`license` 칸만 읽는다. `used by` 칸은 이 표를 쓴 시점(h9, base `ead7087d`)의 값이며 유지 대상이 아니다.
 - 크레이트 일부를 옮겨 적은 경우(소스 이식)의 고지는 각 크레이트의 `notices/NOTICE*.md`가 따로 맡는다.
 
 | crate | version | license | used by |

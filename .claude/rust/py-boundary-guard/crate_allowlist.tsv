@@ -4,7 +4,10 @@
 # 열: crate · version(정확한 판) · license(manifest SPDX 식 그대로) · transitive(그 패키지에서 닿는 서로 다른 패키지 수, 모든 플랫폼, 행을 쓸 때 잰 값)
 #   · scope(그 판에 닿는 하네스 크레이트의 의존 절 runtime|dev|build, 쉼표로 이음 — 전이 의존의 빌드 스크립트 의존도 그 절로 센다) · origin(existing = base 의 Cargo.lock 에 이미 있음, new = 이 제안으로 처음 들임)
 #   · locks(그 판을 고정한 크레이트 키, crates.tsv) · use(용도) · reason(사유·전망). '#' 줄과 빈 줄은 주석이다. 칸에 탭을 쓰지 않는다.
-# 목록 밖 크레이트는 cell 별 추가안으로 사람이 승인한 뒤 행을 더한다(D9). 행을 더할 때 notices/NOTICE-crates.md 에도 같은 판·license 로 적는다.
+# 검사기는 crate·version·license 만 읽는다. transitive·scope·origin·locks 는 h9 승인 시점(c20, base ead7087d)의 값이며 유지 대상이 아니다
+#   (lock 이 바뀌어도 고치지 않는다. 지금 값은 Cargo.lock 에서 다시 잰다). use·reason 은 사람용 설명이다.
+# 목록 밖 크레이트는 cell 별 추가안으로 사람이 승인한 뒤 행을 더한다(D9). NOTICE(notices/NOTICE-crates.md) 행은 그 판을 처음 Cargo.lock 에 고정하는
+#   커밋에서 같은 판·license 로 더한다. 아직 어느 lock 에도 없는 판은 NOTICE 에 적지 않는다(NOTICE 머리와 같은 규칙, 검사기는 고정된 판만 대조한다).
 crate	version	license	transitive	scope	origin	locks	use	reason
 adler2	2.0.1	0BSD OR MIT OR Apache-2.0	0	runtime	existing	policy-audit,policy-predicates,policy-selftest,terraforming,upstream-runtime	전이 의존(miniz_oxide)	기존 Cargo.lock 고정(base ead7087d) · 부모 크레이트를 따라 유지·퇴역
 aho-corasick	1.1.5	Unlicense OR MIT	1	runtime	existing	adversarial-benchmark,hint-publisher,policy-audit,policy-distribution,policy-predicates,policy-selftest,upstream-runtime	전이 의존(regex-automata)	기존 Cargo.lock 고정(base ead7087d) · 부모 크레이트를 따라 유지·퇴역

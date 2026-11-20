@@ -85,8 +85,8 @@ fn cells(row: &str) -> Vec<String> {
 }
 
 /// Rows of every Markdown table in the notice whose header names the cells `crate`, `version` and `license` (in any
-/// order, among other cells). Prose and other tables are ignored. A table row with fewer cells than its header is
-/// an input error.
+/// order, among other cells). Prose and other tables are ignored. A table row with fewer cells than its header, and a
+/// second row for the same `crate@version`, are input errors.
 pub fn parse_notice(text: &str) -> Result<Vec<NoticeEntry>, String> {
     let mut entries = Vec::new();
     let mut columns: Option<(usize, [usize; 3])> = None; // (header width, [crate, version, license])
@@ -116,6 +116,17 @@ pub fn parse_notice(text: &str) -> Result<Vec<NoticeEntry>, String> {
                         "notice line {}: {} cells, the table header has {width}",
                         i + 1,
                         row.len()
+                    ));
+                }
+                if entries
+                    .iter()
+                    .any(|e: &NoticeEntry| e.name == row[c] && e.version == row[v])
+                {
+                    return Err(format!(
+                        "notice line {}: {}@{} has a row already",
+                        i + 1,
+                        row[c],
+                        row[v]
                     ));
                 }
                 entries.push(NoticeEntry {
@@ -180,5 +191,7 @@ mod tests {
             (rows[0].name.as_str(), rows[0].license.as_str()),
             ("syn", "MIT OR Apache-2.0")
         );
+        let twice = format!("{md}| syn | 3.0.9 | MIT | again |\n");
+        assert!(parse_notice(&twice).is_err(), "a second row for syn@3.0.9");
     }
 }
