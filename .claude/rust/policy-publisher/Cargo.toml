@@ -19,6 +19,11 @@ path = "src/bin/evidence_publisher.rs"
 name = "golden_scenarios"
 path = "checks/golden_scenarios.rs"
 
+# Contract checks of the fixed surface (plan 26111805, cell c21c-contract-tests).
+[[test]]
+name = "contract_checks"
+path = "checks/contract_checks.rs"
+
 [dependencies]
 # Python-compatible JSON values, repr and text semantics (local path dependency).
 agent-runtime-support = { path = "../runtime-support" }
