@@ -26946,6 +26946,300 @@
           "provenance": "agent-judged"
         }
       ]
+    },
+    {
+      "entry_id": "sync-202611202154-single-to-multi-contract-checks",
+      "utc": "2026-11-20T21:54:24Z",
+      "departure": "single-node",
+      "departure_commit": "f93f17488ee99357ff241940bae899d367cff359",
+      "approved_by": "AhnSangHun: 중계 답 원문 \"① 이대로 승인 (워커 권고)\" (질문 n-c0-classification · val_agent 오케스트레이터 중계 h71 · source=user · 2026-11-20T22:06:28.313Z)",
+      "approved_utc": "2026-11-20T22:06:28Z",
+      "_reach": "multi-node vs HEAD 트리차이 · 동기 지점 67fd5fb932a9(departure-landed)",
+      "_note": "47행 전부 common_promote. 행 집합 = git diff --name-only 67fd5fb9 f93f1748 47경로(A 31 · M 16 · D 0 · g-c0 계약·인벤토리 묶음 32커밋)와 같다. 기존 고정 표면(plan_26111808 §2.3)을 바꾸는 행은 없다 — 새 bin crate_allow 와 새 목록 crate_allowlist.tsv 는 표면을 더한 것이고, 기존 목록 두 개(rs_python_allowlist.tsv · verdict_clock_allowlist.tsv)는 열·키 모양이 그대로인 행 변경으로 §8 행 HITL(h13 · h41)이 승인했다.",
+      "classification": [
+        {
+          "file": ".claude/rust/parity/Cargo.toml",
+          "verdict": "common_promote",
+          "reason": "공통 크레이트 parity 의 매니페스트. [[test]] contract_checks 타깃 1개와 주석 1줄만 더했다(의존·bin 변경 없음). 토폴로지 분기 없음. 원장 과거 판정 common_promote.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/parity/checks/contract_checks.rs",
+          "verdict": "common_promote",
+          "reason": "새 공통 계약 시험 — parity bin 의 고정 표면(플래그·종료 코드·stdout)을 검사한다. 픽스처는 임시 폴더에 만들고 체크아웃 토폴로지에 기대지 않는다. g-c0 묶음 4(plan_26111808 §5 174행) · w-c0 배달 승인 h61.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/Cargo.toml",
+          "verdict": "common_promote",
+          "reason": "공통 크레이트 policy-audit 의 매니페스트. [[test]] contract_checks 타깃 1개만 더했다. 토폴로지 분기 없음. 원장 과거 판정 common_promote.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-audit/checks/contract_checks.rs",
+          "verdict": "common_promote",
+          "reason": "새 공통 계약 시험 — policy_registry·harness_verify 의 고정 표면을 검사한다(g-nc 뒤 --as-of·--policy-as-of·달력 날짜 없음 · CKG-001…012). 양 브랜치가 같은 registry v3 를 읽으므로 공통이다. h61.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-distribution/Cargo.toml",
+          "verdict": "common_promote",
+          "reason": "공통 크레이트 policy-distribution 의 매니페스트. [[test]] contract_checks 타깃 1개만 더했다. 토폴로지 분기 없음. 원장 과거 판정 common_promote.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-distribution/checks/contract_checks.rs",
+          "verdict": "common_promote",
+          "reason": "새 공통 계약 시험 — verify_distribution 의 고정 표면(g-nc 뒤 --as-of 없음 · CKG-001…012)을 검사한다. 실시계 기본값을 고정하던 observed_reference_date_is_recorded 는 g-nc 가 그 기본값을 지워 뺐다(test_delta td-gc0-pd-observed · h42 승인). 배포 검사는 양 브랜치에 같다. h61.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-gate/Cargo.toml",
+          "verdict": "common_promote",
+          "reason": "공통 크레이트 policy-gate 의 매니페스트. [[test]] contract_checks 타깃 1개와 주석 1줄만 더했다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-gate/checks/contract_checks.rs",
+          "verdict": "common_promote",
+          "reason": "새 공통 계약 시험 — policy-gate bin(completion_gate·doc_naming 등)의 고정 표면을 검사한다. 토폴로지 분기 없음. h61.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-predicates/Cargo.toml",
+          "verdict": "common_promote",
+          "reason": "공통 크레이트 policy-predicates 의 매니페스트. [[test]] contract_checks 타깃 1개와 주석 1줄만 더했다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-predicates/checks/contract_checks.rs",
+          "verdict": "common_promote",
+          "reason": "새 공통 계약 시험 — claim·companion·runtime_patch 술어의 고정 표면을 검사한다. 토폴로지 분기 없음. h61.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-publisher/Cargo.toml",
+          "verdict": "common_promote",
+          "reason": "공통 크레이트 policy-publisher 의 매니페스트. [[test]] contract_checks 타깃 1개와 주석 1줄만 더했다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-publisher/checks/contract_checks.rs",
+          "verdict": "common_promote",
+          "reason": "새 공통 계약 시험 — evidence_publisher 의 고정 표면(명령·거부 보존 등)을 검사한다. 토폴로지 분기 없음. h61.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-selftest/Cargo.toml",
+          "verdict": "common_promote",
+          "reason": "공통 크레이트 policy-selftest 의 매니페스트. [[test]] contract_checks 타깃 1개와 주석 1줄만 더했다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-selftest/checks/contract_checks.rs",
+          "verdict": "common_promote",
+          "reason": "새 공통 계약 시험 — runtime_selftest·antipattern_scan·constitution_lint 의 고정 표면(훅·completion_gate 가 부르는 --tripwires-only 등)을 검사한다. 토폴로지 분기 없음. h61.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/py-boundary-guard/Cargo.toml",
+          "verdict": "common_promote",
+          "reason": "공통 크레이트 py-boundary-guard 의 매니페스트. 새 [[bin]] crate_allow 와 [[test]] crate_allow_checks·contract_checks 를 더했다(외부 의존 변경 없음 · Cargo.lock 불변). 새 bin 은 표면을 더한 것이며 기존 고정 표면 변경이 아니다. 원장 과거 판정 common_promote.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/py-boundary-guard/checks/contract_checks.rs",
+          "verdict": "common_promote",
+          "reason": "새 공통 계약 시험 — py_boundary_guard·inline_python_scan·verdict_clock_scan 의 고정 표면을 검사한다. 토폴로지 분기 없음. h61.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/py-boundary-guard/checks/crate_allow_checks.rs",
+          "verdict": "common_promote",
+          "reason": "새 공통 시험 — crate_allow 의 Cargo.lock·라이선스·NOTICE 대조와 닫힌 하네스 크레이트 목록 16개·종료 2 사례를 검사한다. 양 브랜치의 16 크레이트가 같다. h61.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/py-boundary-guard/crate_allow.sh",
+          "verdict": "common_promote",
+          "reason": "새 공통 런처 crate_allow.sh — plan_26111808 §8 이 범위에 넣은 crate_allowlist.tsv 의 집행자(crate_allow check). 양 브랜치의 크레이트 Cargo.lock 을 같은 규칙으로 대조한다. 토폴로지 분기 없음. h61.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/py-boundary-guard/crate_allowlist.tsv",
+          "verdict": "common_promote",
+          "reason": "새 공통 목록 — 허용 크레이트 85행과 허용 라이선스(plan_26111808 §8 신설 · h9 승인). 양 브랜치의 같은 16 Cargo.lock 을 대조하므로 한쪽에만 두면 반대쪽 crate_allow 가 실패한다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/py-boundary-guard/notices/NOTICE-crates.md",
+          "verdict": "common_promote",
+          "reason": "새 공통 크레이트 NOTICE(80행) — crate_allow 가 crate_allowlist.tsv 와 대조하는 라이선스 고지. 목록과 같은 층이다. h9·h61.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/py-boundary-guard/rs_python_allowlist.tsv",
+          "verdict": "common_promote",
+          "reason": "공통 임시 목록(plan_26111808 §8). 4–12행(9행)의 대체 cell 열만 c43-upstream-runtime → c43c-upstream-wheelhouse 로 바꿨다(h10 분할 · h13 행 승인). 경로·호출·개수·사유 열과 승인 키(경로|호출|개수)는 그대로라 inline_python_scan .rs 모드가 같은 판정을 낸다. 원장 과거 판정 common_promote.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/py-boundary-guard/src/crate_allow/harness.rs",
+          "verdict": "common_promote",
+          "reason": "새 공통 소스 — crate_allow 의 하네스 크레이트 판별(닫힌 목록 16 · path 패키지는 추적 하네스 매니페스트에서만). 토폴로지 분기 없음. h61.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/py-boundary-guard/src/crate_allow/license.rs",
+          "verdict": "common_promote",
+          "reason": "새 공통 소스 — crate_allow 의 라이선스 식 판정. 토폴로지 분기 없음. h61.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/py-boundary-guard/src/crate_allow/lockfile.rs",
+          "verdict": "common_promote",
+          "reason": "새 공통 소스 — crate_allow 의 Cargo.lock 읽기(Cargo 가 쓰지 않는 머리·읽을 수 없는 키·lock 없음·비 UTF-8 경로는 종료 2). 토폴로지 분기 없음. h61.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/py-boundary-guard/src/crate_allow/main.rs",
+          "verdict": "common_promote",
+          "reason": "새 공통 bin crate_allow 의 진입점(check 하위 명령 · 요약 줄). 표면을 새로 더한 것이며 기존 고정 표면 변경이 아니다. 토폴로지 분기 없음. h61.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/py-boundary-guard/src/crate_allow/registry.rs",
+          "verdict": "common_promote",
+          "reason": "새 공통 소스 — crate_allow 의 crates.io 판 대조. 토폴로지 분기 없음. h61.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/py-boundary-guard/src/crate_allow/tables.rs",
+          "verdict": "common_promote",
+          "reason": "새 공통 소스 — crate_allowlist.tsv·NOTICE 표 읽기. 토폴로지 분기 없음. h61.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/py-boundary-guard/verdict_clock_allowlist.tsv",
+          "verdict": "common_promote",
+          "reason": "공통 시계 허용목록(CLAUDE.md 공통 불변식 h20 의 집행자 verdict_clock_scan 이 읽는다). g-c0 계약 시험의 시계 읽기 16행을 더했다(254 → 270 · record-only 13 · runtime-fact 3 · h21 CKG keep-allow · h41 행 승인 · plan_26111919 47행 규칙). 열 모양은 그대로다. 계약 시험이 양 브랜치에 같이 가므로 목록도 같이 가야 반대쪽 스캔이 깨지지 않는다. 원장 과거 판정 common_promote.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/runtime-support/contract/consumers.md",
+          "verdict": "common_promote",
+          "reason": "새 공통 계약 문서 — runtime-support 네이티브 계층의 소비자·영속 데이터 인벤토리(묶음 4 · 묶음 5 의 입력). 줄 번호는 W(single-node) 조사 시점 기록이며 시험이 읽지 않는다(추적 .rs 의 contract/ 언급은 계약 시험 머리 주석뿐 · 파일을 여는 코드 없음). 토폴로지 분기 없음. h61.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/runtime-support/contract/consumers.tsv",
+          "verdict": "common_promote",
+          "reason": "새 공통 인벤토리 표 — 런처·환경 변수·소비자 줄 목록(묶음 4 · g-nc 뒤 policy_registry·harness_verify·verify_distribution 행의 --as-of 제거 CKG-031 · staleness_gate 행의 --now·--max-age-days 제거 r3-gc0-B1). 일부 행이 양 토폴로지의 소비자(strategy.topology.md·orchestration.topology.md)를 함께 적지만 한쪽 토폴로지에서만 참인 내용은 없다. 계약 시험 머리 주석이 이 표의 행을 근거로 들 뿐 파일을 여는 코드는 없다. h61.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/runtime-support/contract/divergence_kinds.md",
+          "verdict": "common_promote",
+          "reason": "새 공통 계약 문서 — divergence 종류 정의(plan_26111808 §2.3 의 고정 표면 밖 차이 분류). 토폴로지 분기 없음. h61.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/runtime-support/contract/entrypoints.tsv",
+          "verdict": "common_promote",
+          "reason": "새 공통 인벤토리 표 — 16 크레이트 진입점 목록(묶음 4 · 묶음 13 pyexec strace 대상). 양 브랜치의 진입점이 같다. h61.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/runtime-support/contract/types.md",
+          "verdict": "common_promote",
+          "reason": "새 공통 계약 문서 — 네이티브 형 계약(텍스트·값·JSON·YAML 변환 규칙 · 묶음 5 의 설계 입력). 토폴로지 분기 없음. h61.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/runtime-support/contract/yaml_inputs.tsv",
+          "verdict": "common_promote",
+          "reason": "새 공통 인벤토리 표 — 추적 YAML 입력 목록(묶음 7·13 처분의 입력). 토폴로지 분기 없음. h61.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/Cargo.toml",
+          "verdict": "common_promote",
+          "reason": "공통 크레이트 adversarial-benchmark 의 매니페스트. [[test]] contract_checks·contract_checks_campaign 타깃 2개와 주석만 더했다. 토폴로지 분기 없음. 원장 과거 판정 common_promote.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/contract_checks.rs",
+          "verdict": "common_promote",
+          "reason": "새 공통 계약 시험 — 벤치 파이프라인 bin 과 topology_parity 등의 고정 표면을 검사한다. topology 문자열은 임시 저장소 픽스처에서 두 값을 함께 쓰며 체크아웃 브랜치에 기대지 않는다. h61.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/contract_checks_campaign.rs",
+          "verdict": "common_promote",
+          "reason": "새 공통 계약 시험 — campaign_init·manifest_contract·scan_node·turn_budget·node_identity_resolve 의 고정 표면(닫힌 캠페인 스키마·parity legs 객체 등)을 검사한다. 픽스처 저장소가 스스로 branch·layer 를 선언한다. h61.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/rust/Cargo.toml",
+          "verdict": "common_promote",
+          "reason": "공통 크레이트 hint-publisher 의 매니페스트. [[test]] contract_checks 타깃 1개와 주석 1줄만 더했다. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/rust/checks/contract_checks.rs",
+          "verdict": "common_promote",
+          "reason": "새 공통 계약 시험 — hint bin(catalog derive·classify · match 인자 탐침 · resolved.json 읽기)의 고정 표면을 검사한다. HINTS.md·hints/index.json 은 임시 폴더 픽스처로만 쓰며 W 의 특화층 사본을 읽지 않는다. h61.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/Cargo.toml",
+          "verdict": "common_promote",
+          "reason": "공통 크레이트 terraforming 의 매니페스트. [[test]] contract_checks 타깃 1개만 더했다. 토폴로지 분기 없음. 원장 과거 판정 common_promote.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/checks/contract_checks.rs",
+          "verdict": "common_promote",
+          "reason": "새 공통 계약 시험 — terraforming bin(render_sub_env·staleness_gate(나이 축 뒤)·blackbox·relay 등)의 고정 표면을 검사한다. staleness_gate 셀프테스트 하한 26→24 와 옵션 목록에서 --now·--max-age-days 제외는 g-nc D17·D18 을 따른 것이다(h42 승인). render 시험은 체크아웃 헌법의 자기선언 헤더(**topology: <t>**)를 읽어 그 값으로 돌므로 양 브랜치에서 각자 맞게 돈다. h61.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/rust/runtime/Cargo.toml",
+          "verdict": "common_promote",
+          "reason": "공통 크레이트 upstream-runtime 의 매니페스트. [[test]] contract_checks 타깃 1개와 주석 1줄만 더했다. 토폴로지 분기 없음. 원장 과거 판정 common_promote.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/rust/runtime/checks/contract_checks.rs",
+          "verdict": "common_promote",
+          "reason": "새 공통 계약 시험 — upstream bin(layer_ledger·resolved.json writer·judge 등)의 고정 표면을 검사한다. 원장은 임시 저장소 픽스처로 만들며 W 원장을 읽지 않는다. 토폴로지 분기 없음. h61.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/rust/runtime/Cargo.toml",
+          "verdict": "common_promote",
+          "reason": "공통 크레이트 recipe-runtime 의 매니페스트. [[test]] contract_checks 타깃 1개와 주석 1줄만 더했다. 토폴로지 분기 없음. 원장 과거 판정 common_promote.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/rust/runtime/checks/contract_checks.rs",
+          "verdict": "common_promote",
+          "reason": "새 공통 계약 시험 — recipe bin(recipe·run_trial 등)의 고정 표면을 검사한다. 토폴로지 분기 없음. h61.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/wiki-desk/rust/Cargo.toml",
+          "verdict": "common_promote",
+          "reason": "공통 크레이트 wiki-desk-oracle 의 매니페스트. autotests = false(tests/ 는 scratch 이름)와 [[test]] contract_checks 타깃을 더했다. 토폴로지 분기 없음. 원장 과거 판정 common_promote.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/wiki-desk/rust/checks/contract_checks.rs",
+          "verdict": "common_promote",
+          "reason": "새 공통 계약 시험 — yaml11_oracle 의 고정 표면을 검사한다. 토폴로지 분기 없음. h61.",
+          "provenance": "agent-judged"
+        }
+      ]
     }
   ]
 }
