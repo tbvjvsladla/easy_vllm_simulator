@@ -158,18 +158,138 @@ c21은 아래 계약을 bin별 계약 시험에 우선 고정한다. 근거 줄�
   도구는 Rust 런처 `.claude/skills/terraforming_node/scripts/node_blackbox/blackbox_session.sh`(bin `blackbox_session`, 서브는 `render_sub_env`가 배달한
   `.claude/runtime/node_blackbox/`)다. 옛 실행 상태가 옛 이름을 적었으면 `session_launcher()`(같은 파일 :1847)가 형제 `.sh`로 바꾼다.
   추적 `.rs`·`.sh`에서 세션 도구가 Python을 띄우는 자리는 없다(c10 `.rs` 모드 허용목록에 세션 도구 행이 없다). 이식·컨테이너 폴백 판단이 필요 없다.
-- **native multinode `pip freeze`(rs 허용목록 행, 대체 cell c43)는 하네스 기동이다(최종 0 대상).** `native_multinode/up.rs:720`이 `wheelhouse verify` 뒤
-  서빙 venv의 `<root>/venv/bin/python -m pip freeze --all`(`native_multinode.rs:1116`)을 메인은 직접, 서브는 고정 러너로 돌려 설치 집합을 simlog에 남긴다.
-  서빙 자체가 아니라 하네스의 기록 단계이고, 호스트 프로세스 트리의 python execve로 센다(D17 ②). 대체: c43이 venv의 `site-packages/*.dist-info`(METADATA의
-  Name·Version, URL 설치는 `direct_url.json`)를 Rust로 읽어 같은 목록을 만든다. 서브 쪽은 `native_remote` 하위 명령으로 둔다. 허용목록 행의 대체 cell(c43)은 그대로다.
-- **사람 결정이 필요한 충돌(c43 전에 정할 것):** native multinode는 vLLM을 호스트 venv 환경에서 띄운다(`native_multinode.rs:1234` `serve_argv` = 트리플렛 `.sh` 러너, `:1200` `venv/bin/ray start`).
-  그 venv는 `wheelhouse verify --venv <root>/venv`(`native_multinode.rs:1105`, `up.rs:712`)가 만든다. D16은 wheelhouse selftest·verify를 vLLM 이미지 `docker run`(container 클래스)으로
-  옮기라고 정했지만, native 모드에서는 verify가 만든 venv가 곧 호스트 서빙 venv라서 컨테이너로 옮기면 native 서빙이 설 자리가 없다. 선택지:
-  (a) native 모드의 venv 생성·설치는 런타임 환경 준비(범위 밖)로 보고 container 이전 대상에서 뺀다, (b) native 모드를 퇴역한다, (c) verify(검사)만 컨테이너로 옮기고
-  설치는 별도 런타임 환경 단계로 둔다.
-- **E2E strace 계수 경계(D17 ②):** native 서빙의 vLLM·Ray 프로세스는 런타임 환경 Python이다. 트리플렛 러너·`venv/bin/ray`의 execve는 셸·셔뱅 스크립트라 이름 규칙
-  (`^python[0-9.]*$`)에 걸리지 않지만, Ray 워커는 `sys.executable`(`venv/bin/python3`)로 뜨므로 `strace -f`가 하네스 트리 안에서 센다. 라이브 E2E(e-*)의 계수 범위에서
-  "런타임 환경 경계(컨테이너 안, native 서빙 venv의 vllm·ray 자손)"를 빼는 규칙을 e-* 업무지시와 w_verify 판정에 적어야 한다(오케스트레이터 결정).
+- **native multinode `pip freeze`(rs 허용목록 12행, 대체 cell `c43c-upstream-wheelhouse`)는 하네스 기동이다(최종 0 대상, h12).** `native_multinode/up.rs:720`이
+  `wheelhouse verify` 뒤 서빙 venv의 `<root>/venv/bin/python -m pip freeze --all`(`native_multinode.rs:1116`)을 메인은 직접, 서브는 고정 러너로 돌려 설치 집합을 simlog에 남긴다.
+  서빙 자체가 아니라 하네스의 기록 단계이고, 호스트 프로세스 트리의 python execve로 센다(D17 ②). 대체: c43c가 venv의 `site-packages/*.dist-info`(METADATA의
+  Name·Version, URL 설치는 `direct_url.json`)를 Rust로 읽어 같은 목록을 만든다. 서브 쪽은 `native_remote` 하위 명령으로 둔다.
+- **결정됨(h12): native 서빙 venv는 런타임 환경이다.** native multinode는 vLLM을 호스트 venv에서 띄운다(`native_multinode.rs:1234` `serve_argv` = 트리플렛 `.sh` 러너,
+  `:1200` `venv/bin/ray start`). 그 venv는 `up --apply`가 노드마다 부르는 `native_wheelhouse verify --venv <root>/venv`(`up.rs:712`, `native_multinode.rs:1105`)가 만들고 채운다.
+  verify가 import 탐침으로 고른 `env`(LD_LIBRARY_PATH 등)가 곧 서빙 환경이다(`up.rs:715` `parse_verify_verdict` → `:735` `runtime_env_recipe` → `:764` `runtime_env`).
+  h12에 따라 native 모드의 venv 생성·설치·import 검사와 그 venv에서 뜨는 vllm·ray 자손은 런타임 환경(범위 밖)이다. D16대로 컨테이너로 옮기는 것은 서빙 venv가 아닌
+  검사(아래 (나))뿐이다. 서빙 venv의 pip freeze 기록은 하네스 기동으로 남는다(위).
+
+- **E2E strace 계수 경계(D17 ②) — 결정됨(h12).** native 서빙의 vLLM·Ray 프로세스는 런타임 환경 Python이다. Ray 워커는 `sys.executable`(`venv/bin/python3`)로 뜨므로
+  `strace -f`가 하네스 트리 안에서 센다. 이 경계를 빼는 규칙을 e-* 업무지시와 w_verify 판정에 넣는다. 기계 판정 규칙 초안은 아래 「라이브 E2E 계수 경계」다.
 - **parity `--self-check` 'strace-sees-python'(rs 허용목록 c60 행):** strace 계수기가 실제 python 기동을 세는지 보려고 일부러 `python3 -c pass`를 띄운다.
   `pyexec0`는 이름 규칙으로 세므로 같은 이름의 대역(`python3`라는 이름의 다른 프로그램)도 센다. c60은 이 자기검사를 pyexec 범위 밖으로 빼거나
   계수기 규칙을 바꾸는 쪽을 정해야 한다(`entrypoints.tsv` `parity_self_check` 행).
+
+### wheelhouse 기동 4–11행의 분류 (c43c 입력)
+
+행 번호는 `rs_python_allowlist.tsv`의 데이터 행 순번이다(`#` 줄 제외). 분류는 둘이다. (가) native 서빙 venv 준비(h12: 런타임 환경), (나) 컨테이너로 옮길 검사(D16).
+허용목록의 키는 파일과 호출 텍스트다. 그래서 같은 원문 줄이 어느 호출 경로에서 도는지는 가르지 못한다. 행마다 호출 경로를 함께 적는다. 경로는 모두 `upstream-version-watch/rust/runtime/src/` 기준이다.
+
+- 경로 N(native 서빙): `native_multinode_serve up --apply` → `native_multinode/up.rs:712` → `wheelhouse_verify_argv`(`native_multinode.rs:1105`, `--venv` = `venv_dir(root)` `:1097`)
+  → `wheelhouse_cli.rs:213-214` → `wheelhouse_verify.rs:513` `run_verify` → `:222` `verify`. 메인은 런처(`native_multinode.rs:1029`)로 돌고, 서브는 메인이 run root에 둔 ELF
+  (`:1042`, `up.rs:695`)를 고정 러너로 돈다.
+- 경로 S(자기시험): `native_wheelhouse --self-test` → `wheelhouse_cli.rs:198-199` → `wheelhouse_selftest.rs:382` `self_test` → `body`. 임시 폴더(`:383`)의 가짜 이미지 루트로
+  wheelhouse를 만들어 쓰고, 그 안에서 `verify`를 parity 모드로 두 번 부른다(`:299` `venv_parity`, `:307` `venv_parity_neg`).
+
+| 행 | 파일:줄 | 기동 | 경로 N | 경로 S | 근거 |
+|---|---|---|---|---|---|
+| 4 | `wheelhouse_selftest.rs:357` | `python3.12 -m venv <tmp>/venv` | — | (나) | 자기시험 (3)의 임시 venv. 서빙과 무관하다 |
+| 5 | `wheelhouse_selftest.rs:360`·`:368` | 그 venv의 `pip install --no-index`, 가짜 배포 import | — | (나) | 같은 (3). 대상은 가짜 배포(gamma·alpha·ns·zeta)다 |
+| 6 | `wheelhouse_verify.rs:274` | `python3.12 -m venv <venv>` | (가) 서빙 venv 생성 | (나) | 경로 N에서 `<venv>` = `<root>/venv` |
+| 7 | `wheelhouse_verify.rs:280`·`:327` | `<venv>/bin/python -m pip list --format json` ×2 | (가) 설치 전 기준과 설치 집합 게이트 | (나) | `installed_set` 게이트(`:490` `base_gates`). 설치 집합을 읽기만 하므로 pip freeze와 같은 dist-info 읽기로 바꿀 수 있다. 바꿀지는 c43c가 정하고, 바꾸면 이 행은 0이 된다 |
+| 8 | `wheelhouse_verify.rs:290` | `<venv>/bin/python -m pip install --no-index [--no-deps] …` | (가) 서빙 venv 설치 | (나) | 경로 N은 승인 파일을 주므로 parity(`--no-deps`)다 |
+| 9 | `wheelhouse_verify.rs:325` | `<venv>/bin/python -m pip check` | (가) 설치 게이트 | (나) | `pip_check` 게이트 |
+| 10 | `wheelhouse_verify.rs:385` | `<venv>/bin/python -c "import sysconfig;…purelib"` | (가) 서빙 env 계산 | (나) | purelib로 `ld_library_path_template`의 `{VENV_SITE}`를 채운다(`:388-401`) |
+| 11 | `wheelhouse_verify.rs:435` | `<venv>/bin/python -c IMPORT_PROBE`(`:16`) | (가) import 검사와 서빙 env 선택 | (나) | 후보 env마다 torch·vllm import와 CUDA를 확인한다. 통과한 후보의 env가 서빙 env다(`:488-489`) |
+
+- 요약: (가)는 경로 N의 6–11행(6행, 7기동)이다. (나)는 4–5행(3기동)과 경로 S의 6–11행이다. 4–5행은 (나)에만 쓰이고, 6–11행은 같은 원문 줄이 (가)와 (나)에 함께 쓰인다.
+- c43c에 주는 함의: (나)를 vLLM 이미지 `docker run`으로 옮기려면 `verify`의 실행 자리를 둘로 갈라야 한다. 예를 들면 기동을 실행자(호스트 | 컨테이너) 뒤로 모으고,
+  호스트 실행자의 python 기동은 경계 모듈 한 파일(예: `native_venv_host.rs`)에만 둔다. 자기시험은 컨테이너 실행자만 쓴다. 그러면 4–5행은 0이 되고, 6–11행은 그 경계 모듈의
+  행으로 옮겨 아래 영구 목록으로 간다. 컨테이너 실행자의 argv(`docker run … <image> python3.12 …`)를 `inline_python_scan`이 호스트 기동으로 세지 않게 하는 규칙은 c43c가
+  c23-rs-guard 결과를 보고 정한다(c10 검토 r1 비차단 D3·D4·I-2·K3과 같은 부류). D17 ③에 따라 컨테이너 클래스 검사는 메인노드에서 실제 PASS가 1회 이상 있어야 한다.
+
+### 런타임 환경 기동과 "임시 허용 0" (제안 — 구현은 c43c, 그때 사용자 HITL)
+
+1. 목록을 둘로 나눈다. `rs_python_allowlist.tsv`(임시, 대체 cell 열)는 캠페인 끝에 데이터 행이 0이 된다. 런타임 환경으로 남는 기동은 새 파일
+   `.claude/rust/py-boundary-guard/rs_runtime_env_allowlist.tsv`(영구)에 둔다. 열은 `<path>\t<call text>\t<count>\t<boundary>\t<decision>\t<reason>`이다.
+   `boundary`는 경계 이름(지금은 `native-serving-venv` 하나), `decision`은 사용자 결정 근거(`h12`)다. 키·개수·`RS-STALE` 규칙은 임시 목록과 같다.
+2. 검사(`inline_python_scan check`):
+   - 두 목록에 같은 키가 있으면 실패한다.
+   - 영구 목록의 `path`는 검사기에 상수로 박힌 경계 모듈 집합 안이어야 한다(예: c43c가 만드는 경계 모듈 한 파일). 파일을 늘리려면 검사기 코드를 바꾸고 검토를 받는다.
+   - `boundary`는 검사기 상수 집합 안의 이름이어야 한다.
+   - 출력에 `RS-TEMP-ALLOW <n>`과 `RS-RUNTIME-ENV <n>`을 따로 낸다. "임시 허용 0"은 `RS-TEMP-ALLOW 0`과 위반 0으로 판정한다.
+   - 영구 목록 파일의 sha256을 py-boundary-guard 시험 상수로 고정한다. 행을 바꾸면 시험이 실패하므로 변경이 사람 결정으로 올라온다.
+3. 동적 계수와 이름을 맞춘다. 아래 「라이브 E2E 계수 경계」가 빼는 execve의 뿌리는 모두 `native-serving-venv` 경계에 속한다. 정적 목록에 없는 경계를 동적 규칙이 빼지 않는다.
+4. 대안: 한 파일에 `class`(`temp`|`runtime-env`) 열을 더할 수도 있다. 그러면 열 수가 바뀌어 기존 행과 시험을 모두 고쳐야 하고, "임시 0"이 걸러서 센 값이 되어 덜 분명하다. 그래서 두 파일을 권한다.
+
+## 라이브 E2E 계수 경계 (초안, h12 · D17 ②)
+
+T `strace_scan.awk`·`w_verify.sh`(e-* ③)와 e-* 업무지시가 쓸 규칙이다. 오케스트레이터가 이 초안으로 T와 업무지시를 고친다. 지금의 이름 규칙(FORMAT.md 「safe_run」의
+`python_exec`: path나 argv[0]의 basename이 `^python[0-9.]*$`인 성공 execve)은 그대로 둔다. 센 기동을 "하네스" 몫과 "런타임 환경" 몫으로 가르고, 판정은 하네스 몫만 0을 요구한다.
+근거 열의 파일은 `upstream-version-watch/rust/runtime/src/` 기준이다(`up.rs`는 `native_multinode/up.rs`). `V`는 서빙 venv, `<W>`는 하네스 저장소 루트다.
+
+입력:
+- strace 명령은 `strace -f -s 4096 -e trace=execve,execveat,clone,clone3,fork,vfork -o <log>`다. 지금 형식(`-e trace=execve,execveat`, FORMAT.md 「w_verify 입력」)에는
+  부모 사슬이 없다. `-s` 기본값 32는 argv 문자열과 원소 수를 줄인다.
+- `strace_scan.awk`에 행 하나를 더한다: `fork <ok|fail> <parent pid> <child pid>`. `clone`·`clone3`·`fork`·`vfork`가 양수 pid를 돌려준 줄이다(스레드 포함). `exec` 행은 그대로다.
+- 판정은 로그를 두 번 읽는다. 먼저 서빙 venv 집합 S를 모으고, 다음에 로그 순서대로 pid 상태를 따라간다.
+
+pid 상태: clone 때 부모의 상태를 물려받고, 성공 exec 때 바뀐다.
+- `prog`: 그 pid의 마지막 성공 exec(path·argv).
+- `nm`: 조상에 `native_multinode_serve up --apply`가 있었다. 성공 exec의 path basename이 `native_multinode_serve`이고 argv[1] = `up`이며 argv에 `--apply`가 있으면 켠다.
+- `zone`: `harness` 또는 뿌리 id. 첫 pid와 clone 없이 나타난 pid는 `harness`, `nm` 꺼짐으로 시작한다.
+
+서빙 venv 집합 S: 다음을 모두 만족하는 성공 exec의 `V`다(`native_multinode.rs:1105`의 argv 꼴).
+- path basename이 `native_wheelhouse`이고 argv[1] = `verify`이며 `nm`이 켜져 있다.
+- argv에 `--venv V`와 `--wheelhouse-dir H`가 있다. `dirname(V) = dirname(H)`, `basename(V) = venv`, `basename(H) = wh`다.
+
+뿌리: 성공 exec E(pid p, E 직전의 `prog` = P)가 아래 중 하나면 p의 `zone`을 그 뿌리 id로 둔다. E 자신이 이름 규칙 기동이면 E도 런타임 환경 몫이다.
+
+| 뿌리 id | 조건 | 근거 |
+|---|---|---|
+| `RE-VENV-CREATE` | E가 이름 규칙 기동, argv[1:] = `-m venv V`, V∈S, P = `native_wheelhouse verify --venv V` | `wheelhouse_verify.rs:274` |
+| `RE-VENV-STEP` | E.path = `V/bin/python`(V∈S), P = `native_wheelhouse verify --venv V`, argv[1:]이 다섯 꼴 중 하나: `-m pip list --format json`, `-m pip install --no-index …`, `-m pip check`, `-c import sysconfig;print(sysconfig.get_paths()['purelib'])`, `-c <IMPORT_PROBE>`(`wheelhouse_verify.rs:16` 상수와 strace 이스케이프를 푼 바이트가 같다) | `wheelhouse_verify.rs:280`·`:290`·`:325`·`:327`·`:385`·`:435` |
+| `RE-RAY` | E.path = `V/bin/ray`, V∈S(`start`·`status`) | `native_multinode.rs:1200`·`:1217`·`:1231`, `up.rs:764-779` |
+| `RE-VLLM` | E.path = `V/bin/vllm`, V∈S(트리플렛 안의 serve, 벤치 클라이언트 래퍼) | `native_multinode.rs:1186` `client_wrapper_text` |
+| `RE-TRIPLET` | E.path basename = `bash`, argv[1]이 `^<W>/output/[^/]+/configs/[^/]+\.sh$`, p의 `nm`이 켜짐 | `native_multinode.rs:1234` `serve_argv`, `native_triplet.rs:396` |
+
+- 재진입: `zone`이 뿌리 id인 pid가 하네스 프로그램을 exec하면 `zone`을 `harness`로 되돌린다. 하네스 프로그램은 다음 셋 중 하나다.
+  - path가 `<W>/.claude/` 아래다.
+  - path basename이 `consumers.tsv` `bin` 열의 이름이다.
+  - path basename이 `bash`·`sh`이고 argv[1]이 `<W>/.claude/` 아래다.
+- 계수:
+  - 이름 규칙 기동은 그 exec를 처리한 뒤의 `zone`으로 나눈다. `harness`면 `python_exec`(하네스 몫)이고, 뿌리 id면 `python_exec_runtime_env`(뿌리 id별)다.
+  - `zone`이 `harness`인 pid가 `V/bin/` 아래(V∈S) 프로그램을 exec하면 이름과 상관없이 `python_exec`로 센다. venv의 진입점 스크립트는 Python이기 때문이다.
+    `ray`·`vllm`은 뿌리이므로 여기에 들지 않는다.
+- fail-closed:
+  - 로그에 `fork` 행이 하나도 없는데 pid가 둘 이상이면 부모 사슬을 모른다. 이때는 아무것도 빼지 않고(모두 `python_exec`) `boundary_mode=no-process-trace`를 적는다.
+  - 뿌리 조건에 쓰는 exec가 `trunc=1`이면 뿌리가 아니다.
+  - S가 비면 venv·ray·vllm 뿌리가 없다. `RE-TRIPLET`도 `nm`이 있어야 한다.
+- 컨테이너 경계: docker 컨테이너 안 프로세스는 dockerd·containerd-shim의 자손이라 추적 트리에 나타나지 않는다. 그래서 빼는 규칙이 따로 필요 없다.
+  `docker run|exec … python…`은 argv[0]이 docker라서 이름 규칙 기동이 아니다. 추적 트리에 `runc`·`crun`·`conmon`(rootless podman 등)의 exec가 보이면 이 초안은 그 자손을
+  빼지 않는다. 센 뒤 사람에게 넘긴다.
+
+빼지 않는 것:
+- 서빙 venv의 `pip freeze --all`(`up.rs:720`, `native_multinode.rs:1116`). path는 `V/bin/python`이지만 P가 `native_multinode_serve`라 뿌리가 아니다. 그래서 `python_exec`다.
+  c43c가 Rust로 바꾸면 0이 된다.
+- 자기시험과 단독 verify(경로 S, `nm` 없는 `native_wheelhouse verify`)의 venv·pip·import. V∉S이므로 `python_exec`다. (나)로 컨테이너에 옮기면 0이 된다.
+- 하네스 bin·런처·훅이 띄우는 모든 이름 규칙 기동, 하네스 쪽에서 `V/bin/` 아래를 직접 띄운 것.
+
+반대 사례(빼면 안 되는데 단순한 규칙에 걸리는 경우와 그 막음):
+1. "path가 서빙 venv 아래면 뺀다"는 접두 규칙은 pip freeze(`V/bin/python -m pip freeze --all`)를 뺀다.
+   막음: `RE-VENV-STEP`은 P가 그 V의 verify일 것과 argv 다섯 꼴을 함께 요구한다.
+2. c43c가 pip freeze를 `V/bin/pip freeze`로 바꾸면 이름 규칙(`^python…`)에 걸리지 않아 0으로 보인다.
+   막음: `harness` zone의 `V/bin/*` exec를 이름과 상관없이 센다.
+3. 사람이나 에이전트가 `native_wheelhouse.sh verify --venv /tmp/x/venv --wheelhouse-dir /tmp/x/wh …`를 따로 돌리면 verify 꼴과 같다.
+   막음: S는 `nm`(조상 `native_multinode_serve up --apply`)이 있는 verify에서만 모은다.
+4. 트리플렛 `.sh`나 vllm이 하네스 런처를 부르고, 그 런처가 python을 띄우면 뿌리의 자손이 된다.
+   막음: 재진입.
+5. `exec -a <V>/bin/python /usr/bin/python3 …`처럼 argv[0]만 꾸민 기동.
+   막음: 뿌리 조건은 argv[0]이 아니라 execve path로 본다.
+
+사각(계수 밖이고, 이 규칙으로 메우지 않는다):
+- 서브 노드의 verify·pip freeze·ray worker는 메인 `native_multinode_serve`가 ssh 고정 러너(`native_multinode.rs:784` `run`, `:791` `start`)로 서브에서 띄운다.
+  메인 로그에는 `ssh` exec만 남는다. 그래서 서브 몫 pip freeze의 0은 정적 검사(rs 허용목록 12행)와 c43c의 대체로만 확인된다. w_verify는 메인 strace만으로
+  "서브 pip freeze 0"을 말하지 않는다.
+- 셔뱅 Python 스크립트(`V/bin/ray`·`V/bin/vllm` 등)는 strace에 스크립트 path로만 나타나므로 이름 규칙이 세지 않는다. 서빙 venv 밖의 셔뱅 Python을 하네스가 띄우는 자리는
+  정적 검사(`inline_python_scan`)가 맡는다.
+
+출력(제안):
+- `python_exec`: 하네스 몫이다. e-* ③은 이것만 0을 요구한다.
+- `python_exec_runtime_env`와 뿌리 id별 수.
+- `serving_venvs`(S)와 `boundary_mode`(`process-trace`|`no-process-trace`).
+- 뺀 기동은 숨기지 않는다. 수와 처음 몇 줄을 보인다.

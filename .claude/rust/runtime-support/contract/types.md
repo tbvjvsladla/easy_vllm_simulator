@@ -5,7 +5,8 @@
 - 같은 폴더: `consumers.tsv`·`consumers.md`(고정 표면과 소비자), `entrypoints.tsv`(결정론 진입점),
   `yaml_inputs.tsv`(YAML 1.1 의존 입력), `divergence_kinds.md`(divergence 의미 분류 제안).
 - 크레이트 판·라이선스는 `.claude/rust/py-boundary-guard/crate_allowlist.tsv`가 정본이다. 이 문서는 어떤 크레이트를 어디에 쓰는지만 적는다.
-- 이 문서의 결정은 제안이다. 기준 허용 목록과 함께 g-c0 gate 전에 사람이 승인한다. 승인 뒤 바꾸려면 c20을 다시 연다.
+- 이 문서의 결정은 c20 검토(judgment)로 수용한다. 크레이트 판·라이선스는 h9로 승인됐다(`crate_allowlist.tsv` 85행과 허용 라이선스 집합).
+  바꾸려면 c20을 다시 연다(c21도 다시 연다).
 
 ## 1. 보존 기준과 출력 호환 수준
 
@@ -67,7 +68,7 @@ PyYAML 1.1 해소, argparse 문구, Traceback 흉내)는 보존 대상이 아니
 
 ## 5. YAML 1.2 값 모델 (pyyaml·yaml11_oracle 대체)
 
-- 파서: `yaml-rust2 = { version = "=0.13.0", default-features = false }`(기준 목록 제안, D9 YAML 크레이트 선택). 결과 `yaml_rust2::Yaml`은 경계에서 4절의 JSON 값
+- 파서: `yaml-rust2 = { version = "=0.13.0", default-features = false }`(기준 목록 h9 승인, D9 YAML 크레이트 선택). 결과 `yaml_rust2::Yaml`은 경계에서 4절의 JSON 값
   모델(또는 구조체)로 옮긴다. 하네스가 YAML에서 읽는 것은 manifest·토폴로지·캠페인·서빙 설정·bench preset으로, 모두 JSON 모양 문서다.
 - 해소 규칙은 YAML 1.2 core schema다. PyYAML 1.1과 다른 점과 처리:
 
@@ -97,6 +98,7 @@ PyYAML 1.1 해소, argparse 문구, Traceback 흉내)는 보존 대상이 아니
 - 셈 방법: 1.1 쪽은 PyYAML SafeLoader 토크나이저·해소기, 1.2 쪽은 core schema 정규식(yaml-rust2의 해소와 같은 규칙)으로 각 plain scalar를 해석해 비교했다. 따옴표 친 값은 세지 않는다.
 - 결과: 메인 비추적 817개 중 하네스 YAML 로더가 읽는 216개(manifest 4, 캠페인 54, 서빙 설정 157, bench preset 1)에 1.1 의존 토큰이 **0**이다. 16토큰이 있는 75개는
   인증서 30(flat 파서, 4절 위), 외부 크레이트 CI 설정 43, parity 원시 1, 서브 회수 미러 1이다. 따라서 메인의 이전 대상은 없고, wd-yaml의 메인 몫은 3자 대조(같음 확인)뿐이다.
+  이 범위는 h11로 결정됐다: wd-yaml 메인 몫은 이전 0이고, 하네스가 YAML로 읽는 216개가 구·신 파서에서 같은 값인지 `yaml_compat compare3`로 대조만 한다. 서브 몫은 plan대로다.
   추적 입력은 11개(manifest_contract 픽스처 X05~X09·Y01·YT17~YT19의 타임스탬프, LM21의 `yes`·타임스탬프, LM09의 병합 키)가 퇴역(c60, 원장 행) 대상이다.
 
 ## 6. py* 계층 대체 대응표
