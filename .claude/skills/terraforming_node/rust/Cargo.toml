@@ -156,3 +156,8 @@ path = "src/bin/selftest_sub_hint_write_scopes.rs"
 [[test]]
 name = "install_request_owner"
 path = "checks/install_request_owner.rs"
+
+# Contract checks of the fixed surface (plan 26111805, cell c21b-contract-tests).
+[[test]]
+name = "contract_checks"
+path = "checks/contract_checks.rs"
