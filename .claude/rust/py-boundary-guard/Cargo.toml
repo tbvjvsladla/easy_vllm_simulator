@@ -18,6 +18,16 @@ path = "src/inline_python_scan.rs"
 name = "verdict_clock_scan"
 path = "src/verdict_clock_scan.rs"
 
+# Every external package of every tracked Cargo.lock is approved in crate_allowlist.tsv, under a permitted license
+# and named in notices/NOTICE-crates.md (plan 26111805 D2·D9, cell c20). Standard library only.
+[[bin]]
+name = "crate_allow"
+path = "src/crate_allow/main.rs"
+
+[[test]]
+name = "crate_allow_checks"
+path = "checks/crate_allow_checks.rs"
+
 [[test]]
 name = "guard_checks"
 path = "checks/guard_checks.rs"
