@@ -16,13 +16,19 @@
 //!   `slave_forward prefix|json`, `forwards[]`, `sub_recipe`, `[slave-forward] FAIL(<code>):` on stderr;
 //! - policy-predicates `claims_text.rs`·`runtime_patch.rs`, sync_to_sub.sh: `validate_runtime_patch stamp|verify`;
 //! - closing_sequence.sh·sync_branches.sh: `layer_ledger` subcommands, JSON on stdout, plain lines, exit codes
-//!   (`validate` 0 `valid` / 5 `rejected`, `divergence` 0 `clean`), and `append`·`merge` keep the ledger's unknown keys;
+//!   (`validate` 0 `valid` / 5 `rejected`, `divergence` 0 `clean` / 5 `diverged`), and `append`·`merge` keep the ledger's
+//!   unknown keys and keep a `null` key apart from an absent one;
+//! - S1·S1.5 and the readers of `resolved.json` (hint-publisher `e1.rs`·`e3.rs`, recipe `cleanup_docker.rs`,
+//!   `render_template.rs`): `judge_version_delta --write-resolved` keeps the keys it does not own and moves hand-written
+//!   `upstream_delta_*` blocks aside; the `upstream_delta` and `resolve_build_track` fragment keys;
+//! - `selftest_branch_sync`: the source lines it reads in the tree (terraforming `render_sub_env.rs`, hint `catalog.rs`);
 //! - closing_sequence.sh: `push_branches --repo --remote --branch…` exit 0 / non-zero;
 //! - sync_to_sub.sh: the main's ELFs it delivers to the sub (`SUB_ELF_REL`, `SUB_ELF_NAMES`) and runs there — `sub_runner`
 //!   `prune-empty-dirs`·`validate-names`·`retirement-scan` (argv, stdin, stdout lines, exit codes; policy-distribution's
 //!   source tokens), `regen_build_patches_src unbundle|verify --root`; the main's `native_multinode_serve`: `native_remote -`
 //!   (base64 JSON request on stdin, the eleven operations, result keys, refusals);
-//! - text arguments that are not UTF-8: exit 2 where base refuses them (closed choices).
+//! - text arguments that are not UTF-8: exit 2 where base refuses them (closed choices); the consumers' options no other
+//!   check runs are probed against a renamed control.
 //!
 //! The bins run for real in scratch directories and throwaway local git repositories (a "remote" is a bare repository
 //! on disk). Values (L2) and exit codes, option names, line shapes and codes (L1) are fixed; message texts are not (L3).
@@ -1126,7 +1132,7 @@ fn env_lines(out: &str) -> Vec<(String, String)> {
 /// `render_dockerfile`: `--cluster-envfile --manifest M` and `--nccl-envfile --manifest M` print an envfile on stdout
 /// (`KEY=VALUE` lines and `#` comments; claims_owner asserts `MAX_JOBS=4`), `--out F` writes it to F (sync_to_sub.sh);
 /// `--env-tier KEY` prints `{"tier", "detail"}` for any key; a manifest without the Flag is exit 4 for
-/// `--canonical-kind compose`.
+/// `--canonical-kind compose`, one with it exit 0.
 #[test]
 fn render_dockerfile_envfiles_env_tier_and_flag_gate() {
     let s = scratch("render");
@@ -1210,6 +1216,28 @@ fn render_dockerfile_envfiles_env_tier_and_flag_gate() {
         flagless.to_str().unwrap(),
     ]);
     assert_eq!(out.status.code(), Some(4), "{}", text(&out.stderr));
+    // with the Flag the compose render is exit 0 and prints the compose text (policy-predicates `claims_tf.rs:567-568`
+    // with `--topology single`, `support.rs:413-425` with `multi`, both from this minimal manifest: the facts the shared
+    // templates read and the Flag fields the gate requires; the text itself is the predicates' golden, not fixed here)
+    for topology in ["single", "multi"] {
+        let flagged = s.0.join(format!("flagged-{topology}.yaml"));
+        write(&flagged, &format!("topology: {topology}\ncpu_arch: aarch64\ngpus_per_node: 1\nmodel_source: managed\nnas_model_path: /models\nterraforming:\n  complete: true\n  branch_verified: true\n"));
+        let out = rd(&[
+            "--canonical-kind",
+            "compose",
+            "--topology",
+            topology,
+            "--manifest",
+            flagged.to_str().unwrap(),
+        ]);
+        assert_eq!(
+            out.status.code(),
+            Some(0),
+            "{topology}: {}",
+            text(&out.stderr)
+        );
+        assert!(!text(&out.stdout).trim().is_empty(), "{topology}");
+    }
 }
 
 /// `slave_forward prefix|json --cell-env --project-env --compose [--cluster-env] [--group G]` (multinode_serve_smoke.sh,
@@ -1738,11 +1766,10 @@ fn check_smoke_model_model_absent_is_exit_2() {
         !merged.contains("required_mib=") && !merged.contains("BUDGET_PARAMS"),
         "{merged}"
     );
+    // exactly 3 (smoke_model.rs:620-623): the consumers tell 0, 2 and 7 apart from "anything else", and types.md 3절 has the
+    // contract checks fix the codes a bin uses — "anything else" alone would also pass a panic (101)
     let (rc, merged) = run("no-such-config");
-    assert!(
-        !matches!(rc, Some(0) | Some(2) | Some(7)),
-        "{rc:?} {merged}"
-    );
+    assert_eq!(rc, Some(3), "{merged}");
 }
 
 fn sha256_of(path: &Path) -> String {
@@ -2067,12 +2094,14 @@ fn sub_runner_delivered_subcommands() {
     let locked = root.join("locked");
     std::fs::create_dir_all(locked.join("inner")).unwrap();
     std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o555)).unwrap();
-    if std::fs::create_dir(locked.join("probe")).is_err() {
-        let out = sr(&["prune-empty-dirs", r, skip, post], None);
-        assert_eq!(out.status.code(), Some(9), "{}", text(&out.stderr));
-    }
+    let refused = std::fs::create_dir(locked.join("probe")).is_err();
+    let out = refused.then(|| sr(&["prune-empty-dirs", r, skip, post], None));
+    // writable again before any assertion: a failing one leaves nothing the scratch cleanup cannot remove
     std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o755)).unwrap();
     let _ = std::fs::remove_dir(locked.join("probe"));
+    if let Some(out) = out {
+        assert_eq!(out.status.code(), Some(9), "{}", text(&out.stderr));
+    }
 
     // validate-names
     write(&root.join("ok.txt"), "x\n");
@@ -2177,6 +2206,28 @@ fn sub_runner_delivered_subcommands() {
         Some("docs/a.md\ndocs/link.md\n"),
     );
     assert_eq!(out.status.code(), Some(1), "a symbolic link in the surface");
+    // the renderer that declares the retired paths (`RETIREMENT_DECLARING_OWNERS`, a closed list of exact paths,
+    // sub_runner.rs:113-125): counted, not read — and both are files of this tree, since a renamed owner loses its
+    // exemption and sync_to_sub.sh stops on the hit (consumers.md 「소스 본문·경로 결합」, "W만")
+    let owners = [
+        ".claude/skills/terraforming_node/rust/src/render_sub_env.rs",
+        ".claude/skills/terraforming_node/rust/src/render_sub_env/selftest.rs",
+    ];
+    for owner in owners {
+        assert!(crate::root().join(owner).is_file(), "{owner}");
+        write(&work.join(owner), "excludes scripts/old_tool.sh\n");
+    }
+    let out = sr(
+        &["retirement-scan", stale],
+        Some(&format!("{}\n{}\ndocs/a.md\n", owners[0], owners[1])),
+    );
+    let so = text(&out.stdout);
+    assert_eq!(out.status.code(), Some(0), "{}", text(&out.stderr));
+    assert_eq!(
+        so.lines().collect::<Vec<_>>(),
+        ["3", "docs/a.md:2:see scripts/old_tool.sh here"],
+        "{so:?}"
+    );
     assert_eq!(sr(&["retirement-scan"], Some(list)).status.code(), Some(2));
     assert_eq!(sr(&["no-such-subcommand"], None).status.code(), Some(2));
 
@@ -2506,6 +2557,456 @@ fn native_remote_stdin_request_protocol() {
             None,
         ),
         "no root",
+    );
+}
+
+/// sync_branches.sh:526-541 stops with exit 9 only on `diverged` (the one block before the common layer is overwritten): in a
+/// ledger repository where the target branch alone carries a common-layer commit (a file under `.claude/rules`, an
+/// `ALLOWLIST` entry of the copied sync_branches.sh), `divergence --repo R --branch <target> --counterpart <source>
+/// --ledger-ref <source>` is exit 5, `status` `diverged`, `diverged` true and that file in `files`, and `inline_json
+/// divergence-summary` prints `diverged` in its first field (the field the consumer's `case` reads). The other direction —
+/// the counterpart misses nothing the target would lose — stays `clean`, exit 0.
+#[test]
+fn layer_ledger_divergence_diverged_on_a_target_only_common_change() {
+    let s = scratch("ledger-div");
+    let rt = runtime_root(&s);
+    let repo = ledger_repo(&s);
+    let r = repo.to_str().unwrap();
+    write(
+        &repo.join(".claude/rules/common.md"),
+        "a rule the counterpart never received\n",
+    );
+    git(&repo, &["add", "-A"]);
+    git(&repo, &["commit", "-qm", "target-only common-layer change"]);
+    let divergence = |branch: &str, counterpart: &str| {
+        let out = launch(
+            &rt,
+            &repo,
+            &scripts("layer_ledger.sh"),
+            &[
+                "divergence",
+                "--repo",
+                r,
+                "--branch",
+                branch,
+                "--counterpart",
+                counterpart,
+                "--ledger-ref",
+                counterpart,
+            ],
+        );
+        let so = text(&out.stdout);
+        let doc = Json::parse(&so).unwrap_or_else(|e| panic!("{e}: {so}{}", text(&out.stderr)));
+        let line = launch_in(
+            &rt,
+            &repo,
+            &scripts("inline_json.sh"),
+            &["divergence-summary"],
+            Some(&so),
+        );
+        (out.status.code(), doc, text(&line.stdout))
+    };
+    let (rc, doc, summary) = divergence("single-node", "multi-node");
+    assert_eq!(rc, Some(5), "{doc:?}");
+    assert_eq!(doc.at("status").str(), Some("diverged"), "{doc:?}");
+    assert_eq!(doc.at("diverged"), &Json::Bool(true));
+    assert_eq!(doc.at("files").strs(), [".claude/rules/common.md"]);
+    assert_eq!(doc.at("basis").kind(), "string");
+    assert_eq!(doc.at("sync_point").at("status").kind(), "string");
+    let fields: Vec<&str> = summary.trim_end_matches('\n').split('\t').collect();
+    assert_eq!(fields.len(), 5, "{summary:?}");
+    assert_eq!(fields[0], "diverged", "{summary:?}");
+    assert_eq!(Some(fields[1]), doc.at("basis").str());
+    assert_eq!(Some(fields[3]), doc.at("sync_point").at("status").str());
+    let (rc, doc, summary) = divergence("multi-node", "single-node");
+    assert_eq!(rc, Some(0), "{doc:?}");
+    assert_eq!(doc.at("status").str(), Some("clean"), "{doc:?}");
+    assert!(summary.starts_with("clean\t"), "{summary:?}");
+}
+
+/// A ledger entry whose `_note` key holds `null`, and the entry without that key (the same id otherwise).
+const NULL_NOTE_ENTRY: &str = r#"{"entry_id": "sync-202611010000", "utc": "2026-11-01T00:00:00Z", "departure": "multi-node", "departure_commit": "1111111111111111111111111111111111111111", "approved_by": "reviewer", "approved_utc": "2026-11-01T00:10:00Z", "_note": null, "classification": [{"file": "b.txt", "verdict": "common_promote", "reason": "shared", "provenance": "agent-judged", "_row_note": null}]}"#;
+const NO_NOTE_ENTRY: &str = r#"{"entry_id": "sync-202611010000", "utc": "2026-11-01T00:00:00Z", "departure": "multi-node", "departure_commit": "1111111111111111111111111111111111111111", "approved_by": "reviewer", "approved_utc": "2026-11-01T00:10:00Z", "classification": [{"file": "b.txt", "verdict": "common_promote", "reason": "shared", "provenance": "agent-judged", "_row_note": null}]}"#;
+
+/// types.md 4절 3 (b): a key that holds `null` and a key that is absent are not folded into one. `layer_ledger` compares
+/// entries with their key sets (`layer_ledger.rs:106-121` `jeq`), so an entry with `"_note": null` and the same entry
+/// without `_note` are two different entries: `append` of the one onto a ledger holding the other is a refusal (exit 5,
+/// `rejected`, the file unchanged), `append` of the same bytes again is `already-recorded` (exit 0); and `append`·`merge`
+/// write both shapes back as they were read (the `null` stays, the absent key stays absent).
+#[test]
+fn layer_ledger_keeps_null_apart_from_absent() {
+    let s = scratch("ledger-null");
+    let rt = runtime_root(&s);
+    let repo = ledger_repo(&s);
+    let r = repo.to_str().unwrap();
+    let ledger = repo.join(".claude/policies/branch_layer_ledger.json");
+    let merged_in = r#"{"entry_id": "sync-202611050000", "utc": "2026-11-05T00:00:00Z", "departure": "multi-node", "departure_commit": "2222222222222222222222222222222222222222", "approved_by": "reviewer", "approved_utc": "2026-11-05T00:10:00Z", "_execution_note": null, "classification": []}"#;
+    git(&repo, &["checkout", "-q", "multi-node"]);
+    write(
+        &ledger,
+        &format!(r#"{{"schema_version": 1, "entries": [{NO_NOTE_ENTRY}, {merged_in}]}}"#),
+    );
+    git(&repo, &["commit", "-qam", "ledger on multi-node"]);
+    git(&repo, &["checkout", "-q", "single-node"]);
+    write(
+        &ledger,
+        &format!(r#"{{"schema_version": 1, "_top": null, "entries": [{NULL_NOTE_ENTRY}]}}"#),
+    );
+    let ll = |args: &[&str]| launch(&rt, &repo, &scripts("layer_ledger.sh"), args);
+    let append = |entry: &str| {
+        let file = s.0.join("append.json");
+        write(&file, entry);
+        let out = ll(&[
+            "append",
+            "--repo",
+            r,
+            "--entry-file",
+            file.to_str().unwrap(),
+        ]);
+        let doc = Json::parse(&text(&out.stdout))
+            .unwrap_or_else(|e| panic!("{e}: {}{}", text(&out.stdout), text(&out.stderr)));
+        (out.status.code(), doc)
+    };
+    let entries = || {
+        let doc = Json::parse(&std::fs::read_to_string(&ledger).unwrap()).unwrap();
+        doc.at("entries").arr().unwrap().to_vec()
+    };
+    let before = std::fs::read(&ledger).unwrap();
+    let (rc, doc) = append(NO_NOTE_ENTRY);
+    assert_eq!(rc, Some(5), "the key-less entry is another entry: {doc:?}");
+    assert_eq!(doc.at("status").str(), Some("rejected"));
+    assert_eq!(
+        std::fs::read(&ledger).unwrap(),
+        before,
+        "a refusal writes nothing"
+    );
+    let (rc, doc) = append(NULL_NOTE_ENTRY);
+    assert_eq!(rc, Some(0), "{doc:?}");
+    assert_eq!(doc.at("status").str(), Some("already-recorded"));
+    let (rc, doc) = append(FILLED_ENTRY);
+    assert_eq!((rc, doc.at("status").str()), (Some(0), Some("appended")));
+    let top = || Json::parse(&std::fs::read_to_string(&ledger).unwrap()).unwrap();
+    assert_eq!(top().at("_top"), &Json::Null, "a top-level null stays");
+    let out = ll(&["merge", "--repo", r, "--from-ref", "multi-node"]);
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "{}{}",
+        text(&out.stdout),
+        text(&out.stderr)
+    );
+    assert_eq!(
+        Json::parse(&text(&out.stdout)).unwrap().at("added"),
+        &Json::Num("1".into())
+    );
+    assert_eq!(top().at("_top"), &Json::Null);
+    let all = entries();
+    assert_eq!(all.len(), 3, "{all:?}");
+    let by_id = |id: &str| {
+        all.iter()
+            .find(|e| e.at("entry_id").str() == Some(id))
+            .unwrap_or_else(|| panic!("{id}: {all:?}"))
+    };
+    assert!(
+        by_id("sync-202611010000").same(&Json::parse(NULL_NOTE_ENTRY).unwrap()),
+        "`_note: null` stays a key with null: {all:?}"
+    );
+    assert!(
+        by_id("sync-202611050000").same(&Json::parse(merged_in).unwrap()),
+        "the merged entry keeps its null: {all:?}"
+    );
+    assert!(
+        by_id("sync-202611180300").same(&Json::parse(FILLED_ENTRY).unwrap()),
+        "{all:?}"
+    );
+}
+
+/// `judge_version_delta --from-ref A --to-ref B --generated-kst K --repo-cache C --resolved R --write-resolved` (S1.5,
+/// workflow.md; types.md 4절 3 (c)) rewrites `resolved.json`: each hand-written `upstream_delta_*` block moves to
+/// `_superseded_manual_<key>`, the verdict is written as `upstream_delta`, and every other key stays as read — the S1
+/// fragments the agent merged (`torch`·`ngc_base`·`build_track`·`source_build`) and keys the judge does not know. The
+/// readers of the file: hint-publisher `e1.rs:1980-2027` (`vllm_version`, `torch.pin`,
+/// `ngc_base.{tag,image,cuda_version,build_version}`, `build_track.decision`, `source_build.torch_cuda_arch`,
+/// `upstream_delta.{to_sha,to_ref,from_ref,generated_kst}`), `e3.rs:1657`, recipe `cleanup_docker.rs:853-874` (image
+/// strings) and this crate's `render_template.rs:145-200` (`upstream_delta.{schema_version,from_ref,to_ref,provenance,
+/// verdict,unknown,axis_A_build_input,axis_B_port_scope}`). stdout is the same verdict object; exit 0 = `NO_IMPACT`,
+/// 1 = `IMPACT` (a build-input file changed). The vLLM clone is a scratch repository (git-local, no network). Without
+/// `--resolved` the flag is exit 2 and nothing is written.
+#[test]
+fn judge_version_delta_write_resolved_keeps_keys() {
+    let s = scratch("judge");
+    let rt = runtime_root(&s);
+    let cache = s.0.join("vllm");
+    std::fs::create_dir_all(&cache).unwrap();
+    git(&cache, &["init", "-q"]);
+    write(&cache.join("vllm/m.py"), "a = 1\n");
+    git(&cache, &["add", "-A"]);
+    git(&cache, &["commit", "-qm", "c1"]);
+    git(&cache, &["tag", "v0.1.0"]);
+    write(&cache.join("vllm/m.py"), "a = 1\nb = 2\n");
+    git(&cache, &["commit", "-qam", "c2"]);
+    git(&cache, &["tag", "v0.1.1"]);
+    write(&cache.join("csrc/k.cu"), "// kernel\n");
+    git(&cache, &["add", "-A"]);
+    git(&cache, &["commit", "-qm", "c3"]);
+    git(&cache, &["tag", "v0.1.2"]);
+    let resolved = s.0.join("output/single/resolved.json");
+    let original = r#"{"vllm_version": "0.1.1", "torch": {"pin": "2.11.0"}, "ngc_base": {"tag": "25.09-py3", "image": "nvcr.io/nvidia/pytorch:25.09-py3", "cuda_version": "13.0", "build_version": "2.9.0a0"}, "build_track": {"decision": "source-build", "arbiter": "smoke"}, "source_build": {"torch_cuda_arch": "12.1a"}, "_note": {"kept": [1, null]}, "upstream_delta_v0.1.0_to_v0.1.1": {"files": 1, "detail": [{"file": "vllm/m.py", "delta": "+1/-0"}]}, "upstream_delta": {"stale": true}}"#;
+    write(&resolved, original);
+    let judge = |from: &str, to: &str, with_resolved: bool| {
+        let mut args = vec![
+            "--from-ref",
+            from,
+            "--to-ref",
+            to,
+            "--generated-kst",
+            "26111912",
+            "--repo-cache",
+            cache.to_str().unwrap(),
+        ];
+        if with_resolved {
+            args.extend(["--resolved", resolved.to_str().unwrap()]);
+        }
+        args.push("--write-resolved");
+        launch(&rt, &s.0, &scripts("judge_version_delta.sh"), &args)
+    };
+    let sha = |tag: &str| git(&cache, &["rev-parse", tag]).trim().to_string();
+    let was = Json::parse(original).unwrap();
+    let kept = |doc: &Json| {
+        for key in was.keys() {
+            if key == "upstream_delta" || key.starts_with("upstream_delta_") {
+                continue;
+            }
+            assert!(doc.at(key).same(was.at(key)), "{key} kept: {doc:?}");
+        }
+    };
+    let delta_keys = |delta: &Json, from: &str, to: &str, verdict: &str| {
+        assert_eq!(delta.at("schema_version"), &Json::Num("1".into()));
+        assert_eq!(delta.at("from_ref").str(), Some(from));
+        assert_eq!(delta.at("to_ref").str(), Some(to));
+        assert_eq!(delta.at("to_sha").str(), Some(sha(to).as_str()));
+        assert_eq!(delta.at("generated_kst").str(), Some("26111912"));
+        assert_eq!(delta.at("provenance").str(), Some("measured"));
+        assert_eq!(delta.at("verdict").str(), Some(verdict), "{delta:?}");
+        delta.at("unknown").strs();
+        for axis in ["axis_A_build_input", "axis_B_port_scope"] {
+            assert_eq!(delta.at(axis).at("verdict").kind(), "string", "{axis}");
+        }
+    };
+
+    let out = judge("v0.1.0", "v0.1.1", true);
+    assert_eq!(out.status.code(), Some(0), "{}", text(&out.stderr));
+    let shown = Json::parse(&text(&out.stdout)).unwrap();
+    delta_keys(&shown, "v0.1.0", "v0.1.1", "NO_IMPACT");
+    let doc = Json::parse(&std::fs::read_to_string(&resolved).unwrap()).unwrap();
+    kept(&doc);
+    assert!(doc.at("upstream_delta").same(&shown), "{doc:?}");
+    assert!(
+        doc.get("upstream_delta_v0.1.0_to_v0.1.1").is_none(),
+        "{doc:?}"
+    );
+    assert!(
+        doc.at("_superseded_manual_upstream_delta_v0.1.0_to_v0.1.1")
+            .same(was.at("upstream_delta_v0.1.0_to_v0.1.1")),
+        "{doc:?}"
+    );
+    assert_eq!(doc.keys().len(), was.keys().len(), "{doc:?}");
+
+    let out = judge("v0.1.1", "v0.1.2", true);
+    assert_eq!(out.status.code(), Some(1), "{}", text(&out.stderr));
+    let shown = Json::parse(&text(&out.stdout)).unwrap();
+    delta_keys(&shown, "v0.1.1", "v0.1.2", "IMPACT");
+    assert_eq!(
+        shown.at("axis_A_build_input").at("verdict").str(),
+        Some("IMPACT")
+    );
+    let again = Json::parse(&std::fs::read_to_string(&resolved).unwrap()).unwrap();
+    kept(&again);
+    assert!(again.at("upstream_delta").same(&shown));
+    assert!(again
+        .at("_superseded_manual_upstream_delta_v0.1.0_to_v0.1.1")
+        .same(doc.at("_superseded_manual_upstream_delta_v0.1.0_to_v0.1.1")));
+
+    let before = std::fs::read(&resolved).unwrap();
+    let out = judge("v0.1.0", "v0.1.1", false);
+    assert_eq!(
+        (out.status.code(), text(&out.stdout).as_str()),
+        (Some(2), "")
+    );
+    assert_eq!(std::fs::read(&resolved).unwrap(), before);
+}
+
+/// `resolve_build_track --torch-pin P --sm-arch S` (S1, references/resolve-and-render.md:58) prints the JSON fragment the
+/// agent merges into `resolved.json`: `build_track.decision` (`wheel` below torch 2.11, `source-build` from 2.11),
+/// `build_track.arbiter` `smoke` and `source_build.torch_cuda_arch` — the keys hint-publisher `e1.rs:2014-2016` and this
+/// crate's `render_template.rs:315`·`:334` read. Exit 0.
+#[test]
+fn resolve_build_track_fragment_keys() {
+    let s = scratch("track");
+    let rt = runtime_root(&s);
+    for (pin, sm, decision, arch) in [
+        ("2.11.0", "sm_121a", "source-build", "12.1a"),
+        ("2.10.0", "121a", "wheel", "12.1a"),
+        ("2.9.1", "12.0", "wheel", "12.0"),
+    ] {
+        let out = launch(
+            &rt,
+            &s.0,
+            &scripts("resolve_build_track.sh"),
+            &["--torch-pin", pin, "--sm-arch", sm],
+        );
+        assert_eq!(out.status.code(), Some(0), "{pin}: {}", text(&out.stderr));
+        let doc = Json::parse(&text(&out.stdout)).unwrap();
+        assert_eq!(
+            doc.at("build_track").at("decision").str(),
+            Some(decision),
+            "{pin}: {doc:?}"
+        );
+        assert_eq!(doc.at("build_track").at("arbiter").str(), Some("smoke"));
+        assert_eq!(
+            doc.at("source_build").at("torch_cuda_arch").str(),
+            Some(arch),
+            "{sm}: {doc:?}"
+        );
+    }
+}
+
+/// The source lines `selftest_branch_sync` (`branch_sync_selftest.rs`) reads in the repository it checks — a reading only
+/// the worker's run makes (consumers.md 「소스 본문·경로 결합」, "W만") — hold in this tree: the files it needs are there
+/// (`:1152-1158`), terraforming `render_sub_env.rs` holds its guard-call anchor exactly once (`:490-493`), and
+/// hint-publisher `catalog.rs` declares `pub const EXIT_LOCAL_TAG_OBJECT_MISSING … = <n>;` with an integer it can read
+/// (`:761-768`). A cell that moves or rewrites one of these lines changes this reader in the same cell.
+#[test]
+fn selftest_branch_sync_source_anchors_in_the_tree() {
+    for rel in [
+        ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
+        ".claude/skills/upstream-version-watch/scripts/sync_branches.sh",
+        ".claude/skills/upstream-version-watch/scripts/layer_ledger.sh",
+        ".claude/skills/upstream-version-watch/rust/runtime/src/layer_ledger.rs",
+        ".claude/skills/upstream-version-watch/scripts/closing_sequence.sh",
+        ".claude/policies/runtime/topology_parity.sh",
+        ".claude/skills/terraforming_node/scripts/render_sub_env.sh",
+        ".claude/policies/runtime/completion_gate.sh",
+        ".claude/skills/hint-publisher/scripts/hint.sh",
+        ".claude/skills/hint-publisher/rust/src/catalog.rs",
+        ".claude/skills/hint-publisher/scripts/render_bench_section.sh",
+        "hints/vocab.json",
+    ] {
+        assert!(
+            root().join(rel).is_file(),
+            "selftest_branch_sync needs {rel}"
+        );
+    }
+    let render = std::fs::read_to_string(
+        root().join(".claude/skills/terraforming_node/rust/src/render_sub_env.rs"),
+    )
+    .unwrap();
+    assert_eq!(
+        render
+            .matches("    let mut mismatch = topology_rules_mismatch(ctx, &topology, None);\n")
+            .count(),
+        1,
+        "the guard-call anchor of render_sub_env.rs"
+    );
+    let catalog =
+        std::fs::read_to_string(root().join(".claude/skills/hint-publisher/rust/src/catalog.rs"))
+            .unwrap();
+    let exit_missing: Option<i32> = catalog.lines().find_map(|l| {
+        l.trim_start()
+            .strip_prefix("pub const EXIT_LOCAL_TAG_OBJECT_MISSING")
+            .and_then(|r| r.split_once('='))
+            .and_then(|(_, v)| v.split(';').next())
+            .and_then(|v| v.trim().parse().ok())
+    });
+    assert!(
+        exit_missing.is_some_and(|code| code > 0),
+        "{exit_missing:?}"
+    );
+}
+
+/// A usage error of the parsers: exit 2 with a usage block on stderr (`usage: …`).
+fn usage_error(out: &Output) -> bool {
+    out.status.code() == Some(2) && text(&out.stderr).to_ascii_lowercase().contains("usage")
+}
+
+/// The options sync_to_sub.sh passes to `regen_build_patches_src` (:508 `snapshot-modules --canonical --snapshot
+/// --topology`, :548 `snapshot-post … --kind`, :1494 `verify --root` with `--provenance --files-root`) that no other check
+/// runs are taken by the parser: the consumer's command line is not a usage error (a domain answer passes — exit 0 for an
+/// absent canonical tree, exit 1 for an absent PROVENANCE.json), while the same line with that option renamed is one, with
+/// nothing on stdout (review r2 C-N7: an argument probe, not the `--help` listing). The paths are in a scratch directory.
+#[test]
+fn consumer_options_are_taken_by_the_parser() {
+    let s = scratch("probe");
+    let rt = runtime_root(&s);
+    let path = |name: &str| s.0.join(name).to_str().unwrap().to_string();
+    let (canonical, snapshot, port) = (path("canonical"), path("snapshot"), path("port"));
+    std::fs::create_dir_all(&port).unwrap();
+    let (provenance, files) = (path("port/PROVENANCE.json"), path("port/files"));
+    let lines: [(Vec<&str>, &[&str]); 3] = [
+        (
+            vec![
+                "snapshot-modules",
+                "--canonical",
+                &canonical,
+                "--snapshot",
+                &snapshot,
+                "--topology",
+                "single",
+            ],
+            &["--canonical", "--snapshot", "--topology"],
+        ),
+        (
+            vec![
+                "snapshot-post",
+                "--canonical",
+                &canonical,
+                "--snapshot",
+                &snapshot,
+                "--topology",
+                "single",
+                "--kind",
+                "post",
+            ],
+            &["--kind"],
+        ),
+        (
+            vec![
+                "verify",
+                "--root",
+                &port,
+                "--provenance",
+                &provenance,
+                "--files-root",
+                &files,
+            ],
+            &["--root", "--provenance", "--files-root"],
+        ),
+    ];
+    let regen = |args: &[&str]| launch(&rt, &s.0, &scripts("regen_build_patches_src.sh"), args);
+    for (line, words) in lines {
+        let out = regen(&line);
+        assert!(
+            !usage_error(&out),
+            "{line:?} is a usage error:\n{}",
+            text(&out.stderr)
+        );
+        for word in words {
+            let mut control = line.clone();
+            let at = control.iter().position(|w| w == word).unwrap();
+            control[at] = "--contract-no-such-option";
+            let out = regen(&control);
+            assert!(
+                usage_error(&out),
+                "{control:?}: an unknown option must be a usage error: {:?}\n{}",
+                out.status,
+                text(&out.stderr)
+            );
+            assert_eq!(text(&out.stdout), "", "{control:?}");
+        }
+    }
+    assert!(
+        !Path::new(&snapshot).exists(),
+        "nothing is snapshotted from an absent tree"
     );
 }
 

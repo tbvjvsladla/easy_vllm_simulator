@@ -7,8 +7,10 @@
 //!   arguments, `gen_recipe_set.sh --check-parity`) and needs exit 0;
 //! - policy-distribution, policy-predicates `claims_tf.rs` and upstream `smoke_clone.sh`: `recipe.sh estimate|generate|
 //!   simulate` in an unterraformed tree is exit 4 (the Flag gate fires before the config is read);
-//! - adversarial-benchmark `campaign_write.rs`: `escalation_predicate --symptom … --json` exits 0 or 1 (both are
-//!   verdicts) with the predicate keys on stdout;
+//! - adversarial-benchmark `campaign_write.rs`: `escalation_predicate --symptom … [--events … --started-utc --ended-utc]
+//!   --json` exits 0 or 1 (both are verdicts) with the predicate keys on stdout; a kill in the window refutes;
+//! - upstream `budget_preflight.rs` (`--declared-gmu-yaml`): the `gpu-memory-utilization: <v>` line of the serving yaml
+//!   `gen_recipe_set` writes;
 //! - upstream `smoke_model.rs`: `rope_scaling_translate --model-dir --target-len --json` keys;
 //! - text arguments that are not UTF-8: exit 2 where base refuses them (closed choices).
 //!
@@ -495,6 +497,141 @@ fn rope_scaling_translate_json_keys() {
     let doc = run("16384");
     assert_eq!(doc.at("needed"), &Json::Bool(true), "{doc:?}");
     assert_eq!(doc.at("hf_overrides"), &Json::Null, "{doc:?}");
+}
+
+/// `escalation_predicate --symptom S --events F --started-utc T0 --ended-utc T1 --json` (adversarial-benchmark
+/// `campaign_write.rs:4850-4880`, the ELF run directly) reads the node's blackbox events in the window: an executed kill
+/// (`kind` `watchdog_kill_ack`, one of the classifier's `KILL_EVENT_KINDS`) inside it refutes `serve_init_immediate_death`
+/// — exit 1, `predicate_1` false, the symptom in `model_plane_refuted`, the event in `kill_events_executed` — while a
+/// window without one leaves the symptom standing (exit 0, `predicate_1` true); `evidence_source` names the events file.
+/// `--events` without the window is exit 2 with nothing on stdout. The kill window goes through the canonical classifier
+/// (adversarial-benchmark `classify_cell_api.sh`, its built ELF), as in the consumer's run.
+#[test]
+fn escalation_predicate_events_window() {
+    let s = scratch("events");
+    let events = s.0.join("events.jsonl");
+    write(
+        &events,
+        "{\"ts\": \"2026-09-10T05:20:55Z\", \"kind\": \"watchdog_kill_ack\", \"source\": \"mem_watchdog\"}\n{\"ts\": \"2026-09-10T06:00:00Z\", \"kind\": \"earlyoom_kill\", \"source\": \"earlyoom\"}\n",
+    );
+    let ev = events.to_str().unwrap();
+    let run = |window: &[&str]| {
+        Command::new(exe("escalation_predicate"))
+            .args(["--symptom", "serve_init_immediate_death", "--events", ev])
+            .args(window)
+            .arg("--json")
+            .current_dir(&s.0)
+            .stdin(Stdio::null())
+            .output()
+            .unwrap()
+    };
+    let verdict = |out: &Output| {
+        Json::parse(&text(&out.stdout))
+            .unwrap_or_else(|e| panic!("{e}: {}{}", text(&out.stdout), text(&out.stderr)))
+    };
+    let out = run(&[
+        "--started-utc",
+        "2026-09-10T05:20:50Z",
+        "--ended-utc",
+        "2026-09-10T05:21:00Z",
+    ]);
+    let doc = verdict(&out);
+    assert_eq!(out.status.code(), Some(1), "{doc:?}");
+    assert_eq!(doc.at("predicate_1"), &Json::Bool(false));
+    assert_eq!(
+        doc.at("model_plane_refuted").strs(),
+        ["serve_init_immediate_death"]
+    );
+    assert!(doc.at("model_plane_standing").strs().is_empty());
+    let kills = doc.at("kill_events_executed").arr().unwrap();
+    assert_eq!(kills.len(), 1, "{doc:?}");
+    assert_eq!(kills[0].at("kind").str(), Some("watchdog_kill_ack"));
+    assert_eq!(kills[0].at("ts").str(), Some("2026-09-10T05:20:55Z"));
+    assert_eq!(doc.at("evidence_source").str(), Some(ev));
+    let out = run(&[
+        "--started-utc",
+        "2026-09-10T07:00:00Z",
+        "--ended-utc",
+        "2026-09-10T07:01:00Z",
+    ]);
+    let doc = verdict(&out);
+    assert_eq!(out.status.code(), Some(0), "{doc:?}");
+    assert_eq!(doc.at("predicate_1"), &Json::Bool(true));
+    assert_eq!(
+        doc.at("model_plane_standing").strs(),
+        ["serve_init_immediate_death"]
+    );
+    assert!(doc.at("model_plane_refuted").strs().is_empty());
+    assert!(doc.at("kill_events_executed").arr().unwrap().is_empty());
+    assert_eq!(doc.at("evidence_source").str(), Some(ev));
+    let out = run(&[]);
+    assert_eq!(
+        (out.status.code(), text(&out.stdout).as_str()),
+        (Some(2), "")
+    );
+}
+
+/// The serving yaml `gen_recipe_set` writes (`<repo>/configs/<name>.yaml`) carries the recipe's gpu memory utilization on
+/// one `key: value` line, `gpu-memory-utilization: <value>`: upstream `budget_preflight --declared-gmu-yaml`
+/// (`budget_preflight.rs:229-260`, run by single_serve_up.sh·multinode_serve_smoke.sh, kv-clamp.md:36-39) does not load
+/// the YAML — it takes the first line whose key, after leading blanks, is `gpu[-_]memory[-_]utilization` (comment lines
+/// never match) and its number-shaped value. That line gives the recipe's value. Inputs and output are in a scratch
+/// directory.
+#[test]
+fn gen_recipe_set_serving_yaml_gmu_line() {
+    let s = scratch("gmu");
+    let rt = runtime_root(&s);
+    let (parsed, recipe) = (s.0.join("parsed.json"), s.0.join("recipe.json"));
+    write(
+        &parsed,
+        r#"{"model_path_container": "/app/models/org/m", "model_id": "org/m"}"#,
+    );
+    write(
+        &recipe,
+        r#"{"quantization": null, "gpu_memory_utilization": 0.82, "gmu_source": "measured", "max_model_len": 8192, "batch": 4, "batch_source": "formula", "kv_cache_memory_bytes": 1073741824, "kv_cache_quant": null, "vram_breakdown": {}, "attention_backend": null, "tool_call_parser": null, "reasoning_parser": null, "serve_env": {}, "target_gpu": null, "tensor_parallel_size": 1, "distributed_executor_backend": null}"#,
+    );
+    let repo = s.0.join("output/single");
+    let out = launch(
+        &rt,
+        &s.0,
+        "gen_recipe_set.sh",
+        &[
+            "--parsed",
+            parsed.to_str().unwrap(),
+            "--recipe",
+            recipe.to_str().unwrap(),
+            "--name",
+            "m1",
+            "--repo",
+            repo.to_str().unwrap(),
+            "--port",
+            "8000",
+            "--served-model-name",
+            "m",
+            "--topology",
+            "single",
+        ],
+    );
+    assert_eq!(out.status.code(), Some(0), "{}", text(&out.stderr));
+    let yaml = std::fs::read_to_string(repo.join("configs/m1.yaml")).unwrap();
+    // budget_preflight's reading: the first `gpu[-_]memory[-_]utilization` key line, blanks before the key allowed
+    let key_line = yaml
+        .lines()
+        .map(|l| l.trim_start_matches([' ', '\t']))
+        .find(|l| {
+            let Some(rest) = l.strip_prefix("gpu") else {
+                return false;
+            };
+            let mut parts = rest.splitn(3, ['-', '_']);
+            parts.next() == Some("")
+                && parts.next() == Some("memory")
+                && parts.next().is_some_and(|tail| {
+                    tail.strip_prefix("utilization")
+                        .is_some_and(|after| after.trim_start_matches([' ', '\t']).starts_with(':'))
+                })
+        })
+        .unwrap_or_else(|| panic!("no gpu memory utilization key line:\n{yaml}"));
+    assert_eq!(key_line, "gpu-memory-utilization: 0.82", "{yaml}");
 }
 
 /// A small RFC 8259 reader for the contract checks: the fixed surface is the parsed value (L2), so the checks read the

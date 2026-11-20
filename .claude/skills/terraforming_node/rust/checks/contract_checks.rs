@@ -20,8 +20,15 @@
 //!   without a launcher — the units' argv, cwd `/`, no owner path — and their `--self-test`;
 //! - wiki-desk `accessor.ts`·`gateway.ts`: `library_access --revoke` rewrites the manifest's `library` block lines and drops
 //!   the `wiki-desk-gateway:<id>` line of authorized_keys;
-//! - relay's ledgers keep the keys relay does not own when it rewrites them (`--supervise-step`);
-//! - text arguments that are not UTF-8: exit 2 where base refuses them (closed choices).
+//! - relay's ledgers keep the keys relay does not own when it rewrites them (`--supervise-step`), and relay keeps refusing
+//!   a sub report with a key outside `task-report.schema.json`;
+//! - thermal_watchdog.sh·install_node_blackbox.sh·verify_node_blackbox.sh: the collector's sample CSV (header, columns,
+//!   integer `ts`, the UTC-date file name, one flushed row per sample);
+//! - node_identity.sh·role-contract `identity.rs`: the sub manifest render_sub_env delivers keeps its top-level
+//!   `self_role: sub` line;
+//! - policy-predicates `claims_text.rs` and upstream `branch_sync_selftest.rs`: the source tokens they read in this crate;
+//! - text arguments that are not UTF-8: exit 2 where base refuses them (closed choices); the consumers' options no other
+//!   check runs are probed against a renamed control.
 //!
 //! The bins run for real (through the launchers where the consumers do) in scratch directories. Values (L2) and exit
 //! codes, option names, line shapes and keys (L1) are fixed; message texts are not (L3).
@@ -1206,48 +1213,50 @@ fn blackbox_daemons_run_as_installed() {
                 .any(|e| std::fs::read_to_string(e.path()).is_ok_and(|t| t.lines().count() >= 2))
         };
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
-        while !sampled()
-            && std::time::Instant::now() < deadline
-            && child.try_wait().unwrap().is_none()
-        {
+        let mut exited = None;
+        while !sampled() && std::time::Instant::now() < deadline {
+            // a collector that ended by itself has been reaped: it is not signalled (its pid may be another process's now)
+            if let Some(st) = child.try_wait().unwrap() {
+                exited = Some(st);
+                break;
+            }
             std::thread::sleep(std::time::Duration::from_millis(100));
         }
         let rows_seen = sampled();
-        let kill = Command::new(on_path("kill"))
-            .args(["-INT", &child.id().to_string()])
-            .status()
-            .unwrap();
-        assert!(kill.success());
-        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
-        let status = loop {
-            if let Some(st) = child.try_wait().unwrap() {
-                break st;
+        let errors = || std::fs::read_to_string(s.0.join("collect.err")).unwrap_or_default();
+        let status = match exited {
+            Some(st) => st,
+            None => {
+                let kill = Command::new(on_path("kill"))
+                    .args(["-INT", &child.id().to_string()])
+                    .status()
+                    .unwrap();
+                assert!(kill.success(), "{}", errors());
+                let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
+                loop {
+                    if let Some(st) = child.try_wait().unwrap() {
+                        break st;
+                    }
+                    assert!(
+                        std::time::Instant::now() < deadline,
+                        "the collector did not stop on SIGINT: {}",
+                        errors()
+                    );
+                    std::thread::sleep(std::time::Duration::from_millis(100));
+                }
             }
-            assert!(
-                std::time::Instant::now() < deadline,
-                "the collector did not stop on SIGINT"
-            );
-            std::thread::sleep(std::time::Duration::from_millis(100));
         };
-        assert!(
-            rows_seen,
-            "no sample row: {}",
-            std::fs::read_to_string(s.0.join("collect.err")).unwrap_or_default()
-        );
-        assert_eq!(
-            status.code(),
-            Some(0),
-            "{}",
-            std::fs::read_to_string(s.0.join("collect.err")).unwrap_or_default()
-        );
+        assert!(rows_seen, "no sample row ({status:?}): {}", errors());
+        assert_eq!(status.code(), Some(0), "{}", errors());
         let day = std::fs::read_dir(node.join("samples"))
             .unwrap()
             .flatten()
             .next()
             .unwrap()
             .path();
-        assert!(
-            std::fs::read_to_string(&day).unwrap().starts_with("ts,"),
+        assert_eq!(
+            std::fs::read_to_string(&day).unwrap().lines().next(),
+            Some(SAMPLES_HEADER),
             "{day:?}"
         );
     }
@@ -1520,6 +1529,520 @@ fn non_utf8_choice_arguments_are_usage_errors() {
             Some(2),
             "{launcher} {option} {valid}"
         );
+    }
+}
+
+/// The header line of the collector's sample CSV (`blackbox_collect.rs:22-23` `CSV_HEADER`): the column order the readers
+/// count on.
+const SAMPLES_HEADER: &str =
+    "ts,mem_avail,mem_rate,gpu_temp,gpu_pwr,gpu_sm,gpu_util,gpu_mem,load1,ctr_n,soc_temp,soc_zone";
+
+/// The UTC calendar date `YYYY-MM-DD` of an epoch second (days to a proleptic Gregorian date).
+fn utc_date(epoch: i64) -> String {
+    let z = epoch.div_euclid(86_400) + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z - era * 146_097;
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let day = doy - (153 * mp + 2) / 5 + 1;
+    let month = if mp < 10 { mp + 3 } else { mp - 9 };
+    let year = yoe + era * 400 + i64::from(month <= 2);
+    format!("{year:04}-{month:02}-{day:02}")
+}
+
+/// An executable script at `to`, made by `install -m 0755` from a source file beside it: a file this process wrote and
+/// executes at once could still be open for writing in a child another check thread is forking (ETXTBSY).
+fn install_script(to: &Path, body: &str) {
+    let source = to.with_file_name(format!(
+        ".{}.source",
+        to.file_name().unwrap().to_str().unwrap()
+    ));
+    write(&source, body);
+    let st = Command::new(on_path("install"))
+        .arg("-m")
+        .arg("0755")
+        .arg(&source)
+        .arg(to)
+        .stdin(Stdio::null())
+        .status()
+        .unwrap();
+    assert!(st.success(), "install {to:?}");
+}
+
+/// The collector's sample CSV (consumers.md 「영속 데이터」 블랙박스 표본 CSV) `<node_dir>/samples/<UTC date>.csv`: the header
+/// line once, then one row per sample, written and flushed at once. Its readers: thermal_watchdog.sh:127-143 (`tail -c
+/// 8192 | awk -F,` keeps the last row whose first field is an integer and that has at least five fields, and takes the
+/// fifth, `gpu_pwr`, for its kill rule), :503 (today's file by its UTC date), install_node_blackbox.sh:659-664 (today's
+/// file is not empty), verify_node_blackbox.sh:315-320 (the file grows between two looks). The collector runs as its unit
+/// runs it (the ELF, cwd `/`, no owner path, `--node-dir D --interval 1`) with `--max-samples 3 --no-kmsg`; `PATH` holds
+/// `date`, `sleep` and a stand-in `nvidia-smi` script in the scratch directory that prints one query row a second (so
+/// `gpu_pwr` has a value) and no container tool (`ctr_n` stays empty). While it runs the file is looked at: every look
+/// ends with a whole line and the rows come one by one. The watchdog's own `tp_read_gpu` function, taken from the
+/// script, reads the file.
+#[test]
+fn blackbox_samples_csv_rows_the_watchdog_reads() {
+    let s = scratch("samples");
+    let tools = s.0.join("tools");
+    std::fs::create_dir_all(&tools).unwrap();
+    for name in ["date", "sleep"] {
+        std::os::unix::fs::symlink(on_path(name), tools.join(name)).unwrap();
+    }
+    // the query stream the collector reads (`--query-gpu=… --format=csv,noheader,nounits -l 1`), one row a second
+    install_script(
+        &tools.join("nvidia-smi"),
+        "#!/bin/sh\nwhile :; do echo '45, 87.25, 2400, 50, 1234'; sleep 1; done\n",
+    );
+    let node = s.0.join("node");
+    std::fs::create_dir_all(&node).unwrap();
+    let samples = node.join("samples");
+    let err = s.0.join("collect.err");
+    let mut child = Command::new(env!("CARGO_BIN_EXE_blackbox_collect"))
+        .args([
+            "--node-dir",
+            node.to_str().unwrap(),
+            "--interval",
+            "1",
+            "--max-samples",
+            "3",
+            "--no-kmsg",
+        ])
+        .current_dir("/")
+        .env_remove("TERRAFORMING_OWNER_PATH")
+        .env_remove("TERRAFORMING_BIN_DIR")
+        .env("PATH", &tools)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(std::fs::File::create(&err).unwrap())
+        .spawn()
+        .unwrap();
+    let files = || -> Vec<PathBuf> {
+        let mut v: Vec<PathBuf> = std::fs::read_dir(&samples)
+            .map(|rd| rd.flatten().map(|e| e.path()).collect())
+            .unwrap_or_default();
+        v.sort();
+        v
+    };
+    let errors = || std::fs::read_to_string(&err).unwrap_or_default();
+    // the looks while it runs: (lines of the sample files, every file ends with a whole line)
+    let mut looks: Vec<(usize, bool)> = Vec::new();
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
+    let status = loop {
+        if let Some(st) = child.try_wait().unwrap() {
+            break st;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "the collector did not end after three samples: {}",
+            errors()
+        );
+        let texts: Vec<String> = files()
+            .iter()
+            .filter_map(|p| std::fs::read_to_string(p).ok())
+            .collect();
+        if !texts.is_empty() {
+            looks.push((
+                texts.iter().map(|t| t.lines().count()).sum(),
+                texts.iter().all(|t| t.is_empty() || t.ends_with('\n')),
+            ));
+        }
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    };
+    assert_eq!(status.code(), Some(0), "{}", errors());
+    let files = files();
+    assert!(!files.is_empty() && files.len() <= 2, "{files:?}");
+    let mut rows: Vec<Vec<String>> = Vec::new();
+    for file in &files {
+        let body = std::fs::read_to_string(file).unwrap();
+        let mut lines = body.lines();
+        assert_eq!(lines.next(), Some(SAMPLES_HEADER), "{file:?}");
+        let name = file.file_name().unwrap().to_str().unwrap();
+        for line in lines {
+            let fields: Vec<String> = line.split(',').map(str::to_string).collect();
+            assert_eq!(fields.len(), 12, "{line:?}");
+            assert!(
+                !fields[0].is_empty() && fields[0].bytes().all(|b| b.is_ascii_digit()),
+                "ts, an integer: {line:?}"
+            );
+            assert_eq!(
+                format!("{}.csv", utc_date(fields[0].parse().unwrap())),
+                name,
+                "a row's file is the UTC date of its ts"
+            );
+            rows.push(fields);
+        }
+    }
+    assert_eq!(rows.len(), 3, "{rows:?}");
+    let last = rows.last().unwrap();
+    assert_eq!(last[4], "87.25", "gpu_pwr is the fifth field: {last:?}");
+    assert!(
+        looks.iter().all(|(_, whole)| *whole),
+        "a look saw a partial row: {looks:?}"
+    );
+    assert!(looks.windows(2).all(|w| w[0].0 <= w[1].0), "{looks:?}");
+    let total = files.len() + rows.len();
+    assert!(
+        looks.iter().any(|(n, _)| *n > 0 && *n < total),
+        "the rows came one at a time, each flushed: {looks:?}"
+    );
+    // thermal_watchdog.sh's reader, the function itself: GPU_TS = the last row's ts, GPU_PWR_DW = round(gpu_pwr × 10)
+    let script =
+        std::fs::read_to_string(skill().join("scripts/node_blackbox/thermal_watchdog.sh")).unwrap();
+    let lines: Vec<&str> = script.lines().collect();
+    let start = lines
+        .iter()
+        .position(|l| l.starts_with("tp_read_gpu(){"))
+        .expect("tp_read_gpu in thermal_watchdog.sh");
+    let end = (start..lines.len()).find(|&i| lines[i] == "}").unwrap();
+    let watchdog = Command::new("bash")
+        .arg("-c")
+        .arg(format!(
+            "ABSENT=-1\n{}\ntp_read_gpu \"$1\"\nprintf '%s %s\\n' \"$GPU_TS\" \"$GPU_PWR_DW\"\n",
+            lines[start..=end].join("\n")
+        ))
+        .arg("thermal-watchdog")
+        .arg(files.last().unwrap())
+        .stdin(Stdio::null())
+        .output()
+        .unwrap();
+    assert_eq!(
+        text(&watchdog.stdout),
+        format!("{} 873\n", last[0]),
+        "{}",
+        text(&watchdog.stderr)
+    );
+}
+
+/// The topology this checkout's constitution declares (`.claude/rules/strategy.topology.md`, `**topology: <t>**`) — the
+/// one render_sub_env's guard lets through in this tree.
+fn rules_topology() -> String {
+    let rules = std::fs::read_to_string(root().join(".claude/rules/strategy.topology.md")).unwrap();
+    let head = "**topology: ";
+    let at = rules.find(head).expect("the rules' topology header") + head.len();
+    rules[at..].split("**").next().unwrap().trim().to_string()
+}
+
+/// A main manifest the renderer accepts (the fields its placeholders need), for `topology`.
+fn render_main_manifest(topology: &str) -> String {
+    format!("topology: {topology}\ncpu_arch: \"aarch64\"\ncuda_version: \"132\"\ngpus_per_node: 1\ngpu_model: \"TEST-GPU\"\nnas_model_path: /srv/test-models\nmodel_source: nas\ninterconnect:\n  type: RoCE v2\n  hca_devices: [testhca0, testhca1]\n  gid_index: 3\n  socket_iface: testif0\n  mtu: 9000\n  bandwidth_gbps: 200\n  platform_preset: test-preset\nnodes:\n  - role: main\n    host: main.invalid\n    ssh_user: tester\n    work_dir: /srv/tester/ws\n  - role: sub\n    host: sub.invalid\n    ssh_user: tester\n    work_dir: /srv/tester/ws\n")
+}
+
+/// The sub's manifest reaches the sub through render_sub_env (consumers.md 「영속 데이터」 manifest 줄 모양): `--topology T
+/// --manifest M --sub-manifest S --out O --no-runtime-block` (the overlay only) refuses a sub manifest whose `self_role`
+/// is not `sub` and writes S unchanged to `O/output/T/manifest.yaml`. Its top-level `self_role: sub` line is what
+/// node_identity.sh:66 greps (`^self_role:`) and role-contract `identity.rs` reads the same way: `node_identity.sh
+/// --resolve --repo O` prints `sub` — without the line its `- role: main` item (:92) would make the sub `main`. The tree
+/// is this repository (the launcher finds it; T is its rules' topology); the manifests and O are in a scratch directory.
+#[test]
+fn render_sub_env_delivers_the_sub_manifest_self_role_line() {
+    let s = scratch("submanifest");
+    let t = rules_topology();
+    let main = s.0.join("manifest.yaml");
+    write(&main, &render_main_manifest(&t));
+    let sub_text = format!("self_role: sub\ntopology: {t}\ncpu_arch: aarch64\ngpus_per_node: 1\ngpu_model: SUB-GPU\nmodel_source: managed\nnas_model_path: /srv/test-models\nterraforming:\n  complete: true\n  branch_verified: true\n  issued_by: main\nnodes:\n  - role: main\n    host: main.invalid\n  - role: sub\n    host: sub.invalid\n");
+    let render = |sub: &Path, out: &Path| {
+        launch(
+            &s.0,
+            "render_sub_env.sh",
+            &[
+                "--topology",
+                &t,
+                "--manifest",
+                main.to_str().unwrap(),
+                "--sub-manifest",
+                sub.to_str().unwrap(),
+                "--out",
+                out.to_str().unwrap(),
+                "--no-runtime-block",
+            ],
+        )
+    };
+    let delivered = |out: &Path| out.join("output").join(&t).join("manifest.yaml");
+    let bad = s.0.join("sub-main.yaml");
+    write(&bad, &sub_text.replace("self_role: sub", "self_role: main"));
+    let out_bad = s.0.join("out-bad");
+    let out = render(&bad, &out_bad);
+    assert!(
+        !matches!(out.status.code(), Some(0) | Some(5)),
+        "{:?}: {}",
+        out.status,
+        text(&out.stderr)
+    );
+    assert!(
+        !delivered(&out_bad).exists(),
+        "a refused sub manifest is not delivered"
+    );
+    let sub = s.0.join("sub_manifest.yaml");
+    write(&sub, &sub_text);
+    let o = s.0.join("out");
+    let out = render(&sub, &o);
+    assert_eq!(out.status.code(), Some(0), "{}", text(&out.stderr));
+    let copy = std::fs::read_to_string(delivered(&o)).unwrap();
+    assert_eq!(copy, sub_text, "the sub manifest is delivered as written");
+    assert_eq!(
+        copy.lines().find(|l| l.starts_with("self_role:")),
+        Some("self_role: sub")
+    );
+    let resolved = Command::new("bash")
+        .arg(skill().join("scripts/node_blackbox/node_identity.sh"))
+        .args(["--resolve", "--repo", o.to_str().unwrap()])
+        .stdin(Stdio::null())
+        .output()
+        .unwrap();
+    assert_eq!(
+        (resolved.status.code(), text(&resolved.stdout).trim()),
+        (Some(0), "sub"),
+        "{}",
+        text(&resolved.stderr)
+    );
+}
+
+/// relay keeps its report check's refusal (types.md 4절 2, 거부 보존): before `relay --continue --apply --context-id <ctx>`
+/// reuses a completed attempt's report (`campaigns/<id>/relay/<ctx>.reports/attempt-NN.json`, `{"report": …}`,
+/// dispatch.rs:241-330) it checks the report against `sub_node/task-report.schema.json` (`additionalProperties: false` at
+/// the top, `:7`, and in its objects). A key outside the schema — at the top or in `self_verification` — is a refusal:
+/// exit 1, `HANDOFF_RESULT_UNAVAILABLE` on stderr, nothing on stdout, the ledger's bytes unchanged. The same report
+/// without the key is reused: exit 0, stdout `action` `reuse_completed_result` with the report as stored, and the ledger
+/// records `handoff_reuse`. The tree holds copies of what relay reads.
+#[test]
+fn relay_refuses_a_report_outside_the_task_report_schema() {
+    let s = scratch("relay-report");
+    let tree = s.0.join("tree");
+    for rel in [
+        ".claude/skills/terraforming_node/scripts/relay.sh",
+        ".claude/skills/terraforming_node/scripts/agent_control.sh",
+        ".claude/schemas/agent-control-request.schema.json",
+        ".claude/skills/terraforming_node/sub_node/task-report.schema.json",
+    ] {
+        let to = tree.join(rel);
+        std::fs::create_dir_all(to.parent().unwrap()).unwrap();
+        std::fs::copy(root().join(rel), &to).unwrap();
+    }
+    write(&tree.join("campaigns/ACTIVE"), "c1\n");
+    let ledger = tree.join("campaigns/c1/relay/ctx-1.json");
+    write(
+        &ledger,
+        r#"{"schema_version": 1, "context_id": "ctx-1", "campaign_id": "c1", "campaign_node": "sub", "topology": "single", "revision": 2, "attempts": [{"attempt": 1, "status": "completed", "control_status": "completed", "sub_reported": true, "context_id_reported": "ctx-1", "campaign_id_reported": "c1", "report_path": "campaigns/c1/relay/ctx-1.reports/attempt-01.json", "running_services": [], "provider": "claude_code", "session_id": "s-1", "execution_started": true, "reason_codes": [], "budget_outcome": "within_budget"}]}"#,
+    );
+    let report = r#"{"task_id": "task-1", "context_id": "ctx-1", "turn": 1, "phase": "publish", "status": "completed", "node_id": "sub", "campaign_id": "c1", "running_services": [], "self_verification": {"checks_run": ["identity", "schema_valid"], "identity_ok": true}, "artifacts": [{"kind": "report", "path": "docs/testlog/result.md"}]}"#;
+    let stored = tree.join("campaigns/c1/relay/ctx-1.reports/attempt-01.json");
+    let relay = || {
+        Command::new("bash")
+            .arg(tree.join(".claude/skills/terraforming_node/scripts/relay.sh"))
+            .args(["--continue", "--apply", "--context-id", "ctx-1"])
+            .env("TERRAFORMING_BIN_DIR", bin_dir())
+            .env_remove("TERRAFORMING_OWNER_PATH")
+            .env("GIT_CEILING_DIRECTORIES", std::env::temp_dir())
+            .current_dir(&s.0)
+            .stdin(Stdio::null())
+            .output()
+            .unwrap()
+    };
+    for (what, outside) in [
+        (
+            "a top-level key",
+            report.replace(r#""artifacts""#, r#""extra_key": 1, "artifacts""#),
+        ),
+        (
+            "a key in self_verification",
+            report.replace(
+                r#""identity_ok": true"#,
+                r#""identity_ok": true, "extra_key": 1"#,
+            ),
+        ),
+    ] {
+        assert_ne!(outside, report);
+        write(&stored, &format!("{{\"report\": {outside}}}\n"));
+        let before = std::fs::read(&ledger).unwrap();
+        let out = relay();
+        assert_eq!(out.status.code(), Some(1), "{what}: {}", text(&out.stderr));
+        assert!(
+            text(&out.stderr).contains("HANDOFF_RESULT_UNAVAILABLE"),
+            "{what}: {}",
+            text(&out.stderr)
+        );
+        assert_eq!(text(&out.stdout), "", "{what}");
+        assert_eq!(
+            std::fs::read(&ledger).unwrap(),
+            before,
+            "{what}: the ledger is not rewritten"
+        );
+    }
+    write(&stored, &format!("{{\"report\": {report}}}\n"));
+    let out = relay();
+    assert_eq!(out.status.code(), Some(0), "{}", text(&out.stderr));
+    let doc = Json::parse(&text(&out.stdout)).unwrap();
+    assert_eq!(doc.at("action").str(), Some("reuse_completed_result"));
+    assert!(
+        doc.at("report").same(&Json::parse(report).unwrap()),
+        "{doc:?}"
+    );
+    let led = Json::parse(&std::fs::read_to_string(&ledger).unwrap()).unwrap();
+    assert_eq!(
+        led.at("handoff_reuse").at("action").str(),
+        Some("reuse_completed_result"),
+        "{led:?}"
+    );
+}
+
+/// The source text policy-predicates reads in this crate (consumers.md 「소스 본문·경로 결합」; its `claims_text` goldens are in
+/// the M baseline failure set, so its gate does not show a break here): the column-0 `pub fn render_tree(` item of
+/// `render_sub_env.rs` (head to the first column-0 `}`, support.rs:493-501 `rust_top_fn`) holds the exact call that renders
+/// `CLAUDE.template.md` as `CLAUDE.md` (SUB_GIT_LOCAL_ONLY C2); the file names `Agent_Card.template.json` and none of
+/// `signing_key`·`a2a_signing`·`trusted_keys.json`·`runtime/a2a` (A2A_IDENTITY_PROOF_FAIL_CLOSED C4); `agent_control.rs`
+/// holds `role/transport mismatch` (C3); `relay.rs` and `relay/*.rs` other than `selftest.rs` hold neither
+/// `serve_library_requests` nor `library_request` (LIBRARY_GROUNDING_FAIL_CLOSED C5). And upstream
+/// `branch_sync_selftest.rs:490-493` finds its guard-call anchor in `render_sub_env.rs` exactly once.
+#[test]
+fn policy_predicate_source_tokens_of_this_crate() {
+    let src_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+    let read = |p: &Path| std::fs::read_to_string(p).unwrap_or_else(|e| panic!("{p:?}: {e}"));
+    let render = read(&src_dir.join("render_sub_env.rs"));
+    let lines: Vec<&str> = render.split('\n').collect();
+    let start = lines
+        .iter()
+        .position(|l| l.starts_with("pub fn render_tree("))
+        .expect("a column-0 `pub fn render_tree(` in render_sub_env.rs");
+    let end = (start..lines.len())
+        .find(|&i| lines[i] == "}" || (i == start && lines[i].ends_with('}')))
+        .expect("the column-0 end of render_tree");
+    let tree = lines[start..=end].join("\n");
+    assert!(
+        tree.contains(r#"render_file("CLAUDE.template.md", "CLAUDE.md", "md", &mut produced)"#),
+        "render_tree renders the sub's CLAUDE.md"
+    );
+    assert!(render.contains("Agent_Card.template.json"));
+    for token in [
+        "signing_key",
+        "a2a_signing",
+        "trusted_keys.json",
+        "runtime/a2a",
+    ] {
+        assert!(!render.contains(token), "render_sub_env.rs names {token}");
+    }
+    assert_eq!(
+        render
+            .matches("    let mut mismatch = topology_rules_mismatch(ctx, &topology, None);\n")
+            .count(),
+        1
+    );
+    assert!(read(&src_dir.join("agent_control.rs")).contains("role/transport mismatch"));
+    let mut relay_files = vec![src_dir.join("relay.rs")];
+    let mut module: Vec<PathBuf> = std::fs::read_dir(src_dir.join("relay"))
+        .unwrap()
+        .flatten()
+        .map(|e| e.path())
+        .filter(|p| {
+            p.extension().is_some_and(|e| e == "rs")
+                && p.file_name().is_some_and(|n| n != "selftest.rs")
+        })
+        .collect();
+    module.sort();
+    assert!(!module.is_empty());
+    relay_files.extend(module);
+    for file in &relay_files {
+        let body = read(file);
+        for token in ["serve_library_requests", "library_request"] {
+            assert!(!body.contains(token), "{file:?} names {token}");
+        }
+    }
+}
+
+/// A usage error of the parsers: exit 2 with a usage block on stderr (`usage: …`).
+fn usage_error(out: &Output) -> bool {
+    out.status.code() == Some(2) && text(&out.stderr).to_ascii_lowercase().contains("usage")
+}
+
+/// The consumers' options no other check runs are taken by the parser: adversarial-benchmark `campaign_write` prints
+/// `relay.sh --campaign-control reslice --campaign-id <c> --node <n>` for the agent (campaign_write_cases.rs:677), and
+/// sync_to_sub.sh:239·:1376-1380 runs `render_sub_env.sh --topology <t> --tracked-list <f> [--hint-write-scopes <f>]`.
+/// Each line is not a usage error (a domain answer passes: relay asks for `--context-id`, exit 1; render_sub_env finds no
+/// manifest, exit 3), while the same line with one of its options renamed is one, with nothing on stdout (review r2 C-N7:
+/// an argument probe, not the `--help` listing). relay runs in a tree of copies; render_sub_env in this tree (its guard
+/// reads the rules) with the files in a scratch directory.
+#[test]
+fn consumer_options_are_taken_by_the_parser() {
+    let s = scratch("probe");
+    let tree = s.0.join("tree");
+    for rel in [
+        ".claude/skills/terraforming_node/scripts/relay.sh",
+        ".claude/skills/terraforming_node/scripts/agent_control.sh",
+        ".claude/schemas/agent-control-request.schema.json",
+    ] {
+        let to = tree.join(rel);
+        std::fs::create_dir_all(to.parent().unwrap()).unwrap();
+        std::fs::copy(root().join(rel), &to).unwrap();
+    }
+    let relay = tree.join(".claude/skills/terraforming_node/scripts/relay.sh");
+    let render = skill().join("scripts/render_sub_env.sh");
+    let t = rules_topology();
+    let (absent, list, scopes) = (
+        s.0.join("absent.yaml"),
+        s.0.join("tracked.list"),
+        s.0.join("scopes.json"),
+    );
+    write(&list, "CLAUDE.md\n");
+    write(&scopes, "{}\n");
+    let run = |launcher: &Path, args: &[&str]| {
+        Command::new("bash")
+            .arg(launcher)
+            .args(args)
+            .env("TERRAFORMING_BIN_DIR", bin_dir())
+            .env_remove("TERRAFORMING_OWNER_PATH")
+            .env("GIT_CEILING_DIRECTORIES", std::env::temp_dir())
+            .current_dir(&s.0)
+            .stdin(Stdio::null())
+            .output()
+            .unwrap()
+    };
+    let probes: [(&Path, Vec<&str>, &[&str]); 2] = [
+        (
+            &relay,
+            vec![
+                "--campaign-control",
+                "reslice",
+                "--campaign-id",
+                "c1",
+                "--node",
+                "sub",
+            ],
+            &["--campaign-control", "--campaign-id", "--node"],
+        ),
+        (
+            &render,
+            vec![
+                "--topology",
+                &t,
+                "--manifest",
+                absent.to_str().unwrap(),
+                "--tracked-list",
+                list.to_str().unwrap(),
+                "--hint-write-scopes",
+                scopes.to_str().unwrap(),
+            ],
+            &["--tracked-list", "--hint-write-scopes"],
+        ),
+    ];
+    for (launcher, line, words) in probes {
+        let out = run(launcher, &line);
+        assert!(
+            !usage_error(&out),
+            "{line:?} is a usage error:\n{}",
+            text(&out.stderr)
+        );
+        for word in words {
+            let mut control = line.clone();
+            let at = control.iter().position(|w| w == word).unwrap();
+            control[at] = "--contract-no-such-option";
+            let out = run(launcher, &control);
+            assert!(
+                usage_error(&out),
+                "{control:?}: an unknown option must be a usage error: {:?}\n{}",
+                out.status,
+                text(&out.stderr)
+            );
+            assert_eq!(text(&out.stdout), "", "{control:?}");
+        }
     }
 }
 
