@@ -7,6 +7,7 @@
   빠진 소비자를 찾으면 `contract/`에 행을 더하고(추가만 한다. 있는 행을 지우거나 약하게 고치지 않는다) 그 bin의 계약 시험을 보강한다. 이 추가만으로는 c20·c21을 다시 열지 않는다.
   이 문서가 놓친 소비자를 검토가 새로 찾았는데 그 bin을 바꾸는 cell이 c30 뒤이면, 비차단으로 보고 그 cell 메모로 넘긴다.
 - 기계 표: `consumers.tsv`(bin × 소비자 파일 한 행). 고정 표면의 수준(L1 바이트·L2 값·L3 자유)은 `types.md` 1절이다.
+- 줄 번호 기준: `consumers.tsv`의 `lines`는 `nc:` 행은 g-nc 뒤 판, 나머지는 base `ead7087d` 판이다.
 - 빠진 것을 찾으면 행을 더하고 이 문서의 해당 절을 고친다. c20을 다시 열면 c21도 다시 연다(plan 「진행 규칙」).
 
 ## consumers.tsv 열
@@ -24,7 +25,7 @@
 | `reads` | 소비자가 읽는 것: `exit:<구분하는 코드>`, `stdout-json:<키>`, `stdout-text:<무엇>`, `stderr:<무엇>`, `merged-output`, `file:<bin이 쓴 경로>`, `source-text:<토큰>`(bin의 소스 파일 본문을 대조), `exec`, `path-only`(경로만 적음), `test`, `comment`, `agent-instruction`(에이전트가 읽는 명령), `golden(…)`, `path-record` |
 | `fixed` | `yes`(기계 소비 — 고정 표면), `argv`(문서가 적은 명령행 — 서브커맨드·플래그가 고정), `path`(경로 이름만 고정), `golden`(재기준선 가능), `?` |
 | `basis` | `checked` = 사람(검토 에이전트)이 소비자 코드를 읽고 채운 행, `auto` = 아래 규칙으로 뽑은 행(`invocation`·`reads`는 어림) |
-| `note` | 기계로 파싱되는 문자열(reason code, 표 머리, 표식 줄) 등. 3회차에 더하거나 고친 행은 `r3:`로 시작한다. g-nc 위로 옮길 때(h38) 지운 `--as-of`·`--policy-as-of` 표면에 맞춰 고친 행은 `nc:`로 시작한다(c24 CKG-031) |
+| `note` | 기계로 파싱되는 문자열(reason code, 표 머리, 표식 줄) 등. 3회차에 더하거나 고친 행은 `r3:`로 시작한다. g-nc 위로 옮길 때(h38) g-nc가 지운 인자에 맞춰 고친 행은 `nc:`로 시작한다. 대상은 `--as-of`·`--policy-as-of`(c24 CKG-031)와 staleness_gate `--now`·`--max-age-days`(c24 D17·D19)다. 근거 D-id는 그 행의 비고에 있다 |
 
 뽑은 규칙(재현용):
 - 1회차 자동 규칙은 셋이다.
