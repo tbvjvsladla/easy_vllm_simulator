@@ -12,8 +12,12 @@
 //! - policy-selftest `hint_suite.rs` (gate relay): `verify`/`push` ask the completion gate first and relay its refusal
 //!   JSON with its exit code; an unreadable gate output is a refusal JSON with `HINT_GATE_OUTPUT_UNREADABLE`;
 //! - hint's own reading of other bins' surfaces (consumers.md 「계약 시험에 반영할 것」): `evidence_publisher` through
-//!   its `.sh` launcher, the native serve proof's `pip_freeze_paths` keys, the blackbox session documents and events
-//!   (through the crate's `hint_api` ELF, see the section below).
+//!   its `.sh` launcher, the native serve proof's `pip_freeze_paths` keys, the blackbox session documents and events,
+//!   the keys of `output/<t>/resolved.json` and `HINT_MISSING_RESOLVE` (through the crate's `hint_api` ELF, see the
+//!   section below).
+//!
+//! The options the consumers pass and the documents name are probed by running the parser with them (a control with
+//! the option renamed is a usage error), not read from the `--help` listing.
 //!
 //! The bins run for real (through the launchers where the consumers do), in scratch directories and throwaway local
 //! git repositories (the "remote" is a bare repository on disk). Values (L2) and exit codes, codes and marker
@@ -52,6 +56,27 @@ fn text(b: &[u8]) -> String {
 fn write(path: &Path, body: &str) {
     std::fs::create_dir_all(path.parent().unwrap()).unwrap();
     std::fs::write(path, body).unwrap();
+}
+
+/// `install -m 0755 <src> <dst>`: an executable this test starts directly is created by a child process. A file this
+/// process wrote could still be open for writing in a child another check thread is forking, and exec would then
+/// fail with "Text file busy" (ETXTBSY).
+fn install_exe(src: &Path, dst: &Path) {
+    std::fs::create_dir_all(dst.parent().unwrap()).unwrap();
+    let st = Command::new("install")
+        .args(["-m", "0755"])
+        .arg(src)
+        .arg(dst)
+        .status()
+        .unwrap();
+    assert!(st.success(), "install {src:?} {dst:?}");
+}
+
+/// A script `dst` with `body`, created through `install_exe`.
+fn install_script(dst: &Path, body: &str) {
+    let src = dst.with_extension("src");
+    write(&src, body);
+    install_exe(&src, dst);
 }
 
 /// `bash scripts/hint.sh <args>` with `HINT_BIN` = this build (the consumers' form).
@@ -100,12 +125,7 @@ fn launchers_overrides_and_skill_dir_export() {
     }
     let s = scratch("launch");
     let probe = s.0.join("probe");
-    write(&probe, "#!/bin/sh\nprintf '%s\\n' \"$HINT_SKILL_DIR\"\n");
-    Command::new("chmod")
-        .arg("+x")
-        .arg(&probe)
-        .status()
-        .unwrap();
+    install_script(&probe, "#!/bin/sh\nprintf '%s\\n' \"$HINT_SKILL_DIR\"\n");
     for (launcher, var) in [
         ("hint.sh", "HINT_BIN"),
         ("hint_api.sh", "HINT_API_BIN"),
@@ -142,40 +162,168 @@ fn launchers_overrides_and_skill_dir_export() {
     }
 }
 
-/// The subcommands and the long options the consumers and the documents name are part of the parser (each
-/// subcommand's `--help` is exit 0 and lists them); an unknown option is a usage error, exit 2, nothing on stdout.
+/// A usage error of the parser: exit 2 with a usage block on stderr (argparse `usage: …`, clap `Usage: …`).
+fn usage_error(out: &Output) -> bool {
+    out.status.code() == Some(2) && text(&out.stderr).to_ascii_lowercase().contains("usage")
+}
+
+/// `hint.sh <line…>` (cwd `s`, the line names `--repo <s>`) where `s` is not a git repository and git cannot find one
+/// above it (`GIT_CEILING_DIRECTORIES`), with a `docker` on `PATH` that only fails. Past the parser every command except
+/// `match` and `catalog classify` stops at the repository check (`HINT_REPO_NOT_GIT`), so a probe changes nothing.
+fn probe(s: &Scratch, line: &[&str]) -> Output {
+    let path = format!(
+        "{}:{}",
+        s.0.join("bin").display(),
+        std::env::var("PATH").unwrap_or_default()
+    );
+    Command::new("bash")
+        .arg(skill().join("scripts/hint.sh"))
+        .args(line)
+        .env("HINT_BIN", env!("CARGO_BIN_EXE_hint"))
+        .env("GIT_CEILING_DIRECTORIES", s.0.parent().unwrap())
+        .env("PATH", path)
+        .current_dir(&s.0)
+        .output()
+        .unwrap()
+}
+
+/// The parser takes the word `word` of `--repo <s> <line…>` (an option or a subcommand): the line is not a usage
+/// error, while the same line with that word renamed to one no parser has is one. The control keeps the probe from
+/// passing on a parser that never reports usage errors this way; a domain answer to the arguments (any other exit)
+/// passes.
+fn assert_parser_takes(s: &Scratch, line: &[&str], word: &str) {
+    let line: Vec<&str> = ["--repo", s.0.to_str().unwrap()]
+        .into_iter()
+        .chain(line.iter().copied())
+        .collect();
+    let at = line
+        .iter()
+        .position(|w| *w == word)
+        .unwrap_or_else(|| panic!("{word} not in {line:?}"));
+    let out = probe(s, &line);
+    assert!(
+        !usage_error(&out),
+        "{line:?}: {word} is not taken\n{}",
+        text(&out.stderr)
+    );
+    let mut control = line.to_vec();
+    control[at] = if word.starts_with('-') {
+        "--contract-no-such-option"
+    } else {
+        "contract-no-such-command"
+    };
+    let out = probe(s, &control);
+    assert!(
+        usage_error(&out),
+        "{control:?}: an unknown word must be a usage error: {:?}\n{}",
+        out.status,
+        text(&out.stderr)
+    );
+    assert_eq!(text(&out.stdout), "", "{control:?}: nothing on stdout");
+}
+
+/// The subcommands and the long options the consumers pass (policy-selftest `hint_suite.rs`, policy-distribution
+/// `checks.rs`, upstream `closing_sequence.sh`·`branch_sync_selftest.rs`, policy-predicates `claims_hint.rs`) and the
+/// documents name (SKILL.md, templates, HINT_ISSUANCE_CONTRACT.md, references) are taken by the parser: each is probed
+/// on a command line a consumer would write, against a control with the word renamed (review r2 C-N7: an argument probe,
+/// not the `--help` listing). `--help` of the program and of every subcommand is exit 0 (the documents name it); an
+/// unknown option is a usage error, exit 2, nothing on stdout.
 #[test]
 fn hint_subcommands_and_long_options() {
     let s = scratch("argv");
-    let table: [(&[&str], &[&str]); 14] = [
-        (&[], &["--repo", "--self-test"]),
+    install_script(&s.0.join("bin/docker"), "#!/bin/sh\nexit 1\n");
+    const G: &str = "2026-11-19T00:00:00Z";
+    const KST: &str = "2026-11-19T09:00:00";
+    const TAG: &str = "hint/0.31.0/m-one/gb10-x/r1";
+    const SHA: &str = "0123456789abcdef0123456789abcdef01234567";
+    let index = s.0.join("index.json");
+    let index = index.to_str().unwrap();
+    let publish = [
+        "publish",
+        "--campaign",
+        "c1",
+        "--cell",
+        "c1-a",
+        "--generated-utc",
+        G,
+    ];
+    let cont = ["continue", "--draft", "d", "--generated-utc", G];
+    let with = |base: &[&'static str], extra: &[&'static str]| -> Vec<&'static str> {
+        base.iter().chain(extra).copied().collect()
+    };
+    let probes: Vec<(Vec<&str>, Vec<&str>)> = vec![
         (
-            &["publish"],
-            &[
-                "--campaign",
-                "--cell",
-                "--publication",
-                "--replay",
-                "--node",
-                "--generated-utc",
-                "--lineage-add",
-                "--out",
-                "--remote",
-                "--no-remote-check",
-                "--docker-read-only",
-                "--docker-probe",
-            ],
+            vec!["match", "--vllm", "0.31.0", "--model", "m-one"],
+            vec!["--repo"],
         ),
         (
-            &["continue"],
-            &[
-                "--campaign",
-                "--cell",
-                "--draft",
-                "--node",
+            publish.to_vec(),
+            vec!["publish", "--campaign", "--cell", "--generated-utc"],
+        ),
+        (with(&publish, &["--node", "cluster"]), vec!["--node"]),
+        (
+            vec![
+                "publish",
+                "--publication",
+                "p1",
+                "--replay",
                 "--generated-utc",
-                "--approved-by",
-                "--approved-utc",
+                G,
+            ],
+            vec!["--publication", "--replay"],
+        ),
+        (
+            with(&publish, &["--lineage-add", "docs/devlog/x.md=reason"]),
+            vec!["--lineage-add"],
+        ),
+        (with(&publish, &["--out", "draft-out"]), vec!["--out"]),
+        (
+            with(&publish, &["--remote", "fx", "--no-remote-check"]),
+            vec!["--remote", "--no-remote-check"],
+        ),
+        (
+            with(&publish, &["--docker-read-only"]),
+            vec!["--docker-read-only"],
+        ),
+        (with(&publish, &["--docker-probe"]), vec!["--docker-probe"]),
+        (
+            cont.to_vec(),
+            vec!["continue", "--draft", "--generated-utc"],
+        ),
+        (
+            vec![
+                "continue",
+                "--campaign",
+                "c1",
+                "--cell",
+                "c1-a",
+                "--node",
+                "cluster",
+                "--generated-utc",
+                G,
+            ],
+            vec!["--campaign", "--cell", "--node"],
+        ),
+        (
+            with(&cont, &["--approved-by", "a person", "--approved-utc", G]),
+            vec!["--approved-by", "--approved-utc"],
+        ),
+        (
+            with(
+                &cont,
+                &[
+                    "--remote",
+                    "fx",
+                    "--no-push",
+                    "--factcheck-waiver",
+                    "a person",
+                    "--hint-clone",
+                    "hint-clone",
+                    "--guide-commit",
+                    SHA,
+                ],
+            ),
+            vec![
                 "--remote",
                 "--no-push",
                 "--factcheck-waiver",
@@ -183,22 +331,75 @@ fn hint_subcommands_and_long_options() {
                 "--guide-commit",
             ],
         ),
-        (&["lint"], &["--draft", "--json"]),
-        (&["refresh"], &["--draft"]),
-        (&["refacts"], &["--draft", "--docker-read-only"]),
         (
-            &["excerpt"],
-            &["--draft", "--source", "--lines", "--numbered"],
+            vec!["lint", "--draft", "d", "--json"],
+            vec!["lint", "--draft", "--json"],
+        ),
+        (vec!["refresh", "--draft", "d"], vec!["refresh", "--draft"]),
+        (
+            vec!["refacts", "--draft", "d", "--docker-read-only"],
+            vec!["refacts", "--draft", "--docker-read-only"],
         ),
         (
-            &["name"],
-            &["--campaign", "--cell", "--publication", "--node", "--json"],
+            vec![
+                "excerpt",
+                "--draft",
+                "d",
+                "--source",
+                "s",
+                "--lines",
+                "1-2",
+                "--numbered",
+            ],
+            vec!["excerpt", "--draft", "--source", "--lines", "--numbered"],
         ),
-        (&["verify"], &["--tag", "--draft", "--hint-clone"]),
-        (&["push"], &["--tag", "--remote", "--apply", "--draft"]),
         (
-            &["catalog", "derive"],
-            &[
+            vec![
+                "name",
+                "--campaign",
+                "c1",
+                "--cell",
+                "c1-a",
+                "--node",
+                "cluster",
+                "--json",
+            ],
+            vec!["name", "--campaign", "--cell", "--node", "--json"],
+        ),
+        (vec!["name", "--publication", "p1"], vec!["--publication"]),
+        (
+            vec![
+                "verify",
+                "--tag",
+                TAG,
+                "--draft",
+                "d",
+                "--hint-clone",
+                "hint-clone",
+            ],
+            vec!["verify", "--tag", "--draft", "--hint-clone"],
+        ),
+        (
+            vec![
+                "push", "--tag", TAG, "--remote", "fx", "--apply", "--draft", "d",
+            ],
+            vec!["push", "--tag", "--remote", "--apply", "--draft"],
+        ),
+        (
+            vec![
+                "catalog",
+                "derive",
+                "--remote",
+                "fx",
+                "--generated-kst",
+                KST,
+                "--dry-run",
+                "--record-missing",
+                "--allow-empty",
+            ],
+            vec![
+                "catalog",
+                "derive",
                 "--remote",
                 "--generated-kst",
                 "--dry-run",
@@ -206,14 +407,41 @@ fn hint_subcommands_and_long_options() {
                 "--allow-empty",
             ],
         ),
-        (&["catalog", "classify"], &["--index", "--rc"]),
         (
-            &["match"],
-            &["--vllm", "--model", "--arch", "--include-other", "--json"],
+            vec!["catalog", "classify", "--index", index, "--rc", "0"],
+            vec!["classify", "--index", "--rc"],
         ),
         (
-            &["branch-transition"],
-            &[
+            vec![
+                "match", "--vllm", "0.31.0", "--model", "m-one", "--arch", "gb10", "--json",
+            ],
+            vec!["match", "--vllm", "--model", "--arch", "--json"],
+        ),
+        (
+            vec![
+                "match",
+                "--vllm",
+                "0.31.0",
+                "--model",
+                "m-one",
+                "--include-other",
+            ],
+            vec!["--include-other"],
+        ),
+        (
+            vec![
+                "branch-transition",
+                "--remote",
+                "fx",
+                "--generated-utc",
+                G,
+                "--approved-by",
+                "a person",
+                "--approved-utc",
+                G,
+            ],
+            vec![
+                "branch-transition",
                 "--remote",
                 "--generated-utc",
                 "--approved-by",
@@ -221,19 +449,36 @@ fn hint_subcommands_and_long_options() {
             ],
         ),
     ];
-    for (sub, options) in table {
+    for (line, words) in &probes {
+        for word in words {
+            assert_parser_takes(&s, line, word);
+        }
+    }
+    for left in [".git", "hints", "draft-out"] {
+        assert!(!s.0.join(left).exists(), "a probe wrote {left}");
+    }
+
+    for sub in [
+        &[][..],
+        &["publish"],
+        &["continue"],
+        &["lint"],
+        &["refresh"],
+        &["refacts"],
+        &["excerpt"],
+        &["name"],
+        &["verify"],
+        &["push"],
+        &["catalog", "derive"],
+        &["catalog", "classify"],
+        &["match"],
+        &["branch-transition"],
+    ] {
         let mut args: Vec<&str> = sub.to_vec();
         args.push("--help");
         let out = hint(&s.0, &args);
-        let help = text(&out.stdout);
-        assert_eq!(out.status.code(), Some(0), "{sub:?}");
-        for o in options {
-            assert!(
-                help.split(|c: char| !(c.is_ascii_alphanumeric() || c == '-'))
-                    .any(|w| w == *o),
-                "{sub:?} lacks {o}:\n{help}"
-            );
-        }
+        assert_eq!(out.status.code(), Some(0), "{args:?}");
+        assert!(!text(&out.stdout).is_empty(), "{args:?}");
     }
     let out = hint(
         &s.0,
@@ -318,8 +563,7 @@ fn match_json_rows_without_git() {
     write(&d.0.join("hints/index.json"), INDEX);
     let exe =
         d.0.join(".claude/skills/hint-publisher/rust/target/release/hint");
-    std::fs::create_dir_all(exe.parent().unwrap()).unwrap();
-    std::fs::copy(env!("CARGO_BIN_EXE_hint"), &exe).unwrap();
+    install_exe(Path::new(env!("CARGO_BIN_EXE_hint")), &exe);
     let out = Command::new(&exe)
         .args([
             "match", "--vllm", "0.31.0", "--model", "m-one", "--arch", "gb10-x", "--json",
@@ -584,7 +828,7 @@ fn catalog_classify_fields_for_the_closing_sequence() {
     assert_eq!(classify("0"), [missing.clone(), "1".to_string()]);
     assert_eq!(
         classify("1"),
-        [missing.clone()],
+        std::slice::from_ref(&missing),
         "a non-zero rc has no count field"
     );
     std::fs::remove_file(&index).unwrap();
@@ -846,9 +1090,11 @@ fn render_bench_section_selftest_and_verify() {
 // ── hint's side of other bins' surfaces ─────────────────────────────────────────────────────────────────────────────
 // consumers.md 「계약 시험에 반영할 것」 hint-publisher: the evidence layer starts `evidence_publisher` through its `.sh`
 // launcher (core.rs `REL_EVIDENCE_PUBLISHER` is the `.py` name, `owner_launcher` swaps it), checks the native serve
-// proof's `pip_freeze_paths` keys and reads the blackbox session data. The `hint` CLI reaches these only inside a full
-// `publish` (fake docker, every owner ELF — policy-selftest `hint_suite_cases.rs::green_on_this_checkout`); here the
-// crate's `hint_api` ELF drives the same library paths one call per request line.
+// proof's `pip_freeze_paths` keys, reads the blackbox session data and binds `output/<t>/resolved.json`. The `hint` CLI
+// reaches these only inside a full `publish` (fake docker, every owner ELF — policy-selftest
+// `hint_suite_cases.rs::green_on_this_checkout`); here the crate's `hint_api` ELF drives the same library paths one call
+// per request line (an exception the orchestrator accepted for the consumer side, review r2; a cell that retires
+// `hint_api` or these arms moves the checks to the CLI or writes test_delta rows).
 
 /// A JSON string literal.
 fn q(s: &str) -> String {
@@ -872,11 +1118,18 @@ fn qpath(p: &Path) -> String {
 }
 
 /// One `hint_api` process: each request a line on stdin, one parsed response per request, exit 0. `HINT_SKILL_DIR`
-/// points into the scratch directory so no owner script of this checkout is found or run.
+/// points into the scratch directory so no owner script of this checkout is found or run; `<scratch>/bin` comes first
+/// on `PATH` (a check puts its stand-in `docker` there).
 fn hint_api(s: &Scratch, requests: &[String]) -> Vec<Json> {
     use std::io::Write;
+    let path = format!(
+        "{}:{}",
+        s.0.join("bin").display(),
+        std::env::var("PATH").unwrap_or_default()
+    );
     let mut child = Command::new(env!("CARGO_BIN_EXE_hint_api"))
         .env("HINT_SKILL_DIR", s.0.join("no-skill/skills/hint-publisher"))
+        .env("PATH", path)
         .current_dir(&s.0)
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
@@ -1149,6 +1402,172 @@ fn blackbox_session_documents_and_events_hint_reads() {
     for (r, (id, is)) in rows[1..].iter().zip(want) {
         assert_eq!(value(r), &Json::Bool(is), "{id}");
     }
+}
+
+/// Every string value anywhere in `v`.
+fn string_leaves(v: &Json) -> Vec<String> {
+    match v {
+        Json::Str(s) => vec![s.clone()],
+        Json::Arr(items) => items.iter().flat_map(string_leaves).collect(),
+        Json::Obj(fields) => fields.iter().flat_map(|(_, x)| string_leaves(x)).collect(),
+        _ => Vec::new(),
+    }
+}
+
+/// The `output/<t>/resolved.json` reader (consumers.md 「영속 데이터」 해소 결과, the consumers.tsv `judge_version_delta`
+/// rows of hint `e1.rs`·`e3.rs`, 「계약 시험에 반영할 것」 (4)), through `evidence._assemble` (the evidence of one cell):
+/// - the document is bound to the build when its `vllm_version` is the build's (`VLLM_VERSION` of the cell env) or its
+///   `upstream_delta.to_sha` is the build's 40-hex `VLLM_REF`; the bound evidence carries the values of `vllm_version`,
+///   `torch.pin`, `ngc_base.{tag,image,cuda_version,build_version}`, `build_track.decision`,
+///   `source_build.torch_cuda_arch` and `upstream_delta.{to_ref,to_sha,from_ref,generated_kst}`, keys it does not know
+///   are read past, and `to_sha` becomes the build's vLLM commit (`build_identity.vllm_sha`);
+/// - an `upstream_delta` that is not an object is read as `{}` (`e1.rs:1996`): still bound by the version, but no
+///   commit comes from it (the lower-provenance path);
+/// - absent, not an object, or another vLLM version: nothing is bound and the evidence lists `HINT_MISSING_RESOLVE`;
+/// - a document that is not JSON is `HINT_EVIDENCE_UNREADABLE` (a broken file is not read as absent).
+///
+/// The two owner launchers the evidence layer requires to exist are empty stand-in files (never run); the cell env has
+/// no `IMAGE_TAG`, and a `docker` that only fails comes first on `PATH`.
+#[test]
+fn resolved_json_keys_hint_binds_and_hint_missing_resolve() {
+    const SHA: &str = "0123456789abcdef0123456789abcdef01234567";
+    const OTHER_SHA: &str = "89abcdef0123456789abcdef0123456789abcdef";
+    let s = scratch("resolve");
+    install_script(&s.0.join("bin/docker"), "#!/bin/sh\nexit 1\n");
+    let doc = |version: &str, delta: &str| {
+        format!(
+            r#"{{"vllm_version": "{version}", "torch": {{"pin": "s-torch-pin", "x_unknown": 1}},
+            "ngc_base": {{"tag": "s-ngc-tag", "image": "s-ngc-image", "cuda_version": "s-ngc-cuda", "build_version": "s-ngc-build"}},
+            "build_track": {{"decision": "s-track"}}, "source_build": {{"torch_cuda_arch": "s-arch"}},
+            "upstream_delta": {delta}, "_superseded_manual_upstream_delta_note": "hand", "x_unknown_top": {{"k": [1]}}}}"#
+        )
+    };
+    let delta = |sha: &str| {
+        format!(
+            r#"{{"to_ref": "s-to-ref", "to_sha": "{sha}", "from_ref": "s-from-ref", "generated_kst": "s-kst", "decision": "s-d"}}"#
+        )
+    };
+    // (case, cell env, resolved.json or None)
+    let cases: [(&str, &str, Option<String>); 7] = [
+        (
+            "version",
+            "VLLM_VERSION=0.31.0\n",
+            Some(doc("0.31.0", &delta(SHA))),
+        ),
+        (
+            "commit",
+            &format!("VLLM_REF={SHA}\n"),
+            Some(doc("0.29.0", &delta(SHA))),
+        ),
+        (
+            "delta-not-object",
+            "VLLM_VERSION=0.31.0\n",
+            Some(doc("0.31.0", "\"s-delta\"")),
+        ),
+        ("absent", "VLLM_VERSION=0.31.0\n", None),
+        (
+            "not-object",
+            "VLLM_VERSION=0.31.0\n",
+            Some("[]\n".to_string()),
+        ),
+        (
+            "other-version",
+            "VLLM_VERSION=0.31.0\n",
+            Some(doc("0.30.0", &delta(OTHER_SHA))),
+        ),
+        (
+            "not-json",
+            "VLLM_VERSION=0.31.0\n",
+            Some("{\"vllm_version\": \n".to_string()),
+        ),
+    ];
+    let ev = r#"{"mode": "campaign", "campaign_id": "c1", "cell": "c1-a", "node": "main", "topology": "multi",
+        "missing": [], "build_identity": {}, "sources": {}, "triplet": {}, "pointers": [], "lineage_seeds": {},
+        "phases": {}, "pip_freeze_paths": {}}"#
+        .replace('\n', " ");
+    let mut requests = Vec::new();
+    for (case, env, resolved) in &cases {
+        let repo = s.0.join(case);
+        for owner in [
+            ".claude/skills/hint-publisher/scripts/render_bench_section.sh",
+            ".claude/skills/upstream-version-watch/scripts/slave_forward.sh",
+        ] {
+            write(&repo.join(owner), "");
+        }
+        write(&repo.join("output/multi/envs/.env.c1-a"), env);
+        if let Some(text) = resolved {
+            write(
+                &repo.join("output/multi/resolved.json"),
+                &text.replace('\n', " "),
+            );
+        }
+        requests.push(format!(
+            "{{\"id\": {}, \"fn\": \"evidence._assemble\", \"args\": [{}, {ev}]}}",
+            q(case),
+            qpath(&repo)
+        ));
+    }
+    let rows = hint_api(&s, &requests);
+    let missing = |r: &Json| value(r).at("missing").strs();
+    let read = [
+        "s-torch-pin",
+        "s-ngc-tag",
+        "s-ngc-image",
+        "s-ngc-cuda",
+        "s-ngc-build",
+        "s-track",
+        "s-arch",
+    ];
+    let delta_read = ["s-to-ref", SHA, "s-from-ref", "s-kst"];
+    for (r, version) in rows[..2].iter().zip(["0.31.0", "0.29.0"]) {
+        let ev = value(r);
+        let bound = string_leaves(ev.at("resolve"));
+        for want in read.iter().chain(&delta_read).chain([&version]) {
+            assert!(bound.iter().any(|b| b == want), "{want} not bound: {r:?}");
+        }
+        assert!(
+            !missing(r).iter().any(|m| m == "HINT_MISSING_RESOLVE"),
+            "{r:?}"
+        );
+        assert_eq!(
+            ev.at("build_identity").at("vllm_sha").str(),
+            Some(SHA),
+            "{r:?}"
+        );
+    }
+
+    let ev = value(&rows[2]);
+    let bound = string_leaves(ev.at("resolve"));
+    for want in read.iter().chain(["0.31.0"].iter()) {
+        assert!(bound.iter().any(|b| b == want), "{want} not bound: {ev:?}");
+    }
+    assert!(
+        !bound.iter().any(|b| b == "s-delta" || b == "s-to-ref"),
+        "{ev:?}"
+    );
+    assert!(!missing(&rows[2])
+        .iter()
+        .any(|m| m == "HINT_MISSING_RESOLVE"));
+    assert_eq!(
+        ev.at("build_identity").at("vllm_sha"),
+        &Json::Null,
+        "no commit from an upstream_delta that is not an object"
+    );
+
+    for r in &rows[3..6] {
+        let ev = value(r);
+        assert_eq!(ev.at("resolve"), &Json::Null, "{r:?}");
+        assert!(
+            missing(r).iter().any(|m| m == "HINT_MISSING_RESOLVE"),
+            "{r:?}"
+        );
+        assert_ne!(
+            ev.at("build_identity").at("vllm_sha").str(),
+            Some(OTHER_SHA),
+            "{r:?}"
+        );
+    }
+    assert_eq!(error_code(&rows[6]), "HINT_EVIDENCE_UNREADABLE");
 }
 
 /// A small RFC 8259 reader for the contract checks: the fixed surface is the parsed value (L2), so the checks read the
