@@ -87,7 +87,10 @@ impl Drop for Scratch {
 fn scratch(tag: &str) -> Scratch {
     static N: AtomicUsize = AtomicUsize::new(0);
     let n = N.fetch_add(1, Ordering::SeqCst);
-    let p = std::env::temp_dir().join(format!("adversarial-contract-campaign-{tag}-{}-{n}", std::process::id()));
+    let p = std::env::temp_dir().join(format!(
+        "adversarial-contract-campaign-{tag}-{}-{n}",
+        std::process::id()
+    ));
     let _ = std::fs::remove_dir_all(&p);
     std::fs::create_dir_all(&p).unwrap();
     Scratch(std::fs::canonicalize(&p).unwrap())
@@ -152,7 +155,12 @@ fn os<'a>(args: &[&'a str]) -> Vec<&'a OsStr> {
 /// The whole stdout as one JSON document.
 fn stdout_json(out: &Output) -> Json {
     let so = text(&out.stdout);
-    Json::parse(&so).unwrap_or_else(|e| panic!("stdout is not one JSON document ({e}):\n{so}\nstderr:\n{}", text(&out.stderr)))
+    Json::parse(&so).unwrap_or_else(|e| {
+        panic!(
+            "stdout is not one JSON document ({e}):\n{so}\nstderr:\n{}",
+            text(&out.stderr)
+        )
+    })
 }
 
 fn num(v: &Json) -> &str {
@@ -163,7 +171,13 @@ fn num(v: &Json) -> &str {
 }
 
 fn assert_rc(out: &Output, rc: i32, what: &str) {
-    assert_eq!(out.status.code(), Some(rc), "{what}\nstdout:\n{}\nstderr:\n{}", text(&out.stdout), text(&out.stderr));
+    assert_eq!(
+        out.status.code(),
+        Some(rc),
+        "{what}\nstdout:\n{}\nstderr:\n{}",
+        text(&out.stdout),
+        text(&out.stderr)
+    );
 }
 
 /// `opt` appears in `listing` as a whole option or subcommand token: the bytes around it are not part of a name, so
@@ -199,7 +213,8 @@ fn elf_on_path(name: &str) -> PathBuf {
 
 /// `KEY=VALUE` lines of an `env` dump.
 fn env_value<'a>(dump: &'a str, key: &str) -> Option<&'a str> {
-    dump.lines().find_map(|l| l.strip_prefix(key).and_then(|r| r.strip_prefix('=')))
+    dump.lines()
+        .find_map(|l| l.strip_prefix(key).and_then(|r| r.strip_prefix('=')))
 }
 
 struct Launcher {
@@ -270,27 +285,68 @@ fn launchers_overrides_validate_only_and_absent_executable() {
     for l in launchers() {
         let path = root().join(l.rel);
         assert!(path.is_file(), "{}", l.rel);
-        let out = bash(&path, &os(&["--help"]), &s.0, &[(l.var, OsStr::new("/nonexistent/contract-check/bin"))]);
+        let out = bash(
+            &path,
+            &os(&["--help"]),
+            &s.0,
+            &[(l.var, OsStr::new("/nonexistent/contract-check/bin"))],
+        );
         assert_rc(&out, 2, l.rel);
-        assert!(out.stdout.is_empty(), "{}: stdout of an absent executable", l.rel);
+        assert!(
+            out.stdout.is_empty(),
+            "{}: stdout of an absent executable",
+            l.rel
+        );
         if let Some(vo) = l.validate_only {
-            let out = bash(&path, &[], &s.0, &[(l.var, OsStr::new(l.bin)), (vo, OsStr::new("1"))]);
+            let out = bash(
+                &path,
+                &[],
+                &s.0,
+                &[(l.var, OsStr::new(l.bin)), (vo, OsStr::new("1"))],
+            );
             assert_rc(&out, 0, vo);
-            assert!(out.stdout.is_empty() && out.stderr.is_empty(), "{vo}: availability check has no output");
-            let out = bash(&path, &[], &s.0, &[(l.var, OsStr::new("/nonexistent/contract-check/bin")), (vo, OsStr::new("1"))]);
+            assert!(
+                out.stdout.is_empty() && out.stderr.is_empty(),
+                "{vo}: availability check has no output"
+            );
+            let out = bash(
+                &path,
+                &[],
+                &s.0,
+                &[
+                    (l.var, OsStr::new("/nonexistent/contract-check/bin")),
+                    (vo, OsStr::new("1")),
+                ],
+            );
             assert_rc(&out, 2, vo);
         }
         if l.elf_only {
-            let out = bash(&path, &os(&["--help"]), &s.0, &[(l.var, not_elf.as_os_str())]);
+            let out = bash(
+                &path,
+                &os(&["--help"]),
+                &s.0,
+                &[(l.var, not_elf.as_os_str())],
+            );
             assert_rc(&out, 2, l.rel);
-            assert!(out.stdout.is_empty(), "{}: a non-ELF executable is not started", l.rel);
+            assert!(
+                out.stdout.is_empty(),
+                "{}: a non-ELF executable is not started",
+                l.rel
+            );
         }
     }
     let tp = root().join(TOPOLOGY_PARITY_SH);
-    assert_ne!(std::fs::metadata(&tp).unwrap().permissions().mode() & 0o111, 0, "topology_parity.sh is run without bash");
+    assert_ne!(
+        std::fs::metadata(&tp).unwrap().permissions().mode() & 0o111,
+        0,
+        "topology_parity.sh is run without bash"
+    );
     let mut cmd = Command::new(&tp);
     cmd.arg("--self-test").current_dir(&s.0);
-    let out = clean(cmd).env("TOPOLOGY_PARITY_BIN", env!("CARGO_BIN_EXE_topology_parity")).output().unwrap();
+    let out = clean(cmd)
+        .env("TOPOLOGY_PARITY_BIN", env!("CARGO_BIN_EXE_topology_parity"))
+        .output()
+        .unwrap();
     assert_rc(&out, 0, "topology_parity.sh --self-test run directly");
 }
 
@@ -303,7 +359,10 @@ fn launchers_overrides_validate_only_and_absent_executable() {
 fn launchers_export_owner_paths_and_pass_arguments() {
     let s = scratch("exports");
     let stub = s.0.join("stub.sh");
-    write_exe(&stub, "#!/bin/sh\nenv\nfor a in \"$@\"; do printf 'ARG:%s\\n' \"$a\"; done\n");
+    write_exe(
+        &stub,
+        "#!/bin/sh\nenv\nfor a in \"$@\"; do printf 'ARG:%s\\n' \"$a\"; done\n",
+    );
     let ts = root().join(TS);
     let run = |launcher: &str, env: &[(&str, &OsStr)]| -> String {
         let out = bash(&ts.join(launcher), &os(&["--x", "a b"]), &s.0, env);
@@ -312,40 +371,108 @@ fn launchers_export_owner_paths_and_pass_arguments() {
     };
     let owner = |name: &str| ts.join(name).to_str().unwrap().to_string();
     for (launcher, var, owner_var, vo) in [
-        ("campaign_init.sh", "CAMPAIGN_READ_BIN", "CAMPAIGN_READ_COMPAT_OWNER", "CAMPAIGN_READ_VALIDATE_ONLY"),
-        ("campaign_template_validator.sh", "CAMPAIGN_VALIDATOR_BIN", "CAMPAIGN_VALIDATOR_COMPAT_OWNER", "CAMPAIGN_VALIDATOR_VALIDATE_ONLY"),
-        ("turn_budget.sh", "TURN_BUDGET_BIN", "TURN_BUDGET_OWNER_PATH", "TURN_BUDGET_VALIDATE_ONLY"),
-        ("manifest_contract.sh", "MANIFEST_CONTRACT_BIN", "MANIFEST_CONTRACT_COMPAT_OWNER", "MANIFEST_CONTRACT_VALIDATE_ONLY"),
+        (
+            "campaign_init.sh",
+            "CAMPAIGN_READ_BIN",
+            "CAMPAIGN_READ_COMPAT_OWNER",
+            "CAMPAIGN_READ_VALIDATE_ONLY",
+        ),
+        (
+            "campaign_template_validator.sh",
+            "CAMPAIGN_VALIDATOR_BIN",
+            "CAMPAIGN_VALIDATOR_COMPAT_OWNER",
+            "CAMPAIGN_VALIDATOR_VALIDATE_ONLY",
+        ),
+        (
+            "turn_budget.sh",
+            "TURN_BUDGET_BIN",
+            "TURN_BUDGET_OWNER_PATH",
+            "TURN_BUDGET_VALIDATE_ONLY",
+        ),
+        (
+            "manifest_contract.sh",
+            "MANIFEST_CONTRACT_BIN",
+            "MANIFEST_CONTRACT_COMPAT_OWNER",
+            "MANIFEST_CONTRACT_VALIDATE_ONLY",
+        ),
     ] {
         let dump = run(launcher, &[(var, stub.as_os_str()), (vo, OsStr::new("0"))]);
-        assert_eq!(env_value(&dump, owner_var), Some(owner(launcher).as_str()), "{launcher}: {owner_var}");
-        assert_eq!(env_value(&dump, vo), None, "{launcher}: {vo} other than 1 is not handed on");
-        let args: Vec<&str> = dump.lines().filter_map(|l| l.strip_prefix("ARG:")).collect();
+        assert_eq!(
+            env_value(&dump, owner_var),
+            Some(owner(launcher).as_str()),
+            "{launcher}: {owner_var}"
+        );
+        assert_eq!(
+            env_value(&dump, vo),
+            None,
+            "{launcher}: {vo} other than 1 is not handed on"
+        );
+        let args: Vec<&str> = dump
+            .lines()
+            .filter_map(|l| l.strip_prefix("ARG:"))
+            .collect();
         assert_eq!(args, ["--x", "a b"], "{launcher}: arguments");
-        let dump = run(launcher, &[(var, stub.as_os_str()), (owner_var, OsStr::new("/caller/owner"))]);
-        assert_eq!(env_value(&dump, owner_var), Some("/caller/owner"), "{launcher}: a caller's {owner_var} is kept");
+        let dump = run(
+            launcher,
+            &[
+                (var, stub.as_os_str()),
+                (owner_var, OsStr::new("/caller/owner")),
+            ],
+        );
+        assert_eq!(
+            env_value(&dump, owner_var),
+            Some("/caller/owner"),
+            "{launcher}: a caller's {owner_var} is kept"
+        );
         if launcher == "manifest_contract.sh" {
             assert_eq!(env_value(&dump, "MANIFEST_CONTRACT_CALLER_ENV"), Some("1"));
-            assert_eq!(env_value(&dump, "MANIFEST_CONTRACT_CALLER_COMPAT_OWNER"), Some("/caller/owner"));
+            assert_eq!(
+                env_value(&dump, "MANIFEST_CONTRACT_CALLER_COMPAT_OWNER"),
+                Some("/caller/owner")
+            );
             let dump = run(launcher, &[(var, stub.as_os_str())]);
             assert_eq!(env_value(&dump, "MANIFEST_CONTRACT_CALLER_ENV"), Some("1"));
-            assert_eq!(env_value(&dump, "MANIFEST_CONTRACT_CALLER_COMPAT_OWNER"), None, "carrier absent = caller had it unset");
+            assert_eq!(
+                env_value(&dump, "MANIFEST_CONTRACT_CALLER_COMPAT_OWNER"),
+                None,
+                "carrier absent = caller had it unset"
+            );
             let dump = run(
                 launcher,
-                &[(var, stub.as_os_str()), ("MANIFEST_CONTRACT_BRIDGE", OsStr::new("1")), (vo, OsStr::new("1"))],
+                &[
+                    (var, stub.as_os_str()),
+                    ("MANIFEST_CONTRACT_BRIDGE", OsStr::new("1")),
+                    (vo, OsStr::new("1")),
+                ],
             );
-            assert_eq!(env_value(&dump, "MANIFEST_CONTRACT_BRIDGE"), Some("1"), "the bridge reaches the program");
-            assert_eq!(env_value(&dump, vo), Some("1"), "the bridge keeps an inherited {vo}");
+            assert_eq!(
+                env_value(&dump, "MANIFEST_CONTRACT_BRIDGE"),
+                Some("1"),
+                "the bridge reaches the program"
+            );
+            assert_eq!(
+                env_value(&dump, vo),
+                Some("1"),
+                "the bridge keeps an inherited {vo}"
+            );
             assert_eq!(env_value(&dump, "MANIFEST_CONTRACT_CALLER_ENV"), None);
         }
     }
     // scan_node.sh starts only an ELF: a copy of `env` stands for the program.
     let fake = s.0.join("scan_node");
     copy_file(&elf_on_path("env"), &fake);
-    let out = bash(&ts.join("scan_node.sh"), &[], &s.0, &[("SCAN_NODE_BIN", fake.as_os_str())]);
+    let out = bash(
+        &ts.join("scan_node.sh"),
+        &[],
+        &s.0,
+        &[("SCAN_NODE_BIN", fake.as_os_str())],
+    );
     assert_rc(&out, 0, "scan_node.sh with an env stand-in");
     let dump = text(&out.stdout);
-    assert_eq!(env_value(&dump, "SCAN_NODE_OWNER_PATH"), Some(owner("scan_node.sh").as_str()));
+    assert_eq!(
+        env_value(&dump, "SCAN_NODE_OWNER_PATH"),
+        Some(owner("scan_node.sh").as_str())
+    );
     assert_eq!(env_value(&dump, "SCAN_NODE_CALLER_ENV"), Some("1"));
 }
 
@@ -357,7 +484,10 @@ fn manifest_contract(cwd: &Path, args: &[&OsStr]) -> Output {
         &root().join(TS).join("manifest_contract.sh"),
         args,
         cwd,
-        &[("MANIFEST_CONTRACT_BIN", OsStr::new(env!("CARGO_BIN_EXE_manifest_contract")))],
+        &[(
+            "MANIFEST_CONTRACT_BIN",
+            OsStr::new(env!("CARGO_BIN_EXE_manifest_contract")),
+        )],
     )
 }
 
@@ -379,7 +509,12 @@ fn manifest_contract_flag_gate_exit_codes_and_json() {
         &VALID_MANIFEST.replace("complete: true", "complete: false"),
     );
     let gate = |repo: &Path, topology: &str, extra: &[&str]| {
-        let mut args = vec![OsStr::new("--topology"), OsStr::new(topology), OsStr::new("--repo"), repo.as_os_str()];
+        let mut args = vec![
+            OsStr::new("--topology"),
+            OsStr::new(topology),
+            OsStr::new("--repo"),
+            repo.as_os_str(),
+        ];
         args.extend(extra.iter().map(OsStr::new));
         manifest_contract(&s.0, &args)
     };
@@ -398,9 +533,17 @@ fn manifest_contract_flag_gate_exit_codes_and_json() {
         assert!(out.stdout.is_empty(), "the reason goes to stderr");
         assert!(!out.stderr.is_empty());
     }
-    assert_rc(&gate(&present, "multi", &["--require-flag"]), 3, "no output/multi manifest");
+    assert_rc(
+        &gate(&present, "multi", &["--require-flag"]),
+        3,
+        "no output/multi manifest",
+    );
 
-    assert_rc(&gate(&present, "single", &["--require-flag"]), 0, "Flag issued");
+    assert_rc(
+        &gate(&present, "single", &["--require-flag"]),
+        0,
+        "Flag issued",
+    );
     let out = gate(&present, "single", &["--require-flag", "--json"]);
     assert_rc(&out, 0, "Flag issued --json");
     assert!(out.stderr.is_empty());
@@ -414,14 +557,23 @@ fn manifest_contract_flag_gate_exit_codes_and_json() {
     assert_eq!(doc.at("manifest_path").kind(), "string");
     assert_eq!(doc.at("nodes").kind(), "array");
 
-    assert_rc(&gate(&unissued, "single", &["--require-flag"]), 4, "a manifest without the Flag");
+    assert_rc(
+        &gate(&unissued, "single", &["--require-flag"]),
+        4,
+        "a manifest without the Flag",
+    );
 
     let out = gate(&present, "triple", &[]);
     assert_rc(&out, 2, "--topology outside the choices");
     assert!(out.stdout.is_empty());
     let out = manifest_contract(
         &s.0,
-        &[OsStr::new("--topology"), OsStr::from_bytes(b"sin\xffgle"), OsStr::new("--repo"), present.as_os_str()],
+        &[
+            OsStr::new("--topology"),
+            OsStr::from_bytes(b"sin\xffgle"),
+            OsStr::new("--repo"),
+            present.as_os_str(),
+        ],
     );
     assert_rc(&out, 2, "non-UTF-8 --topology");
     assert!(out.stdout.is_empty());
@@ -431,7 +583,13 @@ fn manifest_contract_flag_gate_exit_codes_and_json() {
     let out = manifest_contract(&s.0, &os(&["--help"]));
     assert_rc(&out, 0, "--help");
     let help = text(&out.stdout);
-    for opt in ["--topology", "--repo", "--require-flag", "--json", "--self-test"] {
+    for opt in [
+        "--topology",
+        "--repo",
+        "--require-flag",
+        "--json",
+        "--self-test",
+    ] {
         assert!(names_option(&help, opt), "manifest_contract option {opt}");
     }
 }
@@ -445,7 +603,8 @@ fn manifest_contract_flag_gate_exit_codes_and_json() {
 fn manifest_contract_private_bridge_and_health_probe() {
     let s = scratch("bridge");
     let single = r#"{"t":"str","utf8_surrogatepass_hex":"73696e676c65","codepoints":6}"#;
-    let gpus = r#"{"t":"str","utf8_surrogatepass_hex":"677075735f7065725f6e6f6465","codepoints":13}"#;
+    let gpus =
+        r#"{"t":"str","utf8_surrogatepass_hex":"677075735f7065725f6e6f6465","codepoints":13}"#;
     let one = r#"{"t":"int","sign":"+","hex":"1"}"#;
     let ask = |request: &str, extra: &[(&str, &OsStr)]| {
         let req = s.0.join("request");
@@ -454,27 +613,52 @@ fn manifest_contract_private_bridge_and_health_probe() {
         let mut env = vec![
             ("MANIFEST_CONTRACT_BRIDGE", OsStr::new("1")),
             ("MANIFEST_CONTRACT_BRIDGE_REQUEST", req.as_os_str()),
-            ("MANIFEST_CONTRACT_BIN", OsStr::new(env!("CARGO_BIN_EXE_manifest_contract"))),
+            (
+                "MANIFEST_CONTRACT_BIN",
+                OsStr::new(env!("CARGO_BIN_EXE_manifest_contract")),
+            ),
         ];
         env.extend_from_slice(extra);
-        bash(&root().join(TS).join("manifest_contract.sh"), &[], &s.0, &env)
+        bash(
+            &root().join(TS).join("manifest_contract.sh"),
+            &[],
+            &s.0,
+            &env,
+        )
     };
-    let out = ask(&format!(r#"{{"v":1,"op":"manifest_tp","args":[{{"t":"dict","id":1,"pairs":[]}},{single}]}}"#), &[]);
+    let out = ask(
+        &format!(
+            r#"{{"v":1,"op":"manifest_tp","args":[{{"t":"dict","id":1,"pairs":[]}},{single}]}}"#
+        ),
+        &[],
+    );
     assert_rc(&out, 0, "bridge manifest_tp({})");
     let raw = text(&out.stdout);
-    for needle in [r#""protocol": "manifest-contract-bridge/1""#, r#""status": "raised""#, r#""cls": "ValueError""#] {
+    for needle in [
+        r#""protocol": "manifest-contract-bridge/1""#,
+        r#""status": "raised""#,
+        r#""cls": "ValueError""#,
+    ] {
         assert!(raw.contains(needle), "{needle} in {raw}");
     }
     let doc = stdout_json(&out);
     assert_eq!(doc.at("protocol").str(), Some("manifest-contract-bridge/1"));
     assert_eq!(doc.at("answer").at("status").str(), Some("raised"));
 
-    let request = format!(r#"{{"v":1,"op":"manifest_tp","args":[{{"t":"dict","id":1,"pairs":[[{gpus},{one}]]}},{single}]}}"#);
-    let out = ask(&request, &[("MANIFEST_CONTRACT_VALIDATE_ONLY", OsStr::new("1"))]);
+    let request = format!(
+        r#"{{"v":1,"op":"manifest_tp","args":[{{"t":"dict","id":1,"pairs":[[{gpus},{one}]]}},{single}]}}"#
+    );
+    let out = ask(
+        &request,
+        &[("MANIFEST_CONTRACT_VALIDATE_ONLY", OsStr::new("1"))],
+    );
     assert_rc(&out, 0, "bridge manifest_tp({gpus_per_node: 1}, single)");
     let raw = text(&out.stdout);
     assert!(raw.contains(r#""status": "returned""#), "{raw}");
-    assert!(raw.contains(r#""value": {"t": "int", "sign": "+", "hex": "1"}"#), "typed int wire: {raw}");
+    assert!(
+        raw.contains(r#""value": {"t": "int", "sign": "+", "hex": "1"}"#),
+        "typed int wire: {raw}"
+    );
     let doc = stdout_json(&out);
     assert_eq!(doc.at("answer").at("value").at("hex").str(), Some("1"));
 
@@ -486,8 +670,16 @@ fn manifest_contract_private_bridge_and_health_probe() {
     let crate_dir = s.0.join("crate");
     let release = crate_dir.join("target/release");
     std::fs::create_dir_all(&release).unwrap();
-    std::os::unix::fs::symlink(env!("CARGO_BIN_EXE_manifest_contract"), release.join("manifest_contract")).unwrap();
-    std::os::unix::fs::symlink(env!("CARGO_BIN_EXE_turn_budget"), release.join("turn_budget")).unwrap();
+    std::os::unix::fs::symlink(
+        env!("CARGO_BIN_EXE_manifest_contract"),
+        release.join("manifest_contract"),
+    )
+    .unwrap();
+    std::os::unix::fs::symlink(
+        env!("CARGO_BIN_EXE_turn_budget"),
+        release.join("turn_budget"),
+    )
+    .unwrap();
     let probe = root().join(".claude/skills/adversarial-benchmark/scripts/native_health_probes.sh");
     let mut cmd = Command::new("bash");
     cmd.arg(&probe).arg(&crate_dir).current_dir(&s.0);
@@ -500,7 +692,10 @@ fn turn_budget(cwd: &Path, args: &[&str]) -> Output {
         &root().join(TS).join("turn_budget.sh"),
         &os(args),
         cwd,
-        &[("TURN_BUDGET_BIN", OsStr::new(env!("CARGO_BIN_EXE_turn_budget")))],
+        &[(
+            "TURN_BUDGET_BIN",
+            OsStr::new(env!("CARGO_BIN_EXE_turn_budget")),
+        )],
     )
 }
 
@@ -523,14 +718,34 @@ fn turn_budget_self_test_caps_and_declaration() {
     assert_eq!(doc.at("timeout_seconds").kind(), "number");
     assert_eq!(doc.at("source").kind(), "string");
 
-    let out = turn_budget(&s.0, &["--max-turns", "10", "--timeout-seconds", "600", "--source", "contract"]);
+    let out = turn_budget(
+        &s.0,
+        &[
+            "--max-turns",
+            "10",
+            "--timeout-seconds",
+            "600",
+            "--source",
+            "contract",
+        ],
+    );
     assert_rc(&out, 0, "declaration");
     let doc = stdout_json(&out);
     assert_eq!(num(doc.at("max_turns")), "10");
     assert_eq!(num(doc.at("timeout_seconds")), "600");
     assert_eq!(doc.at("source").str(), Some("contract"));
 
-    for args in [&["--max-turns", "10", "--timeout-seconds", "600"][..], &["--max-turns", "0", "--timeout-seconds", "600", "--source", "x"]] {
+    for args in [
+        &["--max-turns", "10", "--timeout-seconds", "600"][..],
+        &[
+            "--max-turns",
+            "0",
+            "--timeout-seconds",
+            "600",
+            "--source",
+            "x",
+        ],
+    ] {
         let out = turn_budget(&s.0, args);
         assert_rc(&out, 1, "refused declaration");
         assert!(out.stdout.is_empty(), "{args:?}");
@@ -541,7 +756,13 @@ fn turn_budget_self_test_caps_and_declaration() {
     let out = turn_budget(&s.0, &["--help"]);
     assert_rc(&out, 0, "--help");
     let help = text(&out.stdout);
-    for opt in ["--max-turns", "--timeout-seconds", "--source", "--caps", "--self-test"] {
+    for opt in [
+        "--max-turns",
+        "--timeout-seconds",
+        "--source",
+        "--caps",
+        "--self-test",
+    ] {
         assert!(names_option(&help, opt), "turn_budget option {opt}");
     }
 }
@@ -591,12 +812,24 @@ fn scan_node_self_tests_and_options() {
 /// A throwaway git repository on `branch` with one tracked `*.topology.md` layer file declaring `layer`.
 fn parity_repo(s: &Scratch, branch: &str, layer: &str) -> PathBuf {
     let repo = s.0.join("repo");
-    write(&repo.join(".claude/rules/strategy.topology.md"), &format!("# strategy\n\n**topology: {layer}** · layer: topology\n"));
+    write(
+        &repo.join(".claude/rules/strategy.topology.md"),
+        &format!("# strategy\n\n**topology: {layer}** · layer: topology\n"),
+    );
     let git = |args: &[&str]| {
         let mut cmd = Command::new("git");
-        cmd.args(["-c", "user.name=contract", "-c", "user.email=contract@example.invalid", "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null"])
-            .args(args)
-            .current_dir(&repo);
+        cmd.args([
+            "-c",
+            "user.name=contract",
+            "-c",
+            "user.email=contract@example.invalid",
+            "-c",
+            "commit.gpgsign=false",
+            "-c",
+            "core.hooksPath=/dev/null",
+        ])
+        .args(args)
+        .current_dir(&repo);
         let out = clean(cmd).output().unwrap();
         assert!(out.status.success(), "git {args:?}: {}", text(&out.stderr));
     };
@@ -611,11 +844,18 @@ fn parity_repo(s: &Scratch, branch: &str, layer: &str) -> PathBuf {
 fn parity(cwd: &Path, args: &[&OsStr]) -> Output {
     let mut cmd = Command::new(root().join(TOPOLOGY_PARITY_SH));
     cmd.args(args).current_dir(cwd);
-    clean(cmd).env("TOPOLOGY_PARITY_BIN", env!("CARGO_BIN_EXE_topology_parity")).output().unwrap()
+    clean(cmd)
+        .env("TOPOLOGY_PARITY_BIN", env!("CARGO_BIN_EXE_topology_parity"))
+        .output()
+        .unwrap()
 }
 
 fn parity_args<'a>(repo: &'a Path, extra: &[&'a str]) -> Vec<&'a OsStr> {
-    let mut args = vec![OsStr::new("evaluate"), OsStr::new("--repo"), repo.as_os_str()];
+    let mut args = vec![
+        OsStr::new("evaluate"),
+        OsStr::new("--repo"),
+        repo.as_os_str(),
+    ];
     args.extend(extra.iter().map(|a| OsStr::new(*a)));
     args
 }
@@ -623,14 +863,21 @@ fn parity_args<'a>(repo: &'a Path, extra: &[&'a str]) -> Vec<&'a OsStr> {
 /// The JSON verdict: keys and types sync_to_sub.sh (`inline_json parity-summary`) reads.
 fn parity_verdict(out: &Output) -> Json {
     let doc = stdout_json(out);
-    assert!(["PASS", "RED"].contains(&doc.at("verdict").str().unwrap()), "{doc:?}");
+    assert!(
+        ["PASS", "RED"].contains(&doc.at("verdict").str().unwrap()),
+        "{doc:?}"
+    );
     assert!(["string", "null"].contains(&doc.at("topology").kind()));
     doc.at("reason_codes").strs();
     doc.at("reasons").strs();
     doc.at("legs_judged").strs();
     assert_eq!(doc.at("legs_checked").kind(), "number");
     let rc = out.status.code().unwrap();
-    assert_eq!(doc.at("verdict").str() == Some("PASS"), rc == 0, "verdict PASS iff exit 0");
+    assert_eq!(
+        doc.at("verdict").str() == Some("PASS"),
+        rc == 0,
+        "verdict PASS iff exit 0"
+    );
     doc
 }
 
@@ -650,37 +897,69 @@ fn topology_parity_evaluate_json_value_and_exit_codes() {
 
     let out = parity(&s.0, &parity_args(&repo, &["--format", "json"]));
     assert_rc(&out, 0, "two legs");
-    assert!(out.stderr.is_empty(), "diagnostics only on stderr; none on PASS");
+    assert!(
+        out.stderr.is_empty(),
+        "diagnostics only on stderr; none on PASS"
+    );
     let doc = parity_verdict(&out);
     assert_eq!(doc.at("verdict").str(), Some("PASS"));
     assert_eq!(doc.at("topology").str(), Some("single"));
     assert_eq!(num(doc.at("legs_checked")), "2");
     assert_eq!(sorted(doc.at("legs_judged").strs()), ["branch", "layer"]);
     assert!(doc.at("reason_codes").strs().is_empty());
-    assert_eq!(stdout_json(&parity(&s.0, &parity_args(&repo, &[]))), doc, "json is the default format");
+    assert_eq!(
+        stdout_json(&parity(&s.0, &parity_args(&repo, &[]))),
+        doc,
+        "json is the default format"
+    );
 
     let out = parity(&s.0, &parity_args(&repo, &["--format", "value"]));
     assert_rc(&out, 0, "value");
     assert_eq!(text(&out.stdout), "single\n");
 
-    let out = parity(&s.0, &parity_args(&repo, &["--expect", "multi", "--format", "json"]));
+    let out = parity(
+        &s.0,
+        &parity_args(&repo, &["--expect", "multi", "--format", "json"]),
+    );
     assert_rc(&out, 5, "--expect multi on single-node");
     let doc = parity_verdict(&out);
     assert_eq!(doc.at("verdict").str(), Some("RED"));
-    assert!(doc.at("reason_codes").strs().contains(&"EXPECT_MISMATCH".to_string()), "{doc:?}");
+    assert!(
+        doc.at("reason_codes")
+            .strs()
+            .contains(&"EXPECT_MISMATCH".to_string()),
+        "{doc:?}"
+    );
 
-    write(&repo.join("output/single/manifest.yaml"), "topology: single\ngpus_per_node: 1\n");
-    let out = parity(&s.0, &parity_args(&repo, &["--expect", "single", "--format", "json"]));
+    write(
+        &repo.join("output/single/manifest.yaml"),
+        "topology: single\ngpus_per_node: 1\n",
+    );
+    let out = parity(
+        &s.0,
+        &parity_args(&repo, &["--expect", "single", "--format", "json"]),
+    );
     assert_rc(&out, 0, "three legs");
     let doc = parity_verdict(&out);
     assert_eq!(num(doc.at("legs_checked")), "3");
-    assert_eq!(sorted(doc.at("legs_judged").strs()), ["branch", "layer", "manifest"]);
+    assert_eq!(
+        sorted(doc.at("legs_judged").strs()),
+        ["branch", "layer", "manifest"]
+    );
 
-    write(&repo.join("output/single/manifest.yaml"), "topology: multi\n");
+    write(
+        &repo.join("output/single/manifest.yaml"),
+        "topology: multi\n",
+    );
     let out = parity(&s.0, &parity_args(&repo, &["--format", "json"]));
     assert_rc(&out, 5, "manifest mismatch");
     let doc = parity_verdict(&out);
-    assert!(doc.at("reason_codes").strs().contains(&"MANIFEST_MISMATCH".to_string()), "{doc:?}");
+    assert!(
+        doc.at("reason_codes")
+            .strs()
+            .contains(&"MANIFEST_MISMATCH".to_string()),
+        "{doc:?}"
+    );
     assert!(!doc.at("reasons").strs().is_empty());
     let out = parity(&s.0, &parity_args(&repo, &["--format", "value"]));
     assert_rc(&out, 5, "value on RED");
@@ -689,7 +968,8 @@ fn topology_parity_evaluate_json_value_and_exit_codes() {
     std::fs::remove_dir_all(repo.join("output")).unwrap();
 
     let mut cmd = Command::new("git");
-    cmd.args(["checkout", "-q", "-b", "elsewhere"]).current_dir(&repo);
+    cmd.args(["checkout", "-q", "-b", "elsewhere"])
+        .current_dir(&repo);
     assert!(clean(cmd).output().unwrap().status.success());
     let out = parity(&s.0, &parity_args(&repo, &["--format", "json"]));
     assert_rc(&out, 5, "unknown branch");
@@ -716,19 +996,33 @@ fn topology_parity_evaluate_json_value_and_exit_codes() {
 fn topology_parity_four_legs_and_campaign_mismatch() {
     let s = scratch("parity4");
     let repo = parity_repo(&s, "multi-node", "multi");
-    write(&repo.join("output/multi/manifest.yaml"), "topology: multi\n");
-    copy_file(&root().join(TS).join("campaign_init.sh"), &repo.join(TS).join("campaign_init.sh"));
+    write(
+        &repo.join("output/multi/manifest.yaml"),
+        "topology: multi\n",
+    );
+    copy_file(
+        &root().join(TS).join("campaign_init.sh"),
+        &repo.join(TS).join("campaign_init.sh"),
+    );
     write(&repo.join("campaigns/ACTIVE"), "c1\n");
     let decl = |t: &str| {
-        format!(r#"{{"id": "c1", "control_variables": {{"topology": "{t}"}}, "nodes": [{{"node_id": "main", "topology": "{t}"}}]}}"#)
+        format!(
+            r#"{{"id": "c1", "control_variables": {{"topology": "{t}"}}, "nodes": [{{"node_id": "main", "topology": "{t}"}}]}}"#
+        )
     };
     write(&repo.join("campaigns/c1/campaign.yaml"), &decl("multi"));
-    let out = parity(&s.0, &parity_args(&repo, &["--expect", "multi", "--format", "json"]));
+    let out = parity(
+        &s.0,
+        &parity_args(&repo, &["--expect", "multi", "--format", "json"]),
+    );
     assert_rc(&out, 0, "four legs");
     let doc = parity_verdict(&out);
     assert_eq!(doc.at("topology").str(), Some("multi"));
     assert_eq!(num(doc.at("legs_checked")), "4");
-    assert_eq!(sorted(doc.at("legs_judged").strs()), ["branch", "campaign", "layer", "manifest"]);
+    assert_eq!(
+        sorted(doc.at("legs_judged").strs()),
+        ["branch", "campaign", "layer", "manifest"]
+    );
     let out = parity(&s.0, &parity_args(&repo, &["--format", "value"]));
     assert_rc(&out, 0, "value");
     assert_eq!(text(&out.stdout), "multi\n");
@@ -737,7 +1031,12 @@ fn topology_parity_four_legs_and_campaign_mismatch() {
     let out = parity(&s.0, &parity_args(&repo, &["--format", "json"]));
     assert_rc(&out, 5, "campaign mismatch");
     let doc = parity_verdict(&out);
-    assert!(doc.at("reason_codes").strs().contains(&"CAMPAIGN_MISMATCH".to_string()), "{doc:?}");
+    assert!(
+        doc.at("reason_codes")
+            .strs()
+            .contains(&"CAMPAIGN_MISMATCH".to_string()),
+        "{doc:?}"
+    );
 }
 
 /// A scratch checkout for the campaign writer and the template validator: the two launchers (their location names the
@@ -765,17 +1064,34 @@ impl Checkout {
         for name in ["campaign_init.sh", "campaign_template_validator.sh"] {
             copy_file(&real.join(TS).join(name), &repo.join(TS).join(name));
         }
-        copy_tree(&real.join("campaigns/_template"), &repo.join("campaigns/_template"));
-        copy_file(&real.join("campaigns/README.md"), &repo.join("campaigns/README.md"));
+        copy_tree(
+            &real.join("campaigns/_template"),
+            &repo.join("campaigns/_template"),
+        );
+        copy_file(
+            &real.join("campaigns/README.md"),
+            &repo.join("campaigns/README.md"),
+        );
         let gate = ".claude/policies/runtime/completion_gate.sh";
         copy_file(&real.join(gate), &repo.join(gate));
-        write(&repo.join("output/single/manifest.yaml"), "topology: single\n");
+        write(
+            &repo.join("output/single/manifest.yaml"),
+            "topology: single\n",
+        );
         Checkout { _s: s, repo }
     }
     fn ci_os(&self, args: &[&OsStr], env: &[(&str, &OsStr)]) -> Output {
-        let mut all = vec![("CAMPAIGN_READ_BIN", OsStr::new(env!("CARGO_BIN_EXE_campaign_init")))];
+        let mut all = vec![(
+            "CAMPAIGN_READ_BIN",
+            OsStr::new(env!("CARGO_BIN_EXE_campaign_init")),
+        )];
         all.extend_from_slice(env);
-        bash(&self.repo.join(TS).join("campaign_init.sh"), args, &self.repo, &all)
+        bash(
+            &self.repo.join(TS).join("campaign_init.sh"),
+            args,
+            &self.repo,
+            &all,
+        )
     }
     /// `bash campaign_init.sh <args>` in the checkout.
     fn ci(&self, args: &[&str]) -> Output {
@@ -791,19 +1107,33 @@ impl Checkout {
             &self.repo.join(TS).join("campaign_template_validator.sh"),
             &os(args),
             &self.repo,
-            &[("CAMPAIGN_VALIDATOR_BIN", OsStr::new(env!("CARGO_BIN_EXE_campaign_template_validator")))],
+            &[(
+                "CAMPAIGN_VALIDATOR_BIN",
+                OsStr::new(env!("CARGO_BIN_EXE_campaign_template_validator")),
+            )],
         )
     }
     /// Opens `c-test` (`--init --apply` from the skeleton) and fills its declaration: main → c1, sub1 → c2, c3.
     fn open(&self) {
-        self.ok(&["--init", "c-test", "--plan-ref", "docs/plan/p.md", "--utc", UTC, "--approved-by", "contract", "--apply"]);
+        self.ok(&[
+            "--init",
+            "c-test",
+            "--plan-ref",
+            "docs/plan/p.md",
+            "--utc",
+            UTC,
+            "--approved-by",
+            "contract",
+            "--apply",
+        ]);
         write(&self.repo.join("campaigns/c-test/campaign.yaml"), DECL);
     }
     fn path(&self, rel: &str) -> String {
         self.repo.join(rel).to_str().unwrap().to_string()
     }
     fn json_file(&self, rel: &str) -> Json {
-        let body = std::fs::read_to_string(self.repo.join(rel)).unwrap_or_else(|e| panic!("{rel}: {e}"));
+        let body =
+            std::fs::read_to_string(self.repo.join(rel)).unwrap_or_else(|e| panic!("{rel}: {e}"));
         Json::parse(&body).unwrap_or_else(|e| panic!("{rel} is not JSON ({e}): {body}"))
     }
 }
@@ -812,7 +1142,9 @@ impl Checkout {
 fn one_line(out: &Output) -> String {
     let so = text(&out.stdout);
     assert!(out.stderr.is_empty(), "stderr: {}", text(&out.stderr));
-    let line = so.strip_suffix('\n').unwrap_or_else(|| panic!("no line: {so:?}"));
+    let line = so
+        .strip_suffix('\n')
+        .unwrap_or_else(|| panic!("no line: {so:?}"));
     assert!(!line.contains('\n'), "{so:?}");
     line.to_string()
 }
@@ -844,11 +1176,32 @@ fn campaign_init_read_shapes_and_lockset_precheck() {
     assert_eq!(one_line(&c.ok(&["--assigned-cells", "main"])), "c1");
     assert_eq!(one_line(&c.ok(&["--assigned-cells", "sub1"])), "c2,c3");
     let sweep = c.path("campaigns/c-test/sweeps/s1.json");
-    assert_eq!(one_line(&c.ok(&["--derive", "sweep", "--sweep", "s1"])), sweep);
-    assert_eq!(one_line(&c.ok(&["--derive", "sweep", "--sweep", "s1", "--campaign-id", "c-test"])), sweep);
-    for (kind, file) in [("cell-status", "cell.status.json"), ("config", "config.yaml"), ("lockset", "lockset.json")] {
+    assert_eq!(
+        one_line(&c.ok(&["--derive", "sweep", "--sweep", "s1"])),
+        sweep
+    );
+    assert_eq!(
+        one_line(&c.ok(&[
+            "--derive",
+            "sweep",
+            "--sweep",
+            "s1",
+            "--campaign-id",
+            "c-test"
+        ])),
+        sweep
+    );
+    for (kind, file) in [
+        ("cell-status", "cell.status.json"),
+        ("config", "config.yaml"),
+        ("lockset", "lockset.json"),
+    ] {
         let line = one_line(&c.ok(&["--derive", kind, "--cell", "c1"]));
-        assert_eq!(line, c.path(&format!("campaigns/c-test/cells/c1/{file}")), "--derive {kind}");
+        assert_eq!(
+            line,
+            c.path(&format!("campaigns/c-test/cells/c1/{file}")),
+            "--derive {kind}"
+        );
     }
 
     for extra in [&[][..], &["--campaign-id", "c-test"]] {
@@ -856,22 +1209,35 @@ fn campaign_init_read_shapes_and_lockset_precheck() {
         args.extend_from_slice(extra);
         let out = c.ci(&args);
         assert_rc(&out, 2, "lockset absent");
-        assert!(!out.stderr.is_empty(), "the refusal reason is on stderr too");
+        assert!(
+            !out.stderr.is_empty(),
+            "the refusal reason is on stderr too"
+        );
         let doc = stdout_json(&out);
         assert_eq!(doc.at("status").str(), Some("refused"));
         assert_eq!(doc.at("campaign_id").str(), Some("c-test"));
-        assert_eq!(doc.at("lockset").str(), Some("campaigns/c-test/cells/c1/lockset.json"));
+        assert_eq!(
+            doc.at("lockset").str(),
+            Some("campaigns/c-test/cells/c1/lockset.json")
+        );
         assert_eq!(doc.at("provenance"), &Json::Null);
         assert_eq!(doc.at("reason").kind(), "string");
     }
-    write(&c.repo.join("campaigns/c-test/cells/c1/lockset.json"), r#"{"provenance": "hand-authored"}"#);
+    write(
+        &c.repo.join("campaigns/c-test/cells/c1/lockset.json"),
+        r#"{"provenance": "hand-authored"}"#,
+    );
     let doc = stdout_json(&c.ok(&["--lockset-precheck", "--cell", "c1"]));
     assert_eq!(doc.at("status").str(), Some("passed"));
     assert_eq!(doc.at("provenance").str(), Some("hand-authored"));
     assert_eq!(doc.at("reason"), &Json::Null);
 
     let out = c.ci(&["--grounding-check"]);
-    assert_ne!(out.status.code(), Some(0), "an active campaign without a grounding record stops the caller");
+    assert_ne!(
+        out.status.code(),
+        Some(0),
+        "an active campaign without a grounding record stops the caller"
+    );
 }
 
 /// The writers the phase scripts and hint-publisher call (`--phase-set build|serve|bench|publish`, `--cell-set`,
@@ -886,8 +1252,22 @@ fn campaign_init_writers_relay_and_brief_shapes() {
     let c = Checkout::new("ci-write");
     c.open();
     c.ok(&[
-        "--phase-set", "bench", "--node", "main", "--cell", "c1", "--state", "running", "--proof-predicate", "p",
-        "--proof-source", "s", "--started-utc", UTC, "--authored-by", "main",
+        "--phase-set",
+        "bench",
+        "--node",
+        "main",
+        "--cell",
+        "c1",
+        "--state",
+        "running",
+        "--proof-predicate",
+        "p",
+        "--proof-source",
+        "s",
+        "--started-utc",
+        UTC,
+        "--authored-by",
+        "main",
     ]);
     let doc = c.json_file("campaigns/c-test/phases/main/bench.status.json");
     assert_eq!(doc.at("phase").str(), Some("bench"));
@@ -896,39 +1276,119 @@ fn campaign_init_writers_relay_and_brief_shapes() {
     assert_eq!(doc.at("cell_id").str(), Some("c1"));
     assert_eq!(doc.at("proof").at("ok"), &Json::Bool(false));
     c.ok(&[
-        "--campaign-id", "c-test", "--phase-set", "publish", "--node", "main", "--cell", "c1", "--state", "done",
-        "--proof-predicate", "p", "--proof-ok", "--proof-source", "s", "--ended-utc", UTC, "--authored-by", "main",
+        "--campaign-id",
+        "c-test",
+        "--phase-set",
+        "publish",
+        "--node",
+        "main",
+        "--cell",
+        "c1",
+        "--state",
+        "done",
+        "--proof-predicate",
+        "p",
+        "--proof-ok",
+        "--proof-source",
+        "s",
+        "--ended-utc",
+        UTC,
+        "--authored-by",
+        "main",
     ]);
     let doc = c.json_file("campaigns/c-test/phases/main/publish.status.json");
     assert_eq!(doc.at("state").str(), Some("done"));
     assert_eq!(doc.at("proof").at("ok"), &Json::Bool(true));
-    for (phase, state, proof) in [("serve", "done", &["--proof-ok"][..]), ("build", "failed", &[])] {
+    for (phase, state, proof) in [
+        ("serve", "done", &["--proof-ok"][..]),
+        ("build", "failed", &[]),
+    ] {
         let mut args = vec![
-            "--phase-set", phase, "--node", "main", "--state", state, "--cell", "c1", "--proof-predicate", "p",
-            "--proof-source", "s", "--started-utc", UTC, "--ended-utc", UTC, "--authored-by", "main",
+            "--phase-set",
+            phase,
+            "--node",
+            "main",
+            "--state",
+            state,
+            "--cell",
+            "c1",
+            "--proof-predicate",
+            "p",
+            "--proof-source",
+            "s",
+            "--started-utc",
+            UTC,
+            "--ended-utc",
+            UTC,
+            "--authored-by",
+            "main",
         ];
         args.extend_from_slice(proof);
         c.ok(&args);
-        assert_eq!(c.json_file(&format!("campaigns/c-test/phases/main/{phase}.status.json")).at("state").str(), Some(state));
+        assert_eq!(
+            c.json_file(&format!("campaigns/c-test/phases/main/{phase}.status.json"))
+                .at("state")
+                .str(),
+            Some(state)
+        );
     }
     let out = c.ci(&[
-        "--phase-set", "bench", "--node", "main", "--cell", "c1", "--state", "unknown-state", "--proof-predicate", "p",
-        "--proof-source", "s", "--started-utc", UTC,
+        "--phase-set",
+        "bench",
+        "--node",
+        "main",
+        "--cell",
+        "c1",
+        "--state",
+        "unknown-state",
+        "--proof-predicate",
+        "p",
+        "--proof-source",
+        "s",
+        "--started-utc",
+        UTC,
     ]);
-    assert_ne!(out.status.code(), Some(0), "a state outside the enum is refused");
+    assert_ne!(
+        out.status.code(),
+        Some(0),
+        "a state outside the enum is refused"
+    );
 
-    c.ok(&["--cell-set", "c1", "--outcome", "measurement_void", "--utc", UTC]);
+    c.ok(&[
+        "--cell-set",
+        "c1",
+        "--outcome",
+        "measurement_void",
+        "--utc",
+        UTC,
+    ]);
     let doc = c.json_file("campaigns/c-test/cells/c1/cell.status.json");
     assert_eq!(doc.at("cell_id").str(), Some("c1"));
     assert_eq!(doc.at("cell_outcome").str(), Some("measurement_void"));
 
     c.ok(&[
-        "--escalation-add", "--cell", "c1", "--node", "main", "--utc", UTC, "--window-start-utc", UTC, "--window-end-utc", UTC,
-        "--symptom", "contract",
+        "--escalation-add",
+        "--cell",
+        "c1",
+        "--node",
+        "main",
+        "--utc",
+        UTC,
+        "--window-start-utc",
+        UTC,
+        "--window-end-utc",
+        UTC,
+        "--symptom",
+        "contract",
     ]);
-    let lines = std::fs::read_to_string(c.repo.join("campaigns/c-test/escalation_candidates.jsonl")).unwrap();
+    let lines =
+        std::fs::read_to_string(c.repo.join("campaigns/c-test/escalation_candidates.jsonl"))
+            .unwrap();
     assert_eq!(lines.lines().count(), 1);
-    assert_eq!(Json::parse(lines.lines().next().unwrap()).unwrap().kind(), "object");
+    assert_eq!(
+        Json::parse(lines.lines().next().unwrap()).unwrap().kind(),
+        "object"
+    );
 
     c.ok(&["--write-brief", "--node", "main", "--utc", UTC]);
     let brief = c.json_file("docs/logs/main/campaign_brief.json");
@@ -938,7 +1398,14 @@ fn campaign_init_writers_relay_and_brief_shapes() {
     assert_eq!(cells[0].at("cell_id").str(), Some("c1"));
 
     let slice = |c: &Checkout| {
-        let out = c.ok(&["--emit-slice", "sub1", "--campaign-id", "c-test", "--utc", UTC]);
+        let out = c.ok(&[
+            "--emit-slice",
+            "sub1",
+            "--campaign-id",
+            "c-test",
+            "--utc",
+            UTC,
+        ]);
         assert!(out.stderr.is_empty());
         stdout_json(&out)
     };
@@ -952,8 +1419,19 @@ fn campaign_init_writers_relay_and_brief_shapes() {
     assert_eq!(nodes.len(), 1, "the slice holds that node only: {nodes:?}");
     assert_eq!(nodes[0].at("node_id").str(), Some("sub1"));
     c.ok(&[
-        "--assign-set", "sub1", "--assign-cells", "c2", "--assign-reason", "r", "--assign-evidence", "e",
-        "--assign-approved-by", "contract", "--utc", UTC, "--apply",
+        "--assign-set",
+        "sub1",
+        "--assign-cells",
+        "c2",
+        "--assign-reason",
+        "r",
+        "--assign-evidence",
+        "e",
+        "--assign-approved-by",
+        "contract",
+        "--utc",
+        UTC,
+        "--apply",
     ]);
     let doc = slice(&c);
     assert_eq!(doc.at("_assignment_revision").at("rev").kind(), "number");
@@ -965,12 +1443,27 @@ fn campaign_init_writers_relay_and_brief_shapes() {
     assert!(doc.get("sub_convergence").is_some());
     let doc = stdout_json(&c.ok(&["--lifecycle"]));
     assert!(doc.at("line").str().unwrap().starts_with("상태: "));
-    assert_eq!(doc.at("campaigns").at("c-test").at("state").str(), Some("active"));
+    assert_eq!(
+        doc.at("campaigns").at("c-test").at("state").str(),
+        Some("active")
+    );
 
     let out = c.ok(&["--resume-brief"]);
-    assert!(text(&out.stdout).lines().next().unwrap().starts_with("상태: "), "{}", text(&out.stdout));
+    assert!(
+        text(&out.stdout)
+            .lines()
+            .next()
+            .unwrap()
+            .starts_with("상태: "),
+        "{}",
+        text(&out.stdout)
+    );
     let out = c.ci(&["--verify-purge-gate", "c-test"]);
-    assert_ne!(out.status.code(), Some(0), "purge gate closed without evidence");
+    assert_ne!(
+        out.status.code(),
+        Some(0),
+        "purge gate closed without evidence"
+    );
     let merged = format!("{}{}", text(&out.stdout), text(&out.stderr));
     assert!(merged.lines().any(|l| l.starts_with("  - ")), "{merged}");
 }
@@ -982,7 +1475,10 @@ fn campaign_init_writers_relay_and_brief_shapes() {
 #[test]
 fn campaign_init_usage_options_and_selftest() {
     let c = Checkout::new("ci-usage");
-    for args in [vec![OsStr::new("--bogus")], vec![OsStr::new("--active"), OsStr::from_bytes(b"\xff")]] {
+    for args in [
+        vec![OsStr::new("--bogus")],
+        vec![OsStr::new("--active"), OsStr::from_bytes(b"\xff")],
+    ] {
         let out = c.ci_os(&args, &[]);
         assert_rc(&out, 2, "usage error");
         assert!(out.stdout.is_empty());
@@ -991,17 +1487,82 @@ fn campaign_init_usage_options_and_selftest() {
     let out = c.ok(&["--help"]);
     let help = text(&out.stdout);
     for opt in [
-        "--active", "--derive", "--cell", "--sweep", "--campaign-id", "--verify-purge-gate", "--close", "--init", "--plan-ref",
-        "--from-slice", "--ground", "--grounding-check", "--lockset-precheck", "--assigned-cells", "--emit-slice", "--out",
-        "--import-sub", "--write-brief", "--apply", "--selftest", "--suspend-current", "--derived-from", "--preempt",
-        "--release", "--suspend", "--resume-campaign", "--accept-drift", "--abandon", "--reason", "--summary-testlog",
-        "--answer-query", "--sub-echo", "--control", "--lifecycle", "--phase-set", "--node", "--state", "--proof-predicate",
-        "--proof-ok", "--proof-source", "--started-utc", "--ended-utc", "--cell-set", "--cell-materialize", "--outcome",
-        "--sweep-state", "--escalation-add", "--symptom", "--events", "--window-start-utc", "--window-end-utc",
-        "--authored-by", "--void-reason", "--void-reason-source", "--lite-raw", "--reentry-decide", "--decision", "--route",
-        "--axis-citation", "--next-intent", "--evidence-add", "--kind", "--path", "--assign-set", "--assign-cells",
-        "--assign-reason", "--assign-evidence", "--assign-approved-by", "--slice-update", "--revise", "--hint-approve",
-        "--cells", "--approved-by", "--source", "--utc", "--resume-brief",
+        "--active",
+        "--derive",
+        "--cell",
+        "--sweep",
+        "--campaign-id",
+        "--verify-purge-gate",
+        "--close",
+        "--init",
+        "--plan-ref",
+        "--from-slice",
+        "--ground",
+        "--grounding-check",
+        "--lockset-precheck",
+        "--assigned-cells",
+        "--emit-slice",
+        "--out",
+        "--import-sub",
+        "--write-brief",
+        "--apply",
+        "--selftest",
+        "--suspend-current",
+        "--derived-from",
+        "--preempt",
+        "--release",
+        "--suspend",
+        "--resume-campaign",
+        "--accept-drift",
+        "--abandon",
+        "--reason",
+        "--summary-testlog",
+        "--answer-query",
+        "--sub-echo",
+        "--control",
+        "--lifecycle",
+        "--phase-set",
+        "--node",
+        "--state",
+        "--proof-predicate",
+        "--proof-ok",
+        "--proof-source",
+        "--started-utc",
+        "--ended-utc",
+        "--cell-set",
+        "--cell-materialize",
+        "--outcome",
+        "--sweep-state",
+        "--escalation-add",
+        "--symptom",
+        "--events",
+        "--window-start-utc",
+        "--window-end-utc",
+        "--authored-by",
+        "--void-reason",
+        "--void-reason-source",
+        "--lite-raw",
+        "--reentry-decide",
+        "--decision",
+        "--route",
+        "--axis-citation",
+        "--next-intent",
+        "--evidence-add",
+        "--kind",
+        "--path",
+        "--assign-set",
+        "--assign-cells",
+        "--assign-reason",
+        "--assign-evidence",
+        "--assign-approved-by",
+        "--slice-update",
+        "--revise",
+        "--hint-approve",
+        "--cells",
+        "--approved-by",
+        "--source",
+        "--utc",
+        "--resume-brief",
     ] {
         assert!(names_option(&help, opt), "campaign_init option {opt}");
     }
@@ -1010,7 +1571,11 @@ fn campaign_init_usage_options_and_selftest() {
 /// Replaces the first `anchor` of the file by `anchor` + `insert` (a fixture edit of a JSON document's text).
 fn inject(path: &Path, anchor: &str, insert: &str) {
     let body = std::fs::read_to_string(path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
-    assert!(body.contains(anchor), "{anchor:?} not in {}:\n{body}", path.display());
+    assert!(
+        body.contains(anchor),
+        "{anchor:?} not in {}:\n{body}",
+        path.display()
+    );
     std::fs::write(path, body.replacen(anchor, &format!("{anchor}{insert}"), 1)).unwrap();
 }
 
@@ -1039,17 +1604,61 @@ fn campaign_init_consumer_flags_reach_their_options() {
     // fetch_sub_docs.sh: the mirror holds a sub's brief (written before this checkout's own journey grows)
     c.ok(&["--write-brief", "--node", "sub1", "--utc", UTC]);
     let mirror = c.repo.join("sync_staging/sub_docs/sub1");
-    copy_file(&c.repo.join("docs/logs/sub1/campaign_brief.json"), &mirror.join("logs/sub1/campaign_brief.json"));
-    c.ok(&["--campaign-id", "c-test", "--import-sub", "sync_staging/sub_docs/sub1", "--utc", UTC]);
+    copy_file(
+        &c.repo.join("docs/logs/sub1/campaign_brief.json"),
+        &mirror.join("logs/sub1/campaign_brief.json"),
+    );
+    c.ok(&[
+        "--campaign-id",
+        "c-test",
+        "--import-sub",
+        "sync_staging/sub_docs/sub1",
+        "--utc",
+        UTC,
+    ]);
 
     let cell_status = "campaigns/c-test/cells/c1/cell.status.json";
-    let out = c.ci(&["--cell-set", "c1", "--outcome", "measurement_void", "--utc", UTC, "--void-reason", "R1"]);
-    assert_ne!(out.status.code(), Some(0), "--void-reason needs --void-reason-source");
-    assert!(!usage_error(&out), "a refusal, not a usage error: {}", text(&out.stderr));
-    assert!(!c.repo.join(cell_status).exists(), "a refused write leaves no cell status");
+    let out = c.ci(&[
+        "--cell-set",
+        "c1",
+        "--outcome",
+        "measurement_void",
+        "--utc",
+        UTC,
+        "--void-reason",
+        "R1",
+    ]);
+    assert_ne!(
+        out.status.code(),
+        Some(0),
+        "--void-reason needs --void-reason-source"
+    );
+    assert!(
+        !usage_error(&out),
+        "a refusal, not a usage error: {}",
+        text(&out.stderr)
+    );
+    assert!(
+        !c.repo.join(cell_status).exists(),
+        "a refused write leaves no cell status"
+    );
     c.ok(&[
-        "--cell-set", "c1", "--outcome", "measurement_void", "--axis-citation", "AX", "--next-intent", "NI", "--utc", UTC,
-        "--sweep-state", "campaigns/c-test/sweeps/s1.json", "--void-reason", "R1", "--void-reason-source", "S1",
+        "--cell-set",
+        "c1",
+        "--outcome",
+        "measurement_void",
+        "--axis-citation",
+        "AX",
+        "--next-intent",
+        "NI",
+        "--utc",
+        UTC,
+        "--sweep-state",
+        "campaigns/c-test/sweeps/s1.json",
+        "--void-reason",
+        "R1",
+        "--void-reason-source",
+        "S1",
     ]);
     let doc = c.json_file(cell_status);
     assert_eq!(doc.at("cell_outcome").str(), Some("measurement_void"));
@@ -1059,13 +1668,45 @@ fn campaign_init_consumer_flags_reach_their_options() {
     assert_eq!(doc.at("next_intent").str(), Some("NI"));
     assert!(doc.get("lite_gate").is_none(), "no lite raw given: {doc:?}");
     let raw = c.repo.join("lite_raw.json");
-    std::fs::copy(root().join(".claude/skills/adversarial-benchmark/fixtures/lite_raw_d1_connection_refused.json"), &raw).unwrap();
-    c.ok(&["--cell-set", "c1", "--outcome", "measurement_void", "--lite-raw", raw.to_str().unwrap(), "--utc", UTC]);
-    assert_eq!(c.json_file(cell_status).at("lite_gate").kind(), "object", "--lite-raw reaches the lite gate");
+    std::fs::copy(
+        root().join(
+            ".claude/skills/adversarial-benchmark/fixtures/lite_raw_d1_connection_refused.json",
+        ),
+        &raw,
+    )
+    .unwrap();
+    c.ok(&[
+        "--cell-set",
+        "c1",
+        "--outcome",
+        "measurement_void",
+        "--lite-raw",
+        raw.to_str().unwrap(),
+        "--utc",
+        UTC,
+    ]);
+    assert_eq!(
+        c.json_file(cell_status).at("lite_gate").kind(),
+        "object",
+        "--lite-raw reaches the lite gate"
+    );
 
     let slice = c.repo.join("slice.json");
-    let out = c.ok(&["--emit-slice", "sub1", "--campaign-id", "c-test", "--utc", UTC, "--out", slice.to_str().unwrap()]);
-    assert!(Json::parse(&text(&out.stdout)).is_err(), "the slice goes to --out, not to stdout: {}", text(&out.stdout));
+    let out = c.ok(&[
+        "--emit-slice",
+        "sub1",
+        "--campaign-id",
+        "c-test",
+        "--utc",
+        UTC,
+        "--out",
+        slice.to_str().unwrap(),
+    ]);
+    assert!(
+        Json::parse(&text(&out.stdout)).is_err(),
+        "the slice goes to --out, not to stdout: {}",
+        text(&out.stdout)
+    );
     let doc = Json::parse(&std::fs::read_to_string(&slice).unwrap()).unwrap();
     assert_eq!(doc.at("id").str(), Some("c-test"));
     assert_eq!(doc.at("assignments").keys(), ["sub1"]);
@@ -1077,28 +1718,87 @@ fn campaign_init_consumer_flags_reach_their_options() {
     let events = c.repo.join("events.jsonl");
     write(&events, "{\"kind\": \"x\"}\n");
     c.ok(&[
-        "--escalation-add", "--cell", "c1", "--node", "main", "--utc", UTC, "--window-start-utc", UTC, "--window-end-utc", UTC,
-        "--symptom", "s1", "--events", events.to_str().unwrap(),
+        "--escalation-add",
+        "--cell",
+        "c1",
+        "--node",
+        "main",
+        "--utc",
+        UTC,
+        "--window-start-utc",
+        UTC,
+        "--window-end-utc",
+        UTC,
+        "--symptom",
+        "s1",
+        "--events",
+        events.to_str().unwrap(),
     ]);
 
-    let (old, new) = ("docs/testlog/testlog_26010100_a.md", "docs/testlog/testlog_26010100_b.md");
+    let (old, new) = (
+        "docs/testlog/testlog_26010100_a.md",
+        "docs/testlog/testlog_26010100_b.md",
+    );
     write(&c.repo.join(old), "x\n");
-    c.ok(&["--evidence-add", "--kind", "testlog", "--path", old, "--utc", UTC, "--campaign-id", "c-test", "--node", "main"]);
+    c.ok(&[
+        "--evidence-add",
+        "--kind",
+        "testlog",
+        "--path",
+        old,
+        "--utc",
+        UTC,
+        "--campaign-id",
+        "c-test",
+        "--node",
+        "main",
+    ]);
     std::fs::rename(c.repo.join(old), c.repo.join(new)).unwrap();
     c.ok(&[
-        "--campaign-id", "c-test", "--evidence-relocate", "--kind", "testlog", "--path", old, "--to", new, "--relocate-reason",
-        "rename", "--utc", UTC,
+        "--campaign-id",
+        "c-test",
+        "--evidence-relocate",
+        "--kind",
+        "testlog",
+        "--path",
+        old,
+        "--to",
+        new,
+        "--relocate-reason",
+        "rename",
+        "--utc",
+        UTC,
     ]);
     let pointers = c.json_file("campaigns/c-test/evidence_pointers.json");
     let items = pointers.at("pointers").arr().unwrap();
     assert_eq!(items.len(), 1, "{pointers:?}");
     assert_eq!(items[0].at("path").str(), Some(new));
-    assert_eq!(items[0].at("relocated").arr().unwrap()[0].at("from").str(), Some(old));
+    assert_eq!(
+        items[0].at("relocated").arr().unwrap()[0].at("from").str(),
+        Some(old)
+    );
 
-
-    let out = c.ci(&["--suspend", "c-test", "--reason", "r", "--utc", UTC, "--approved-by", "contract", "--apply"]);
-    assert_ne!(out.status.code(), Some(0), "a suspension without --release is refused");
-    assert!(!usage_error(&out), "--suspend takes the campaign id: {}", text(&out.stderr));
+    let out = c.ci(&[
+        "--suspend",
+        "c-test",
+        "--reason",
+        "r",
+        "--utc",
+        UTC,
+        "--approved-by",
+        "contract",
+        "--apply",
+    ]);
+    assert_ne!(
+        out.status.code(),
+        Some(0),
+        "a suspension without --release is refused"
+    );
+    assert!(
+        !usage_error(&out),
+        "--suspend takes the campaign id: {}",
+        text(&out.stderr)
+    );
 
     // The relay echoes a sub's acknowledgement of the last transition: a suspension that named sub1.
     let journey = c.repo.join("campaigns/c-test/journey.jsonl");
@@ -1107,9 +1807,23 @@ fn campaign_init_consumer_flags_reach_their_options() {
         "{{\"kind\": \"campaign_suspended\", \"lifecycle_v\": 1, \"source\": \"campaign_init\", \"utc\": \"{UTC}\", \"sub_nodes\": [\"sub1\"], \"released\": []}}\n"
     ));
     std::fs::write(&journey, lines).unwrap();
-    let out = c.ok(&["--sub-echo", "c-test", "--node", "sub1", "--control", "suspend", "--utc", UTC, "--apply"]);
+    let out = c.ok(&[
+        "--sub-echo",
+        "c-test",
+        "--node",
+        "sub1",
+        "--control",
+        "suspend",
+        "--utc",
+        UTC,
+        "--apply",
+    ]);
     let so = text(&out.stdout);
-    assert!(so.lines().any(|l| l.starts_with("[campaign_init] APPLIED ")), "{so}");
+    assert!(
+        so.lines()
+            .any(|l| l.starts_with("[campaign_init] APPLIED ")),
+        "{so}"
+    );
     let doc = stdout_json(&c.ok(&["--lifecycle", "c-test"]));
     assert_eq!(doc.at("state").str(), Some("suspended"));
     assert_eq!(doc.at("sub_echoed").strs(), ["sub1"]);
@@ -1129,43 +1843,163 @@ fn campaign_init_lifecycle_options_reach_the_parser() {
     c.open();
     let takes = |args: &[&str], probed: &[&str]| {
         let out = c.ci(args);
-        assert!(!usage_error(&out), "{args:?} is a usage error:\n{}", text(&out.stderr));
+        assert!(
+            !usage_error(&out),
+            "{args:?} is a usage error:\n{}",
+            text(&out.stderr)
+        );
         for name in probed {
-            let at = args.iter().position(|a| a == name).unwrap_or_else(|| panic!("{name} not in {args:?}"));
+            let at = args
+                .iter()
+                .position(|a| a == name)
+                .unwrap_or_else(|| panic!("{name} not in {args:?}"));
             let mut control = args.to_vec();
             control[at] = "--contract-no-such-option";
             let out = c.ci(&control);
-            assert!(usage_error(&out), "{control:?}: an unknown option must be a usage error: {:?}\n{}", out.status, text(&out.stderr));
+            assert!(
+                usage_error(&out),
+                "{control:?}: an unknown option must be a usage error: {:?}\n{}",
+                out.status,
+                text(&out.stderr)
+            );
         }
     };
     let init = ["--init", "c2", "--plan-ref", "docs/plan/p.md", "--utc", UTC];
-    for extra in [&["--derived-from", "c-test"][..], &["--suspend-current"], &["--preempt"]] {
+    for extra in [
+        &["--derived-from", "c-test"][..],
+        &["--suspend-current"],
+        &["--preempt"],
+    ] {
         let mut args = init.to_vec();
         args.extend_from_slice(extra);
         takes(&args, &["--init", "--plan-ref", extra[0]]);
     }
-    takes(&["--suspend", "c-test", "--release", "none", "--reason", "r", "--utc", UTC, "--approved-by", "a"], &["--suspend", "--release", "--reason", "--approved-by"]);
-    takes(&["--resume-campaign", "c-test", "--accept-drift", "--utc", UTC, "--approved-by", "a"], &["--resume-campaign", "--accept-drift"]);
-    takes(&["--abandon", "c-test", "--reason", "r", "--summary-testlog", "docs/testlog/t.md", "--utc", UTC, "--approved-by", "a"], &["--abandon", "--summary-testlog"]);
-    takes(&["--close", "c-test", "--summary-testlog", "docs/testlog/t.md", "--utc", UTC, "--approved-by", "a"], &["--close"]);
+    takes(
+        &[
+            "--suspend",
+            "c-test",
+            "--release",
+            "none",
+            "--reason",
+            "r",
+            "--utc",
+            UTC,
+            "--approved-by",
+            "a",
+        ],
+        &["--suspend", "--release", "--reason", "--approved-by"],
+    );
+    takes(
+        &[
+            "--resume-campaign",
+            "c-test",
+            "--accept-drift",
+            "--utc",
+            UTC,
+            "--approved-by",
+            "a",
+        ],
+        &["--resume-campaign", "--accept-drift"],
+    );
+    takes(
+        &[
+            "--abandon",
+            "c-test",
+            "--reason",
+            "r",
+            "--summary-testlog",
+            "docs/testlog/t.md",
+            "--utc",
+            UTC,
+            "--approved-by",
+            "a",
+        ],
+        &["--abandon", "--summary-testlog"],
+    );
+    takes(
+        &[
+            "--close",
+            "c-test",
+            "--summary-testlog",
+            "docs/testlog/t.md",
+            "--utc",
+            UTC,
+            "--approved-by",
+            "a",
+        ],
+        &["--close"],
+    );
     takes(&["--slice-update", "-", "--utc", UTC], &["--slice-update"]);
     takes(
-        &["--answer-query", "c-test", "--query-decision", "keep", "--utc", UTC, "--approved-by", "a"],
+        &[
+            "--answer-query",
+            "c-test",
+            "--query-decision",
+            "keep",
+            "--utc",
+            UTC,
+            "--approved-by",
+            "a",
+        ],
         &["--answer-query", "--query-decision"],
     );
     takes(&["--verify-purge-gate", "c-test"], &["--verify-purge-gate"]);
     takes(
-        &["--reentry-decide", "c1", "--decision", "approve", "--route", "explorer", "--approved-by", "a", "--utc", UTC],
+        &[
+            "--reentry-decide",
+            "c1",
+            "--decision",
+            "approve",
+            "--route",
+            "explorer",
+            "--approved-by",
+            "a",
+            "--utc",
+            UTC,
+        ],
         &["--reentry-decide", "--decision", "--route"],
     );
-    takes(&["--cell-materialize", "c1", "--utc", UTC], &["--cell-materialize"]);
     takes(
-        &["--hint-approve", "--cells", "c1", "--node", "main", "--approved-by", "a", "--source", "declaration-popup", "--utc", UTC],
+        &["--cell-materialize", "c1", "--utc", UTC],
+        &["--cell-materialize"],
+    );
+    takes(
+        &[
+            "--hint-approve",
+            "--cells",
+            "c1",
+            "--node",
+            "main",
+            "--approved-by",
+            "a",
+            "--source",
+            "declaration-popup",
+            "--utc",
+            UTC,
+        ],
         &["--hint-approve", "--cells", "--source"],
     );
     takes(
-        &["--revise", "--revise-set", "budgets.repeats=4", "--revise-reason", "r", "--revise-evidence", "e", "--revise-approved-by", "a", "--utc", UTC],
-        &["--revise", "--revise-set", "--revise-reason", "--revise-evidence", "--revise-approved-by"],
+        &[
+            "--revise",
+            "--revise-set",
+            "budgets.repeats=4",
+            "--revise-reason",
+            "r",
+            "--revise-evidence",
+            "e",
+            "--revise-approved-by",
+            "a",
+            "--utc",
+            UTC,
+        ],
+        &[
+            "--revise",
+            "--revise-set",
+            "--revise-reason",
+            "--revise-evidence",
+            "--revise-approved-by",
+        ],
     );
 }
 
@@ -1181,16 +2015,41 @@ fn campaign_init_writers_keep_unknown_keys() {
     c.open();
     let decl = c.repo.join("campaigns/c-test/campaign.yaml");
     inject(&decl, "{", r#""_contract_top": "keep-top", "#);
-    inject(&decl, r#""role": "sub", "#, r#""_contract_node": "keep-node", "#);
-    inject(&decl, r#""main": [{"cell": "c1", "#, r#""_contract_item": "keep-item", "#);
+    inject(
+        &decl,
+        r#""role": "sub", "#,
+        r#""_contract_node": "keep-node", "#,
+    );
+    inject(
+        &decl,
+        r#""main": [{"cell": "c1", "#,
+        r#""_contract_item": "keep-item", "#,
+    );
     inject(&decl, r#""budgets": {"#, r#""_contract_nested": 7, "#);
     c.ok(&[
-        "--assign-set", "sub1", "--assign-cells", "c2", "--assign-reason", "r", "--assign-evidence", "e",
-        "--assign-approved-by", "contract", "--utc", UTC, "--apply",
+        "--assign-set",
+        "sub1",
+        "--assign-cells",
+        "c2",
+        "--assign-reason",
+        "r",
+        "--assign-evidence",
+        "e",
+        "--assign-approved-by",
+        "contract",
+        "--utc",
+        UTC,
+        "--apply",
     ]);
     let doc = c.json_file("campaigns/c-test/campaign.yaml");
     assert_eq!(doc.at("_contract_top").str(), Some("keep-top"));
-    let sub = doc.at("nodes").arr().unwrap().iter().find(|n| n.at("node_id").str() == Some("sub1")).unwrap();
+    let sub = doc
+        .at("nodes")
+        .arr()
+        .unwrap()
+        .iter()
+        .find(|n| n.at("node_id").str() == Some("sub1"))
+        .unwrap();
     assert_eq!(sub.at("_contract_node").str(), Some("keep-node"));
     // sub1's list is the new assignment the call declares; main's item is re-written as it was.
     let items = doc.at("assignments").at("sub1").arr().unwrap();
@@ -1202,20 +2061,50 @@ fn campaign_init_writers_keep_unknown_keys() {
     assert_eq!(num(doc.at("budgets").at("_contract_nested")), "7");
 
     let cell = c.repo.join("campaigns/c-test/cells/c1/cell.status.json");
-    c.ok(&["--cell-set", "c1", "--outcome", "measurement_void", "--utc", UTC]);
+    c.ok(&[
+        "--cell-set",
+        "c1",
+        "--outcome",
+        "measurement_void",
+        "--utc",
+        UTC,
+    ]);
     inject(&cell, "{", r#""_contract_top": "keep-top", "#);
-    inject(&cell, r#""measurement": {"#, r#""_contract_item": "keep-item", "#);
+    inject(
+        &cell,
+        r#""measurement": {"#,
+        r#""_contract_item": "keep-item", "#,
+    );
     c.ok(&["--cell-set", "c1", "--outcome", "measured", "--utc", UTC]);
     let doc = c.json_file("campaigns/c-test/cells/c1/cell.status.json");
     assert_eq!(doc.at("cell_outcome").str(), Some("measured"));
     assert_eq!(doc.at("_contract_top").str(), Some("keep-top"));
-    assert_eq!(doc.at("measurement").at("_contract_item").str(), Some("keep-item"));
+    assert_eq!(
+        doc.at("measurement").at("_contract_item").str(),
+        Some("keep-item")
+    );
 
-    let phase = c.repo.join("campaigns/c-test/phases/main/bench.status.json");
+    let phase = c
+        .repo
+        .join("campaigns/c-test/phases/main/bench.status.json");
     let phase_set = |state: &str, proof: &[&str]| {
         let mut args = vec![
-            "--phase-set", "bench", "--node", "main", "--cell", "c1", "--state", state, "--proof-predicate", "p",
-            "--proof-source", "s", "--started-utc", UTC, "--authored-by", "main",
+            "--phase-set",
+            "bench",
+            "--node",
+            "main",
+            "--cell",
+            "c1",
+            "--state",
+            state,
+            "--proof-predicate",
+            "p",
+            "--proof-source",
+            "s",
+            "--started-utc",
+            UTC,
+            "--authored-by",
+            "main",
         ];
         args.extend_from_slice(proof);
         c.ok(&args);
@@ -1230,17 +2119,36 @@ fn campaign_init_writers_keep_unknown_keys() {
     let pointers = c.repo.join("campaigns/c-test/evidence_pointers.json");
     let add = |rel: &str| {
         write(&c.repo.join(rel), "x\n");
-        c.ok(&["--evidence-add", "--kind", "testlog", "--path", rel, "--utc", UTC, "--campaign-id", "c-test", "--node", "main"]);
+        c.ok(&[
+            "--evidence-add",
+            "--kind",
+            "testlog",
+            "--path",
+            rel,
+            "--utc",
+            UTC,
+            "--campaign-id",
+            "c-test",
+            "--node",
+            "main",
+        ]);
     };
     add("docs/testlog/testlog_26010100_a.md");
     inject(&pointers, "{", r#""_contract_top": "keep-top", "#);
-    inject(&pointers, r#""kind": "testlog","#, r#" "_contract_item": "keep-item","#);
+    inject(
+        &pointers,
+        r#""kind": "testlog","#,
+        r#" "_contract_item": "keep-item","#,
+    );
     add("docs/testlog/testlog_26010100_c.md");
     let doc = c.json_file("campaigns/c-test/evidence_pointers.json");
     assert_eq!(doc.at("_contract_top").str(), Some("keep-top"));
     let items = doc.at("pointers").arr().unwrap();
     assert_eq!(items.len(), 2, "{doc:?}");
-    let first = items.iter().find(|p| p.at("path").str() == Some("docs/testlog/testlog_26010100_a.md")).unwrap();
+    let first = items
+        .iter()
+        .find(|p| p.at("path").str() == Some("docs/testlog/testlog_26010100_a.md"))
+        .unwrap();
     assert_eq!(first.at("_contract_item").str(), Some("keep-item"));
 }
 
@@ -1253,32 +2161,87 @@ fn campaign_template_validator_exit_codes() {
     let c = Checkout::new("validator");
     assert_rc(&c.validator(&["--selftest"]), 0, "--selftest");
     assert_rc(&c.validator(&["--template"]), 0, "--template");
-    assert_rc(&c.validator(&["--campaign", "campaigns/_template/campaign.yaml"]), 1, "placeholders");
-    assert_rc(&c.validator(&["--campaign", "campaigns/absent/campaign.yaml"]), 1, "missing declaration");
+    assert_rc(
+        &c.validator(&["--campaign", "campaigns/_template/campaign.yaml"]),
+        1,
+        "placeholders",
+    );
+    assert_rc(
+        &c.validator(&["--campaign", "campaigns/absent/campaign.yaml"]),
+        1,
+        "missing declaration",
+    );
     c.open();
     // A main-only declaration: a sub's acceptance (P4) needs the relay ledger of a delegated build, out of this check.
     let main_only = DECL
-        .replace(r#", {"node_id": "sub1", "role": "sub", "topology": "single", "hw": "gpu"}"#, "")
-        .replace(r#", "sub1": [{"cell": "c2", "mode": "AUTO"}, {"cell": "c3", "mode": "AUTO"}]"#, "");
+        .replace(
+            r#", {"node_id": "sub1", "role": "sub", "topology": "single", "hw": "gpu"}"#,
+            "",
+        )
+        .replace(
+            r#", "sub1": [{"cell": "c2", "mode": "AUTO"}, {"cell": "c3", "mode": "AUTO"}]"#,
+            "",
+        );
     assert!(!main_only.contains("sub1"));
     write(&c.repo.join("campaigns/c-test/campaign.yaml"), &main_only);
-    write(&c.repo.join("campaigns/c-test/cells/c1/config.yaml"), "{}\n");
-    assert_rc(&c.validator(&["--campaign", "campaigns/c-test/campaign.yaml"]), 0, "a filled declaration");
-    assert_rc(&c.validator(&["--acceptance", "campaigns/c-test"]), 1, "--acceptance: no phase time, no cell provenance");
-    write(&c.repo.join("campaigns/c-test/cells/c1/lockset.json"), r#"{"provenance": "hand-authored"}"#);
+    write(
+        &c.repo.join("campaigns/c-test/cells/c1/config.yaml"),
+        "{}\n",
+    );
+    assert_rc(
+        &c.validator(&["--campaign", "campaigns/c-test/campaign.yaml"]),
+        0,
+        "a filled declaration",
+    );
+    assert_rc(
+        &c.validator(&["--acceptance", "campaigns/c-test"]),
+        1,
+        "--acceptance: no phase time, no cell provenance",
+    );
+    write(
+        &c.repo.join("campaigns/c-test/cells/c1/lockset.json"),
+        r#"{"provenance": "hand-authored"}"#,
+    );
     c.ok(&[
-        "--phase-set", "bench", "--node", "main", "--cell", "c1", "--state", "running", "--proof-predicate", "p",
-        "--proof-source", "s", "--started-utc", UTC, "--authored-by", "main",
+        "--phase-set",
+        "bench",
+        "--node",
+        "main",
+        "--cell",
+        "c1",
+        "--state",
+        "running",
+        "--proof-predicate",
+        "p",
+        "--proof-source",
+        "s",
+        "--started-utc",
+        UTC,
+        "--authored-by",
+        "main",
     ]);
-    assert_rc(&c.validator(&["--acceptance", "campaigns/c-test"]), 0, "--acceptance");
+    assert_rc(
+        &c.validator(&["--acceptance", "campaigns/c-test"]),
+        0,
+        "--acceptance",
+    );
     let out = c.validator(&["--bogus"]);
     assert_rc(&out, 2, "usage");
     assert!(out.stdout.is_empty());
     let out = c.validator(&["--help"]);
     assert_rc(&out, 0, "--help");
     let help = text(&out.stdout);
-    for opt in ["--campaign", "--instance", "--template", "--acceptance", "--selftest"] {
-        assert!(names_option(&help, opt), "campaign_template_validator option {opt}");
+    for opt in [
+        "--campaign",
+        "--instance",
+        "--template",
+        "--acceptance",
+        "--selftest",
+    ] {
+        assert!(
+            names_option(&help, opt),
+            "campaign_template_validator option {opt}"
+        );
     }
 }
 
@@ -1301,11 +2264,17 @@ fn node_identity_resolve_private_interface() {
     assert_rc(&out, 1, "unresolvable");
     assert!(out.stdout.is_empty() && !out.stderr.is_empty());
     let sub = s.0.join("sub");
-    write(&sub.join("output/single/manifest.yaml"), "topology: single\nself_role: sub\n");
+    write(
+        &sub.join("output/single/manifest.yaml"),
+        "topology: single\nself_role: sub\n",
+    );
     let out = run(&[OsStr::new("--repo"), sub.as_os_str()]);
     assert_rc(&out, 0, "resolved");
     let so = text(&out.stdout);
-    assert!(so.ends_with('\n') && so.trim_end().lines().count() == 1 && !so.trim().is_empty(), "{so:?}");
+    assert!(
+        so.ends_with('\n') && so.trim_end().lines().count() == 1 && !so.trim().is_empty(),
+        "{so:?}"
+    );
 }
 
 /// A small RFC 8259 reader for the contract checks: the fixed surface is the parsed value (L2), so the checks read the
@@ -1326,7 +2295,10 @@ mod json {
 
     impl Json {
         pub fn parse(text: &str) -> Result<Json, String> {
-            let mut r = Reader { b: text.as_bytes(), i: 0 };
+            let mut r = Reader {
+                b: text.as_bytes(),
+                i: 0,
+            };
             let v = r.value()?;
             r.ws();
             if r.i != r.b.len() {
@@ -1342,7 +2314,8 @@ mod json {
         }
         /// `self[key]`, failing the check when the key is absent.
         pub fn at(&self, key: &str) -> &Json {
-            self.get(key).unwrap_or_else(|| panic!("key {key:?} missing in {self:?}"))
+            self.get(key)
+                .unwrap_or_else(|| panic!("key {key:?} missing in {self:?}"))
         }
         pub fn keys(&self) -> Vec<&str> {
             match self {
@@ -1375,8 +2348,17 @@ mod json {
         }
         /// A list of strings (e.g. `reason_codes`), failing the check on any other shape.
         pub fn strs(&self) -> Vec<String> {
-            let items = self.arr().unwrap_or_else(|| panic!("not an array: {self:?}"));
-            items.iter().map(|v| v.str().unwrap_or_else(|| panic!("not a string: {v:?}")).to_string()).collect()
+            let items = self
+                .arr()
+                .unwrap_or_else(|| panic!("not an array: {self:?}"));
+            items
+                .iter()
+                .map(|v| {
+                    v.str()
+                        .unwrap_or_else(|| panic!("not a string: {v:?}"))
+                        .to_string()
+                })
+                .collect()
         }
     }
 
@@ -1456,11 +2438,19 @@ mod json {
                 Some(b'n') => self.eat("null").map(|_| Json::Null),
                 Some(c) if *c == b'-' || c.is_ascii_digit() => {
                     let start = self.i;
-                    while self.i < self.b.len() && matches!(self.b[self.i], b'-' | b'+' | b'.' | b'e' | b'E' | b'0'..=b'9') {
+                    while self.i < self.b.len()
+                        && matches!(
+                            self.b[self.i],
+                            b'-' | b'+' | b'.' | b'e' | b'E' | b'0'..=b'9'
+                        )
+                    {
                         self.i += 1;
                     }
-                    let t = std::str::from_utf8(&self.b[start..self.i]).unwrap().to_string();
-                    t.parse::<f64>().map_err(|e| format!("bad number {t:?}: {e}"))?;
+                    let t = std::str::from_utf8(&self.b[start..self.i])
+                        .unwrap()
+                        .to_string();
+                    t.parse::<f64>()
+                        .map_err(|e| format!("bad number {t:?}: {e}"))?;
                     Ok(Json::Num(t))
                 }
                 Some(c) => Err(format!("unexpected byte {c:#x} at {}", self.i)),
@@ -1468,7 +2458,8 @@ mod json {
         }
         fn hex4(&mut self) -> Result<u32, String> {
             let h = self.b.get(self.i..self.i + 4).ok_or("short \\u escape")?;
-            let v = u32::from_str_radix(std::str::from_utf8(h).map_err(|e| e.to_string())?, 16).map_err(|e| e.to_string())?;
+            let v = u32::from_str_radix(std::str::from_utf8(h).map_err(|e| e.to_string())?, 16)
+                .map_err(|e| e.to_string())?;
             self.i += 4;
             Ok(v)
         }

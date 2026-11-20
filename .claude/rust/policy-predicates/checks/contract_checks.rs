@@ -33,8 +33,14 @@ impl Drop for Scratch {
 }
 
 fn scratch(tag: &str) -> Scratch {
-    let n = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
-    let p = std::env::temp_dir().join(format!("policy-predicates-contract-{tag}-{}-{n}", std::process::id()));
+    let n = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let p = std::env::temp_dir().join(format!(
+        "policy-predicates-contract-{tag}-{}-{n}",
+        std::process::id()
+    ));
     std::fs::create_dir_all(&p).unwrap();
     Scratch(std::fs::canonicalize(&p).unwrap())
 }
@@ -43,10 +49,16 @@ fn text(b: &[u8]) -> String {
     String::from_utf8(b.to_vec()).unwrap()
 }
 
-const CLAIM: (&str, &str, &str) =
-    (".claude/policies/predicates/claim_predicates.sh", "CLAIM_PREDICATES_BIN", env!("CARGO_BIN_EXE_claim_predicates"));
-const COMPANION: (&str, &str, &str) =
-    (".claude/policies/predicates/companion_predicate.sh", "COMPANION_PREDICATE_BIN", env!("CARGO_BIN_EXE_companion_predicate"));
+const CLAIM: (&str, &str, &str) = (
+    ".claude/policies/predicates/claim_predicates.sh",
+    "CLAIM_PREDICATES_BIN",
+    env!("CARGO_BIN_EXE_claim_predicates"),
+);
+const COMPANION: (&str, &str, &str) = (
+    ".claude/policies/predicates/companion_predicate.sh",
+    "COMPANION_PREDICATE_BIN",
+    env!("CARGO_BIN_EXE_companion_predicate"),
+);
 const PATCH: (&str, &str, &str) = (
     ".claude/policies/predicates/runtime_patch_predicate.sh",
     "RUNTIME_PATCH_PREDICATE_BIN",
@@ -57,7 +69,11 @@ const PATCH: (&str, &str, &str) = (
 /// (None: unset, the launcher's checkout is judged).
 fn launch(l: (&str, &str, &str), args: &[&str], repo: Option<&Path>) -> Output {
     let mut c = Command::new("bash");
-    c.arg(root().join(l.0)).args(args).env(l.1, l.2).env_remove("POLICY_PREDICATES_REPO").current_dir(root());
+    c.arg(root().join(l.0))
+        .args(args)
+        .env(l.1, l.2)
+        .env_remove("POLICY_PREDICATES_REPO")
+        .current_dir(root());
     if let Some(r) = repo {
         c.env("POLICY_PREDICATES_REPO", r);
     }
@@ -68,11 +84,20 @@ fn launch(l: (&str, &str, &str), args: &[&str], repo: Option<&Path>) -> Output {
 /// `clause_id` and `error` (and string tails when the clause ran a child).
 fn verdict(out: &Output) -> Json {
     let so = text(&out.stdout);
-    let doc = Json::parse(&so).unwrap_or_else(|e| panic!("stdout is not one JSON document ({e}):\n{so}\nstderr:\n{}", text(&out.stderr)));
+    let doc = Json::parse(&so).unwrap_or_else(|e| {
+        panic!(
+            "stdout is not one JSON document ({e}):\n{so}\nstderr:\n{}",
+            text(&out.stderr)
+        )
+    });
     assert_eq!(doc.at("schema_version").kind(), "number", "{so}");
     assert_eq!(doc.at("predicate_count").kind(), "number", "{so}");
     let failures = doc.at("failures").arr().expect("failures is an array");
-    assert_eq!(doc.at("failed_count"), &Json::Num(failures.len().to_string()), "{so}");
+    assert_eq!(
+        doc.at("failed_count"),
+        &Json::Num(failures.len().to_string()),
+        "{so}"
+    );
     for f in failures {
         assert_eq!(f.at("clause_id").kind(), "string", "{f:?}");
         assert_eq!(f.at("error").kind(), "string", "{f:?}");
@@ -84,7 +109,11 @@ fn verdict(out: &Output) -> Json {
     }
     let rc = out.status.code().expect("exit code");
     let pass = failures.is_empty();
-    assert_eq!(doc.at("verdict").str(), Some(if pass { "PASS" } else { "FAIL" }), "{so}");
+    assert_eq!(
+        doc.at("verdict").str(),
+        Some(if pass { "PASS" } else { "FAIL" }),
+        "{so}"
+    );
     assert_eq!(rc, if pass { 0 } else { 1 }, "exit 0 PASS / 1 FAIL: {so}");
     doc
 }
@@ -101,7 +130,11 @@ fn launchers_override_and_absent_executable() {
         let launcher = root().join(rel);
         assert!(launcher.is_file(), "{rel}");
         for bin in [Path::new("/nonexistent/bin"), fake.as_path()] {
-            let out = Command::new("bash").arg(&launcher).env(var, bin).output().unwrap();
+            let out = Command::new("bash")
+                .arg(&launcher)
+                .env(var, bin)
+                .output()
+                .unwrap();
             assert_eq!(out.status.code(), Some(2), "{rel} {}", bin.display());
             assert_eq!(text(&out.stdout), "", "{rel} {}", bin.display());
         }
@@ -111,9 +144,23 @@ fn launchers_override_and_absent_executable() {
 /// A passing run: `--clause` limits the run to pure clauses of the checkout; exit 0, `verdict` PASS, no failure.
 #[test]
 fn claim_predicates_pass_is_exit_0_with_the_verdict() {
-    let out = launch(CLAIM, &["--clause", "KV_ABSOLUTE_CLAMP_PORTABILITY.C1", "--clause", "KV_ABSOLUTE_CLAMP_PORTABILITY.C2"], None);
+    let out = launch(
+        CLAIM,
+        &[
+            "--clause",
+            "KV_ABSOLUTE_CLAMP_PORTABILITY.C1",
+            "--clause",
+            "KV_ABSOLUTE_CLAMP_PORTABILITY.C2",
+        ],
+        None,
+    );
     let doc = verdict(&out);
-    assert_eq!(doc.at("verdict").str(), Some("PASS"), "{}", text(&out.stdout));
+    assert_eq!(
+        doc.at("verdict").str(),
+        Some("PASS"),
+        "{}",
+        text(&out.stdout)
+    );
     assert_eq!(doc.at("failed_count"), &Json::Num("0".into()));
 }
 
@@ -124,12 +171,28 @@ fn claim_predicates_fail_is_exit_1_with_the_failures() {
     let s = scratch("empty");
     let out = launch(CLAIM, &[], Some(&s.0));
     let doc = verdict(&out);
-    let ids: Vec<&str> = doc.at("failures").arr().unwrap().iter().filter_map(|f| f.at("clause_id").str()).collect();
+    let ids: Vec<&str> = doc
+        .at("failures")
+        .arr()
+        .unwrap()
+        .iter()
+        .filter_map(|f| f.at("clause_id").str())
+        .collect();
     assert!(ids.contains(&"__mapping__"), "{ids:?}");
     assert!(ids.len() > 1, "{ids:?}");
-    let out = launch(CLAIM, &["--clause", "KV_ABSOLUTE_CLAMP_PORTABILITY.C1"], Some(&s.0));
+    let out = launch(
+        CLAIM,
+        &["--clause", "KV_ABSOLUTE_CLAMP_PORTABILITY.C1"],
+        Some(&s.0),
+    );
     let doc = verdict(&out);
-    let ids: Vec<&str> = doc.at("failures").arr().unwrap().iter().filter_map(|f| f.at("clause_id").str()).collect();
+    let ids: Vec<&str> = doc
+        .at("failures")
+        .arr()
+        .unwrap()
+        .iter()
+        .filter_map(|f| f.at("clause_id").str())
+        .collect();
     assert_eq!(ids, ["__mapping__", "KV_ABSOLUTE_CLAMP_PORTABILITY.C1"]);
 }
 
@@ -161,7 +224,13 @@ fn companion_suites_pass_on_the_checkout_and_fail_closed() {
     let s = scratch("companion");
     for l in [COMPANION, PATCH] {
         let out = launch(l, &[], None);
-        assert_eq!(out.status.code(), Some(0), "{}\nstderr:\n{}", l.0, text(&out.stderr));
+        assert_eq!(
+            out.status.code(),
+            Some(0),
+            "{}\nstderr:\n{}",
+            l.0,
+            text(&out.stderr)
+        );
         let out = launch(l, &[], Some(&s.0));
         assert_eq!(out.status.code(), Some(1), "{}", l.0);
     }
@@ -185,7 +254,10 @@ mod json {
 
     impl Json {
         pub fn parse(text: &str) -> Result<Json, String> {
-            let mut r = Reader { b: text.as_bytes(), i: 0 };
+            let mut r = Reader {
+                b: text.as_bytes(),
+                i: 0,
+            };
             let v = r.value()?;
             r.ws();
             if r.i != r.b.len() {
@@ -201,7 +273,8 @@ mod json {
         }
         /// `self[key]`, failing the check when the key is absent.
         pub fn at(&self, key: &str) -> &Json {
-            self.get(key).unwrap_or_else(|| panic!("key {key:?} missing in {self:?}"))
+            self.get(key)
+                .unwrap_or_else(|| panic!("key {key:?} missing in {self:?}"))
         }
         pub fn keys(&self) -> Vec<&str> {
             match self {
@@ -234,8 +307,17 @@ mod json {
         }
         /// A list of strings (e.g. `reason_codes`), failing the check on any other shape.
         pub fn strs(&self) -> Vec<String> {
-            let items = self.arr().unwrap_or_else(|| panic!("not an array: {self:?}"));
-            items.iter().map(|v| v.str().unwrap_or_else(|| panic!("not a string: {v:?}")).to_string()).collect()
+            let items = self
+                .arr()
+                .unwrap_or_else(|| panic!("not an array: {self:?}"));
+            items
+                .iter()
+                .map(|v| {
+                    v.str()
+                        .unwrap_or_else(|| panic!("not a string: {v:?}"))
+                        .to_string()
+                })
+                .collect()
         }
     }
 
@@ -315,11 +397,19 @@ mod json {
                 Some(b'n') => self.eat("null").map(|_| Json::Null),
                 Some(c) if *c == b'-' || c.is_ascii_digit() => {
                     let start = self.i;
-                    while self.i < self.b.len() && matches!(self.b[self.i], b'-' | b'+' | b'.' | b'e' | b'E' | b'0'..=b'9') {
+                    while self.i < self.b.len()
+                        && matches!(
+                            self.b[self.i],
+                            b'-' | b'+' | b'.' | b'e' | b'E' | b'0'..=b'9'
+                        )
+                    {
                         self.i += 1;
                     }
-                    let t = std::str::from_utf8(&self.b[start..self.i]).unwrap().to_string();
-                    t.parse::<f64>().map_err(|e| format!("bad number {t:?}: {e}"))?;
+                    let t = std::str::from_utf8(&self.b[start..self.i])
+                        .unwrap()
+                        .to_string();
+                    t.parse::<f64>()
+                        .map_err(|e| format!("bad number {t:?}: {e}"))?;
                     Ok(Json::Num(t))
                 }
                 Some(c) => Err(format!("unexpected byte {c:#x} at {}", self.i)),
@@ -327,7 +417,8 @@ mod json {
         }
         fn hex4(&mut self) -> Result<u32, String> {
             let h = self.b.get(self.i..self.i + 4).ok_or("short \\u escape")?;
-            let v = u32::from_str_radix(std::str::from_utf8(h).map_err(|e| e.to_string())?, 16).map_err(|e| e.to_string())?;
+            let v = u32::from_str_radix(std::str::from_utf8(h).map_err(|e| e.to_string())?, 16)
+                .map_err(|e| e.to_string())?;
             self.i += 4;
             Ok(v)
         }

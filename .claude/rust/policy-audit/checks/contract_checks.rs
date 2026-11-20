@@ -33,8 +33,14 @@ impl Drop for Scratch {
 }
 
 fn scratch(tag: &str) -> Scratch {
-    let n = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
-    let p = std::env::temp_dir().join(format!("policy-audit-contract-{tag}-{}-{n}", std::process::id()));
+    let n = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let p = std::env::temp_dir().join(format!(
+        "policy-audit-contract-{tag}-{}-{n}",
+        std::process::id()
+    ));
     std::fs::create_dir_all(&p).unwrap();
     Scratch(std::fs::canonicalize(&p).unwrap())
 }
@@ -66,12 +72,21 @@ fn registry(cwd: &Path, args: &[&str]) -> Output {
 /// `exit_code` equals the process exit code and whose violations carry a string `reason_code`.
 fn envelope(out: &Output) -> Json {
     let so = text(&out.stdout);
-    let doc = Json::parse(&so).unwrap_or_else(|e| panic!("stdout is not one JSON document ({e}):\n{so}\nstderr:\n{}", text(&out.stderr)));
+    let doc = Json::parse(&so).unwrap_or_else(|e| {
+        panic!(
+            "stdout is not one JSON document ({e}):\n{so}\nstderr:\n{}",
+            text(&out.stderr)
+        )
+    });
     let rc = out.status.code().expect("exit code");
     assert_eq!(doc.at("exit_code"), &Json::Num(rc.to_string()), "{so}");
     assert_eq!(doc.at("schema_version").kind(), "number", "{so}");
     let v = doc.at("violations").arr().expect("violations is an array");
-    assert_eq!(doc.at("violation_count"), &Json::Num(v.len().to_string()), "{so}");
+    assert_eq!(
+        doc.at("violation_count"),
+        &Json::Num(v.len().to_string()),
+        "{so}"
+    );
     for x in v {
         assert_eq!(x.at("reason_code").kind(), "string", "{x:?}");
         assert_eq!(x.at("message").kind(), "string", "{x:?}");
@@ -83,7 +98,12 @@ fn envelope(out: &Output) -> Json {
 }
 
 fn codes(doc: &Json) -> Vec<String> {
-    doc.at("violations").arr().unwrap().iter().map(|v| v.at("reason_code").str().unwrap().to_string()).collect()
+    doc.at("violations")
+        .arr()
+        .unwrap()
+        .iter()
+        .map(|v| v.at("reason_code").str().unwrap().to_string())
+        .collect()
 }
 
 /// Both launchers are the files the documents, the ledger and sync_branches.sh name; `POLICY_REGISTRY_BIN` and
@@ -91,15 +111,33 @@ fn codes(doc: &Json) -> Vec<String> {
 #[test]
 fn launchers_override_and_absent_executable() {
     for (rel, var, bin) in [
-        (REGISTRY_REL, "POLICY_REGISTRY_BIN", env!("CARGO_BIN_EXE_policy_registry")),
-        (HARNESS_REL, "HARNESS_VERIFY_BIN", env!("CARGO_BIN_EXE_harness_verify")),
+        (
+            REGISTRY_REL,
+            "POLICY_REGISTRY_BIN",
+            env!("CARGO_BIN_EXE_policy_registry"),
+        ),
+        (
+            HARNESS_REL,
+            "HARNESS_VERIFY_BIN",
+            env!("CARGO_BIN_EXE_harness_verify"),
+        ),
     ] {
         let launcher = root().join(rel);
         assert!(launcher.is_file(), "{rel}");
-        let out = Command::new("bash").arg(&launcher).arg("--help").env(var, "/nonexistent/bin").output().unwrap();
+        let out = Command::new("bash")
+            .arg(&launcher)
+            .arg("--help")
+            .env(var, "/nonexistent/bin")
+            .output()
+            .unwrap();
         assert_eq!(out.status.code(), Some(2), "{rel}");
         assert_eq!(text(&out.stdout), "", "{rel}");
-        let out = Command::new("bash").arg(&launcher).arg("--help").env(var, bin).output().unwrap();
+        let out = Command::new("bash")
+            .arg(&launcher)
+            .arg("--help")
+            .env(var, bin)
+            .output()
+            .unwrap();
         assert_eq!(out.status.code(), Some(0), "{rel}");
     }
 }
@@ -109,7 +147,13 @@ fn launchers_override_and_absent_executable() {
 fn registry_self_test_passes() {
     let s = scratch("selftest");
     let out = registry(&s.0, &["--self-test"]);
-    assert_eq!(out.status.code(), Some(0), "stdout:\n{}\nstderr:\n{}", text(&out.stdout), text(&out.stderr));
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "stdout:\n{}\nstderr:\n{}",
+        text(&out.stdout),
+        text(&out.stderr)
+    );
 }
 
 /// policy-distribution's form `verify --as-of <date> --repo-root <repo>` on the repository's tracked inputs: the envelope,
@@ -122,7 +166,10 @@ fn registry_verify_envelope_and_exit_code() {
     let out = registry(&r, &["verify", "--as-of", "2026-11-18", "--repo-root", rs]);
     let doc = envelope(&out);
     let rc = out.status.code().unwrap();
-    assert!(rc == 0 || rc == 1, "verify is 0 (no violation) or 1 (lifecycle violations): {rc}");
+    assert!(
+        rc == 0 || rc == 1,
+        "verify is 0 (no violation) or 1 (lifecycle violations): {rc}"
+    );
     assert_eq!(rc == 0, doc.at("violation_count") == &Json::Num("0".into()));
     let reg = r.join(".claude/policies/registry.yaml");
     let schema = r.join(".claude/schemas/policy-registry.schema.json");
@@ -130,8 +177,17 @@ fn registry_verify_envelope_and_exit_code() {
     let explicit = registry(
         &r,
         &[
-            "verify", "--as-of", "2026-11-18", "--registry", reg.to_str().unwrap(), "--schema", schema.to_str().unwrap(),
-            "--claim-bindings", cb.to_str().unwrap(), "--repo-root", rs,
+            "verify",
+            "--as-of",
+            "2026-11-18",
+            "--registry",
+            reg.to_str().unwrap(),
+            "--schema",
+            schema.to_str().unwrap(),
+            "--claim-bindings",
+            cb.to_str().unwrap(),
+            "--repo-root",
+            rs,
         ],
     );
     assert_eq!(explicit.status.code(), out.status.code());
@@ -142,11 +198,25 @@ fn registry_verify_envelope_and_exit_code() {
 #[test]
 fn registry_check_removal_of_an_active_policy_is_exit_1() {
     let r = root();
-    let out = registry(&r, &["check-removal", "--as-of", "2026-11-18", "--policy-id", "GIT_SINGLE_AUTHORITY", "--repo-root", r.to_str().unwrap()]);
+    let out = registry(
+        &r,
+        &[
+            "check-removal",
+            "--as-of",
+            "2026-11-18",
+            "--policy-id",
+            "GIT_SINGLE_AUTHORITY",
+            "--repo-root",
+            r.to_str().unwrap(),
+        ],
+    );
     assert_eq!(out.status.code(), Some(1));
     let doc = envelope(&out);
     assert_eq!(codes(&doc), ["REMOVAL_NOT_ELIGIBLE"]);
-    assert_eq!(doc.at("violations").arr().unwrap()[0].at("policy_id").str(), Some("GIT_SINGLE_AUTHORITY"));
+    assert_eq!(
+        doc.at("violations").arr().unwrap()[0].at("policy_id").str(),
+        Some("GIT_SINGLE_AUTHORITY")
+    );
 }
 
 /// Usage and input errors are exit 2 with the envelope on stdout: `CLI_USAGE_ERROR` (no subcommand, unknown subcommand,
@@ -161,9 +231,30 @@ fn registry_usage_and_input_errors_are_exit_2() {
         (&["bogus"], "CLI_USAGE_ERROR"),
         (&["verify", "--repo-root", "."], "CLI_USAGE_ERROR"),
         (&["verify", "--as-of", "2026-13-01"], "BAD_AS_OF"),
-        (&["verify", "--as-of", "2026-11-18", "--registry", "missing.json"], "REGISTRY_LOAD_ERROR"),
-        (&["verify", "--as-of", "2026-11-18", "--registry", "bad.json"], "REGISTRY_INVALID_JSON"),
-        (&["verify", "--as-of", "2026-11-18", "--registry", "array.json"], "REGISTRY_ROOT_NOT_OBJECT"),
+        (
+            &[
+                "verify",
+                "--as-of",
+                "2026-11-18",
+                "--registry",
+                "missing.json",
+            ],
+            "REGISTRY_LOAD_ERROR",
+        ),
+        (
+            &["verify", "--as-of", "2026-11-18", "--registry", "bad.json"],
+            "REGISTRY_INVALID_JSON",
+        ),
+        (
+            &[
+                "verify",
+                "--as-of",
+                "2026-11-18",
+                "--registry",
+                "array.json",
+            ],
+            "REGISTRY_ROOT_NOT_OBJECT",
+        ),
     ];
     for (args, code) in rows {
         let out = registry(&s.0, args);
@@ -183,12 +274,21 @@ fn harness_tree(tag: &str) -> Scratch {
         (".claude/policies/runtime/policy_registry.sh", "registry"),
         (".claude/policies/runtime/runtime_selftest.sh", "runtime"),
         (".claude/policies/predicates/claim_predicates.sh", "claim"),
-        (".claude/policies/predicates/companion_predicate.sh", "companion"),
-        (".claude/policies/predicates/runtime_patch_predicate.sh", "patch"),
+        (
+            ".claude/policies/predicates/companion_predicate.sh",
+            "companion",
+        ),
+        (
+            ".claude/policies/predicates/runtime_patch_predicate.sh",
+            "patch",
+        ),
     ] {
         write(
             &s.0.join(rel),
-            &format!("#!/bin/bash\necho \"{name} $* @$PWD\" >>\"$HV_LOG\"\nexit \"${{RC_{}:-0}}\"\n", name.to_uppercase()),
+            &format!(
+                "#!/bin/bash\necho \"{name} $* @$PWD\" >>\"$HV_LOG\"\nexit \"${{RC_{}:-0}}\"\n",
+                name.to_uppercase()
+            ),
         );
     }
     s
@@ -200,7 +300,10 @@ fn harness(t: &Scratch, args: &[&str], env: &[(&str, &str)]) -> (Output, String)
     let log = t.0.join("stages.log");
     let _ = std::fs::remove_file(&log);
     let mut c = Command::new("bash");
-    c.arg(t.0.join(HARNESS_REL)).args(args).env("HARNESS_VERIFY_BIN", env!("CARGO_BIN_EXE_harness_verify")).env("HV_LOG", &log);
+    c.arg(t.0.join(HARNESS_REL))
+        .args(args)
+        .env("HARNESS_VERIFY_BIN", env!("CARGO_BIN_EXE_harness_verify"))
+        .env("HV_LOG", &log);
     for (k, v) in env {
         c.env(k, v);
     }
@@ -220,7 +323,22 @@ fn harness(t: &Scratch, args: &[&str], env: &[(&str, &str)]) -> (Output, String)
 #[test]
 fn harness_stage_argv_and_order() {
     let t = harness_tree("green");
-    let (out, log) = harness(&t, &["--as-of", "2026-01-15", "--registry", "r.json", "--schema", "s.json", "--claim-bindings", "c.json", "--repo-root", "x"], &[]);
+    let (out, log) = harness(
+        &t,
+        &[
+            "--as-of",
+            "2026-01-15",
+            "--registry",
+            "r.json",
+            "--schema",
+            "s.json",
+            "--claim-bindings",
+            "c.json",
+            "--repo-root",
+            "x",
+        ],
+        &[],
+    );
     assert_eq!(out.status.code(), Some(0), "{}", text(&out.stderr));
     let at = format!("@{}", t.0.display());
     assert_eq!(
@@ -233,7 +351,11 @@ fn harness_stage_argv_and_order() {
     let (out, log) = harness(&t, &[], &[]);
     assert_eq!(out.status.code(), Some(0));
     let first = log.lines().next().unwrap();
-    assert!(first.starts_with("registry verify --as-of ") && first.split(' ').nth(3).map(str::len) == Some(10), "{first}");
+    assert!(
+        first.starts_with("registry verify --as-of ")
+            && first.split(' ').nth(3).map(str::len) == Some(10),
+        "{first}"
+    );
 }
 
 /// Exit codes the callers act on: stage 1's own code (1, 2), the runtime probe → 4, the predicate suite (claim or a
@@ -254,7 +376,8 @@ fn harness_stage_failures_map_exit_codes() {
         assert_eq!(out.status.code(), Some(want), "{var}={rc}");
         assert_eq!(log.lines().count(), stages, "{var}={rc}: {log}");
     }
-    std::fs::remove_file(t.0.join(".claude/policies/predicates/runtime_patch_predicate.sh")).unwrap();
+    std::fs::remove_file(t.0.join(".claude/policies/predicates/runtime_patch_predicate.sh"))
+        .unwrap();
     let (out, _) = harness(&t, &["--as-of", "2026-01-15"], &[]);
     assert_eq!(out.status.code(), Some(3));
     std::fs::remove_file(t.0.join(".claude/policies/runtime/policy_registry.sh")).unwrap();
@@ -266,7 +389,11 @@ fn harness_stage_failures_map_exit_codes() {
 #[test]
 fn harness_usage_errors_are_exit_2() {
     let t = harness_tree("usage");
-    for args in [&["--as-of", "2026-13-01"][..], &["--as-of", "15-01-2026"], &["--bogus"]] {
+    for args in [
+        &["--as-of", "2026-13-01"][..],
+        &["--as-of", "15-01-2026"],
+        &["--bogus"],
+    ] {
         let (out, log) = harness(&t, args, &[]);
         assert_eq!(out.status.code(), Some(2), "{args:?}");
         assert_eq!(log, "", "{args:?}");
@@ -291,7 +418,10 @@ mod json {
 
     impl Json {
         pub fn parse(text: &str) -> Result<Json, String> {
-            let mut r = Reader { b: text.as_bytes(), i: 0 };
+            let mut r = Reader {
+                b: text.as_bytes(),
+                i: 0,
+            };
             let v = r.value()?;
             r.ws();
             if r.i != r.b.len() {
@@ -307,7 +437,8 @@ mod json {
         }
         /// `self[key]`, failing the check when the key is absent.
         pub fn at(&self, key: &str) -> &Json {
-            self.get(key).unwrap_or_else(|| panic!("key {key:?} missing in {self:?}"))
+            self.get(key)
+                .unwrap_or_else(|| panic!("key {key:?} missing in {self:?}"))
         }
         pub fn keys(&self) -> Vec<&str> {
             match self {
@@ -340,8 +471,17 @@ mod json {
         }
         /// A list of strings (e.g. `reason_codes`), failing the check on any other shape.
         pub fn strs(&self) -> Vec<String> {
-            let items = self.arr().unwrap_or_else(|| panic!("not an array: {self:?}"));
-            items.iter().map(|v| v.str().unwrap_or_else(|| panic!("not a string: {v:?}")).to_string()).collect()
+            let items = self
+                .arr()
+                .unwrap_or_else(|| panic!("not an array: {self:?}"));
+            items
+                .iter()
+                .map(|v| {
+                    v.str()
+                        .unwrap_or_else(|| panic!("not a string: {v:?}"))
+                        .to_string()
+                })
+                .collect()
         }
     }
 
@@ -421,11 +561,19 @@ mod json {
                 Some(b'n') => self.eat("null").map(|_| Json::Null),
                 Some(c) if *c == b'-' || c.is_ascii_digit() => {
                     let start = self.i;
-                    while self.i < self.b.len() && matches!(self.b[self.i], b'-' | b'+' | b'.' | b'e' | b'E' | b'0'..=b'9') {
+                    while self.i < self.b.len()
+                        && matches!(
+                            self.b[self.i],
+                            b'-' | b'+' | b'.' | b'e' | b'E' | b'0'..=b'9'
+                        )
+                    {
                         self.i += 1;
                     }
-                    let t = std::str::from_utf8(&self.b[start..self.i]).unwrap().to_string();
-                    t.parse::<f64>().map_err(|e| format!("bad number {t:?}: {e}"))?;
+                    let t = std::str::from_utf8(&self.b[start..self.i])
+                        .unwrap()
+                        .to_string();
+                    t.parse::<f64>()
+                        .map_err(|e| format!("bad number {t:?}: {e}"))?;
                     Ok(Json::Num(t))
                 }
                 Some(c) => Err(format!("unexpected byte {c:#x} at {}", self.i)),
@@ -433,7 +581,8 @@ mod json {
         }
         fn hex4(&mut self) -> Result<u32, String> {
             let h = self.b.get(self.i..self.i + 4).ok_or("short \\u escape")?;
-            let v = u32::from_str_radix(std::str::from_utf8(h).map_err(|e| e.to_string())?, 16).map_err(|e| e.to_string())?;
+            let v = u32::from_str_radix(std::str::from_utf8(h).map_err(|e| e.to_string())?, 16)
+                .map_err(|e| e.to_string())?;
             self.i += 4;
             Ok(v)
         }

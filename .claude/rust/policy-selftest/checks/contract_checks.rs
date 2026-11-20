@@ -33,8 +33,14 @@ impl Drop for Scratch {
 }
 
 fn scratch(tag: &str) -> Scratch {
-    let n = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
-    let p = std::env::temp_dir().join(format!("policy-selftest-contract-{tag}-{}-{n}", std::process::id()));
+    let n = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let p = std::env::temp_dir().join(format!(
+        "policy-selftest-contract-{tag}-{}-{n}",
+        std::process::id()
+    ));
     std::fs::create_dir_all(&p).unwrap();
     Scratch(std::fs::canonicalize(&p).unwrap())
 }
@@ -51,7 +57,14 @@ fn write(path: &Path, body: &str) {
 /// `git <args>` in `dir` with hooks and global configuration out of the way.
 fn git(dir: &Path, args: &[&str]) {
     let out = Command::new("git")
-        .args(["-c", "core.hooksPath=/dev/null", "-c", "user.name=contract", "-c", "user.email=contract"])
+        .args([
+            "-c",
+            "core.hooksPath=/dev/null",
+            "-c",
+            "user.name=contract",
+            "-c",
+            "user.email=contract",
+        ])
         .args(args)
         .env("GIT_CONFIG_NOSYSTEM", "1")
         .env("GIT_CONFIG_GLOBAL", "/dev/null")
@@ -67,16 +80,31 @@ const LINT_REL: &str = ".claude/policies/runtime/constitution_lint.sh";
 
 fn bin_of(rel: &str) -> (&'static str, &'static str) {
     match rel {
-        RUNTIME_REL => ("RUNTIME_SELFTEST_BIN", env!("CARGO_BIN_EXE_runtime_selftest")),
-        ANTIPATTERN_REL => ("ANTIPATTERN_SCAN_BIN", env!("CARGO_BIN_EXE_antipattern_scan")),
-        _ => ("CONSTITUTION_LINT_BIN", env!("CARGO_BIN_EXE_constitution_lint")),
+        RUNTIME_REL => (
+            "RUNTIME_SELFTEST_BIN",
+            env!("CARGO_BIN_EXE_runtime_selftest"),
+        ),
+        ANTIPATTERN_REL => (
+            "ANTIPATTERN_SCAN_BIN",
+            env!("CARGO_BIN_EXE_antipattern_scan"),
+        ),
+        _ => (
+            "CONSTITUTION_LINT_BIN",
+            env!("CARGO_BIN_EXE_constitution_lint"),
+        ),
     }
 }
 
 /// `bash <launcher> <args>` (the launcher at `launcher`, a repository's or a scratch copy) with the override = this build.
 fn launch(launcher: &Path, rel: &str, cwd: &Path, args: &[&std::ffi::OsStr]) -> Output {
     let (var, bin) = bin_of(rel);
-    Command::new("bash").arg(launcher).args(args).env(var, bin).current_dir(cwd).output().unwrap()
+    Command::new("bash")
+        .arg(launcher)
+        .args(args)
+        .env(var, bin)
+        .current_dir(cwd)
+        .output()
+        .unwrap()
 }
 
 fn os(args: &[&str]) -> Vec<std::ffi::OsString> {
@@ -98,14 +126,22 @@ fn canonical_repo(tag: &str) -> Scratch {
     std::fs::copy(root().join(RUNTIME_REL), &l).unwrap();
     write(&s.0.join("CLAUDE.md"), "# c\n");
     write(&s.0.join(".claude/rules/workflow.md"), "# w\n");
-    write(&s.0.join(".claude/policies/registry.yaml"), "{\"schema_version\": 2, \"policies\": []}\n");
+    write(
+        &s.0.join(".claude/policies/registry.yaml"),
+        "{\"schema_version\": 2, \"policies\": []}\n",
+    );
     git(&s.0, &["init", "-q", "-b", "single-node"]);
     s
 }
 
 fn tripwires(s: &Scratch) -> Output {
     let a = os(&["--tripwires-only"]);
-    launch(&s.0.join(RUNTIME_REL), RUNTIME_REL, &s.0, &[a[0].as_os_str()])
+    launch(
+        &s.0.join(RUNTIME_REL),
+        RUNTIME_REL,
+        &s.0,
+        &[a[0].as_os_str()],
+    )
 }
 
 fn last_line(s: &str) -> &str {
@@ -121,7 +157,12 @@ fn launchers_override_and_absent_executable() {
         let launcher = root().join(rel);
         assert!(launcher.is_file(), "{rel}");
         let (var, _) = bin_of(rel);
-        let out = Command::new("bash").arg(&launcher).arg("--help").env(var, "/nonexistent/bin").output().unwrap();
+        let out = Command::new("bash")
+            .arg(&launcher)
+            .arg("--help")
+            .env(var, "/nonexistent/bin")
+            .output()
+            .unwrap();
         assert_eq!(out.status.code(), Some(2), "{rel}");
         assert_eq!(text(&out.stdout), "", "{rel}");
         let out = run(rel, &s.0, &["--help"]);
@@ -140,7 +181,11 @@ fn tripwire_failure_is_nonzero_with_the_reason_last_on_stderr() {
     let out = tripwires(&s);
     assert_eq!(out.status.code(), Some(1), "{}", text(&out.stderr));
     assert_eq!(text(&out.stdout), "");
-    assert!(last_line(&text(&out.stderr)).starts_with("[tripwire] FAIL "), "{}", text(&out.stderr));
+    assert!(
+        last_line(&text(&out.stderr)).starts_with("[tripwire] FAIL "),
+        "{}",
+        text(&out.stderr)
+    );
 
     let s = canonical_repo("branch");
     git(&s.0, &["add", "-A"]);
@@ -150,7 +195,10 @@ fn tripwire_failure_is_nonzero_with_the_reason_last_on_stderr() {
     assert_eq!(out.status.code(), Some(1), "{}", text(&out.stderr));
     assert_eq!(text(&out.stdout), "");
     let err = text(&out.stderr);
-    assert!(last_line(&err).starts_with("[tripwire] FAIL ") && last_line(&err).contains("stray"), "{err}");
+    assert!(
+        last_line(&err).starts_with("[tripwire] FAIL ") && last_line(&err).contains("stray"),
+        "{err}"
+    );
 }
 
 /// harness_verify stage 2 / policy-distribution: the regression suite (no arguments) answers with a non-zero exit when
@@ -190,7 +238,13 @@ fn self_tests_pass() {
     let r = root();
     for rel in [ANTIPATTERN_REL, LINT_REL] {
         let out = run(rel, &r, &["--self-test"]);
-        assert_eq!(out.status.code(), Some(0), "{rel}\nstdout:\n{}\nstderr:\n{}", text(&out.stdout), text(&out.stderr));
+        assert_eq!(
+            out.status.code(),
+            Some(0),
+            "{rel}\nstdout:\n{}\nstderr:\n{}",
+            text(&out.stdout),
+            text(&out.stderr)
+        );
     }
 }
 
@@ -238,7 +292,11 @@ fn antipattern_tripwire_exit_codes_and_stderr_lines() {
     assert_eq!(out.status.code(), Some(3));
     assert_eq!(text(&out.stdout), "");
     let err = text(&out.stderr);
-    assert!(err.lines().any(|l| l.starts_with("[antipattern_scan] SURFACE ") && l.contains("scripts/b.sh")), "{err}");
+    assert!(
+        err.lines()
+            .any(|l| l.starts_with("[antipattern_scan] SURFACE ") && l.contains("scripts/b.sh")),
+        "{err}"
+    );
 
     let s = surface_repo("revived");
     let rel = ".claude/skills/adversarial-benchmark/rust/src/bench_tool_pin.rs";
@@ -247,17 +305,34 @@ fn antipattern_tripwire_exit_codes_and_stderr_lines() {
     assert_eq!(out.status.code(), Some(3));
     assert_eq!(text(&out.stdout), "");
     let err = text(&out.stderr);
-    assert!(err.lines().any(|l| l.starts_with(&format!("[antipattern_scan] REVIVED G-C3-bench-drift-gate — {rel}:1"))), "{err}");
+    assert!(
+        err.lines().any(|l| l.starts_with(&format!(
+            "[antipattern_scan] REVIVED G-C3-bench-drift-gate — {rel}:1"
+        ))),
+        "{err}"
+    );
     let out = scan(&s, &["--files", "ok.sh"]);
-    assert_eq!(out.status.code(), Some(0), "only the named files are scanned");
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "only the named files are scanned"
+    );
     git(&s.0, &["add", "-A"]);
     let out = scan(&s, &[]);
-    assert_eq!(out.status.code(), Some(3), "without --files the staged files are scanned");
+    assert_eq!(
+        out.status.code(),
+        Some(3),
+        "without --files the staged files are scanned"
+    );
 
     let s = scratch("nosurface");
     git(&s.0, &["init", "-q", "-b", "single-node"]);
     let out = scan(&s, &[]);
-    assert_eq!(out.status.code(), Some(3), "a missing SKILL.md §4 table fails the tripwire");
+    assert_eq!(
+        out.status.code(),
+        Some(3),
+        "a missing SKILL.md §4 table fails the tripwire"
+    );
     assert!(text(&out.stderr).starts_with("[antipattern_scan] SURFACE "));
 }
 
@@ -268,7 +343,18 @@ fn antipattern_inventory_rows() {
     let s = surface_repo("inventory");
     write(&s.0.join("img.sh"), "IMAGE=nvcr.io/nvidia/vllm:1.2.3\n");
     let inv = s.0.join("inv.jsonl");
-    let out = run(ANTIPATTERN_REL, &s.0, &["--root", s.0.to_str().unwrap(), "--inventory", inv.to_str().unwrap(), "--files", "img.sh"]);
+    let out = run(
+        ANTIPATTERN_REL,
+        &s.0,
+        &[
+            "--root",
+            s.0.to_str().unwrap(),
+            "--inventory",
+            inv.to_str().unwrap(),
+            "--files",
+            "img.sh",
+        ],
+    );
     assert_eq!(out.status.code(), Some(0), "{}", text(&out.stderr));
     let body = std::fs::read_to_string(&inv).unwrap();
     assert!(!body.is_empty());
@@ -277,7 +363,11 @@ fn antipattern_inventory_rows() {
         assert_eq!(row.at("file").str(), Some("img.sh"));
         assert_eq!(row.at("line").kind(), "number");
         assert_eq!(row.at("cat").kind(), "string");
-        assert!(["fixture", "diagnostic", "local-const", "review"].contains(&row.at("disposition").str().unwrap()), "{line}");
+        assert!(
+            ["fixture", "diagnostic", "local-const", "review"]
+                .contains(&row.at("disposition").str().unwrap()),
+            "{line}"
+        );
     }
 }
 
@@ -288,7 +378,10 @@ fn antipattern_inventory_rows() {
 fn constitution_lint_report_and_exit_codes() {
     let s = scratch("lint");
     write(&s.0.join("CLAUDE.md"), "# c\n");
-    write(&s.0.join(".claude/policies/registry.yaml"), "{\"schema_version\": 2, \"policies\": []}\n");
+    write(
+        &s.0.join(".claude/policies/registry.yaml"),
+        "{\"schema_version\": 2, \"policies\": []}\n",
+    );
     let repo = s.0.to_str().unwrap();
     let out = run(LINT_REL, &s.0, &["--repo", repo]);
     assert_eq!(out.status.code(), Some(0));
@@ -329,7 +422,10 @@ mod json {
 
     impl Json {
         pub fn parse(text: &str) -> Result<Json, String> {
-            let mut r = Reader { b: text.as_bytes(), i: 0 };
+            let mut r = Reader {
+                b: text.as_bytes(),
+                i: 0,
+            };
             let v = r.value()?;
             r.ws();
             if r.i != r.b.len() {
@@ -345,7 +441,8 @@ mod json {
         }
         /// `self[key]`, failing the check when the key is absent.
         pub fn at(&self, key: &str) -> &Json {
-            self.get(key).unwrap_or_else(|| panic!("key {key:?} missing in {self:?}"))
+            self.get(key)
+                .unwrap_or_else(|| panic!("key {key:?} missing in {self:?}"))
         }
         pub fn keys(&self) -> Vec<&str> {
             match self {
@@ -378,8 +475,17 @@ mod json {
         }
         /// A list of strings (e.g. `reason_codes`), failing the check on any other shape.
         pub fn strs(&self) -> Vec<String> {
-            let items = self.arr().unwrap_or_else(|| panic!("not an array: {self:?}"));
-            items.iter().map(|v| v.str().unwrap_or_else(|| panic!("not a string: {v:?}")).to_string()).collect()
+            let items = self
+                .arr()
+                .unwrap_or_else(|| panic!("not an array: {self:?}"));
+            items
+                .iter()
+                .map(|v| {
+                    v.str()
+                        .unwrap_or_else(|| panic!("not a string: {v:?}"))
+                        .to_string()
+                })
+                .collect()
         }
     }
 
@@ -459,11 +565,19 @@ mod json {
                 Some(b'n') => self.eat("null").map(|_| Json::Null),
                 Some(c) if *c == b'-' || c.is_ascii_digit() => {
                     let start = self.i;
-                    while self.i < self.b.len() && matches!(self.b[self.i], b'-' | b'+' | b'.' | b'e' | b'E' | b'0'..=b'9') {
+                    while self.i < self.b.len()
+                        && matches!(
+                            self.b[self.i],
+                            b'-' | b'+' | b'.' | b'e' | b'E' | b'0'..=b'9'
+                        )
+                    {
                         self.i += 1;
                     }
-                    let t = std::str::from_utf8(&self.b[start..self.i]).unwrap().to_string();
-                    t.parse::<f64>().map_err(|e| format!("bad number {t:?}: {e}"))?;
+                    let t = std::str::from_utf8(&self.b[start..self.i])
+                        .unwrap()
+                        .to_string();
+                    t.parse::<f64>()
+                        .map_err(|e| format!("bad number {t:?}: {e}"))?;
                     Ok(Json::Num(t))
                 }
                 Some(c) => Err(format!("unexpected byte {c:#x} at {}", self.i)),
@@ -471,7 +585,8 @@ mod json {
         }
         fn hex4(&mut self) -> Result<u32, String> {
             let h = self.b.get(self.i..self.i + 4).ok_or("short \\u escape")?;
-            let v = u32::from_str_radix(std::str::from_utf8(h).map_err(|e| e.to_string())?, 16).map_err(|e| e.to_string())?;
+            let v = u32::from_str_radix(std::str::from_utf8(h).map_err(|e| e.to_string())?, 16)
+                .map_err(|e| e.to_string())?;
             self.i += 4;
             Ok(v)
         }

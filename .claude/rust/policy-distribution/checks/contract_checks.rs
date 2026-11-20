@@ -31,8 +31,14 @@ impl Drop for Scratch {
 }
 
 fn scratch(tag: &str) -> Scratch {
-    let n = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
-    let p = std::env::temp_dir().join(format!("policy-distribution-contract-{tag}-{}-{n}", std::process::id()));
+    let n = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let p = std::env::temp_dir().join(format!(
+        "policy-distribution-contract-{tag}-{}-{n}",
+        std::process::id()
+    ));
     std::fs::create_dir_all(&p).unwrap();
     Scratch(std::fs::canonicalize(&p).unwrap())
 }
@@ -63,7 +69,10 @@ fn verify(s: &Scratch, args: &[&str]) -> Output {
     Command::new("bash")
         .arg(s.0.join(LAUNCHER_REL))
         .args(args)
-        .env("VERIFY_DISTRIBUTION_BIN", env!("CARGO_BIN_EXE_verify_distribution"))
+        .env(
+            "VERIFY_DISTRIBUTION_BIN",
+            env!("CARGO_BIN_EXE_verify_distribution"),
+        )
         .current_dir(&s.0)
         .output()
         .unwrap()
@@ -71,7 +80,12 @@ fn verify(s: &Scratch, args: &[&str]) -> Output {
 
 fn report(out: &Output) -> Json {
     let so = text(&out.stdout);
-    let doc = Json::parse(&so).unwrap_or_else(|e| panic!("stdout is not one JSON document ({e}):\n{so}\nstderr:\n{}", text(&out.stderr)));
+    let doc = Json::parse(&so).unwrap_or_else(|e| {
+        panic!(
+            "stdout is not one JSON document ({e}):\n{so}\nstderr:\n{}",
+            text(&out.stderr)
+        )
+    });
     assert_eq!(doc.kind(), "object", "{so}");
     doc
 }
@@ -82,7 +96,15 @@ fn report(out: &Output) -> Json {
 fn launcher_override_and_absent_executable() {
     let launcher = root().join(LAUNCHER_REL);
     assert!(launcher.is_file());
-    let out = Command::new("bash").arg(&launcher).arg("--help").env("VERIFY_DISTRIBUTION_BIN", "/nonexistent/verify_distribution").output().unwrap();
+    let out = Command::new("bash")
+        .arg(&launcher)
+        .arg("--help")
+        .env(
+            "VERIFY_DISTRIBUTION_BIN",
+            "/nonexistent/verify_distribution",
+        )
+        .output()
+        .unwrap();
     assert_eq!(out.status.code(), Some(2));
     assert_eq!(text(&out.stdout), "");
     let s = checkout("launcher");
@@ -97,7 +119,15 @@ fn launcher_override_and_absent_executable() {
 fn failing_checkout_report_shape_exit_1_and_json_out() {
     let s = checkout("fail");
     let out_file = s.0.join("report.json");
-    let out = verify(&s, &["--policy-as-of", "2026-11-18", "--json-out", out_file.to_str().unwrap()]);
+    let out = verify(
+        &s,
+        &[
+            "--policy-as-of",
+            "2026-11-18",
+            "--json-out",
+            out_file.to_str().unwrap(),
+        ],
+    );
     assert_eq!(out.status.code(), Some(1), "stderr:\n{}", text(&out.stderr));
     let doc = report(&out);
     assert_eq!(doc.at("schema_version").kind(), "number");
@@ -116,11 +146,23 @@ fn failing_checkout_report_shape_exit_1_and_json_out() {
     }
     assert!(checks.iter().any(|c| c.at("ok") == &Json::Bool(false)));
     let names: Vec<&str> = checks.iter().filter_map(|c| c.at("name").str()).collect();
-    for name in ["policy_registry_verify", "production_claim_predicates", "runtime_regression_selftest", "antipattern_scan_selftest"] {
-        assert!(names.contains(&name), "check {name} is part of the report: {names:?}");
+    for name in [
+        "policy_registry_verify",
+        "production_claim_predicates",
+        "runtime_regression_selftest",
+        "antipattern_scan_selftest",
+    ] {
+        assert!(
+            names.contains(&name),
+            "check {name} is part of the report: {names:?}"
+        );
     }
     let written = std::fs::read_to_string(&out_file).unwrap();
-    assert_eq!(Json::parse(&written).unwrap(), doc, "--json-out holds the same report");
+    assert_eq!(
+        Json::parse(&written).unwrap(),
+        doc,
+        "--json-out holds the same report"
+    );
 }
 
 /// Without `--policy-as-of` the reference date is observed once and recorded (`as_of_source` = `observed-utc-clock`,
@@ -150,7 +192,9 @@ fn sub_runner_source_tokens_are_audited() {
         assert_eq!(out.status.code(), Some(1), "stderr:\n{}", text(&out.stderr));
         let doc = report(&out);
         let checks = doc.at("checks").arr().expect("checks is an array").to_vec();
-        let found = checks.into_iter().find(|c| c.at("name").str() == Some("sub_retirement_consumer_audit_before_tombstone"));
+        let found = checks
+            .into_iter()
+            .find(|c| c.at("name").str() == Some("sub_retirement_consumer_audit_before_tombstone"));
         found.unwrap_or_else(|| panic!("the check is part of the report: {doc:?}"))
     };
     let s = checkout("sub-runner");
@@ -161,9 +205,17 @@ fn sub_runner_source_tokens_are_audited() {
     }
     assert_eq!(audit(&s).at("ok"), &Json::Bool(true));
     let source = std::fs::read_to_string(root().join(runner)).unwrap();
-    for token in ["let owner = format!(", "while lo > 0 && is_chars(cs[lo - 1])", "if token != owner"] {
+    for token in [
+        "let owner = format!(",
+        "while lo > 0 && is_chars(cs[lo - 1])",
+        "if token != owner",
+    ] {
         assert!(source.contains(token), "{token}");
-        std::fs::write(s.0.join(runner), source.replace(token, "/* contract: token removed */")).unwrap();
+        std::fs::write(
+            s.0.join(runner),
+            source.replace(token, "/* contract: token removed */"),
+        )
+        .unwrap();
         assert_eq!(audit(&s).at("ok"), &Json::Bool(false), "without {token:?}");
     }
 }
@@ -172,7 +224,12 @@ fn sub_runner_source_tokens_are_audited() {
 #[test]
 fn usage_errors_are_exit_2() {
     let s = checkout("usage");
-    for args in [&["--policy-as-of", "2026-13-40"][..], &["--policy-as-of", "18-11-2026"], &["--bogus"], &["--json-out"]] {
+    for args in [
+        &["--policy-as-of", "2026-13-40"][..],
+        &["--policy-as-of", "18-11-2026"],
+        &["--bogus"],
+        &["--json-out"],
+    ] {
         let out = verify(&s, args);
         assert_eq!(out.status.code(), Some(2), "{args:?}");
         assert_eq!(text(&out.stdout), "", "{args:?}");
@@ -197,7 +254,10 @@ mod json {
 
     impl Json {
         pub fn parse(text: &str) -> Result<Json, String> {
-            let mut r = Reader { b: text.as_bytes(), i: 0 };
+            let mut r = Reader {
+                b: text.as_bytes(),
+                i: 0,
+            };
             let v = r.value()?;
             r.ws();
             if r.i != r.b.len() {
@@ -213,7 +273,8 @@ mod json {
         }
         /// `self[key]`, failing the check when the key is absent.
         pub fn at(&self, key: &str) -> &Json {
-            self.get(key).unwrap_or_else(|| panic!("key {key:?} missing in {self:?}"))
+            self.get(key)
+                .unwrap_or_else(|| panic!("key {key:?} missing in {self:?}"))
         }
         pub fn keys(&self) -> Vec<&str> {
             match self {
@@ -246,8 +307,17 @@ mod json {
         }
         /// A list of strings (e.g. `reason_codes`), failing the check on any other shape.
         pub fn strs(&self) -> Vec<String> {
-            let items = self.arr().unwrap_or_else(|| panic!("not an array: {self:?}"));
-            items.iter().map(|v| v.str().unwrap_or_else(|| panic!("not a string: {v:?}")).to_string()).collect()
+            let items = self
+                .arr()
+                .unwrap_or_else(|| panic!("not an array: {self:?}"));
+            items
+                .iter()
+                .map(|v| {
+                    v.str()
+                        .unwrap_or_else(|| panic!("not a string: {v:?}"))
+                        .to_string()
+                })
+                .collect()
         }
     }
 
@@ -327,11 +397,19 @@ mod json {
                 Some(b'n') => self.eat("null").map(|_| Json::Null),
                 Some(c) if *c == b'-' || c.is_ascii_digit() => {
                     let start = self.i;
-                    while self.i < self.b.len() && matches!(self.b[self.i], b'-' | b'+' | b'.' | b'e' | b'E' | b'0'..=b'9') {
+                    while self.i < self.b.len()
+                        && matches!(
+                            self.b[self.i],
+                            b'-' | b'+' | b'.' | b'e' | b'E' | b'0'..=b'9'
+                        )
+                    {
                         self.i += 1;
                     }
-                    let t = std::str::from_utf8(&self.b[start..self.i]).unwrap().to_string();
-                    t.parse::<f64>().map_err(|e| format!("bad number {t:?}: {e}"))?;
+                    let t = std::str::from_utf8(&self.b[start..self.i])
+                        .unwrap()
+                        .to_string();
+                    t.parse::<f64>()
+                        .map_err(|e| format!("bad number {t:?}: {e}"))?;
                     Ok(Json::Num(t))
                 }
                 Some(c) => Err(format!("unexpected byte {c:#x} at {}", self.i)),
@@ -339,7 +417,8 @@ mod json {
         }
         fn hex4(&mut self) -> Result<u32, String> {
             let h = self.b.get(self.i..self.i + 4).ok_or("short \\u escape")?;
-            let v = u32::from_str_radix(std::str::from_utf8(h).map_err(|e| e.to_string())?, 16).map_err(|e| e.to_string())?;
+            let v = u32::from_str_radix(std::str::from_utf8(h).map_err(|e| e.to_string())?, 16)
+                .map_err(|e| e.to_string())?;
             self.i += 4;
             Ok(v)
         }
