@@ -36,7 +36,10 @@ impl Drop for Scratch {
 }
 
 fn scratch(tag: &str) -> Scratch {
-    let n = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+    let n = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
     let p = std::env::temp_dir().join(format!("hint-contract-{tag}-{}-{n}", std::process::id()));
     std::fs::create_dir_all(&p).unwrap();
     Scratch(std::fs::canonicalize(&p).unwrap())
@@ -64,7 +67,16 @@ fn hint(cwd: &Path, args: &[&str]) -> Output {
 
 fn git(dir: &Path, args: &[&str]) {
     let out = Command::new("git")
-        .args(["-c", "user.email=contract@example.invalid", "-c", "user.name=contract", "-c", "commit.gpgSign=false", "-c", "tag.gpgSign=false"])
+        .args([
+            "-c",
+            "user.email=contract@example.invalid",
+            "-c",
+            "user.name=contract",
+            "-c",
+            "commit.gpgSign=false",
+            "-c",
+            "tag.gpgSign=false",
+        ])
         .arg("-C")
         .arg(dir)
         .args(args)
@@ -78,17 +90,33 @@ fn git(dir: &Path, args: &[&str]) {
 /// already set is kept).
 #[test]
 fn launchers_overrides_and_skill_dir_export() {
-    for name in ["build_rust.sh", "hint.sh", "hint_api.sh", "render_bench_section.sh"] {
+    for name in [
+        "build_rust.sh",
+        "hint.sh",
+        "hint_api.sh",
+        "render_bench_section.sh",
+    ] {
         assert!(skill().join("scripts").join(name).is_file(), "{name}");
     }
     let s = scratch("launch");
     let probe = s.0.join("probe");
     write(&probe, "#!/bin/sh\nprintf '%s\\n' \"$HINT_SKILL_DIR\"\n");
-    Command::new("chmod").arg("+x").arg(&probe).status().unwrap();
-    for (launcher, var) in [("hint.sh", "HINT_BIN"), ("hint_api.sh", "HINT_API_BIN"), ("render_bench_section.sh", "RENDER_BENCH_SECTION_BIN")] {
+    Command::new("chmod")
+        .arg("+x")
+        .arg(&probe)
+        .status()
+        .unwrap();
+    for (launcher, var) in [
+        ("hint.sh", "HINT_BIN"),
+        ("hint_api.sh", "HINT_API_BIN"),
+        ("render_bench_section.sh", "RENDER_BENCH_SECTION_BIN"),
+    ] {
         let run = |bin: &Path, skill_dir: Option<&str>| {
             let mut c = Command::new("bash");
-            c.arg(skill().join("scripts").join(launcher)).env(var, bin).env_remove("HINT_SKILL_DIR").current_dir(&s.0);
+            c.arg(skill().join("scripts").join(launcher))
+                .env(var, bin)
+                .env_remove("HINT_SKILL_DIR")
+                .current_dir(&s.0);
             if let Some(d) = skill_dir {
                 c.env("HINT_SKILL_DIR", d);
             }
@@ -100,9 +128,17 @@ fn launchers_overrides_and_skill_dir_export() {
         let out = run(&probe, None);
         assert_eq!(out.status.code(), Some(0), "{launcher}");
         let exported = PathBuf::from(text(&out.stdout).trim_end());
-        assert_eq!(std::fs::canonicalize(&exported).unwrap(), skill(), "{launcher}: default HINT_SKILL_DIR");
+        assert_eq!(
+            std::fs::canonicalize(&exported).unwrap(),
+            skill(),
+            "{launcher}: default HINT_SKILL_DIR"
+        );
         let out = run(&probe, Some("/kept/by/caller"));
-        assert_eq!(text(&out.stdout).trim_end(), "/kept/by/caller", "{launcher}");
+        assert_eq!(
+            text(&out.stdout).trim_end(),
+            "/kept/by/caller",
+            "{launcher}"
+        );
     }
 }
 
@@ -113,19 +149,77 @@ fn hint_subcommands_and_long_options() {
     let s = scratch("argv");
     let table: [(&[&str], &[&str]); 14] = [
         (&[], &["--repo", "--self-test"]),
-        (&["publish"], &["--campaign", "--cell", "--publication", "--replay", "--node", "--generated-utc", "--lineage-add", "--out", "--remote", "--no-remote-check", "--docker-read-only", "--docker-probe"]),
-        (&["continue"], &["--campaign", "--cell", "--draft", "--node", "--generated-utc", "--approved-by", "--approved-utc", "--remote", "--no-push", "--factcheck-waiver", "--hint-clone", "--guide-commit"]),
+        (
+            &["publish"],
+            &[
+                "--campaign",
+                "--cell",
+                "--publication",
+                "--replay",
+                "--node",
+                "--generated-utc",
+                "--lineage-add",
+                "--out",
+                "--remote",
+                "--no-remote-check",
+                "--docker-read-only",
+                "--docker-probe",
+            ],
+        ),
+        (
+            &["continue"],
+            &[
+                "--campaign",
+                "--cell",
+                "--draft",
+                "--node",
+                "--generated-utc",
+                "--approved-by",
+                "--approved-utc",
+                "--remote",
+                "--no-push",
+                "--factcheck-waiver",
+                "--hint-clone",
+                "--guide-commit",
+            ],
+        ),
         (&["lint"], &["--draft", "--json"]),
         (&["refresh"], &["--draft"]),
         (&["refacts"], &["--draft", "--docker-read-only"]),
-        (&["excerpt"], &["--draft", "--source", "--lines", "--numbered"]),
-        (&["name"], &["--campaign", "--cell", "--publication", "--node", "--json"]),
+        (
+            &["excerpt"],
+            &["--draft", "--source", "--lines", "--numbered"],
+        ),
+        (
+            &["name"],
+            &["--campaign", "--cell", "--publication", "--node", "--json"],
+        ),
         (&["verify"], &["--tag", "--draft", "--hint-clone"]),
         (&["push"], &["--tag", "--remote", "--apply", "--draft"]),
-        (&["catalog", "derive"], &["--remote", "--generated-kst", "--dry-run", "--record-missing", "--allow-empty"]),
+        (
+            &["catalog", "derive"],
+            &[
+                "--remote",
+                "--generated-kst",
+                "--dry-run",
+                "--record-missing",
+                "--allow-empty",
+            ],
+        ),
         (&["catalog", "classify"], &["--index", "--rc"]),
-        (&["match"], &["--vllm", "--model", "--arch", "--include-other", "--json"]),
-        (&["branch-transition"], &["--remote", "--generated-utc", "--approved-by", "--approved-utc"]),
+        (
+            &["match"],
+            &["--vllm", "--model", "--arch", "--include-other", "--json"],
+        ),
+        (
+            &["branch-transition"],
+            &[
+                "--remote",
+                "--generated-utc",
+                "--approved-by",
+                "--approved-utc",
+            ],
+        ),
     ];
     for (sub, options) in table {
         let mut args: Vec<&str> = sub.to_vec();
@@ -134,10 +228,26 @@ fn hint_subcommands_and_long_options() {
         let help = text(&out.stdout);
         assert_eq!(out.status.code(), Some(0), "{sub:?}");
         for o in options {
-            assert!(help.split(|c: char| !(c.is_ascii_alphanumeric() || c == '-')).any(|w| w == *o), "{sub:?} lacks {o}:\n{help}");
+            assert!(
+                help.split(|c: char| !(c.is_ascii_alphanumeric() || c == '-'))
+                    .any(|w| w == *o),
+                "{sub:?} lacks {o}:\n{help}"
+            );
         }
     }
-    let out = hint(&s.0, &["--repo", s.0.to_str().unwrap(), "match", "--vllm", "1", "--model", "m", "--bogus"]);
+    let out = hint(
+        &s.0,
+        &[
+            "--repo",
+            s.0.to_str().unwrap(),
+            "match",
+            "--vllm",
+            "1",
+            "--model",
+            "m",
+            "--bogus",
+        ],
+    );
     assert_eq!(out.status.code(), Some(2));
     assert_eq!(text(&out.stdout), "");
 }
@@ -154,13 +264,35 @@ fn match_json_rows_without_git() {
     let s = scratch("match");
     write(&s.0.join("hints/index.json"), INDEX);
     let run = |extra: &[&str]| {
-        let mut args = vec!["--repo", s.0.to_str().unwrap(), "match", "--vllm", "0.31.0", "--model", "m-one"];
+        let mut args = vec![
+            "--repo",
+            s.0.to_str().unwrap(),
+            "match",
+            "--vllm",
+            "0.31.0",
+            "--model",
+            "m-one",
+        ];
         args.extend_from_slice(extra);
-        let out = Command::new(env!("CARGO_BIN_EXE_hint")).args(&args).env("PATH", "/nonexistent").current_dir(&s.0).output().unwrap();
-        assert_eq!(out.status.code(), Some(0), "{extra:?}: {}", text(&out.stderr));
+        let out = Command::new(env!("CARGO_BIN_EXE_hint"))
+            .args(&args)
+            .env("PATH", "/nonexistent")
+            .current_dir(&s.0)
+            .output()
+            .unwrap();
+        assert_eq!(
+            out.status.code(),
+            Some(0),
+            "{extra:?}: {}",
+            text(&out.stderr)
+        );
         Json::parse(&text(&out.stdout)).unwrap_or_else(|e| panic!("{extra:?}: {e}"))
     };
-    for (arch, want) in [(Some("gb10-x"), "exact"), (Some("gb10"), "prefix"), (None, "unspecified")] {
+    for (arch, want) in [
+        (Some("gb10-x"), "exact"),
+        (Some("gb10"), "prefix"),
+        (None, "unspecified"),
+    ] {
         let mut extra: Vec<&str> = Vec::new();
         if let Some(a) = arch {
             extra.extend(["--arch", a]);
@@ -175,16 +307,23 @@ fn match_json_rows_without_git() {
         assert_eq!(rows[0].at("relation").kind(), "string");
     }
     let all = run(&["--include-other", "--json"]);
-    assert_eq!(all.arr().unwrap().len(), 2, "--include-other = every index row");
+    assert_eq!(
+        all.arr().unwrap().len(),
+        2,
+        "--include-other = every index row"
+    );
 
     // the distribution form: no --repo and no git; the root is found from the executable's place in the tree
     let d = scratch("match-dist");
     write(&d.0.join("hints/index.json"), INDEX);
-    let exe = d.0.join(".claude/skills/hint-publisher/rust/target/release/hint");
+    let exe =
+        d.0.join(".claude/skills/hint-publisher/rust/target/release/hint");
     std::fs::create_dir_all(exe.parent().unwrap()).unwrap();
     std::fs::copy(env!("CARGO_BIN_EXE_hint"), &exe).unwrap();
     let out = Command::new(&exe)
-        .args(["match", "--vllm", "0.31.0", "--model", "m-one", "--arch", "gb10-x", "--json"])
+        .args([
+            "match", "--vllm", "0.31.0", "--model", "m-one", "--arch", "gb10-x", "--json",
+        ])
         .env("PATH", "/nonexistent")
         .env("HINT_SKILL_DIR", d.0.join(".claude/skills/hint-publisher"))
         .current_dir(&d.0)
@@ -206,28 +345,70 @@ fn failure_codes_on_stderr_and_verify_verdict_on_stdout() {
     git(&repo, &["commit", "-q", "--allow-empty", "-m", "base"]);
     let r = repo.to_str().unwrap();
     let cases: [(&[&str], &str); 4] = [
-        (&["--repo", r, "match", "--vllm", "1", "--model", "m"], "HINT_CATALOG_INDEX_ABSENT"),
-        (&["--repo", r, "lint", "--draft", "nodraft", "--json"], "HINT_DRAFT_STATE_UNREADABLE"),
-        (&["--repo", r, "push", "--tag", "hint/0.31.0/m/a/r", "--remote", "fx"], "HINT_PUSH_CENTRAL_AUTHORITY_ABSENT"),
-        (&["--repo", r, "catalog", "derive", "--remote", "fx", "--generated-kst", "2026-11-18T21:00:00"], "HINT_CATALOG_CENTRAL_FLAG_ABSENT"),
+        (
+            &["--repo", r, "match", "--vllm", "1", "--model", "m"],
+            "HINT_CATALOG_INDEX_ABSENT",
+        ),
+        (
+            &["--repo", r, "lint", "--draft", "nodraft", "--json"],
+            "HINT_DRAFT_STATE_UNREADABLE",
+        ),
+        (
+            &[
+                "--repo",
+                r,
+                "push",
+                "--tag",
+                "hint/0.31.0/m/a/r",
+                "--remote",
+                "fx",
+            ],
+            "HINT_PUSH_CENTRAL_AUTHORITY_ABSENT",
+        ),
+        (
+            &[
+                "--repo",
+                r,
+                "catalog",
+                "derive",
+                "--remote",
+                "fx",
+                "--generated-kst",
+                "2026-11-18T21:00:00",
+            ],
+            "HINT_CATALOG_CENTRAL_FLAG_ABSENT",
+        ),
     ];
     for (args, code) in cases {
         let out = hint(&repo, args);
         assert!(matches!(out.status.code(), Some(c) if c != 0), "{args:?}");
         assert_eq!(text(&out.stdout), "", "{args:?}");
-        assert!(text(&out.stderr).lines().any(|l| l.starts_with(&format!("[hint] FAIL {code}:"))), "{args:?}: {}", text(&out.stderr));
+        assert!(
+            text(&out.stderr)
+                .lines()
+                .any(|l| l.starts_with(&format!("[hint] FAIL {code}:"))),
+            "{args:?}: {}",
+            text(&out.stderr)
+        );
     }
-    let out = hint(&repo, &["--repo", r, "verify", "--tag", "hint/0.31.0/m/a/r"]);
+    let out = hint(
+        &repo,
+        &["--repo", r, "verify", "--tag", "hint/0.31.0/m/a/r"],
+    );
     assert_eq!(out.status.code(), Some(1));
     let so = text(&out.stdout);
-    let verdict = so.lines().find(|l| l.starts_with("[hint] verify FAIL hint/0.31.0/m/a/r")).unwrap_or_else(|| panic!("{so}"));
+    let verdict = so
+        .lines()
+        .find(|l| l.starts_with("[hint] verify FAIL hint/0.31.0/m/a/r"))
+        .unwrap_or_else(|| panic!("{so}"));
     assert!(verdict.contains("HINT_TAG_ABSENT"), "{verdict}");
 }
 
 /// `EXIT_LOCAL_TAG_OBJECT_MISSING` as upstream's branch-sync self-test reads it: the `pub const` line of
 /// `src/catalog.rs`.
 fn exit_local_tag_object_missing() -> i32 {
-    let src = std::fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("src/catalog.rs")).unwrap();
+    let src = std::fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("src/catalog.rs"))
+        .unwrap();
     src.lines()
         .find_map(|l| {
             l.trim_start()
@@ -254,30 +435,100 @@ fn catalog_derive_and_classify_for_the_closing_sequence() {
     git(&src, &["commit", "-q", "--allow-empty", "-m", "base"]);
     git(&bare, &["init", "-q", "--bare", "-b", "main"]);
     git(&src, &["push", "-q", bare.to_str().unwrap(), "main"]);
-    git(&s.0, &["clone", "-q", bare.to_str().unwrap(), work.to_str().unwrap()]);
+    git(
+        &s.0,
+        &[
+            "clone",
+            "-q",
+            bare.to_str().unwrap(),
+            work.to_str().unwrap(),
+        ],
+    );
     // the tag reaches the remote after the clone: its object is absent from `work`
-    git(&src, &["tag", "-a", "-m", "payload", "hint/0.31.0/m-one/gb10-x/r1"]);
-    git(&src, &["push", "-q", bare.to_str().unwrap(), "refs/tags/hint/*:refs/tags/hint/*"]);
+    git(
+        &src,
+        &["tag", "-a", "-m", "payload", "hint/0.31.0/m-one/gb10-x/r1"],
+    );
+    git(
+        &src,
+        &[
+            "push",
+            "-q",
+            bare.to_str().unwrap(),
+            "refs/tags/hint/*:refs/tags/hint/*",
+        ],
+    );
     git(&work, &["remote", "add", "fx", bare.to_str().unwrap()]);
     write(&work.join("hints/.central_authority"), "contract\n");
     let index = work.join("hints/index.json");
     write(&index, "{\"before\": true}\n");
     let w = work.to_str().unwrap();
 
-    let out = hint(&work, &["--repo", w, "catalog", "derive", "--remote", "fx", "--generated-kst", "2026-11-18T21:00:00"]);
+    let out = hint(
+        &work,
+        &[
+            "--repo",
+            w,
+            "catalog",
+            "derive",
+            "--remote",
+            "fx",
+            "--generated-kst",
+            "2026-11-18T21:00:00",
+        ],
+    );
     assert_eq!(out.status.code(), Some(missing), "{}", text(&out.stderr));
-    assert!(text(&out.stderr).contains(&format!("git -C {w} fetch fx 'refs/tags/hint/*:refs/tags/hint/*'")), "{}", text(&out.stderr));
-    assert_eq!(std::fs::read_to_string(&index).unwrap(), "{\"before\": true}\n", "no write on the stop");
+    assert!(
+        text(&out.stderr).contains(&format!(
+            "git -C {w} fetch fx 'refs/tags/hint/*:refs/tags/hint/*'"
+        )),
+        "{}",
+        text(&out.stderr)
+    );
+    assert_eq!(
+        std::fs::read_to_string(&index).unwrap(),
+        "{\"before\": true}\n",
+        "no write on the stop"
+    );
 
     let classify = |rc: &str| {
-        let out = hint(&work, &["--repo", w, "catalog", "classify", "--index", index.to_str().unwrap(), "--rc", rc]);
+        let out = hint(
+            &work,
+            &[
+                "--repo",
+                w,
+                "catalog",
+                "classify",
+                "--index",
+                index.to_str().unwrap(),
+                "--rc",
+                rc,
+            ],
+        );
         assert_eq!(out.status.code(), Some(0));
         text(&out.stdout)
     };
     let line = classify(&missing.to_string());
-    assert_eq!(line.split_whitespace().collect::<Vec<_>>(), [missing.to_string().as_str()], "{line:?}");
+    assert_eq!(
+        line.split_whitespace().collect::<Vec<_>>(),
+        [missing.to_string().as_str()],
+        "{line:?}"
+    );
 
-    let out = hint(&work, &["--repo", w, "catalog", "derive", "--remote", "fx", "--generated-kst", "2026-11-18T21:00:00", "--record-missing"]);
+    let out = hint(
+        &work,
+        &[
+            "--repo",
+            w,
+            "catalog",
+            "derive",
+            "--remote",
+            "fx",
+            "--generated-kst",
+            "2026-11-18T21:00:00",
+            "--record-missing",
+        ],
+    );
     assert_eq!(out.status.code(), Some(0), "{}", text(&out.stderr));
     let doc = Json::parse(&std::fs::read_to_string(&index).unwrap()).unwrap();
     let rows = doc.at("hints").arr().unwrap();
@@ -285,7 +536,10 @@ fn catalog_derive_and_classify_for_the_closing_sequence() {
     assert_eq!(rows[0].at("tag").str(), Some("hint/0.31.0/m-one/gb10-x/r1"));
     assert_eq!(rows[0].at("object").str(), Some("absent-local"));
     assert!(work.join("HINTS.md").is_file());
-    assert_eq!(classify("0").split_whitespace().collect::<Vec<_>>(), [missing.to_string().as_str(), "1"]);
+    assert_eq!(
+        classify("0").split_whitespace().collect::<Vec<_>>(),
+        [missing.to_string().as_str(), "1"]
+    );
 }
 
 /// `catalog classify --index I --rc R` as `closing_sequence.sh:227-236` reads it (`read -r rc n`): for `--rc 0` the
@@ -297,20 +551,48 @@ fn catalog_classify_fields_for_the_closing_sequence() {
     let s = scratch("classify");
     let index = s.0.join("index.json");
     let classify = |rc: &str| {
-        let out = hint(&s.0, &["catalog", "classify", "--index", index.to_str().unwrap(), "--rc", rc]);
+        let out = hint(
+            &s.0,
+            &[
+                "catalog",
+                "classify",
+                "--index",
+                index.to_str().unwrap(),
+                "--rc",
+                rc,
+            ],
+        );
         assert_eq!(out.status.code(), Some(0), "{}", text(&out.stderr));
-        text(&out.stdout).split_whitespace().map(str::to_string).collect::<Vec<_>>()
+        text(&out.stdout)
+            .split_whitespace()
+            .map(str::to_string)
+            .collect::<Vec<_>>()
     };
-    write(&index, r#"{"schema": 5, "hints": [{"tag": "hint/0.31.0/m-one/gb10-x/r1", "object": "present"}]}"#);
-    assert_eq!(classify("0"), [missing.clone(), "0".to_string()], "no absent row is the count 0");
+    write(
+        &index,
+        r#"{"schema": 5, "hints": [{"tag": "hint/0.31.0/m-one/gb10-x/r1", "object": "present"}]}"#,
+    );
+    assert_eq!(
+        classify("0"),
+        [missing.clone(), "0".to_string()],
+        "no absent row is the count 0"
+    );
     write(
         &index,
         r#"{"schema": 5, "hints": [{"tag": "hint/0.31.0/m-one/gb10-x/r1", "object": "absent-local"}, {"tag": "hint/0.30.0/o/h100/r2"}]}"#,
     );
     assert_eq!(classify("0"), [missing.clone(), "1".to_string()]);
-    assert_eq!(classify("1"), [missing.clone()], "a non-zero rc has no count field");
+    assert_eq!(
+        classify("1"),
+        [missing.clone()],
+        "a non-zero rc has no count field"
+    );
     std::fs::remove_file(&index).unwrap();
-    assert_eq!(classify("0"), [missing], "an unreadable index leaves the count field empty");
+    assert_eq!(
+        classify("0"),
+        [missing],
+        "an unreadable index leaves the count field empty"
+    );
 }
 
 /// A repository with one annotated hint tag whose footer binds `manifest_ref`, a central-authority flag, a bare remote
@@ -330,7 +612,16 @@ fn gate_fixture(tag: &str) -> (Scratch, PathBuf, String) {
         &repo.join(".claude/policies/runtime/completion_gate.sh"),
         "#!/bin/bash\nprintf '%s\\n' \"$@\" > \"$GATE_ARGV\"\nprintf '%s' \"$GATE_OUT\"\nexit \"$GATE_RC\"\n",
     );
-    let anchor = String::from_utf8(Command::new("git").arg("-C").arg(&repo).args(["rev-parse", "HEAD"]).output().unwrap().stdout).unwrap();
+    let anchor = String::from_utf8(
+        Command::new("git")
+            .arg("-C")
+            .arg(&repo)
+            .args(["rev-parse", "HEAD"])
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
     let name = "hint/0.31.0/m-one/gb10-x/r1".to_string();
     let mut fields = hintlib::value::J::dict();
     for (k, v) in [
@@ -347,7 +638,18 @@ fn gate_fixture(tag: &str) -> (Scratch, PathBuf, String) {
     let message = hintlib::tag::annotation("contract fixture brief", &fields).unwrap();
     let msg = s.0.join("annotation.txt");
     write(&msg, &message);
-    git(&repo, &["tag", "-a", "-F", msg.to_str().unwrap(), "--cleanup=verbatim", &name, "HEAD"]);
+    git(
+        &repo,
+        &[
+            "tag",
+            "-a",
+            "-F",
+            msg.to_str().unwrap(),
+            "--cleanup=verbatim",
+            &name,
+            "HEAD",
+        ],
+    );
     (s, repo, name)
 }
 
@@ -380,29 +682,80 @@ fn gate_refusal_relayed_by_verify_and_push() {
         );
         let args: Vec<&str> = match sub {
             "verify" => vec!["--repo", r, "verify", "--tag", &name],
-            _ => vec!["--repo", r, "push", "--tag", &name, "--remote", "fx", "--apply"],
+            _ => vec![
+                "--repo", r, "push", "--tag", &name, "--remote", "fx", "--apply",
+            ],
         };
         let out = run(&args, &deny, "3");
-        assert_eq!(out.status.code(), Some(3), "{sub}: {}{}", text(&out.stdout), text(&out.stderr));
-        assert_eq!(Json::parse(&text(&out.stdout)).unwrap(), Json::parse(&deny).unwrap(), "{sub}: the gate JSON is relayed");
-        let called: Vec<String> = std::fs::read_to_string(&argv).unwrap().lines().map(str::to_string).collect();
+        assert_eq!(
+            out.status.code(),
+            Some(3),
+            "{sub}: {}{}",
+            text(&out.stdout),
+            text(&out.stderr)
+        );
+        assert_eq!(
+            Json::parse(&text(&out.stdout)).unwrap(),
+            Json::parse(&deny).unwrap(),
+            "{sub}: the gate JSON is relayed"
+        );
+        let called: Vec<String> = std::fs::read_to_string(&argv)
+            .unwrap()
+            .lines()
+            .map(str::to_string)
+            .collect();
         assert_eq!(
             called,
-            ["authorize", "--manifest", &manifest, "--mode", "promotion", "--action", action, "--repo-root", r],
+            [
+                "authorize",
+                "--manifest",
+                &manifest,
+                "--mode",
+                "promotion",
+                "--action",
+                action,
+                "--repo-root",
+                r
+            ],
             "{sub}: the gate's arguments"
         );
         std::fs::remove_file(&argv).unwrap();
 
         let out = run(&args, "not a JSON document", "0");
-        assert_eq!(out.status.code(), Some(2), "{sub}: {}{}", text(&out.stdout), text(&out.stderr));
-        let doc = Json::parse(&text(&out.stdout)).unwrap_or_else(|e| panic!("{sub}: {e}: {}", text(&out.stdout)));
+        assert_eq!(
+            out.status.code(),
+            Some(2),
+            "{sub}: {}{}",
+            text(&out.stdout),
+            text(&out.stderr)
+        );
+        let doc = Json::parse(&text(&out.stdout))
+            .unwrap_or_else(|e| panic!("{sub}: {e}: {}", text(&out.stdout)));
         assert_eq!(doc.at("allowed"), &Json::Bool(false), "{sub}");
         assert_eq!(doc.at("action").str(), Some(action), "{sub}");
-        assert_eq!(doc.at("reason_codes").strs(), ["HINT_GATE_OUTPUT_UNREADABLE"], "{sub}");
-        assert!(text(&out.stderr).lines().any(|l| l.starts_with("[hint] FAIL HINT_GATE_OUTPUT_UNREADABLE:")), "{sub}");
+        assert_eq!(
+            doc.at("reason_codes").strs(),
+            ["HINT_GATE_OUTPUT_UNREADABLE"],
+            "{sub}"
+        );
+        assert!(
+            text(&out.stderr)
+                .lines()
+                .any(|l| l.starts_with("[hint] FAIL HINT_GATE_OUTPUT_UNREADABLE:")),
+            "{sub}"
+        );
     }
-    let remote_tags = Command::new("git").arg("-C").arg(s.0.join("remote.git")).args(["tag", "--list"]).output().unwrap();
-    assert_eq!(text(&remote_tags.stdout), "", "a refused push pushes nothing");
+    let remote_tags = Command::new("git")
+        .arg("-C")
+        .arg(s.0.join("remote.git"))
+        .args(["tag", "--list"])
+        .output()
+        .unwrap();
+    assert_eq!(
+        text(&remote_tags.stdout),
+        "",
+        "a refused push pushes nothing"
+    );
 }
 
 /// policy-distribution runs `hint.sh --self-test` and needs exit 0 (the self-test's isolated E2E also drives the gate
@@ -411,7 +764,13 @@ fn gate_refusal_relayed_by_verify_and_push() {
 fn hint_self_test_passes() {
     let s = scratch("selftest");
     let out = hint(&s.0, &["--self-test"]);
-    assert_eq!(out.status.code(), Some(0), "{}\n{}", text(&out.stdout), text(&out.stderr));
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "{}\n{}",
+        text(&out.stdout),
+        text(&out.stderr)
+    );
 }
 
 fn bench_report() -> String {
@@ -450,7 +809,10 @@ fn render_bench_section_selftest_and_verify() {
         Command::new("bash")
             .arg(skill().join("scripts/render_bench_section.sh"))
             .args(args)
-            .env("RENDER_BENCH_SECTION_BIN", env!("CARGO_BIN_EXE_render_bench_section"))
+            .env(
+                "RENDER_BENCH_SECTION_BIN",
+                env!("CARGO_BIN_EXE_render_bench_section"),
+            )
             .current_dir(&s.0)
             .output()
             .unwrap()
@@ -465,12 +827,17 @@ fn render_bench_section_selftest_and_verify() {
     assert_eq!(out.status.code(), Some(0), "{}", text(&out.stderr));
     let out = rbs(&["--verify", "--section", sec, "--report", r]);
     assert_eq!(out.status.code(), Some(0), "{}", text(&out.stderr));
-    let touched = std::fs::read_to_string(&section).unwrap().replace("22.26", "99.99");
+    let touched = std::fs::read_to_string(&section)
+        .unwrap()
+        .replace("22.26", "99.99");
     std::fs::write(&section, touched).unwrap();
     let out = rbs(&["--verify", "--section", sec, "--report", r]);
     assert_eq!(out.status.code(), Some(1));
     assert_eq!(text(&out.stdout), "");
-    assert!(!text(&out.stderr).trim().is_empty(), "the reason is on stderr");
+    assert!(
+        !text(&out.stderr).trim().is_empty(),
+        "the reason is on stderr"
+    );
     let out = rbs(&["--verify", "--no-such-option"]);
     assert_eq!(out.status.code(), Some(2));
     assert_eq!(text(&out.stdout), "");
@@ -518,10 +885,18 @@ fn hint_api(s: &Scratch, requests: &[String]) -> Vec<Json> {
         .unwrap();
     let mut input = requests.join("\n");
     input.push('\n');
-    child.stdin.take().unwrap().write_all(input.as_bytes()).unwrap();
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(input.as_bytes())
+        .unwrap();
     let out = child.wait_with_output().unwrap();
     assert_eq!(out.status.code(), Some(0), "{}", text(&out.stderr));
-    let rows: Vec<Json> = text(&out.stdout).lines().map(|l| Json::parse(l).unwrap_or_else(|e| panic!("{e}: {l}"))).collect();
+    let rows: Vec<Json> = text(&out.stdout)
+        .lines()
+        .map(|l| Json::parse(l).unwrap_or_else(|e| panic!("{e}: {l}")))
+        .collect();
     assert_eq!(rows.len(), requests.len(), "{}", text(&out.stdout));
     rows
 }
@@ -534,7 +909,10 @@ fn value(r: &Json) -> &Json {
 /// The `HintError` code of an exception response.
 fn error_code(r: &Json) -> String {
     assert_eq!(r.at("kind").str(), Some("exception"), "{r:?}");
-    r.at("code").str().unwrap_or_else(|| panic!("{r:?}")).to_string()
+    r.at("code")
+        .str()
+        .unwrap_or_else(|| panic!("{r:?}"))
+        .to_string()
 }
 
 const PUBLISHER_SH: &str = ".claude/policies/runtime/evidence_publisher.sh";
@@ -565,29 +943,67 @@ fn evidence_publisher_is_started_through_its_sh_launcher() {
     let rows = hint_api(&s, &[call("a", "[0]")]);
     let v = value(&rows[0]).arr().unwrap();
     assert_eq!(v[0], Json::Num("0".into()));
-    assert_eq!(v[1], Json::parse(doc).unwrap(), "the publisher's stdout JSON");
-    let argv: Vec<String> = std::fs::read_to_string(s.0.join("argv.txt")).unwrap().lines().map(str::to_string).collect();
+    assert_eq!(
+        v[1],
+        Json::parse(doc).unwrap(),
+        "the publisher's stdout JSON"
+    );
+    let argv: Vec<String> = std::fs::read_to_string(s.0.join("argv.txt"))
+        .unwrap()
+        .lines()
+        .map(str::to_string)
+        .collect();
     let r = repo.to_str().unwrap();
-    assert_eq!(argv, [r, "append-raw", "--repo-root", r, "--topic", "t1", "--kind", "simlog"], "cwd and arguments");
+    assert_eq!(
+        argv,
+        [
+            r,
+            "append-raw",
+            "--repo-root",
+            r,
+            "--topic",
+            "t1",
+            "--kind",
+            "simlog"
+        ],
+        "cwd and arguments"
+    );
 
     set("", 0);
-    assert_eq!(value(&hint_api(&s, &[call("b", "[0]")])[0]).arr().unwrap()[1], Json::Obj(Vec::new()), "empty stdout = {{}}");
+    assert_eq!(
+        value(&hint_api(&s, &[call("b", "[0]")])[0]).arr().unwrap()[1],
+        Json::Obj(Vec::new()),
+        "empty stdout = {{}}"
+    );
 
     set("not json", 0);
-    assert_eq!(error_code(&hint_api(&s, &[call("c", "[0]")])[0]), "HINT_PUBLISHER_OUTPUT_UNREADABLE");
+    assert_eq!(
+        error_code(&hint_api(&s, &[call("c", "[0]")])[0]),
+        "HINT_PUBLISHER_OUTPUT_UNREADABLE"
+    );
 
     set(doc, 3);
     let rows = hint_api(&s, &[call("d", "[0]"), call("e", "[0, 3]")]);
     assert_eq!(error_code(&rows[0]), "HINT_PUBLISHER_FAILED");
     assert_eq!(rows[0].at("exit_code"), &Json::Num("3".into()));
-    assert_eq!(value(&rows[1]).arr().unwrap()[0], Json::Num("3".into()), "an accepted non-zero code is a value");
+    assert_eq!(
+        value(&rows[1]).arr().unwrap()[0],
+        Json::Num("3".into()),
+        "an accepted non-zero code is a value"
+    );
 
     std::fs::remove_file(&launcher).unwrap();
     std::fs::remove_file(s.0.join("argv.txt")).unwrap();
     let py = repo.join(".claude/policies/runtime/evidence_publisher.py");
     write(&py, "#!/bin/bash\ntouch \"$PWD/../py-ran\"\n");
-    assert_eq!(error_code(&hint_api(&s, &[call("f", "[0]")])[0]), "HINT_OWNER_LAUNCHER_MISSING");
-    assert!(!s.0.join("py-ran").exists() && !s.0.join("argv.txt").exists(), "nothing ran");
+    assert_eq!(
+        error_code(&hint_api(&s, &[call("f", "[0]")])[0]),
+        "HINT_OWNER_LAUNCHER_MISSING"
+    );
+    assert!(
+        !s.0.join("py-ran").exists() && !s.0.join("argv.txt").exists(),
+        "nothing ran"
+    );
 }
 
 /// The native serve proof (upstream `native_multinode_serve`, consumers.tsv `e1.rs` row): `pip_freeze_paths` must be
@@ -598,10 +1014,15 @@ fn native_serve_proof_needs_exactly_main_and_sub_pip_freeze_paths() {
     let s = scratch("native");
     let repo = s.0.join("repo");
     let keep = "output/multi/benchlog/native_c1-a";
-    for f in ["native-install.sh", "pip-freeze-main.txt", "pip-freeze-sub.txt"] {
+    for f in [
+        "native-install.sh",
+        "pip-freeze-main.txt",
+        "pip-freeze-sub.txt",
+    ] {
         write(&repo.join(keep).join(f), "x\n");
     }
-    let node = r#"{"root_absent": true, "owned_processes": [], "owned_gpu_processes": [], "unknown": []}"#;
+    let node =
+        r#"{"root_absent": true, "owned_processes": [], "owned_gpu_processes": [], "unknown": []}"#;
     write(
         &repo.join(keep).join("cleanup.json"),
         &format!(
@@ -626,16 +1047,33 @@ fn native_serve_proof_needs_exactly_main_and_sub_pip_freeze_paths() {
             proof(freezes)
         )
     };
-    let both = format!(r#"{{"main": "{keep}/pip-freeze-main.txt", "sub": "{keep}/pip-freeze-sub.txt"}}"#);
+    let both =
+        format!(r#"{{"main": "{keep}/pip-freeze-main.txt", "sub": "{keep}/pip-freeze-sub.txt"}}"#);
     let only_main = format!(r#"{{"main": "{keep}/pip-freeze-main.txt"}}"#);
-    let extra = format!(r#"{{"main": "{keep}/pip-freeze-main.txt", "sub": "{keep}/pip-freeze-sub.txt", "sub2": "{keep}/pip-freeze-sub.txt"}}"#);
-    let rows = hint_api(&s, &[call("ok", &both), call("main", &only_main), call("extra", &extra), call("none", "null")]);
+    let extra = format!(
+        r#"{{"main": "{keep}/pip-freeze-main.txt", "sub": "{keep}/pip-freeze-sub.txt", "sub2": "{keep}/pip-freeze-sub.txt"}}"#
+    );
+    let rows = hint_api(
+        &s,
+        &[
+            call("ok", &both),
+            call("main", &only_main),
+            call("extra", &extra),
+            call("none", "null"),
+        ],
+    );
     let ev = value(&rows[0]);
     assert_eq!(ev.at("plane").str(), Some("native"));
     let paths = ev.at("pip_freeze_paths");
     assert_eq!(paths.keys(), ["main", "sub"]);
-    assert_eq!(paths.at("main").str(), Some(format!("{keep}/pip-freeze-main.txt").as_str()));
-    assert_eq!(paths.at("sub").str(), Some(format!("{keep}/pip-freeze-sub.txt").as_str()));
+    assert_eq!(
+        paths.at("main").str(),
+        Some(format!("{keep}/pip-freeze-main.txt").as_str())
+    );
+    assert_eq!(
+        paths.at("sub").str(),
+        Some(format!("{keep}/pip-freeze-sub.txt").as_str())
+    );
     for r in &rows[1..] {
         assert_eq!(error_code(r), "HINT_NATIVE_EVIDENCE_MISSING", "{r:?}");
     }
@@ -658,8 +1096,14 @@ fn blackbox_session_documents_and_events_hint_reads() {
             r#"{{"session_id": "{sid}", "started_utc": "2026-01-01T00:00:00Z", "stopped_utc": "2026-01-01T01:00:00Z", "config_file": "c1-a", "topology": "multi"}}"#
         ),
     );
-    write(&sessions.join("serve-c1-a-other.json"), &format!(r#"{{"session_id": "{sid}", "started_utc": "2026-01-01T00:00:00Z"}}"#));
-    let docs = format!("{{\"__call__\": {{\"fn\": \"evidence._node_session_docs\", \"args\": [{}, \"n1\"]}}}}", qpath(&repo));
+    write(
+        &sessions.join("serve-c1-a-other.json"),
+        &format!(r#"{{"session_id": "{sid}", "started_utc": "2026-01-01T00:00:00Z"}}"#),
+    );
+    let docs = format!(
+        "{{\"__call__\": {{\"fn\": \"evidence._node_session_docs\", \"args\": [{}, \"n1\"]}}}}",
+        qpath(&repo)
+    );
     let ev = r#"{"cell": "c1-a", "topology": "multi", "sweep": {"index": {"meta": {"config_name": "c1-a"}}}}"#;
     let event = |id: &str, fields: &str, ts: &str| {
         format!(
@@ -668,7 +1112,9 @@ fn blackbox_session_documents_and_events_hint_reads() {
             q(ts)
         )
     };
-    let start = format!(r#""kind": "serve_start", "session_id": "{sid}", "source": "blackbox_session", "topology": "multi""#);
+    let start = format!(
+        r#""kind": "serve_start", "session_id": "{sid}", "source": "blackbox_session", "topology": "multi""#
+    );
     let stop = format!(r#""kind": "serve_stop", "session_id": "{sid}""#);
     let rows = hint_api(
         &s,
@@ -684,9 +1130,22 @@ fn blackbox_session_documents_and_events_hint_reads() {
     let found = value(&rows[0]);
     let doc = found.at(sid);
     assert_eq!(doc.at("config_file").str(), Some("c1-a"));
-    assert_eq!(doc.at("_source").str(), Some(format!("docs/logs/n1/sessions/{sid}.json").as_str()));
-    assert_eq!(found.at("serve-c1-a-other"), &Json::Null, "a document whose session_id is not its name does not count");
-    let want = [("start", true), ("stop", true), ("start-late", false), ("other-source", false), ("other-kind", false)];
+    assert_eq!(
+        doc.at("_source").str(),
+        Some(format!("docs/logs/n1/sessions/{sid}.json").as_str())
+    );
+    assert_eq!(
+        found.at("serve-c1-a-other"),
+        &Json::Null,
+        "a document whose session_id is not its name does not count"
+    );
+    let want = [
+        ("start", true),
+        ("stop", true),
+        ("start-late", false),
+        ("other-source", false),
+        ("other-kind", false),
+    ];
     for (r, (id, is)) in rows[1..].iter().zip(want) {
         assert_eq!(value(r), &Json::Bool(is), "{id}");
     }
@@ -710,7 +1169,10 @@ mod json {
 
     impl Json {
         pub fn parse(text: &str) -> Result<Json, String> {
-            let mut r = Reader { b: text.as_bytes(), i: 0 };
+            let mut r = Reader {
+                b: text.as_bytes(),
+                i: 0,
+            };
             let v = r.value()?;
             r.ws();
             if r.i != r.b.len() {
@@ -726,7 +1188,8 @@ mod json {
         }
         /// `self[key]`, failing the check when the key is absent.
         pub fn at(&self, key: &str) -> &Json {
-            self.get(key).unwrap_or_else(|| panic!("key {key:?} missing in {self:?}"))
+            self.get(key)
+                .unwrap_or_else(|| panic!("key {key:?} missing in {self:?}"))
         }
         pub fn keys(&self) -> Vec<&str> {
             match self {
@@ -759,8 +1222,17 @@ mod json {
         }
         /// A list of strings (e.g. `reason_codes`), failing the check on any other shape.
         pub fn strs(&self) -> Vec<String> {
-            let items = self.arr().unwrap_or_else(|| panic!("not an array: {self:?}"));
-            items.iter().map(|v| v.str().unwrap_or_else(|| panic!("not a string: {v:?}")).to_string()).collect()
+            let items = self
+                .arr()
+                .unwrap_or_else(|| panic!("not an array: {self:?}"));
+            items
+                .iter()
+                .map(|v| {
+                    v.str()
+                        .unwrap_or_else(|| panic!("not a string: {v:?}"))
+                        .to_string()
+                })
+                .collect()
         }
     }
 
@@ -840,11 +1312,19 @@ mod json {
                 Some(b'n') => self.eat("null").map(|_| Json::Null),
                 Some(c) if *c == b'-' || c.is_ascii_digit() => {
                     let start = self.i;
-                    while self.i < self.b.len() && matches!(self.b[self.i], b'-' | b'+' | b'.' | b'e' | b'E' | b'0'..=b'9') {
+                    while self.i < self.b.len()
+                        && matches!(
+                            self.b[self.i],
+                            b'-' | b'+' | b'.' | b'e' | b'E' | b'0'..=b'9'
+                        )
+                    {
                         self.i += 1;
                     }
-                    let t = std::str::from_utf8(&self.b[start..self.i]).unwrap().to_string();
-                    t.parse::<f64>().map_err(|e| format!("bad number {t:?}: {e}"))?;
+                    let t = std::str::from_utf8(&self.b[start..self.i])
+                        .unwrap()
+                        .to_string();
+                    t.parse::<f64>()
+                        .map_err(|e| format!("bad number {t:?}: {e}"))?;
                     Ok(Json::Num(t))
                 }
                 Some(c) => Err(format!("unexpected byte {c:#x} at {}", self.i)),
@@ -852,7 +1332,8 @@ mod json {
         }
         fn hex4(&mut self) -> Result<u32, String> {
             let h = self.b.get(self.i..self.i + 4).ok_or("short \\u escape")?;
-            let v = u32::from_str_radix(std::str::from_utf8(h).map_err(|e| e.to_string())?, 16).map_err(|e| e.to_string())?;
+            let v = u32::from_str_radix(std::str::from_utf8(h).map_err(|e| e.to_string())?, 16)
+                .map_err(|e| e.to_string())?;
             self.i += 4;
             Ok(v)
         }

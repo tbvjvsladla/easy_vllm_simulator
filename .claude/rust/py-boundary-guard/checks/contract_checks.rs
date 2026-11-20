@@ -23,7 +23,10 @@ impl Drop for Repo {
 }
 
 fn repo(tag: &str) -> Repo {
-    let n = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+    let n = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
     let dir = std::env::temp_dir().join(format!("pybg-contract-{tag}-{}-{n}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     git(&dir, &["init", "-q"]);
@@ -31,7 +34,12 @@ fn repo(tag: &str) -> Repo {
 }
 
 fn git(dir: &Path, args: &[&str]) {
-    let st = Command::new("git").arg("-C").arg(dir).args(args).status().unwrap();
+    let st = Command::new("git")
+        .arg("-C")
+        .arg(dir)
+        .args(args)
+        .status()
+        .unwrap();
     assert!(st.success(), "git {args:?}");
 }
 
@@ -43,7 +51,13 @@ fn write(dir: &Path, rel: &str, body: &str) {
 
 /// `bash <launcher> <args>` with `<VAR>=<bin>` (the consumers' override), cwd `cwd`.
 fn launch(launcher: &str, var: &str, bin: &str, cwd: &Path, args: &[&str]) -> Output {
-    Command::new("bash").arg(root().join(launcher)).args(args).env(var, bin).current_dir(cwd).output().unwrap()
+    Command::new("bash")
+        .arg(root().join(launcher))
+        .args(args)
+        .env(var, bin)
+        .current_dir(cwd)
+        .output()
+        .unwrap()
 }
 
 fn text(b: &[u8]) -> String {
@@ -55,9 +69,18 @@ fn code(o: &Output) -> Option<i32> {
 }
 
 const LAUNCHERS: [(&str, &str); 3] = [
-    (".claude/policies/runtime/py_boundary_guard.sh", "PY_BOUNDARY_GUARD_BIN"),
-    (".claude/rust/py-boundary-guard/inline_python_scan.sh", "INLINE_PYTHON_SCAN_BIN"),
-    (".claude/rust/py-boundary-guard/crate_allow.sh", "CRATE_ALLOW_BIN"),
+    (
+        ".claude/policies/runtime/py_boundary_guard.sh",
+        "PY_BOUNDARY_GUARD_BIN",
+    ),
+    (
+        ".claude/rust/py-boundary-guard/inline_python_scan.sh",
+        "INLINE_PYTHON_SCAN_BIN",
+    ),
+    (
+        ".claude/rust/py-boundary-guard/crate_allow.sh",
+        "CRATE_ALLOW_BIN",
+    ),
 ];
 
 /// Every launcher refuses an absent executable with exit 2 and starts nothing (the hook fails closed on it). The probe is
@@ -67,7 +90,13 @@ fn launchers_exist_and_an_absent_executable_is_exit_2() {
     let r = repo("absent");
     for (launcher, var) in LAUNCHERS {
         assert!(root().join(launcher).is_file(), "{launcher}");
-        let out = launch(launcher, var, "/nonexistent/evs-contract-bin", &r.0, &["--help"]);
+        let out = launch(
+            launcher,
+            var,
+            "/nonexistent/evs-contract-bin",
+            &r.0,
+            &["--help"],
+        );
         assert_eq!(code(&out), Some(2), "{launcher}");
         assert_eq!(text(&out.stdout), "", "{launcher}");
     }
@@ -80,7 +109,11 @@ fn env_elf() -> PathBuf {
     std::env::split_paths(&path)
         .map(|d| d.join("env"))
         .filter_map(|p| std::fs::canonicalize(p).ok())
-        .find(|p| std::fs::read(p).map(|b| b.starts_with(b"\x7fELF")).unwrap_or(false))
+        .find(|p| {
+            std::fs::read(p)
+                .map(|b| b.starts_with(b"\x7fELF"))
+                .unwrap_or(false)
+        })
         .expect("an `env` ELF on PATH")
 }
 
@@ -92,7 +125,13 @@ fn launcher_override_runs_the_named_executable() {
     let stand_in = r.0.join("stand-in-elf");
     std::os::unix::fs::symlink(env_elf(), &stand_in).unwrap();
     for (launcher, var) in LAUNCHERS {
-        let out = launch(launcher, var, stand_in.to_str().unwrap(), &r.0, &["printf", "%s|%s", var, "--repo"]);
+        let out = launch(
+            launcher,
+            var,
+            stand_in.to_str().unwrap(),
+            &r.0,
+            &["printf", "%s|%s", var, "--repo"],
+        );
         assert_eq!(code(&out), Some(0), "{launcher}: {}", text(&out.stderr));
         assert_eq!(text(&out.stdout), format!("{var}|--repo"), "{launcher}");
     }
@@ -101,7 +140,13 @@ fn launcher_override_runs_the_named_executable() {
 const PY_ALLOW: &str = ".claude/policies/py_boundary_allowlist.tsv";
 
 fn guard(r: &Repo, args: &[&str]) -> Output {
-    launch(".claude/policies/runtime/py_boundary_guard.sh", "PY_BOUNDARY_GUARD_BIN", env!("CARGO_BIN_EXE_py_boundary_guard"), &r.0, args)
+    launch(
+        ".claude/policies/runtime/py_boundary_guard.sh",
+        "PY_BOUNDARY_GUARD_BIN",
+        env!("CARGO_BIN_EXE_py_boundary_guard"),
+        &r.0,
+        args,
+    )
 }
 
 /// pre-commit: `check --repo <root> --staged-additions` — exit 0 when no staged `*.py` is outside the allowlist,
@@ -115,28 +160,59 @@ fn py_boundary_guard_check_exit_codes() {
     git(&r.0, &["add", "-A"]);
     let root_arg = r.0.to_str().unwrap();
     let out = guard(&r, &["check", "--repo", root_arg, "--staged-additions"]);
-    assert_eq!(code(&out), Some(0), "{}{}", text(&out.stdout), text(&out.stderr));
+    assert_eq!(
+        code(&out),
+        Some(0),
+        "{}{}",
+        text(&out.stdout),
+        text(&out.stderr)
+    );
     let out = guard(&r, &["check", "--repo", root_arg]);
-    assert_eq!(code(&out), Some(0), "{}{}", text(&out.stdout), text(&out.stderr));
+    assert_eq!(
+        code(&out),
+        Some(0),
+        "{}{}",
+        text(&out.stdout),
+        text(&out.stderr)
+    );
 
     write(&r.0, ".claude/skills/x/tool.py", "x = 1\n");
     git(&r.0, &["add", "-A"]);
-    for args in [&["check", "--repo", root_arg, "--staged-additions"][..], &["check", "--repo", root_arg]] {
+    for args in [
+        &["check", "--repo", root_arg, "--staged-additions"][..],
+        &["check", "--repo", root_arg],
+    ] {
         let out = guard(&r, args);
         assert_eq!(code(&out), Some(1), "{args:?}");
-        assert!(text(&out.stdout).lines().any(|l| l == "VIOLATION .claude/skills/x/tool.py"), "{}", text(&out.stdout));
+        assert!(
+            text(&out.stdout)
+                .lines()
+                .any(|l| l == "VIOLATION .claude/skills/x/tool.py"),
+            "{}",
+            text(&out.stdout)
+        );
     }
     // usage and input errors are 2 (the hook treats every non-zero as a refusal)
     assert_eq!(code(&guard(&r, &["check", "--bogus"])), Some(2));
     assert_eq!(code(&guard(&r, &["frob"])), Some(2));
     std::fs::remove_file(r.0.join(PY_ALLOW)).unwrap();
-    assert_eq!(code(&guard(&r, &["check", "--repo", root_arg])), Some(2), "an unreadable allowlist fails closed");
+    assert_eq!(
+        code(&guard(&r, &["check", "--repo", root_arg])),
+        Some(2),
+        "an unreadable allowlist fails closed"
+    );
 }
 
 const INLINE_ALLOW: &str = ".claude/rust/py-boundary-guard/inline_python_allowlist.tsv";
 
 fn scan(r: &Repo, args: &[&str]) -> Output {
-    launch(".claude/rust/py-boundary-guard/inline_python_scan.sh", "INLINE_PYTHON_SCAN_BIN", env!("CARGO_BIN_EXE_inline_python_scan"), &r.0, args)
+    launch(
+        ".claude/rust/py-boundary-guard/inline_python_scan.sh",
+        "INLINE_PYTHON_SCAN_BIN",
+        env!("CARGO_BIN_EXE_inline_python_scan"),
+        &r.0,
+        args,
+    )
 }
 
 /// policy-distribution and the W gate: `check --repo .` (cwd = the repository) — exit 0 clean, 1 with
@@ -148,14 +224,26 @@ fn inline_python_scan_check_exit_codes() {
     write(&r.0, "a/ok.sh", "echo hi\n");
     git(&r.0, &["add", "-A"]);
     let out = scan(&r, &["check", "--repo", "."]);
-    assert_eq!(code(&out), Some(0), "{}{}", text(&out.stdout), text(&out.stderr));
+    assert_eq!(
+        code(&out),
+        Some(0),
+        "{}{}",
+        text(&out.stdout),
+        text(&out.stderr)
+    );
     assert!(!text(&out.stdout).contains("VIOLATION"));
 
     write(&r.0, "a/bad.sh", "v=$(python3 -c 'print(1)')\n");
     git(&r.0, &["add", "-A"]);
     let out = scan(&r, &["check", "--repo", "."]);
     assert_eq!(code(&out), Some(1));
-    assert!(text(&out.stdout).lines().any(|l| l.starts_with("VIOLATION a/bad.sh:1:")), "{}", text(&out.stdout));
+    assert!(
+        text(&out.stdout)
+            .lines()
+            .any(|l| l.starts_with("VIOLATION a/bad.sh:1:")),
+        "{}",
+        text(&out.stdout)
+    );
     assert_eq!(code(&scan(&r, &["check", "--bogus"])), Some(2));
 }
 
@@ -165,7 +253,11 @@ const CRATES_IO: &str = "registry+https://github.com/rust-lang/crates.io-index";
 /// noticed and present in the repository's cargo home.
 fn crate_repo(tag: &str, listed_version: &str) -> Repo {
     let r = repo(tag);
-    write(&r.0, "a/Cargo.toml", "[package]\nname = \"a\"\nversion = \"0.1.0\"\nedition = \"2021\"\n");
+    write(
+        &r.0,
+        "a/Cargo.toml",
+        "[package]\nname = \"a\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
+    );
     write(
         &r.0,
         "a/Cargo.lock",
@@ -193,7 +285,13 @@ fn crate_repo(tag: &str, listed_version: &str) -> Repo {
 }
 
 fn crate_allow(r: &Repo, args: &[&str]) -> Output {
-    launch(".claude/rust/py-boundary-guard/crate_allow.sh", "CRATE_ALLOW_BIN", env!("CARGO_BIN_EXE_crate_allow"), &r.0, args)
+    launch(
+        ".claude/rust/py-boundary-guard/crate_allow.sh",
+        "CRATE_ALLOW_BIN",
+        env!("CARGO_BIN_EXE_crate_allow"),
+        &r.0,
+        args,
+    )
 }
 
 /// deps-allow: `crate_allow.sh check` (cwd = the repository) — pass = exit 0 and `DEPS-ALLOW-PASS` as the last stdout
@@ -202,14 +300,24 @@ fn crate_allow(r: &Repo, args: &[&str]) -> Output {
 fn crate_allow_check_marker_and_findings() {
     let ok = crate_repo("allow-pass", "3.0.9");
     let out = crate_allow(&ok, &["check"]);
-    assert_eq!(code(&out), Some(0), "{}{}", text(&out.stdout), text(&out.stderr));
+    assert_eq!(
+        code(&out),
+        Some(0),
+        "{}{}",
+        text(&out.stdout),
+        text(&out.stderr)
+    );
     assert_eq!(text(&out.stdout).lines().last(), Some("DEPS-ALLOW-PASS"));
 
     let bad = crate_repo("allow-fail", "3.0.8");
     let out = crate_allow(&bad, &["check"]);
     let so = text(&out.stdout);
     assert_eq!(code(&out), Some(1), "{so}");
-    assert!(so.lines().any(|l| l.starts_with("DEPS-VIOLATION unlisted syn@3.0.9")), "{so}");
+    assert!(
+        so.lines()
+            .any(|l| l.starts_with("DEPS-VIOLATION unlisted syn@3.0.9")),
+        "{so}"
+    );
     assert!(!so.contains("DEPS-ALLOW-PASS"), "{so}");
 
     assert_eq!(code(&crate_allow(&ok, &["check", "--bogus"])), Some(2));
@@ -230,8 +338,15 @@ fn crate_allow_path_package_needs_a_tracked_manifest_beside_its_lock() {
         let out = crate_allow(r, &["check"]);
         let so = text(&out.stdout);
         assert_eq!(code(&out), Some(1), "{case}: {so}{}", text(&out.stderr));
-        assert!(so.lines().any(|l| l.starts_with("DEPS-VIOLATION path-unknown b@0.2.0")), "{case}: {so}");
-        assert!(!so.lines().any(|l| l.contains("a@0.1.0")), "{case}: the harness package a passes: {so}");
+        assert!(
+            so.lines()
+                .any(|l| l.starts_with("DEPS-VIOLATION path-unknown b@0.2.0")),
+            "{case}: {so}"
+        );
+        assert!(
+            !so.lines().any(|l| l.contains("a@0.1.0")),
+            "{case}: the harness package a passes: {so}"
+        );
         assert!(!so.contains("DEPS-ALLOW-PASS"), "{case}: {so}");
     };
 
@@ -241,21 +356,46 @@ fn crate_allow_path_package_needs_a_tracked_manifest_beside_its_lock() {
 
     let untracked = crate_repo("path-untracked", "3.0.9");
     write(&untracked.0, "a/Cargo.lock", &lock_with_b);
-    write(&untracked.0, "b/Cargo.toml", "[package]\nname = \"b\"\nversion = \"0.2.0\"\n");
-    write(&untracked.0, "b/Cargo.lock", "version = 4\n\n[[package]]\nname = \"b\"\nversion = \"0.2.0\"\n");
+    write(
+        &untracked.0,
+        "b/Cargo.toml",
+        "[package]\nname = \"b\"\nversion = \"0.2.0\"\n",
+    );
+    write(
+        &untracked.0,
+        "b/Cargo.lock",
+        "version = 4\n\n[[package]]\nname = \"b\"\nversion = \"0.2.0\"\n",
+    );
     unknown(&untracked, "b's manifest and lock are not tracked");
 
     let lockless = crate_repo("path-lockless", "3.0.9");
     write(&lockless.0, "a/Cargo.lock", &lock_with_b);
-    write(&lockless.0, "b/Cargo.toml", "[package]\nname = \"b\"\nversion = \"0.2.0\"\n");
+    write(
+        &lockless.0,
+        "b/Cargo.toml",
+        "[package]\nname = \"b\"\nversion = \"0.2.0\"\n",
+    );
     git(&lockless.0, &["add", "b/Cargo.toml"]);
-    unknown(&lockless, "b's tracked manifest has no tracked lock beside it");
+    unknown(
+        &lockless,
+        "b's tracked manifest has no tracked lock beside it",
+    );
 
     // the same package with its own tracked manifest and lock is a harness package: pass
-    write(&lockless.0, "b/Cargo.lock", "version = 4\n\n[[package]]\nname = \"b\"\nversion = \"0.2.0\"\n");
+    write(
+        &lockless.0,
+        "b/Cargo.lock",
+        "version = 4\n\n[[package]]\nname = \"b\"\nversion = \"0.2.0\"\n",
+    );
     git(&lockless.0, &["add", "b/Cargo.lock"]);
     let out = crate_allow(&lockless, &["check"]);
-    assert_eq!(code(&out), Some(0), "{}{}", text(&out.stdout), text(&out.stderr));
+    assert_eq!(
+        code(&out),
+        Some(0),
+        "{}{}",
+        text(&out.stdout),
+        text(&out.stderr)
+    );
     assert_eq!(text(&out.stdout).lines().last(), Some("DEPS-ALLOW-PASS"));
 }
 
@@ -266,8 +406,18 @@ fn crate_allow_no_tracked_lock_and_non_utf8_argument_are_exit_2() {
     let r = crate_repo("no-lock", "3.0.9");
     git(&r.0, &["rm", "-q", "--cached", "a/Cargo.lock"]);
     let out = crate_allow(&r, &["check"]);
-    assert_eq!(code(&out), Some(2), "{}{}", text(&out.stdout), text(&out.stderr));
-    assert!(!text(&out.stdout).contains("DEPS-"), "{}", text(&out.stdout));
+    assert_eq!(
+        code(&out),
+        Some(2),
+        "{}{}",
+        text(&out.stdout),
+        text(&out.stderr)
+    );
+    assert!(
+        !text(&out.stdout).contains("DEPS-"),
+        "{}",
+        text(&out.stdout)
+    );
     assert!(!out.stderr.is_empty());
 
     // the argument names a readable copy of the allowlist: only its non-UTF-8 name makes it an input error
@@ -275,7 +425,11 @@ fn crate_allow_no_tracked_lock_and_non_utf8_argument_are_exit_2() {
     let ok = crate_repo("non-utf8", "3.0.9");
     let mut name = ok.0.clone().into_os_string();
     name.push(std::ffi::OsStr::from_bytes(b"/allow-\xff\xfe.tsv"));
-    std::fs::copy(ok.0.join(".claude/rust/py-boundary-guard/crate_allowlist.tsv"), &name).unwrap();
+    std::fs::copy(
+        ok.0.join(".claude/rust/py-boundary-guard/crate_allowlist.tsv"),
+        &name,
+    )
+    .unwrap();
     let run = |allowlist: &std::ffi::OsStr| {
         Command::new("bash")
             .arg(root().join(".claude/rust/py-boundary-guard/crate_allow.sh"))
@@ -289,9 +443,19 @@ fn crate_allow_no_tracked_lock_and_non_utf8_argument_are_exit_2() {
     };
     let utf8 = ok.0.join("allow-copy.tsv");
     std::fs::copy(&name, &utf8).unwrap();
-    assert_eq!(code(&run(utf8.as_os_str())), Some(0), "the same table under a UTF-8 name passes");
+    assert_eq!(
+        code(&run(utf8.as_os_str())),
+        Some(0),
+        "the same table under a UTF-8 name passes"
+    );
     let out = run(&name);
-    assert_eq!(code(&out), Some(2), "{}{}", text(&out.stdout), text(&out.stderr));
+    assert_eq!(
+        code(&out),
+        Some(2),
+        "{}{}",
+        text(&out.stdout),
+        text(&out.stderr)
+    );
     assert_eq!(text(&out.stdout), "");
     assert!(!out.stderr.is_empty());
 }

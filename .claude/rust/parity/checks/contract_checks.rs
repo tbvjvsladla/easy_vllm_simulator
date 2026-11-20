@@ -25,15 +25,23 @@ impl Drop for Scratch {
 }
 
 fn scratch(tag: &str) -> Scratch {
-    let n = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
-    let dir = std::env::temp_dir().join(format!("parity-contract-{tag}-{}-{n}", std::process::id()));
+    let n = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let dir =
+        std::env::temp_dir().join(format!("parity-contract-{tag}-{}-{n}", std::process::id()));
     std::fs::create_dir_all(dir.join("tmp")).unwrap();
     Scratch(dir)
 }
 
 /// `parity <args>` with its temporary sandboxes under the scratch directory.
 fn parity(s: &Scratch, args: &[&str]) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_parity")).args(args).env("TMPDIR", s.0.join("tmp")).output().unwrap()
+    Command::new(env!("CARGO_BIN_EXE_parity"))
+        .args(args)
+        .env("TMPDIR", s.0.join("tmp"))
+        .output()
+        .unwrap()
 }
 
 fn text(b: &[u8]) -> String {
@@ -44,13 +52,20 @@ fn text(b: &[u8]) -> String {
 fn empty_repo(s: &Scratch) -> PathBuf {
     let r = s.0.join("repo");
     std::fs::create_dir_all(&r).unwrap();
-    let st = Command::new("git").arg("-C").arg(&r).args(["init", "-q"]).status().unwrap();
+    let st = Command::new("git")
+        .arg("-C")
+        .arg(&r)
+        .args(["init", "-q"])
+        .status()
+        .unwrap();
     assert!(st.success());
     r
 }
 
 fn first_case_id(stage: &str) -> String {
-    let p = Path::new(env!("CARGO_MANIFEST_DIR")).join("cases").join(format!("{stage}.json"));
+    let p = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("cases")
+        .join(format!("{stage}.json"));
     let doc = Json::parse(&std::fs::read_to_string(p).unwrap()).unwrap();
     doc.arr().unwrap()[0].at("id").str().unwrap().to_string()
 }
@@ -65,12 +80,41 @@ fn compare_all_pass_marker_and_exit_0() {
     std::fs::create_dir_all(s.0.join("tree/.claude")).unwrap();
     let list = s.0.join("na.txt");
     let tree = s.0.join("tree");
-    let out = parity(&s, &["na-list", "--tree", tree.to_str().unwrap(), "--out", list.to_str().unwrap()]);
+    let out = parity(
+        &s,
+        &[
+            "na-list",
+            "--tree",
+            tree.to_str().unwrap(),
+            "--out",
+            list.to_str().unwrap(),
+        ],
+    );
     assert_eq!(out.status.code(), Some(0), "{}", text(&out.stderr));
-    let out = parity(&s, &["compare", "--stage", "all", "--repo", repo.to_str().unwrap(), "--na-list", list.to_str().unwrap()]);
+    let out = parity(
+        &s,
+        &[
+            "compare",
+            "--stage",
+            "all",
+            "--repo",
+            repo.to_str().unwrap(),
+            "--na-list",
+            list.to_str().unwrap(),
+        ],
+    );
     let so = text(&out.stdout);
-    assert_eq!(out.status.code(), Some(0), "stdout: {so}\nstderr: {}", text(&out.stderr));
-    assert_eq!(so.lines().last(), Some("PARITY-ALL-PASS python_exec=0"), "{so}");
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "stdout: {so}\nstderr: {}",
+        text(&out.stderr)
+    );
+    assert_eq!(
+        so.lines().last(),
+        Some("PARITY-ALL-PASS python_exec=0"),
+        "{so}"
+    );
     assert!(!so.lines().any(|l| l.starts_with("MISMATCH ")), "{so}");
 }
 
@@ -82,17 +126,42 @@ fn compare_mismatch_lines_and_exit_1() {
     let repo = empty_repo(&s);
     let raw = s.0.join("raw");
     let id = first_case_id("pg");
-    let out = parity(&s, &["compare", "--stage", "pg", "--case", &id, "--repo", repo.to_str().unwrap(), "--raw-dir", raw.to_str().unwrap()]);
+    let out = parity(
+        &s,
+        &[
+            "compare",
+            "--stage",
+            "pg",
+            "--case",
+            &id,
+            "--repo",
+            repo.to_str().unwrap(),
+            "--raw-dir",
+            raw.to_str().unwrap(),
+        ],
+    );
     let so = text(&out.stdout);
-    assert_eq!(out.status.code(), Some(1), "stdout: {so}\nstderr: {}", text(&out.stderr));
+    assert_eq!(
+        out.status.code(),
+        Some(1),
+        "stdout: {so}\nstderr: {}",
+        text(&out.stderr)
+    );
     let mismatches: Vec<&str> = so.lines().filter(|l| l.starts_with("MISMATCH ")).collect();
     assert!(!mismatches.is_empty(), "{so}");
     for l in &mismatches {
         assert!(l.starts_with(&format!("MISMATCH {id} ")), "{l}");
     }
-    assert_eq!(so.lines().last(), Some("compare: 1/1 cases mismatch python_exec=0"), "{so}");
+    assert_eq!(
+        so.lines().last(),
+        Some("compare: 1/1 cases mismatch python_exec=0"),
+        "{so}"
+    );
     assert!(!so.contains("-PASS"), "{so}");
-    assert!(raw.join(&id).join("exit_code").is_file(), "the raw outcome is written under --raw-dir");
+    assert!(
+        raw.join(&id).join("exit_code").is_file(),
+        "the raw outcome is written under --raw-dir"
+    );
 }
 
 /// Usage and input errors: exit 2, a reason on stderr (its wording is free), nothing on stdout.
@@ -110,7 +179,10 @@ fn usage_errors_exit_2_on_stderr() {
         let out = parity(&s, args);
         assert_eq!(out.status.code(), Some(2), "{args:?}");
         assert_eq!(text(&out.stdout), "", "{args:?}");
-        assert!(!text(&out.stderr).trim().is_empty(), "{args:?}: the reason is on stderr");
+        assert!(
+            !text(&out.stderr).trim().is_empty(),
+            "{args:?}: the reason is on stderr"
+        );
     }
 }
 
@@ -132,7 +204,10 @@ mod json {
 
     impl Json {
         pub fn parse(text: &str) -> Result<Json, String> {
-            let mut r = Reader { b: text.as_bytes(), i: 0 };
+            let mut r = Reader {
+                b: text.as_bytes(),
+                i: 0,
+            };
             let v = r.value()?;
             r.ws();
             if r.i != r.b.len() {
@@ -148,7 +223,8 @@ mod json {
         }
         /// `self[key]`, failing the check when the key is absent.
         pub fn at(&self, key: &str) -> &Json {
-            self.get(key).unwrap_or_else(|| panic!("key {key:?} missing in {self:?}"))
+            self.get(key)
+                .unwrap_or_else(|| panic!("key {key:?} missing in {self:?}"))
         }
         pub fn keys(&self) -> Vec<&str> {
             match self {
@@ -181,8 +257,17 @@ mod json {
         }
         /// A list of strings (e.g. `reason_codes`), failing the check on any other shape.
         pub fn strs(&self) -> Vec<String> {
-            let items = self.arr().unwrap_or_else(|| panic!("not an array: {self:?}"));
-            items.iter().map(|v| v.str().unwrap_or_else(|| panic!("not a string: {v:?}")).to_string()).collect()
+            let items = self
+                .arr()
+                .unwrap_or_else(|| panic!("not an array: {self:?}"));
+            items
+                .iter()
+                .map(|v| {
+                    v.str()
+                        .unwrap_or_else(|| panic!("not a string: {v:?}"))
+                        .to_string()
+                })
+                .collect()
         }
     }
 
@@ -262,11 +347,19 @@ mod json {
                 Some(b'n') => self.eat("null").map(|_| Json::Null),
                 Some(c) if *c == b'-' || c.is_ascii_digit() => {
                     let start = self.i;
-                    while self.i < self.b.len() && matches!(self.b[self.i], b'-' | b'+' | b'.' | b'e' | b'E' | b'0'..=b'9') {
+                    while self.i < self.b.len()
+                        && matches!(
+                            self.b[self.i],
+                            b'-' | b'+' | b'.' | b'e' | b'E' | b'0'..=b'9'
+                        )
+                    {
                         self.i += 1;
                     }
-                    let t = std::str::from_utf8(&self.b[start..self.i]).unwrap().to_string();
-                    t.parse::<f64>().map_err(|e| format!("bad number {t:?}: {e}"))?;
+                    let t = std::str::from_utf8(&self.b[start..self.i])
+                        .unwrap()
+                        .to_string();
+                    t.parse::<f64>()
+                        .map_err(|e| format!("bad number {t:?}: {e}"))?;
                     Ok(Json::Num(t))
                 }
                 Some(c) => Err(format!("unexpected byte {c:#x} at {}", self.i)),
@@ -274,7 +367,8 @@ mod json {
         }
         fn hex4(&mut self) -> Result<u32, String> {
             let h = self.b.get(self.i..self.i + 4).ok_or("short \\u escape")?;
-            let v = u32::from_str_radix(std::str::from_utf8(h).map_err(|e| e.to_string())?, 16).map_err(|e| e.to_string())?;
+            let v = u32::from_str_radix(std::str::from_utf8(h).map_err(|e| e.to_string())?, 16)
+                .map_err(|e| e.to_string())?;
             self.i += 4;
             Ok(v)
         }

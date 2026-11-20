@@ -26,8 +26,14 @@ impl Drop for Scratch {
 }
 
 fn scratch(tag: &str) -> Scratch {
-    let n = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
-    let p = std::env::temp_dir().join(format!("policy-gate-contract-{tag}-{}-{n}", std::process::id()));
+    let n = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let p = std::env::temp_dir().join(format!(
+        "policy-gate-contract-{tag}-{}-{n}",
+        std::process::id()
+    ));
     std::fs::create_dir_all(&p).unwrap();
     Scratch(std::fs::canonicalize(&p).unwrap())
 }
@@ -50,7 +56,10 @@ fn fixtures(tag: &str) -> Scratch {
     let s = scratch(tag);
     let data = Path::new(env!("CARGO_MANIFEST_DIR")).join("checks/data/cg");
     copy_tree(&data.join("fx"), &s.0.join("fx"));
-    for line in std::fs::read_to_string(data.join("symlinks.tsv")).unwrap().lines() {
+    for line in std::fs::read_to_string(data.join("symlinks.tsv"))
+        .unwrap()
+        .lines()
+    {
         if let Some((link, target)) = line.split_once('\t') {
             std::os::unix::fs::symlink(target, s.0.join(link)).unwrap();
         }
@@ -76,10 +85,19 @@ fn gate(cwd: &Path, args: &[&str]) -> Output {
 /// The whole stdout is one JSON object whose `exit_code` equals the process exit code.
 fn gate_json(out: &Output) -> Json {
     let so = text(&out.stdout);
-    let doc = Json::parse(&so).unwrap_or_else(|e| panic!("stdout is not one JSON document ({e}):\n{so}\nstderr:\n{}", text(&out.stderr)));
+    let doc = Json::parse(&so).unwrap_or_else(|e| {
+        panic!(
+            "stdout is not one JSON document ({e}):\n{so}\nstderr:\n{}",
+            text(&out.stderr)
+        )
+    });
     assert_eq!(doc.kind(), "object", "{so}");
     let rc = out.status.code().expect("exit code");
-    assert_eq!(doc.at("exit_code"), &Json::Num(rc.to_string()), "exit_code field = process exit code: {so}");
+    assert_eq!(
+        doc.at("exit_code"),
+        &Json::Num(rc.to_string()),
+        "exit_code field = process exit code: {so}"
+    );
     doc
 }
 
@@ -98,7 +116,11 @@ fn assert_verify_shape(doc: &Json) {
         ("checked_evidence", &["object"]),
     ];
     for (k, kinds) in types {
-        assert!(kinds.contains(&doc.at(k).kind()), "{k}: {:?} not in {kinds:?}", doc.at(k));
+        assert!(
+            kinds.contains(&doc.at(k).kind()),
+            "{k}: {:?} not in {kinds:?}",
+            doc.at(k)
+        );
     }
     doc.at("reason_codes").strs();
 }
@@ -119,7 +141,11 @@ fn assert_authorize_shape(doc: &Json) {
         ("propagation_scope", &["object", "null"]),
     ];
     for (k, kinds) in types {
-        assert!(kinds.contains(&doc.at(k).kind()), "{k}: {:?} not in {kinds:?}", doc.at(k));
+        assert!(
+            kinds.contains(&doc.at(k).kind()),
+            "{k}: {:?} not in {kinds:?}",
+            doc.at(k)
+        );
     }
     doc.at("reason_codes").strs();
 }
@@ -132,11 +158,29 @@ fn opt_str(v: &Json) -> Option<&str> {
 /// (the codes policy-selftest and the hint promotion path read are among them).
 #[test]
 fn verify_exit_state_and_reason_codes() {
-    type Row = (&'static str, i32, Option<&'static str>, bool, &'static [&'static str]);
+    type Row = (
+        &'static str,
+        i32,
+        Option<&'static str>,
+        bool,
+        &'static [&'static str],
+    );
     let rows: [Row; 8] = [
         ("m_full_pass", 0, Some("promotion-ready"), true, &[]),
-        ("m_map", 0, Some("promotion-ready"), true, &["HINT_MAP_ONLY_PROMOTION"]),
-        ("m_map_nocert", 1, Some("evidence-complete"), false, &["HINT_MAP_REQUIRES_LITE_PASS_CERTIFICATE"]),
+        (
+            "m_map",
+            0,
+            Some("promotion-ready"),
+            true,
+            &["HINT_MAP_ONLY_PROMOTION"],
+        ),
+        (
+            "m_map_nocert",
+            1,
+            Some("evidence-complete"),
+            false,
+            &["HINT_MAP_REQUIRES_LITE_PASS_CERTIFICATE"],
+        ),
         (
             "m_lite_in_full",
             1,
@@ -152,52 +196,146 @@ fn verify_exit_state_and_reason_codes() {
                 "PII_SCAN_COVERAGE_INCOMPLETE:testlog",
             ],
         ),
-        ("m_rt_smoke", 1, None, false, &["RUNTIME_FUNCTIONAL_SMOKE_NOT_PASSED"]),
-        ("m_harness", 1, Some("evidence-complete"), false, &["PROMOTION_REQUIRES_FULL_BENCHMARK_CLASS"]),
+        (
+            "m_rt_smoke",
+            1,
+            None,
+            false,
+            &["RUNTIME_FUNCTIONAL_SMOKE_NOT_PASSED"],
+        ),
+        (
+            "m_harness",
+            1,
+            Some("evidence-complete"),
+            false,
+            &["PROMOTION_REQUIRES_FULL_BENCHMARK_CLASS"],
+        ),
         ("none", 2, None, false, &["MANIFEST_FILE_NOT_FOUND"]),
         ("m_badjson", 2, None, false, &["MANIFEST_INVALID_JSON"]),
     ];
     let s = fixtures("verify");
     for (mf, rc, state, eligible, codes) in rows {
         let manifest = format!("fx/{mf}.mf");
-        let out = gate(&s.0, &["verify", "--manifest", &manifest, "--repo-root", "fx"]);
+        let out = gate(
+            &s.0,
+            &["verify", "--manifest", &manifest, "--repo-root", "fx"],
+        );
         assert_eq!(out.status.code(), Some(rc), "{mf}: {}", text(&out.stdout));
         let doc = gate_json(&out);
         assert_verify_shape(&doc);
         assert_eq!(opt_str(doc.at("state")), state, "{mf}");
-        assert_eq!(doc.at("eligible_for_promotion"), &Json::Bool(eligible), "{mf}");
+        assert_eq!(
+            doc.at("eligible_for_promotion"),
+            &Json::Bool(eligible),
+            "{mf}"
+        );
         assert_eq!(doc.at("reason_codes").strs(), codes, "{mf}");
     }
     // the promotion-ready document carries the rubric, the certificate and the checked evidence it judged
-    let out = gate(&s.0, &["verify", "--manifest", "fx/m_full_pass.mf", "--repo-root", "fx"]);
+    let out = gate(
+        &s.0,
+        &[
+            "verify",
+            "--manifest",
+            "fx/m_full_pass.mf",
+            "--repo-root",
+            "fx",
+        ],
+    );
     let doc = gate_json(&out);
     assert_eq!(doc.at("rubric").kind(), "object");
     assert_eq!(doc.at("certificate").kind(), "object");
     assert_eq!(doc.at("certificate").at("verdict").str(), Some("PASS"));
-    assert_eq!(doc.at("checked_evidence").at("plan").at("exists"), &Json::Bool(true));
+    assert_eq!(
+        doc.at("checked_evidence").at("plan").at("exists"),
+        &Json::Bool(true)
+    );
 }
 
 /// `authorize --manifest --mode --action --repo-root`: `allowed`, the exit code and the reason codes; `sync_to_sub`
 /// carries the approved `propagation_scope` (status, topology, node_id, ssh_host, work_dir, planes).
 #[test]
 fn authorize_allowed_exit_and_reason_codes() {
-    type Row = (&'static str, &'static str, &'static str, i32, bool, &'static [&'static str]);
+    type Row = (
+        &'static str,
+        &'static str,
+        &'static str,
+        i32,
+        bool,
+        &'static [&'static str],
+    );
     let rows: [Row; 9] = [
         ("a_ok", "experimental", "sync_branches", 0, true, &[]),
-        ("a_ok", "experimental", "hint_push", 1, false, &["EXECUTION_APPROVAL_ACTION_NOT_ALLOWED"]),
-        ("a_noapproval", "experimental", "sync_branches", 1, false, &["EXECUTION_APPROVAL_ABSENT"]),
+        (
+            "a_ok",
+            "experimental",
+            "hint_push",
+            1,
+            false,
+            &["EXECUTION_APPROVAL_ACTION_NOT_ALLOWED"],
+        ),
+        (
+            "a_noapproval",
+            "experimental",
+            "sync_branches",
+            1,
+            false,
+            &["EXECUTION_APPROVAL_ABSENT"],
+        ),
         ("a_prop_ok", "experimental", "sync_to_sub", 0, true, &[]),
-        ("a_prop_badhost", "experimental", "sync_to_sub", 2, false, &["PROPAGATION_AUTHORIZATION_SSH_HOST_INVALID"]),
+        (
+            "a_prop_badhost",
+            "experimental",
+            "sync_to_sub",
+            2,
+            false,
+            &["PROPAGATION_AUTHORIZATION_SSH_HOST_INVALID"],
+        ),
         ("m_full_pass", "promotion", "hint_finalize", 0, true, &[]),
         ("m_explore", "promotion", "hint_verify", 0, true, &[]),
-        ("m_harness", "promotion", "sync_branches", 1, false, &["PROMOTION_GATE_NOT_ELIGIBLE", "PROMOTION_REQUIRES_FULL_BENCHMARK_CLASS"]),
-        ("m_badjson", "experimental", "sync_branches", 2, false, &["MANIFEST_INVALID_JSON"]),
+        (
+            "m_harness",
+            "promotion",
+            "sync_branches",
+            1,
+            false,
+            &[
+                "PROMOTION_GATE_NOT_ELIGIBLE",
+                "PROMOTION_REQUIRES_FULL_BENCHMARK_CLASS",
+            ],
+        ),
+        (
+            "m_badjson",
+            "experimental",
+            "sync_branches",
+            2,
+            false,
+            &["MANIFEST_INVALID_JSON"],
+        ),
     ];
     let s = fixtures("authorize");
     for (mf, mode, action, rc, allowed, codes) in rows {
         let manifest = format!("fx/{mf}.mf");
-        let out = gate(&s.0, &["authorize", "--manifest", &manifest, "--mode", mode, "--action", action, "--repo-root", "fx"]);
-        assert_eq!(out.status.code(), Some(rc), "{mf} {mode} {action}: {}", text(&out.stdout));
+        let out = gate(
+            &s.0,
+            &[
+                "authorize",
+                "--manifest",
+                &manifest,
+                "--mode",
+                mode,
+                "--action",
+                action,
+                "--repo-root",
+                "fx",
+            ],
+        );
+        assert_eq!(
+            out.status.code(),
+            Some(rc),
+            "{mf} {mode} {action}: {}",
+            text(&out.stdout)
+        );
         let doc = gate_json(&out);
         assert_authorize_shape(&doc);
         assert_eq!(doc.at("allowed"), &Json::Bool(allowed), "{mf} {action}");
@@ -208,7 +346,20 @@ fn authorize_allowed_exit_and_reason_codes() {
             assert_eq!(doc.at("authorization_state").str(), Some("promotion-ready"));
         }
     }
-    let out = gate(&s.0, &["authorize", "--manifest", "fx/a_prop_ok.mf", "--mode", "experimental", "--action", "sync_to_sub", "--repo-root", "fx"]);
+    let out = gate(
+        &s.0,
+        &[
+            "authorize",
+            "--manifest",
+            "fx/a_prop_ok.mf",
+            "--mode",
+            "experimental",
+            "--action",
+            "sync_to_sub",
+            "--repo-root",
+            "fx",
+        ],
+    );
     let scope = gate_json(&out).at("propagation_scope").clone();
     assert_eq!(scope.at("status").str(), Some("approved"));
     assert_eq!(scope.at("topology").str(), Some("single"));
@@ -216,8 +367,25 @@ fn authorize_allowed_exit_and_reason_codes() {
     assert_eq!(scope.at("ssh_host").str(), Some("u@h1"));
     assert_eq!(scope.at("work_dir").str(), Some("/srv/work"));
     assert_eq!(scope.at("planes").strs(), ["overlay"]);
-    let out = gate(&s.0, &["authorize", "--manifest", "fx/a_ok.mf", "--mode", "experimental", "--action", "sync_branches", "--repo-root", "fx"]);
-    assert_eq!(gate_json(&out).at("propagation_scope"), &Json::Null, "no scope outside sync_to_sub");
+    let out = gate(
+        &s.0,
+        &[
+            "authorize",
+            "--manifest",
+            "fx/a_ok.mf",
+            "--mode",
+            "experimental",
+            "--action",
+            "sync_branches",
+            "--repo-root",
+            "fx",
+        ],
+    );
+    assert_eq!(
+        gate_json(&out).at("propagation_scope"),
+        &Json::Null,
+        "no scope outside sync_to_sub"
+    );
 }
 
 /// Usage errors are exit 2 with the gate-shaped JSON on stdout (`CLI_USAGE_ERROR`), never an empty stdout; every
@@ -229,14 +397,34 @@ fn cli_usage_errors_and_accepted_names() {
         &[],
         &["frob"],
         &["verify", "--manifest", "fx/m_harness.mf", "--bogus", "x"],
-        &["authorize", "--manifest", "fx/a_ok.mf", "--mode", "experimental", "--action", "push"],
-        &["authorize", "--manifest", "fx/a_ok.mf", "--mode", "bad", "--action", "sync_to_sub"],
+        &[
+            "authorize",
+            "--manifest",
+            "fx/a_ok.mf",
+            "--mode",
+            "experimental",
+            "--action",
+            "push",
+        ],
+        &[
+            "authorize",
+            "--manifest",
+            "fx/a_ok.mf",
+            "--mode",
+            "bad",
+            "--action",
+            "sync_to_sub",
+        ],
     ];
     for args in bad {
         let out = gate(&s.0, args);
         assert_eq!(out.status.code(), Some(2), "{args:?}");
         let doc = gate_json(&out);
-        assert_eq!(doc.at("reason_codes").strs(), ["CLI_USAGE_ERROR"], "{args:?}");
+        assert_eq!(
+            doc.at("reason_codes").strs(),
+            ["CLI_USAGE_ERROR"],
+            "{args:?}"
+        );
         if args.first() == Some(&"authorize") {
             assert_authorize_shape(&doc);
             assert_eq!(doc.at("allowed"), &Json::Bool(false));
@@ -244,11 +432,35 @@ fn cli_usage_errors_and_accepted_names() {
             assert_verify_shape(&doc);
         }
     }
-    for action in ["sync_to_sub", "sync_branches", "hint_finalize", "hint_verify", "hint_push"] {
+    for action in [
+        "sync_to_sub",
+        "sync_branches",
+        "hint_finalize",
+        "hint_verify",
+        "hint_push",
+    ] {
         for mode in ["experimental", "promotion"] {
-            let out = gate(&s.0, &["authorize", "--manifest", "fx/a_ok.mf", "--mode", mode, "--action", action, "--repo-root", "fx"]);
+            let out = gate(
+                &s.0,
+                &[
+                    "authorize",
+                    "--manifest",
+                    "fx/a_ok.mf",
+                    "--mode",
+                    mode,
+                    "--action",
+                    action,
+                    "--repo-root",
+                    "fx",
+                ],
+            );
             let doc = gate_json(&out);
-            assert!(!doc.at("reason_codes").strs().contains(&"CLI_USAGE_ERROR".to_string()), "{mode} {action} rejected");
+            assert!(
+                !doc.at("reason_codes")
+                    .strs()
+                    .contains(&"CLI_USAGE_ERROR".to_string()),
+                "{mode} {action} rejected"
+            );
         }
     }
     let out = gate(&s.0, &["--help"]);
@@ -262,12 +474,22 @@ fn cli_usage_errors_and_accepted_names() {
 fn launcher_override_and_absent_executable() {
     let launcher = root().join(".claude/policies/runtime/completion_gate.sh");
     assert!(launcher.is_file());
-    let out = Command::new("bash").arg(&launcher).arg("verify").env("COMPLETION_GATE_BIN", "/nonexistent/completion_gate").output().unwrap();
+    let out = Command::new("bash")
+        .arg(&launcher)
+        .arg("verify")
+        .env("COMPLETION_GATE_BIN", "/nonexistent/completion_gate")
+        .output()
+        .unwrap();
     assert_eq!(out.status.code(), Some(2));
     assert_eq!(text(&out.stdout), "");
     let dn = root().join(".claude/policies/runtime/doc_naming.sh");
     assert!(dn.is_file());
-    let out = Command::new("bash").arg(&dn).arg("--self-test").env("DOC_NAMING_BIN", "/nonexistent/doc_naming").output().unwrap();
+    let out = Command::new("bash")
+        .arg(&dn)
+        .arg("--self-test")
+        .env("DOC_NAMING_BIN", "/nonexistent/doc_naming")
+        .output()
+        .unwrap();
     assert_eq!(out.status.code(), Some(2));
     assert_eq!(text(&out.stdout), "");
 }
@@ -278,12 +500,23 @@ fn launcher_override_and_absent_executable() {
 fn authorize_tripwire_failure_is_a_refusal() {
     for (stub, rc, allowed, codes) in [
         ("exit 0\n", 0, true, &[][..]),
-        ("echo '[tripwire] FAIL contract stub' >&2\nexit 1\n", 2, false, &["TRIPWIRE_FAILED"][..]),
+        (
+            "echo '[tripwire] FAIL contract stub' >&2\nexit 1\n",
+            2,
+            false,
+            &["TRIPWIRE_FAILED"][..],
+        ),
     ] {
         let s = scratch("tripwire");
         let repo = &s.0;
-        copy_tree(&Path::new(env!("CARGO_MANIFEST_DIR")).join("checks/data/cg/fx"), repo);
-        copy_tree(&root().join(".claude/schemas"), &repo.join(".claude/schemas"));
+        copy_tree(
+            &Path::new(env!("CARGO_MANIFEST_DIR")).join("checks/data/cg/fx"),
+            repo,
+        );
+        copy_tree(
+            &root().join(".claude/schemas"),
+            &repo.join(".claude/schemas"),
+        );
         let rt = repo.join(".claude/policies/runtime");
         std::fs::create_dir_all(&rt).unwrap();
         std::fs::write(rt.join("runtime_selftest.sh"), stub).unwrap();
@@ -291,13 +524,28 @@ fn authorize_tripwire_failure_is_a_refusal() {
             .arg("-c")
             .arg("exec -a \"$0\" \"$GATE_BIN\" \"$@\"")
             .arg(rt.join("completion_gate.sh"))
-            .args(["authorize", "--manifest", "a_ok.mf", "--mode", "experimental", "--action", "sync_branches", "--repo-root"])
+            .args([
+                "authorize",
+                "--manifest",
+                "a_ok.mf",
+                "--mode",
+                "experimental",
+                "--action",
+                "sync_branches",
+                "--repo-root",
+            ])
             .arg(repo)
             .env("GATE_BIN", env!("CARGO_BIN_EXE_completion_gate"))
             .current_dir(repo)
             .output()
             .unwrap();
-        assert_eq!(out.status.code(), Some(rc), "{}{}", text(&out.stdout), text(&out.stderr));
+        assert_eq!(
+            out.status.code(),
+            Some(rc),
+            "{}{}",
+            text(&out.stdout),
+            text(&out.stderr)
+        );
         let doc = gate_json(&out);
         assert_eq!(doc.at("allowed"), &Json::Bool(allowed));
         assert_eq!(doc.at("reason_codes").strs(), codes);
@@ -313,7 +561,14 @@ fn non_utf8_text_argument_is_exit_2() {
     let s = fixtures("nonutf8");
     let out = Command::new("bash")
         .arg(root().join(".claude/policies/runtime/completion_gate.sh"))
-        .args(["authorize", "--manifest", "fx/a_ok.mf", "--mode", "experimental", "--action"])
+        .args([
+            "authorize",
+            "--manifest",
+            "fx/a_ok.mf",
+            "--mode",
+            "experimental",
+            "--action",
+        ])
         .arg(bad)
         .args(["--repo-root", "fx"])
         .env("COMPLETION_GATE_BIN", env!("CARGO_BIN_EXE_completion_gate"))
@@ -321,7 +576,10 @@ fn non_utf8_text_argument_is_exit_2() {
         .output()
         .unwrap();
     assert_eq!(out.status.code(), Some(2));
-    assert_eq!(gate_json(&out).at("reason_codes").strs(), ["CLI_USAGE_ERROR"]);
+    assert_eq!(
+        gate_json(&out).at("reason_codes").strs(),
+        ["CLI_USAGE_ERROR"]
+    );
     let out = Command::new("bash")
         .arg(root().join(".claude/policies/runtime/doc_naming.sh"))
         .arg(bad)
@@ -370,7 +628,10 @@ mod json {
 
     impl Json {
         pub fn parse(text: &str) -> Result<Json, String> {
-            let mut r = Reader { b: text.as_bytes(), i: 0 };
+            let mut r = Reader {
+                b: text.as_bytes(),
+                i: 0,
+            };
             let v = r.value()?;
             r.ws();
             if r.i != r.b.len() {
@@ -386,7 +647,8 @@ mod json {
         }
         /// `self[key]`, failing the check when the key is absent.
         pub fn at(&self, key: &str) -> &Json {
-            self.get(key).unwrap_or_else(|| panic!("key {key:?} missing in {self:?}"))
+            self.get(key)
+                .unwrap_or_else(|| panic!("key {key:?} missing in {self:?}"))
         }
         pub fn keys(&self) -> Vec<&str> {
             match self {
@@ -419,8 +681,17 @@ mod json {
         }
         /// A list of strings (e.g. `reason_codes`), failing the check on any other shape.
         pub fn strs(&self) -> Vec<String> {
-            let items = self.arr().unwrap_or_else(|| panic!("not an array: {self:?}"));
-            items.iter().map(|v| v.str().unwrap_or_else(|| panic!("not a string: {v:?}")).to_string()).collect()
+            let items = self
+                .arr()
+                .unwrap_or_else(|| panic!("not an array: {self:?}"));
+            items
+                .iter()
+                .map(|v| {
+                    v.str()
+                        .unwrap_or_else(|| panic!("not a string: {v:?}"))
+                        .to_string()
+                })
+                .collect()
         }
     }
 
@@ -500,11 +771,19 @@ mod json {
                 Some(b'n') => self.eat("null").map(|_| Json::Null),
                 Some(c) if *c == b'-' || c.is_ascii_digit() => {
                     let start = self.i;
-                    while self.i < self.b.len() && matches!(self.b[self.i], b'-' | b'+' | b'.' | b'e' | b'E' | b'0'..=b'9') {
+                    while self.i < self.b.len()
+                        && matches!(
+                            self.b[self.i],
+                            b'-' | b'+' | b'.' | b'e' | b'E' | b'0'..=b'9'
+                        )
+                    {
                         self.i += 1;
                     }
-                    let t = std::str::from_utf8(&self.b[start..self.i]).unwrap().to_string();
-                    t.parse::<f64>().map_err(|e| format!("bad number {t:?}: {e}"))?;
+                    let t = std::str::from_utf8(&self.b[start..self.i])
+                        .unwrap()
+                        .to_string();
+                    t.parse::<f64>()
+                        .map_err(|e| format!("bad number {t:?}: {e}"))?;
                     Ok(Json::Num(t))
                 }
                 Some(c) => Err(format!("unexpected byte {c:#x} at {}", self.i)),
@@ -512,7 +791,8 @@ mod json {
         }
         fn hex4(&mut self) -> Result<u32, String> {
             let h = self.b.get(self.i..self.i + 4).ok_or("short \\u escape")?;
-            let v = u32::from_str_radix(std::str::from_utf8(h).map_err(|e| e.to_string())?, 16).map_err(|e| e.to_string())?;
+            let v = u32::from_str_radix(std::str::from_utf8(h).map_err(|e| e.to_string())?, 16)
+                .map_err(|e| e.to_string())?;
             self.i += 4;
             Ok(v)
         }

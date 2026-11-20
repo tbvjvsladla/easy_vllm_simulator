@@ -21,11 +21,16 @@ fn oracle(stdin: &[u8]) -> (Option<i32>, String, String) {
         .unwrap();
     child.stdin.take().unwrap().write_all(stdin).unwrap();
     let out = child.wait_with_output().unwrap();
-    (out.status.code(), String::from_utf8(out.stdout).unwrap(), String::from_utf8(out.stderr).unwrap())
+    (
+        out.status.code(),
+        String::from_utf8(out.stdout).unwrap(),
+        String::from_utf8(out.stderr).unwrap(),
+    )
 }
 
 fn pairs(stdout: &str) -> Vec<(String, String)> {
-    let doc = Json::parse(stdout).unwrap_or_else(|e| panic!("stdout is not JSON ({e}): {stdout:?}"));
+    let doc =
+        Json::parse(stdout).unwrap_or_else(|e| panic!("stdout is not JSON ({e}): {stdout:?}"));
     doc.arr()
         .unwrap_or_else(|| panic!("stdout is not an array: {stdout:?}"))
         .iter()
@@ -42,10 +47,60 @@ fn pairs(stdout: &str) -> Vec<(String, String)> {
 #[test]
 fn quoted_ambiguous_scalars_come_back_as_the_same_strings() {
     let ambiguous = [
-        "0x1F", "0o17", "017", "0b101", "1_000", "+1", "-1", "0", "3.14", "1.", ".5", "+.5", "1e3", "1E-3", ".inf", "-.Inf",
-        "+.INF", ".nan", ".NaN", "1:20", "12:30:45", "y", "Y", "n", "N", "yes", "Yes", "YES", "no", "No", "NO", "on", "On",
-        "ON", "off", "Off", "OFF", "true", "True", "TRUE", "tRUE", "false", "fAlse", "null", "Null", "NULL", "nULL", "~",
-        "2026-10-14", "2026-10-14T09:00:00+09:00", "2026-10-14 09:00:00", "2026-10-14t09:00:00z", "=", "<<",
+        "0x1F",
+        "0o17",
+        "017",
+        "0b101",
+        "1_000",
+        "+1",
+        "-1",
+        "0",
+        "3.14",
+        "1.",
+        ".5",
+        "+.5",
+        "1e3",
+        "1E-3",
+        ".inf",
+        "-.Inf",
+        "+.INF",
+        ".nan",
+        ".NaN",
+        "1:20",
+        "12:30:45",
+        "y",
+        "Y",
+        "n",
+        "N",
+        "yes",
+        "Yes",
+        "YES",
+        "no",
+        "No",
+        "NO",
+        "on",
+        "On",
+        "ON",
+        "off",
+        "Off",
+        "OFF",
+        "true",
+        "True",
+        "TRUE",
+        "tRUE",
+        "false",
+        "fAlse",
+        "null",
+        "Null",
+        "NULL",
+        "nULL",
+        "~",
+        "2026-10-14",
+        "2026-10-14T09:00:00+09:00",
+        "2026-10-14 09:00:00",
+        "2026-10-14t09:00:00z",
+        "=",
+        "<<",
     ];
     let mut text = String::new();
     for s in ambiguous {
@@ -54,7 +109,10 @@ fn quoted_ambiguous_scalars_come_back_as_the_same_strings() {
     let (code, out, err) = oracle(text.as_bytes());
     assert_eq!(code, Some(0), "stderr: {err}");
     assert_eq!(err, "", "a pass writes nothing on stderr");
-    let want: Vec<(String, String)> = ambiguous.iter().map(|s| (s.to_string(), s.to_string())).collect();
+    let want: Vec<(String, String)> = ambiguous
+        .iter()
+        .map(|s| (s.to_string(), s.to_string()))
+        .collect();
     assert_eq!(pairs(&out), want);
 }
 
@@ -77,14 +135,29 @@ fn plain_scalars_show_their_resolution() {
         ("tilde", "!!null ~"),
         ("quoted", "yes"),
     ];
-    assert_eq!(got, want.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect::<Vec<_>>());
-    assert_eq!(oracle(b"").1.trim_end(), "[]", "an empty mapping is an empty array");
+    assert_eq!(
+        got,
+        want.iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect::<Vec<_>>()
+    );
+    assert_eq!(
+        oracle(b"").1.trim_end(),
+        "[]",
+        "an empty mapping is an empty array"
+    );
 }
 
 /// Fail-loud: input outside the flat-mapping subset, or stdin that is not UTF-8, is a non-zero exit and no stdout.
 #[test]
 fn unsupported_or_unreadable_input_is_a_nonzero_exit_without_stdout() {
-    for bad in [&b"k:\n  - x\n"[..], b"[a, b]\n", b"  k: v\n", b"k: v\n---\nj: w\n", b"k: \xff\n"] {
+    for bad in [
+        &b"k:\n  - x\n"[..],
+        b"[a, b]\n",
+        b"  k: v\n",
+        b"k: v\n---\nj: w\n",
+        b"k: \xff\n",
+    ] {
         let (code, out, err) = oracle(bad);
         assert!(matches!(code, Some(c) if c != 0), "{bad:?}: exit {code:?}");
         assert_eq!(out, "", "{bad:?}: nothing on stdout");
@@ -110,7 +183,10 @@ mod json {
 
     impl Json {
         pub fn parse(text: &str) -> Result<Json, String> {
-            let mut r = Reader { b: text.as_bytes(), i: 0 };
+            let mut r = Reader {
+                b: text.as_bytes(),
+                i: 0,
+            };
             let v = r.value()?;
             r.ws();
             if r.i != r.b.len() {
@@ -126,7 +202,8 @@ mod json {
         }
         /// `self[key]`, failing the check when the key is absent.
         pub fn at(&self, key: &str) -> &Json {
-            self.get(key).unwrap_or_else(|| panic!("key {key:?} missing in {self:?}"))
+            self.get(key)
+                .unwrap_or_else(|| panic!("key {key:?} missing in {self:?}"))
         }
         pub fn keys(&self) -> Vec<&str> {
             match self {
@@ -159,8 +236,17 @@ mod json {
         }
         /// A list of strings (e.g. `reason_codes`), failing the check on any other shape.
         pub fn strs(&self) -> Vec<String> {
-            let items = self.arr().unwrap_or_else(|| panic!("not an array: {self:?}"));
-            items.iter().map(|v| v.str().unwrap_or_else(|| panic!("not a string: {v:?}")).to_string()).collect()
+            let items = self
+                .arr()
+                .unwrap_or_else(|| panic!("not an array: {self:?}"));
+            items
+                .iter()
+                .map(|v| {
+                    v.str()
+                        .unwrap_or_else(|| panic!("not a string: {v:?}"))
+                        .to_string()
+                })
+                .collect()
         }
     }
 
@@ -240,11 +326,19 @@ mod json {
                 Some(b'n') => self.eat("null").map(|_| Json::Null),
                 Some(c) if *c == b'-' || c.is_ascii_digit() => {
                     let start = self.i;
-                    while self.i < self.b.len() && matches!(self.b[self.i], b'-' | b'+' | b'.' | b'e' | b'E' | b'0'..=b'9') {
+                    while self.i < self.b.len()
+                        && matches!(
+                            self.b[self.i],
+                            b'-' | b'+' | b'.' | b'e' | b'E' | b'0'..=b'9'
+                        )
+                    {
                         self.i += 1;
                     }
-                    let t = std::str::from_utf8(&self.b[start..self.i]).unwrap().to_string();
-                    t.parse::<f64>().map_err(|e| format!("bad number {t:?}: {e}"))?;
+                    let t = std::str::from_utf8(&self.b[start..self.i])
+                        .unwrap()
+                        .to_string();
+                    t.parse::<f64>()
+                        .map_err(|e| format!("bad number {t:?}: {e}"))?;
                     Ok(Json::Num(t))
                 }
                 Some(c) => Err(format!("unexpected byte {c:#x} at {}", self.i)),
@@ -252,7 +346,8 @@ mod json {
         }
         fn hex4(&mut self) -> Result<u32, String> {
             let h = self.b.get(self.i..self.i + 4).ok_or("short \\u escape")?;
-            let v = u32::from_str_radix(std::str::from_utf8(h).map_err(|e| e.to_string())?, 16).map_err(|e| e.to_string())?;
+            let v = u32::from_str_radix(std::str::from_utf8(h).map_err(|e| e.to_string())?, 16)
+                .map_err(|e| e.to_string())?;
             self.i += 4;
             Ok(v)
         }
