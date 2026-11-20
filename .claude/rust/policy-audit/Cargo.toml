@@ -38,7 +38,6 @@ path = "checks/harness_checks.rs"
 name = "schema_v3_checks"
 path = "checks/schema_v3_checks.rs"
 
-# Contract checks of the fixed surface (plan 26111805, cell c21c-contract-tests).
 [[test]]
 name = "contract_checks"
 path = "checks/contract_checks.rs"

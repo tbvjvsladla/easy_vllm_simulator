@@ -18,7 +18,6 @@ path = "src/bin/verify_distribution.rs"
 name = "pure_goldens"
 path = "checks/pure_goldens.rs"
 
-# Contract checks of the fixed surface (plan 26111805, cell c21c-contract-tests).
 [[test]]
 name = "contract_checks"
 path = "checks/contract_checks.rs"
