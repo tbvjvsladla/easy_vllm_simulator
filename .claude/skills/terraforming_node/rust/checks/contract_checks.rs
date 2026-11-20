@@ -897,11 +897,10 @@ fn eta_and_thermal_params_files() {
 fn render_sub_env_topology_rules_guard() {
     let s = scratch("render");
     let tree = s.0.join("tree");
-    for rel in [".claude/skills/terraforming_node/scripts/render_sub_env.sh"] {
-        let to = tree.join(rel);
-        std::fs::create_dir_all(to.parent().unwrap()).unwrap();
-        std::fs::copy(root().join(rel), &to).unwrap();
-    }
+    let rel = ".claude/skills/terraforming_node/scripts/render_sub_env.sh";
+    let to = tree.join(rel);
+    std::fs::create_dir_all(to.parent().unwrap()).unwrap();
+    std::fs::copy(root().join(rel), &to).unwrap();
     write(
         &tree.join(".claude/rules/strategy.topology.md"),
         "# 특화헌법 픽스처\n\n**topology: multi** · layer: topology\n",
