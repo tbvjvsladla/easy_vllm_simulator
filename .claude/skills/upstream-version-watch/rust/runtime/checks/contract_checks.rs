@@ -2256,8 +2256,12 @@ fn native_remote_stdin_request_protocol() {
         ("nvidia-smi", "#!/bin/sh\nprintf '4242, vllm, 1024\\n'\n"),
         ("ss", "#!/bin/sh\nprintf 'LISTEN 0 4096 127.0.0.1:8000 0.0.0.0:*\\nLISTEN 0 128 [::]:22 [::]:*\\n'\n"),
     ] {
-        write(&stand_in.join(name), body);
-        std::fs::set_permissions(stand_in.join(name), std::fs::Permissions::from_mode(0o755)).unwrap();
+        // the executable file is created by `install`, not by this process: a file this process wrote could still be
+        // open for writing in a child another check thread is forking, and executing it would fail with ETXTBSY
+        let source = s.0.join(format!("{name}.body"));
+        write(&source, body);
+        let st = Command::new("install").arg("-m").arg("0755").arg(&source).arg(stand_in.join(name)).stdin(Stdio::null()).status().unwrap();
+        assert!(st.success(), "install {name}");
     }
     let call_raw = |stdin: &str, path: Option<&Path>| {
         use std::io::Write;

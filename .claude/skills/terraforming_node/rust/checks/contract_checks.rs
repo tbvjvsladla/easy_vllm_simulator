@@ -1145,7 +1145,18 @@ fn blackbox_daemons_run_as_installed() {
         ("lifecycle", env!("CARGO_BIN_EXE_logs_lifecycle")),
         ("regen-envelope", env!("CARGO_BIN_EXE_regen_envelope")),
     ] {
-        std::fs::copy(exe, sbin.join(format!("easy-vllm-bb-{name}"))).unwrap();
+        // `install -m 0755`, as the installer copies them; a copy written by this process could still be open for
+        // writing in a child another check thread is forking, and executing it would fail with ETXTBSY
+        let to = sbin.join(format!("easy-vllm-bb-{name}"));
+        let st = Command::new(on_path("install"))
+            .arg("-m")
+            .arg("0755")
+            .arg(exe)
+            .arg(&to)
+            .stdin(Stdio::null())
+            .status()
+            .unwrap();
+        assert!(st.success(), "install {exe} {to:?}");
     }
     // (the installed eta copy has one check fewer than through its launcher: the legacy-watchdog cross-check needs the
     // repository and reports itself skipped)
