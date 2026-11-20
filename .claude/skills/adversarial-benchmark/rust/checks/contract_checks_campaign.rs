@@ -11,8 +11,11 @@
 //!   hint-publisher `evidence/e4.rs`, terraforming `relay/core.rs` and its lifecycle self-test, recipe
 //!   `run_trial_session.rs`: the `campaign_init` read shapes (`--active`, `--derive`, `--assigned-cells`,
 //!   `--lockset-precheck` JSON with exit 0/2, `--grounding-check`), the writers (`--phase-set`, `--cell-set`,
-//!   `--write-brief`, `--escalation-add`, `--assign-set`), the relay shapes (`--emit-slice`, `--lifecycle` JSON), the
-//!   `--resume-brief` first line, the `--verify-purge-gate` reason lines, usage exit 2;
+//!   `--write-brief`, `--escalation-add`, `--assign-set`), the relay shapes (`--emit-slice [--out]`, `--lifecycle` JSON,
+//!   `--sub-echo` and its `[campaign_init] APPLIED ` line), hint-publisher's `--evidence-relocate`, fetch_sub_docs.sh's
+//!   `--import-sub`, the `--resume-brief` first line, the `--verify-purge-gate` reason lines, usage exit 2; the options
+//!   the consumers pass are probed by running the parser with them (a prefix-abbreviating parser could take `--out` for
+//!   `--outcome`), and the writers keep the keys they do not know (types.md 4절);
 //! - policy-distribution `checks.rs`: the self-tests (`--selftest`, `--self-test`, `--p1-self-check`) need exit 0;
 //! - run_bench.sh·lite_bench.sh, policy-predicates `claims_owner.rs`·`claims_tf.rs`: the Flag gate `--topology --repo
 //!   --require-flag|--json`, exit 0 = Flag, 3 = no manifest, 4 = Flag not issued; native_health_probes.sh: the private
@@ -161,6 +164,23 @@ fn num(v: &Json) -> &str {
 
 fn assert_rc(out: &Output, rc: i32, what: &str) {
     assert_eq!(out.status.code(), Some(rc), "{what}\nstdout:\n{}\nstderr:\n{}", text(&out.stdout), text(&out.stderr));
+}
+
+/// `opt` appears in `listing` as a whole option or subcommand token: the bytes around it are not part of a name, so
+/// `--out` is not found inside `--outcome` and `--void-reason` not inside `--void-reason-source`. This reads the help
+/// listing only (the documents' names); the options the consumers pass are probed by running the parser with them.
+fn names_option(listing: &str, opt: &str) -> bool {
+    let part = |c: u8| c.is_ascii_alphanumeric() || c == b'-' || c == b'_';
+    let b = listing.as_bytes();
+    listing.match_indices(opt).any(|(at, _)| {
+        let end = at + opt.len();
+        (at == 0 || !part(b[at - 1])) && (end == b.len() || !part(b[end]))
+    })
+}
+
+/// A usage error of the parser: exit 2 with a usage block on stderr (argparse `usage: …`, clap `Usage: …`).
+fn usage_error(out: &Output) -> bool {
+    out.status.code() == Some(2) && text(&out.stderr).to_ascii_lowercase().contains("usage")
 }
 
 /// The first executable ELF of that name on PATH (a stand-in for a launcher that only starts an ELF).
@@ -412,7 +432,7 @@ fn manifest_contract_flag_gate_exit_codes_and_json() {
     assert_rc(&out, 0, "--help");
     let help = text(&out.stdout);
     for opt in ["--topology", "--repo", "--require-flag", "--json", "--self-test"] {
-        assert!(help.contains(opt), "manifest_contract option {opt}");
+        assert!(names_option(&help, opt), "manifest_contract option {opt}");
     }
 }
 
@@ -522,7 +542,7 @@ fn turn_budget_self_test_caps_and_declaration() {
     assert_rc(&out, 0, "--help");
     let help = text(&out.stdout);
     for opt in ["--max-turns", "--timeout-seconds", "--source", "--caps", "--self-test"] {
-        assert!(help.contains(opt), "turn_budget option {opt}");
+        assert!(names_option(&help, opt), "turn_budget option {opt}");
     }
 }
 
@@ -564,7 +584,7 @@ fn scan_node_self_tests_and_options() {
         "--emit-sub-manifest",
         "--self-test",
     ] {
-        assert!(help.contains(opt), "scan_node option {opt}");
+        assert!(names_option(&help, opt), "scan_node option {opt}");
     }
 }
 
@@ -928,9 +948,9 @@ fn campaign_init_writers_relay_and_brief_shapes() {
     assert_eq!(doc.at("assignments").keys(), ["sub1"]);
     assert_eq!(doc.at("self_role").str(), Some("sub"));
     assert_eq!(doc.at("_assignment_revision"), &Json::Null);
-    for node in doc.at("nodes").arr().unwrap() {
-        assert_eq!(node.at("node_id").str(), Some("sub1"));
-    }
+    let nodes = doc.at("nodes").arr().unwrap();
+    assert_eq!(nodes.len(), 1, "the slice holds that node only: {nodes:?}");
+    assert_eq!(nodes[0].at("node_id").str(), Some("sub1"));
     c.ok(&[
         "--assign-set", "sub1", "--assign-cells", "c2", "--assign-reason", "r", "--assign-evidence", "e",
         "--assign-approved-by", "contract", "--utc", UTC, "--apply",
@@ -956,8 +976,9 @@ fn campaign_init_writers_relay_and_brief_shapes() {
 }
 
 /// Usage errors are exit 2 with nothing on stdout (a non-UTF-8 argument included); policy-distribution `checks.rs`
-/// needs `--selftest` exit 0; the long options the scripts, the relay, hint-publisher and the documents name are part
-/// of the parser (`--help` exit 0 lists them).
+/// needs `--selftest` exit 0; the long options the documents name are listed by `--help` (exit 0) as whole tokens. The
+/// options the scripts, the relay and hint-publisher pass are probed by running the writer with them
+/// (`campaign_init_consumer_flags_reach_their_options`).
 #[test]
 fn campaign_init_usage_options_and_selftest() {
     let c = Checkout::new("ci-usage");
@@ -982,8 +1003,245 @@ fn campaign_init_usage_options_and_selftest() {
         "--assign-reason", "--assign-evidence", "--assign-approved-by", "--slice-update", "--revise", "--hint-approve",
         "--cells", "--approved-by", "--source", "--utc", "--resume-brief",
     ] {
-        assert!(help.contains(opt), "campaign_init option {opt}");
+        assert!(names_option(&help, opt), "campaign_init option {opt}");
     }
+}
+
+/// Replaces the first `anchor` of the file by `anchor` + `insert` (a fixture edit of a JSON document's text).
+fn inject(path: &Path, anchor: &str, insert: &str) {
+    let body = std::fs::read_to_string(path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
+    assert!(body.contains(anchor), "{anchor:?} not in {}:\n{body}", path.display());
+    std::fs::write(path, body.replacen(anchor, &format!("{anchor}{insert}"), 1)).unwrap();
+}
+
+/// The options the consumers pass reach their own action in the prefix-abbreviating parser (`campaign_args.rs`), probed
+/// by running the writer with them and reading what it wrote:
+/// - broad_search.sh:610-628 `--cell-set --outcome --axis-citation --next-intent --utc --sweep-state [--lite-raw
+///   --void-reason --void-reason-source]` writes those values to `cell.status.json` (`lite_gate` only with `--lite-raw`);
+///   `--void-reason` without `--void-reason-source` is refused, so `--void-reason` is not taken for
+///   `--void-reason-source`;
+/// - `--emit-slice <node> --campaign-id --utc --out PATH` writes the slice to PATH and not to stdout (`--out` is not
+///   `--outcome`);
+/// - `--ground --utc` writes the grounding record `--grounding-check` then accepts (`--ground` is not
+///   `--grounding-check`);
+/// - `--escalation-add --cell --node --utc --window-start-utc --window-end-utc --symptom --events` is exit 0;
+///   `--evidence-add --kind --path --node` and hint-publisher's `--campaign-id --evidence-relocate --kind --path --to
+///   --relocate-reason --utc` move the pointer; fetch_sub_docs.sh `--campaign-id --import-sub <mirror> --utc` reads the
+///   mirror's brief;
+/// - the relay's `--sub-echo <camp> --node --control --utc --apply` prints the `[campaign_init] APPLIED ` line it strips
+///   and records the echo (the `--rev` shape of a reslice echo is not fixed: see the cell record);
+/// - `--suspend <camp>` is a value option: a missing `--release` is a refusal, not the usage error `--suspend-current
+///   <camp>` would be.
+#[test]
+fn campaign_init_consumer_flags_reach_their_options() {
+    let c = Checkout::new("ci-probe");
+    c.open();
+    // fetch_sub_docs.sh: the mirror holds a sub's brief (written before this checkout's own journey grows)
+    c.ok(&["--write-brief", "--node", "sub1", "--utc", UTC]);
+    let mirror = c.repo.join("sync_staging/sub_docs/sub1");
+    copy_file(&c.repo.join("docs/logs/sub1/campaign_brief.json"), &mirror.join("logs/sub1/campaign_brief.json"));
+    c.ok(&["--campaign-id", "c-test", "--import-sub", "sync_staging/sub_docs/sub1", "--utc", UTC]);
+
+    let cell_status = "campaigns/c-test/cells/c1/cell.status.json";
+    let out = c.ci(&["--cell-set", "c1", "--outcome", "measurement_void", "--utc", UTC, "--void-reason", "R1"]);
+    assert_ne!(out.status.code(), Some(0), "--void-reason needs --void-reason-source");
+    assert!(!usage_error(&out), "a refusal, not a usage error: {}", text(&out.stderr));
+    assert!(!c.repo.join(cell_status).exists(), "a refused write leaves no cell status");
+    c.ok(&[
+        "--cell-set", "c1", "--outcome", "measurement_void", "--axis-citation", "AX", "--next-intent", "NI", "--utc", UTC,
+        "--sweep-state", "campaigns/c-test/sweeps/s1.json", "--void-reason", "R1", "--void-reason-source", "S1",
+    ]);
+    let doc = c.json_file(cell_status);
+    assert_eq!(doc.at("cell_outcome").str(), Some("measurement_void"));
+    assert_eq!(doc.at("void_reason").str(), Some("R1"));
+    assert_eq!(doc.at("void_reason_source").str(), Some("S1"));
+    assert_eq!(doc.at("axis_citation").str(), Some("AX"));
+    assert_eq!(doc.at("next_intent").str(), Some("NI"));
+    assert!(doc.get("lite_gate").is_none(), "no lite raw given: {doc:?}");
+    let raw = c.repo.join("lite_raw.json");
+    std::fs::copy(root().join(".claude/skills/adversarial-benchmark/fixtures/lite_raw_d1_connection_refused.json"), &raw).unwrap();
+    c.ok(&["--cell-set", "c1", "--outcome", "measurement_void", "--lite-raw", raw.to_str().unwrap(), "--utc", UTC]);
+    assert_eq!(c.json_file(cell_status).at("lite_gate").kind(), "object", "--lite-raw reaches the lite gate");
+
+    let slice = c.repo.join("slice.json");
+    let out = c.ok(&["--emit-slice", "sub1", "--campaign-id", "c-test", "--utc", UTC, "--out", slice.to_str().unwrap()]);
+    assert!(Json::parse(&text(&out.stdout)).is_err(), "the slice goes to --out, not to stdout: {}", text(&out.stdout));
+    let doc = Json::parse(&std::fs::read_to_string(&slice).unwrap()).unwrap();
+    assert_eq!(doc.at("id").str(), Some("c-test"));
+    assert_eq!(doc.at("assignments").keys(), ["sub1"]);
+
+    assert_ne!(c.ci(&["--grounding-check"]).status.code(), Some(0));
+    c.ok(&["--ground", "--utc", UTC]);
+    c.ok(&["--grounding-check"]);
+
+    let events = c.repo.join("events.jsonl");
+    write(&events, "{\"kind\": \"x\"}\n");
+    c.ok(&[
+        "--escalation-add", "--cell", "c1", "--node", "main", "--utc", UTC, "--window-start-utc", UTC, "--window-end-utc", UTC,
+        "--symptom", "s1", "--events", events.to_str().unwrap(),
+    ]);
+
+    let (old, new) = ("docs/testlog/testlog_26010100_a.md", "docs/testlog/testlog_26010100_b.md");
+    write(&c.repo.join(old), "x\n");
+    c.ok(&["--evidence-add", "--kind", "testlog", "--path", old, "--utc", UTC, "--campaign-id", "c-test", "--node", "main"]);
+    std::fs::rename(c.repo.join(old), c.repo.join(new)).unwrap();
+    c.ok(&[
+        "--campaign-id", "c-test", "--evidence-relocate", "--kind", "testlog", "--path", old, "--to", new, "--relocate-reason",
+        "rename", "--utc", UTC,
+    ]);
+    let pointers = c.json_file("campaigns/c-test/evidence_pointers.json");
+    let items = pointers.at("pointers").arr().unwrap();
+    assert_eq!(items.len(), 1, "{pointers:?}");
+    assert_eq!(items[0].at("path").str(), Some(new));
+    assert_eq!(items[0].at("relocated").arr().unwrap()[0].at("from").str(), Some(old));
+
+
+    let out = c.ci(&["--suspend", "c-test", "--reason", "r", "--utc", UTC, "--approved-by", "contract", "--apply"]);
+    assert_ne!(out.status.code(), Some(0), "a suspension without --release is refused");
+    assert!(!usage_error(&out), "--suspend takes the campaign id: {}", text(&out.stderr));
+
+    // The relay echoes a sub's acknowledgement of the last transition: a suspension that named sub1.
+    let journey = c.repo.join("campaigns/c-test/journey.jsonl");
+    let mut lines = std::fs::read_to_string(&journey).unwrap();
+    lines.push_str(&format!(
+        "{{\"kind\": \"campaign_suspended\", \"lifecycle_v\": 1, \"source\": \"campaign_init\", \"utc\": \"{UTC}\", \"sub_nodes\": [\"sub1\"], \"released\": []}}\n"
+    ));
+    std::fs::write(&journey, lines).unwrap();
+    let out = c.ok(&["--sub-echo", "c-test", "--node", "sub1", "--control", "suspend", "--utc", UTC, "--apply"]);
+    let so = text(&out.stdout);
+    assert!(so.lines().any(|l| l.starts_with("[campaign_init] APPLIED ")), "{so}");
+    let doc = stdout_json(&c.ok(&["--lifecycle", "c-test"]));
+    assert_eq!(doc.at("state").str(), Some("suspended"));
+    assert_eq!(doc.at("sub_echoed").strs(), ["sub1"]);
+}
+
+/// terraforming's lifecycle self-test (`selftests/campaign_lifecycle.rs`) and the documents drive the transitions with
+/// `--init --plan-ref --derived-from|--suspend-current|--preempt`, `--suspend --release --reason`, `--resume-campaign
+/// --accept-drift`, `--abandon --summary-testlog`, `--close`, `--slice-update -`, `--revise --revise-set --revise-reason
+/// --revise-evidence --revise-approved-by`, `--answer-query --query-decision`, `--verify-purge-gate`, `--hint-approve
+/// --cells --node --source`, `--reentry-decide --decision --route`, `--cell-materialize`, `--approved-by --utc`. Each
+/// option reaches the parser: the line is answered by the writer (a refusal of this fixture's state, or a write), never
+/// a usage error, while the same line with that option renamed to an unknown one is. (A transition that would write a
+/// parked devlog needs the document-naming owner, absent here; the writes themselves are the self-test's.)
+#[test]
+fn campaign_init_lifecycle_options_reach_the_parser() {
+    let c = Checkout::new("ci-lifecycle");
+    c.open();
+    let takes = |args: &[&str], probed: &[&str]| {
+        let out = c.ci(args);
+        assert!(!usage_error(&out), "{args:?} is a usage error:\n{}", text(&out.stderr));
+        for name in probed {
+            let at = args.iter().position(|a| a == name).unwrap_or_else(|| panic!("{name} not in {args:?}"));
+            let mut control = args.to_vec();
+            control[at] = "--contract-no-such-option";
+            let out = c.ci(&control);
+            assert!(usage_error(&out), "{control:?}: an unknown option must be a usage error: {:?}\n{}", out.status, text(&out.stderr));
+        }
+    };
+    let init = ["--init", "c2", "--plan-ref", "docs/plan/p.md", "--utc", UTC];
+    for extra in [&["--derived-from", "c-test"][..], &["--suspend-current"], &["--preempt"]] {
+        let mut args = init.to_vec();
+        args.extend_from_slice(extra);
+        takes(&args, &["--init", "--plan-ref", extra[0]]);
+    }
+    takes(&["--suspend", "c-test", "--release", "none", "--reason", "r", "--utc", UTC, "--approved-by", "a"], &["--suspend", "--release", "--reason", "--approved-by"]);
+    takes(&["--resume-campaign", "c-test", "--accept-drift", "--utc", UTC, "--approved-by", "a"], &["--resume-campaign", "--accept-drift"]);
+    takes(&["--abandon", "c-test", "--reason", "r", "--summary-testlog", "docs/testlog/t.md", "--utc", UTC, "--approved-by", "a"], &["--abandon", "--summary-testlog"]);
+    takes(&["--close", "c-test", "--summary-testlog", "docs/testlog/t.md", "--utc", UTC, "--approved-by", "a"], &["--close"]);
+    takes(&["--slice-update", "-", "--utc", UTC], &["--slice-update"]);
+    takes(
+        &["--answer-query", "c-test", "--query-decision", "keep", "--utc", UTC, "--approved-by", "a"],
+        &["--answer-query", "--query-decision"],
+    );
+    takes(&["--verify-purge-gate", "c-test"], &["--verify-purge-gate"]);
+    takes(
+        &["--reentry-decide", "c1", "--decision", "approve", "--route", "explorer", "--approved-by", "a", "--utc", UTC],
+        &["--reentry-decide", "--decision", "--route"],
+    );
+    takes(&["--cell-materialize", "c1", "--utc", UTC], &["--cell-materialize"]);
+    takes(
+        &["--hint-approve", "--cells", "c1", "--node", "main", "--approved-by", "a", "--source", "declaration-popup", "--utc", UTC],
+        &["--hint-approve", "--cells", "--source"],
+    );
+    takes(
+        &["--revise", "--revise-set", "budgets.repeats=4", "--revise-reason", "r", "--revise-evidence", "e", "--revise-approved-by", "a", "--utc", UTC],
+        &["--revise", "--revise-set", "--revise-reason", "--revise-evidence", "--revise-approved-by"],
+    );
+}
+
+/// The writers that read a campaign document and write it again keep the keys they do not know (types.md 4절
+/// 「영속 문서」 4, the campaign state's only writer): the declaration through `--assign-set --apply` (top level, a node,
+/// another node's assignment item, `budgets`; the re-assigned node's list is the new declaration and is written whole),
+/// the cell status through `--cell-set` (top level, `measurement`), a phase status
+/// through `--phase-set` (top level; `proof` is each call's new observation and is written whole), the evidence
+/// pointers through `--evidence-add` (top level, a pointer).
+#[test]
+fn campaign_init_writers_keep_unknown_keys() {
+    let c = Checkout::new("ci-keys");
+    c.open();
+    let decl = c.repo.join("campaigns/c-test/campaign.yaml");
+    inject(&decl, "{", r#""_contract_top": "keep-top", "#);
+    inject(&decl, r#""role": "sub", "#, r#""_contract_node": "keep-node", "#);
+    inject(&decl, r#""main": [{"cell": "c1", "#, r#""_contract_item": "keep-item", "#);
+    inject(&decl, r#""budgets": {"#, r#""_contract_nested": 7, "#);
+    c.ok(&[
+        "--assign-set", "sub1", "--assign-cells", "c2", "--assign-reason", "r", "--assign-evidence", "e",
+        "--assign-approved-by", "contract", "--utc", UTC, "--apply",
+    ]);
+    let doc = c.json_file("campaigns/c-test/campaign.yaml");
+    assert_eq!(doc.at("_contract_top").str(), Some("keep-top"));
+    let sub = doc.at("nodes").arr().unwrap().iter().find(|n| n.at("node_id").str() == Some("sub1")).unwrap();
+    assert_eq!(sub.at("_contract_node").str(), Some("keep-node"));
+    // sub1's list is the new assignment the call declares; main's item is re-written as it was.
+    let items = doc.at("assignments").at("sub1").arr().unwrap();
+    assert_eq!(items.len(), 1, "{items:?}");
+    assert_eq!(items[0].at("cell").str(), Some("c2"));
+    let main = doc.at("assignments").at("main").arr().unwrap();
+    assert_eq!(main[0].at("cell").str(), Some("c1"));
+    assert_eq!(main[0].at("_contract_item").str(), Some("keep-item"));
+    assert_eq!(num(doc.at("budgets").at("_contract_nested")), "7");
+
+    let cell = c.repo.join("campaigns/c-test/cells/c1/cell.status.json");
+    c.ok(&["--cell-set", "c1", "--outcome", "measurement_void", "--utc", UTC]);
+    inject(&cell, "{", r#""_contract_top": "keep-top", "#);
+    inject(&cell, r#""measurement": {"#, r#""_contract_item": "keep-item", "#);
+    c.ok(&["--cell-set", "c1", "--outcome", "measured", "--utc", UTC]);
+    let doc = c.json_file("campaigns/c-test/cells/c1/cell.status.json");
+    assert_eq!(doc.at("cell_outcome").str(), Some("measured"));
+    assert_eq!(doc.at("_contract_top").str(), Some("keep-top"));
+    assert_eq!(doc.at("measurement").at("_contract_item").str(), Some("keep-item"));
+
+    let phase = c.repo.join("campaigns/c-test/phases/main/bench.status.json");
+    let phase_set = |state: &str, proof: &[&str]| {
+        let mut args = vec![
+            "--phase-set", "bench", "--node", "main", "--cell", "c1", "--state", state, "--proof-predicate", "p",
+            "--proof-source", "s", "--started-utc", UTC, "--authored-by", "main",
+        ];
+        args.extend_from_slice(proof);
+        c.ok(&args);
+    };
+    phase_set("running", &[]);
+    inject(&phase, "{", r#""_contract_top": "keep-top", "#);
+    phase_set("done", &["--proof-ok", "--ended-utc", UTC]);
+    let doc = c.json_file("campaigns/c-test/phases/main/bench.status.json");
+    assert_eq!(doc.at("state").str(), Some("done"));
+    assert_eq!(doc.at("_contract_top").str(), Some("keep-top"));
+
+    let pointers = c.repo.join("campaigns/c-test/evidence_pointers.json");
+    let add = |rel: &str| {
+        write(&c.repo.join(rel), "x\n");
+        c.ok(&["--evidence-add", "--kind", "testlog", "--path", rel, "--utc", UTC, "--campaign-id", "c-test", "--node", "main"]);
+    };
+    add("docs/testlog/testlog_26010100_a.md");
+    inject(&pointers, "{", r#""_contract_top": "keep-top", "#);
+    inject(&pointers, r#""kind": "testlog","#, r#" "_contract_item": "keep-item","#);
+    add("docs/testlog/testlog_26010100_c.md");
+    let doc = c.json_file("campaigns/c-test/evidence_pointers.json");
+    assert_eq!(doc.at("_contract_top").str(), Some("keep-top"));
+    let items = doc.at("pointers").arr().unwrap();
+    assert_eq!(items.len(), 2, "{doc:?}");
+    let first = items.iter().find(|p| p.at("path").str() == Some("docs/testlog/testlog_26010100_a.md")).unwrap();
+    assert_eq!(first.at("_contract_item").str(), Some("keep-item"));
 }
 
 /// campaign_template_validator (policy-distribution `checks.rs` `--selftest`, fetch_sub_docs.sh `--acceptance`, the
@@ -1020,7 +1278,7 @@ fn campaign_template_validator_exit_codes() {
     assert_rc(&out, 0, "--help");
     let help = text(&out.stdout);
     for opt in ["--campaign", "--instance", "--template", "--acceptance", "--selftest"] {
-        assert!(help.contains(opt), "campaign_template_validator option {opt}");
+        assert!(names_option(&help, opt), "campaign_template_validator option {opt}");
     }
 }
 

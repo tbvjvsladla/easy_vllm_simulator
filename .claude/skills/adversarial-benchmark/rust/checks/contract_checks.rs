@@ -199,6 +199,42 @@ fn assert_keys(doc: &Json, types: &[(&str, &[&str])], what: &str) {
     }
 }
 
+/// `name` appears in `listing` as a whole option or subcommand token: the bytes around it are not part of a name, so
+/// `--out` is not found inside `--output-len` and `--record` not inside `--record-path`. This reads a help listing only
+/// (the documents' names); the options the consumers pass are probed by running the parser with them.
+fn names_option(listing: &str, name: &str) -> bool {
+    let part = |c: u8| c.is_ascii_alphanumeric() || c == b'-' || c == b'_';
+    let b = listing.as_bytes();
+    listing.match_indices(name).any(|(at, _)| {
+        let end = at + name.len();
+        (at == 0 || !part(b[at - 1])) && (end == b.len() || !part(b[end]))
+    })
+}
+
+/// A usage error of the parser: exit 2 with a usage block on stderr (argparse `usage: …`, clap `Usage: …`).
+fn usage_error(out: &Output) -> bool {
+    out.status.code() == Some(2) && String::from_utf8_lossy(&out.stderr).to_ascii_lowercase().contains("usage")
+}
+
+/// The parser takes the option `args[at]`: this command line is not a usage error, while the same line with that option
+/// renamed to one no parser has is one. A domain answer to the arguments (exit 2 or another code without a usage block)
+/// passes; the control keeps the probe from passing on a bin that never reports usage errors this way.
+fn assert_parser_takes(cwd: &Path, file: &str, args: &[&str], at: usize, env: &[(&str, &Path)]) {
+    let go = |args: &[&str]| {
+        let mut r = Run::new(cwd, file, args);
+        for (k, v) in env {
+            r = r.env(k, v);
+        }
+        r.out()
+    };
+    let out = go(args);
+    assert!(!usage_error(&out), "{file} {args:?}: {} is not taken\n{}", args[at], String::from_utf8_lossy(&out.stderr));
+    let mut control = args.to_vec();
+    control[at] = "--contract-no-such-option";
+    let out = go(&control);
+    assert!(usage_error(&out), "{file} {control:?}: an unknown option must be a usage error: {:?}\n{}", out.status, String::from_utf8_lossy(&out.stderr));
+}
+
 // ───────────────────────────────────────────── launchers
 
 /// Every launcher exists; an absent `<NAME>_BIN` executable is exit 2 with nothing on stdout (the consumers read an
@@ -1356,8 +1392,8 @@ fn render_max_report_path_and_stdout() {
 }
 
 /// run_bench.sh: `dataset_prep synthetic-sidecar --input-len --output-len --sidecar F` writes the dataset sidecar
-/// (`dataset_kind` synthetic, `input_len`, `output_len`); exit 0. (`prepare`·`slice` need a tokenizer image and a
-/// dataset; their names are fixed through `--help`.)
+/// (`dataset_kind` synthetic, `input_len`, `output_len`); exit 0. `<subcommand> --help` lists the options as whole
+/// tokens; `prepare` and `slice` are probed by running them (`dataset_prep_prepare_and_slice_by_argument_probe`).
 #[test]
 fn dataset_prep_synthetic_sidecar_and_subcommands() {
     let s = scratch("dataset");
@@ -1374,7 +1410,7 @@ fn dataset_prep_synthetic_sidecar_and_subcommands() {
     ] {
         let help = ok(&run(&s.0, "dataset_prep.sh", &[sub, "--help"]), sub);
         for o in opts {
-            assert!(help.contains(o), "dataset_prep {sub}: {o} not accepted");
+            assert!(names_option(&help, o), "dataset_prep {sub}: {o} not listed");
         }
     }
 }
@@ -1426,8 +1462,8 @@ fn resolve_topology_stdout_and_exit_codes() {
 
 /// run_bench.sh and policy-predicates `claims_text.rs`: `resolve_bench_tool --tool --pin [--platform] --json` prints a
 /// JSON object with exactly the keys tool, version, version_source, image_ref, recorded_digest, observed_digest,
-/// digest_source, matches_record, platform_note, status; `status` `resolved` is exit 0, `absent` is exit 3 with
-/// `ABSENT` on stderr. The engine is a stand-in program on PATH (no image is pulled or inspected for real).
+/// digest_source, matches_record, platform_note, status (in any order); `status` `resolved` is exit 0, `absent` is exit
+/// 3 with `ABSENT` on stderr. The engine is a stand-in program on PATH (no image is pulled or inspected for real).
 #[test]
 fn resolve_bench_tool_json_and_status() {
     let s = scratch("bench-tool");
@@ -1442,13 +1478,21 @@ fn resolve_bench_tool_json_and_status() {
         args.extend_from_slice(extra);
         Run::new(&s.0, "resolve_bench_tool.sh", &args).env("PATH", &path).out()
     };
-    const KEYS: [&str; 10] = ["tool", "version", "version_source", "image_ref", "recorded_digest", "observed_digest", "digest_source", "matches_record", "platform_note", "status"];
+    // The key set is fixed (L2); the key order is not.
+    let key_set = |doc: &Json| {
+        let mut keys = doc.keys();
+        keys.sort_unstable();
+        keys.iter().map(|k| k.to_string()).collect::<Vec<_>>()
+    };
+    let mut keys = ["tool", "version", "version_source", "image_ref", "recorded_digest", "observed_digest", "digest_source", "matches_record", "platform_note", "status"];
+    keys.sort_unstable();
     write(&engine, "#!/bin/sh\necho 'Error: No such image' >&2\nexit 1\n");
     std::fs::set_permissions(&engine, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
     let out = ask(&[]);
     assert_eq!(out.status.code(), Some(3), "absent image");
     let doc = parse(&text(&out.stdout), "absent");
-    assert_eq!(doc.keys(), KEYS);
+    assert_eq!(key_set(&doc), keys);
+    assert_eq!(doc.at("tool").str(), Some("guidellm"), "--tool is its own option, not --tool-version");
     assert_eq!(doc.at("status").str(), Some("absent"));
     assert_eq!(doc.at("matches_record"), &Json::Null);
     assert!(text(&out.stderr).contains("ABSENT"), "{}", text(&out.stderr));
@@ -1458,7 +1502,7 @@ fn resolve_bench_tool_json_and_status() {
     write(&engine, &format!("#!/bin/sh\necho '[\"{repo}@{digest}\"]'\n"));
     let out = ask(&["--platform", "linux/amd64"]);
     let doc = parse(&ok(&out, "resolved"), "resolved");
-    assert_eq!(doc.keys(), KEYS);
+    assert_eq!(key_set(&doc), keys);
     assert_eq!(doc.at("status").str(), Some("resolved"));
     assert_eq!(doc.at("matches_record"), &Json::Bool(true));
     assert_eq!(doc.at("observed_digest").str(), Some(digest.as_str()));
@@ -1489,14 +1533,15 @@ fn api_bins_native_help_and_constants() {
         "resolve_topology_api.sh",
     ] {
         let help = ok(&run(&s.0, file, &["native-help"]), file);
-        assert!(help.contains("evaluate-jsonl") && help.contains("constants"), "{file}: {help}");
+        assert!(names_option(&help, "evaluate-jsonl") && names_option(&help, "constants"), "{file}: {help}");
         let c = parse(&ok(&run(&s.0, file, &["constants"]), file), file);
         assert_eq!(c.kind(), "object", "{file}");
     }
 }
 
-/// The long options and subcommands the consumers and documents pass are part of each parser: `--help` is exit 0 and
-/// names them (the help layout itself is free).
+/// The long options and subcommands the documents name are listed by each `--help` (exit 0) as whole tokens (the help
+/// layout itself is free). The help is a captured copy, not the parser: the options the consumers pass are probed by
+/// running the parser with them (the `*_by_argument_probe` checks and the domain checks above).
 #[test]
 fn documented_options_and_subcommands() {
     let s = scratch("options");
@@ -1525,7 +1570,7 @@ fn documented_options_and_subcommands() {
         args.push("--help");
         let help = ok(&run(&s.0, file, &args), file);
         for n in names {
-            assert!(help.contains(n), "{file} {sub:?}: {n} not in the parser");
+            assert!(names_option(&help, n), "{file} {sub:?}: {n} not listed");
         }
     }
     for (file, names) in [
@@ -1535,13 +1580,340 @@ fn documented_options_and_subcommands() {
     ] {
         let help = ok(&run(&s.0, file, &["--help"]), file);
         for n in names {
-            assert!(help.contains(n), "{file}: {n} not in the parser");
+            assert!(names_option(&help, n), "{file}: {n} not listed");
         }
     }
     // parse_guidellm spec-source --lite-raw (sweep_bench.sh): a raw without its warm JSON is not a source
     let raw = s.0.join("raw.json");
     std::fs::copy(fixture("lite_raw_d1_connection_refused.json"), &raw).unwrap();
     assert_ne!(run(&s.0, "parse_guidellm.sh", &["spec-source", "--lite-raw", ps(&raw)]).status.code(), Some(0));
+}
+
+// ───────────────────────────────────────────── the options the consumers pass, probed through the parser
+
+/// `KEY\x1fVALUE` lines as a map.
+fn us_map(stdout: &str) -> Vec<(String, String)> {
+    stdout
+        .lines()
+        .map(|l| {
+            let (k, v) = l.split_once('\u{1f}').unwrap_or_else(|| panic!("not KEY\\x1fVALUE: {l:?}"));
+            (k.to_string(), v.to_string())
+        })
+        .collect()
+}
+
+fn us_get<'a>(lines: &'a [(String, String)], key: &str) -> &'a str {
+    lines.iter().find(|(k, _)| k == key).map(|(_, v)| v.as_str()).unwrap_or_else(|| panic!("{key} missing in {lines:?}"))
+}
+
+/// A scratch repository with the campaign writer's launcher (`CAMPAIGN_READ_BIN` = this build) and one campaign `cX`
+/// declaring `budgets.repeats` = 5: what bench_preset and repeat_axis read for `--campaign-id`.
+fn campaign_repo(at: &Path) -> std::ffi::OsString {
+    let launcher = ".claude/skills/terraforming_node/scripts/campaign_init.sh";
+    let real = skill().join("../../..").join(launcher);
+    std::fs::create_dir_all(at.join(launcher).parent().unwrap()).unwrap();
+    std::fs::copy(real, at.join(launcher)).unwrap();
+    write(&at.join("campaigns/cX/campaign.yaml"), "{\"id\": \"cX\", \"budgets\": {\"repeats\": 5}}\n");
+    env!("CARGO_BIN_EXE_campaign_init").into()
+}
+
+/// sweep_bench.sh `bench_preset resolve` options reach their knobs: `--levels` with a confirm-grade value opens only with
+/// `--approved-by` (recorded); `--input-len`, `--num-prompts`, `--warmups` with their `--knob-reason` are agent choices;
+/// `--pin KNOB=VALUE --pinned-by` opens an escalate-grade value (`--pin` is not `--pinned-by`); `--repeats
+/// --repeats-source` is a declaration (`--repeats` is not `--repeats-source`); `--campaign-id` reads that campaign's
+/// `budgets.repeats` through the campaign launcher; `--dry-run` accepts an absent serving yaml; `--preset` names the
+/// preset (broad_search's `default --knob --preset` too).
+#[test]
+fn bench_preset_resolve_consumer_options_by_argument_probe() {
+    let s = scratch("preset-probe");
+    let repo = s.0.join("repo");
+    let ci_bin = campaign_repo(&repo);
+    let serving = s.0.join("serve.yaml");
+    write(&serving, "model: /app/models/x\ntensor-parallel-size: 1\nmax-model-len: 8192\n");
+    let record = s.0.join("knobs.json");
+    let base = [
+        "resolve", "--tool", "guidellm", "--serving-yaml", ps(&serving), "--record-out", ps(&record), "--backend", "openai",
+        "--knob-reason", "backend=prior_cell_shape", "--bench-budget-mib", "4096", "--knob-reason", "bench_budget_mib=host_budget",
+    ];
+    let resolve = |extra: &[&str]| {
+        let mut args = base.to_vec();
+        args.extend_from_slice(extra);
+        Run::new(&s.0, "bench_preset.sh", &args).env("BENCH_PRESET_REPO_ROOT", &repo).env("CAMPAIGN_READ_BIN", &ci_bin).out()
+    };
+    let confirm = ["--levels", "1,2,32", "--knob-reason", "levels=prior_cell_shape"];
+    let mut all = confirm.to_vec();
+    all.extend_from_slice(&[
+        "--approved-by", "tester", "--input-len", "2048", "--knob-reason", "input_len=prior_cell_shape", "--pin", "output_len=512",
+        "--pinned-by", "tester", "--num-prompts", "16", "--knob-reason", "num_prompts=preset_default", "--warmups", "2",
+        "--knob-reason", "warmups=preset_default", "--repeats", "3", "--repeats-source", "declared(t)", "--preset", "default_preset",
+    ]);
+    let lines = us_map(&ok(&resolve(&all), "resolve with the sweep options"));
+    assert_eq!(us_get(&lines, "LEVELS"), "1,2,32");
+    assert_eq!(us_get(&lines, "ILEN"), "2048");
+    assert_eq!(us_get(&lines, "OLEN"), "512");
+    assert_eq!(us_get(&lines, "NPROMPTS"), "16");
+    assert_eq!(us_get(&lines, "WARMUPS"), "2");
+    assert_eq!(us_get(&lines, "REPEATS"), "3");
+    assert!(us_get(&lines, "REPEATS_SOURCE").contains("declared(t)"), "{lines:?}");
+    assert!(us_get(&lines, "PRESET_PATH").ends_with("default_preset.yaml"), "{lines:?}");
+    let rec = read_json(&record);
+    assert_eq!(rec.at("preset").str(), Some("default_preset"));
+    assert_eq!(rec.at("approved_by").str(), Some("tester"));
+    assert_eq!(rec.at("pinned_by").str(), Some("tester"));
+    let knobs = rec.at("knobs");
+    assert_eq!(knobs.at("levels").at("approved_by").str(), Some("tester"));
+    assert_eq!(knobs.at("input_len").at("source").str(), Some("agent"));
+    assert_eq!(knobs.at("input_len").at("reason").str(), Some("prior_cell_shape"));
+    assert_eq!(knobs.at("output_len").at("source").str(), Some("cli_pin"));
+    for k in ["num_prompts", "warmups"] {
+        assert_eq!(knobs.at(k).at("source").str(), Some("agent"), "{k}");
+        assert_eq!(knobs.at(k).at("reason").str(), Some("preset_default"), "{k}");
+    }
+    assert_eq!(knobs.at("repeats").at("source").str(), Some("cli_pin"));
+    // without --approved-by the confirm-grade level is refused (a domain refusal, nothing recorded)
+    std::fs::remove_file(&record).unwrap();
+    let out = resolve(&confirm);
+    assert_ne!(out.status.code(), Some(0), "confirm grade without --approved-by");
+    assert!(!usage_error(&out), "{}", String::from_utf8_lossy(&out.stderr));
+    assert!(!record.exists());
+    // --campaign-id: the campaign's budgets.repeats
+    let lines = us_map(&ok(&resolve(&["--campaign-id", "cX"]), "--campaign-id"));
+    assert_eq!(us_get(&lines, "REPEATS"), "5");
+    assert!(us_get(&lines, "REPEATS_SOURCE").contains("campaigns/cX/campaign.yaml"), "{lines:?}");
+    assert_eq!(read_json(&record).at("campaign").str(), Some("cX"));
+    // --dry-run: an absent serving yaml is allowed (otherwise a refusal)
+    let absent = s.0.join("absent.yaml");
+    let dry = |extra: &[&str]| {
+        let mut args = base.to_vec();
+        args[4] = ps(&absent);
+        args.extend_from_slice(extra);
+        Run::new(&s.0, "bench_preset.sh", &args).env("BENCH_PRESET_REPO_ROOT", &repo).env("CAMPAIGN_READ_BIN", &ci_bin).out()
+    };
+    ok(&dry(&["--dry-run"]), "--dry-run with an absent serving yaml");
+    let out = dry(&[]);
+    assert_ne!(out.status.code(), Some(0), "an absent serving yaml without --dry-run");
+    assert!(!usage_error(&out));
+    // broad_search.sh: default --knob repeats --preset NAME
+    let pd = ok(&Run::new(&s.0, "bench_preset.sh", &["default", "--knob", "repeats", "--preset", "default_preset"]).env("BENCH_PRESET_REPO_ROOT", &repo).out(), "default --preset");
+    assert_eq!(us_fields(&pd), ["3", "default_preset"]);
+    let out = Run::new(&s.0, "bench_preset.sh", &["default", "--knob", "repeats", "--preset", "contract-absent"]).env("BENCH_PRESET_REPO_ROOT", &repo).out();
+    assert_ne!(out.status.code(), Some(0), "an unknown preset name");
+    assert!(!usage_error(&out));
+}
+
+/// broad_search.sh `repeat_axis resolve --preset-default --preset-source --campaign-id` reads that campaign's
+/// `budgets.repeats` through the campaign launcher (`N\x1fSRC\x1fKIND` names the declaration); sweep_bench.sh
+/// `record-run` writes the values it was given (`--run` is neither `--run-dir` nor `--run-bench-rc`) and
+/// `aggregate-level --requested --requested-source --kind` records the request (`--requested` is not
+/// `--requested-source`; `--kind cold-restart`, declared but not implemented, is a domain refusal).
+#[test]
+fn repeat_axis_consumer_options_by_argument_probe() {
+    let s = scratch("repeat-probe");
+    let repo = s.0.join("repo");
+    let ci_bin = campaign_repo(&repo);
+    let rr = ok(
+        &Run::new(&s.0, "repeat_axis.sh", &["resolve", "--preset-default", "3", "--preset-source", "p", "--campaign-id", "cX"])
+            .env("REPEAT_AXIS_REPO_ROOT", &repo)
+            .env("CAMPAIGN_READ_BIN", &ci_bin)
+            .out(),
+        "resolve --campaign-id",
+    );
+    let f = us_fields(&rr);
+    assert_eq!(f[0], "5");
+    assert!(f[1].contains("campaigns/cX/campaign.yaml"), "{rr:?}");
+    let level = s.0.join("level_01");
+    std::fs::create_dir_all(&level).unwrap();
+    std::fs::copy(fixture("measured_pass.json"), level.join("measured.json")).unwrap();
+    ok(
+        &run(
+            &s.0,
+            "repeat_axis.sh",
+            &["record-run", "--run-dir", ps(&level), "--level", "1", "--run", "2", "--started-utc", "2026-09-04T09:00:00Z", "--ended-utc", "2026-09-04T09:01:00Z", "--run-bench-rc", "0", "--parse-rc", "0"],
+        ),
+        "record-run",
+    );
+    let rec = read_json(&level.join("repeat_run.json"));
+    assert_eq!(rec.at("level"), &Json::Num("1".into()));
+    assert_eq!(rec.at("run"), &Json::Num("2".into()));
+    assert_eq!(rec.at("run_bench_rc"), &Json::Num("0".into()));
+    assert_eq!(rec.at("ended_utc").str(), Some("2026-09-04T09:01:00Z"));
+    let aggregate = |kind: &str| run(&s.0, "repeat_axis.sh", &["aggregate-level", "--level-dir", ps(&level), "--requested", "4", "--requested-source", "declared(x)", "--kind", kind]);
+    // `--kind` is read: a declared but unimplemented kind is a domain refusal
+    let out = aggregate("cold-restart");
+    assert_ne!(out.status.code(), Some(0), "cold-restart is not implemented");
+    assert!(!usage_error(&out), "{}", String::from_utf8_lossy(&out.stderr));
+    ok(&aggregate("warm-rerun"), "aggregate-level");
+    let m = read_json(&level.join("measured.json"));
+    assert_eq!(m.at("repeats_requested"), &Json::Num("4".into()));
+    assert_eq!(m.at("repeats_requested_source").str(), Some("declared(x)"));
+    assert_eq!(m.at("repeat_kind").str(), Some("warm-rerun"));
+}
+
+/// broad_search.sh·sweep_bench.sh `classify_cell … --cross-node-tolerance-s N --cross-node-tolerance-source TEXT
+/// [--lite-raw RAW]`: the declared tolerance and its source reach the events scan (`--cross-node-tolerance-s` is not
+/// `--cross-node-tolerance-source`), and a given lite raw is judged (`lite_raw_status` is not `absent`).
+#[test]
+fn classify_cell_consumer_options_by_argument_probe() {
+    let s = scratch("classify-probe");
+    let repo = s.0.join("repo");
+    let manifest = repo.join("output/multi/manifest.yaml");
+    write(&manifest, "self_role: main\ntopology: multi\n");
+    let cell = ["--serve-rc", "0", "--measure-rc", "0", "--started-utc", "2026-09-04T09:00:00Z", "--ended-utc", "2026-09-04T09:10:00Z", "--events-from-repo", ps(&repo), "--topology", "multi", "--manifest", ps(&manifest)];
+    let mut args = cell.to_vec();
+    args.extend_from_slice(&["--cross-node-tolerance-s", "7", "--cross-node-tolerance-source", "declared(contract)"]);
+    let cls = parse(&ok(&run(&s.0, "classify_cell.sh", &args), "cross-node tolerance"), "classification");
+    let scan = cls.at("events_scan");
+    assert_eq!(scan.at("cross_node_tolerance_s"), &Json::Num("7".into()));
+    assert_eq!(scan.at("cross_node_tolerance_source").str(), Some("declared(contract)"));
+    assert_eq!(parse(&ok(&run(&s.0, "classify_cell.sh", &cell), "no lite raw"), "c").at("lite_raw_status").str(), Some("absent"));
+    let raw = s.0.join("raw.json");
+    std::fs::copy(fixture("lite_raw_d1_connection_refused.json"), &raw).unwrap();
+    let mut args = cell.to_vec();
+    args.extend_from_slice(&["--lite-raw", ps(&raw)]);
+    let cls = parse(&ok(&run(&s.0, "classify_cell.sh", &args), "--lite-raw"), "classification");
+    assert_ne!(cls.at("lite_raw_status").str(), Some("absent"), "{cls:?}");
+}
+
+/// sweep_bench.sh `parse_guidellm --benchmarks-json … --max-error-rate R --post-health-json F --prefix-cache-json F`:
+/// the declared error rate, the server liveness at the end of the bench and the prefix-cache observation reach the
+/// measured JSON (`max_error_rate_declared`, `server_alive_at_bench_end`, `prefix_cache_run`).
+#[test]
+fn parse_guidellm_consumer_options_by_argument_probe() {
+    let s = scratch("guidellm-probe");
+    let health = s.0.join("post_health.json");
+    write(&health, "{\"server_alive_at_bench_end\": false}");
+    let cache = s.0.join("prefix_cache.json");
+    write(&cache, "{\"provenance\": \"measured\", \"window_start_utc\": \"t\", \"queries_delta\": 10, \"hits_delta\": 1, \"requests_delta\": 5, \"hit_rate_run\": 0.1, \"reason\": null, \"source\": \"x\"}");
+    let fx = fixture("guidellm_benchmarks_sample.json");
+    let args = ["--benchmarks-json", ps(&fx), "--spec-axis-absent", "--max-error-rate", "0.25", "--post-health-json", ps(&health), "--prefix-cache-json", ps(&cache)];
+    let doc = parse(&ok(&run(&s.0, "parse_guidellm.sh", &args), "parse_guidellm with the sweep inputs"), "measured");
+    assert_eq!(doc.at("max_error_rate_declared"), &Json::Num("0.25".into()));
+    assert_eq!(doc.at("server_alive_at_bench_end"), &Json::Bool(false));
+    let pc = doc.at("prefix_cache_run");
+    assert_eq!(pc.at("hits_delta"), &Json::Num("1".into()));
+    assert_eq!(pc.at("provenance").str(), Some("measured"));
+}
+
+/// judge_bench.sh `roofline --model-path --json [--tp --manifest --nas-root --quant-root --realistic-fraction
+/// --accept-len] --accept-len-source --accept-len-evidence`: `--realistic-fraction` is the fraction used, `--manifest`
+/// gives the TP when `--tp` is absent, `--nas-root` resolves a container model path, `--accept-len` (not
+/// `--accept-len-source`) is the length used; the parser takes `--quant-root`.
+#[test]
+fn roofline_consumer_options_by_argument_probe() {
+    let s = scratch("roofline-probe");
+    let model = s.0.join("nas/contract-m1");
+    model_dir(&model);
+    let tail = ["--json", "--bandwidth-gbps", "273", "--accept-len-source", "absent", "--accept-len-evidence", "fixture"];
+    let roof = |args: &[&str]| {
+        let mut all = args.to_vec();
+        all.extend_from_slice(&tail);
+        parse(&ok(&run(&s.0, "roofline.sh", &all), &format!("roofline {args:?}")), "roofline")
+    };
+    let doc = roof(&["--model-path", ps(&model), "--tp", "1", "--realistic-fraction", "0.5"]);
+    assert_eq!(doc.at("realistic_fraction"), &Json::Num("0.5".into()));
+    let manifest = s.0.join("manifest.yaml");
+    write(&manifest, "topology: single\ngpus_per_node: 2\n");
+    let doc = roof(&["--model-path", ps(&model), "--manifest", ps(&manifest)]);
+    assert_eq!(doc.at("tp"), &Json::Num("2".into()));
+    assert!(doc.at("tp_source").str().unwrap().starts_with("manifest("), "{doc:?}");
+    let doc = roof(&["--model-path", "/app/models/contract-m1", "--nas-root", ps(&s.0.join("nas")), "--tp", "1"]);
+    assert_eq!(doc.at("model_path").str(), Some("/app/models/contract-m1"));
+    let declared = ["--model-path", ps(&model), "--json", "--bandwidth-gbps", "273", "--tp", "1", "--accept-len", "1.5", "--accept-len-source", "declared", "--accept-len-evidence", "x"];
+    assert_eq!(parse(&ok(&run(&s.0, "roofline.sh", &declared), "--accept-len"), "r").at("accept_len"), &Json::Num("1.5".into()));
+    let quant_root = s.0.join("quant");
+    let quant = ["--model-path", ps(&model), "--tp", "1", "--quant-root", ps(&quant_root), "--json", "--bandwidth-gbps", "273", "--accept-len-source", "absent", "--accept-len-evidence", "fixture"];
+    assert_parser_takes(&s.0, "roofline.sh", &quant, 4, &[]);
+}
+
+/// judge_bench.sh `verdict_rule --measured --roofline --authority --spec-declared [--target-tps --reference-tps --e-search
+/// --tolerance --node-vram-gib --spec-supported]`: `--reference-tps`, `--target-tps` and `--tolerance` reach the rubric
+/// (`reference_E`, `target_c`, `tolerance`); the parser takes `--node-vram-gib` and `--spec-supported`.
+#[test]
+fn verdict_rule_consumer_options_by_argument_probe() {
+    let s = scratch("verdict-probe");
+    let m = fixture("measured_pass.json");
+    let r = fixture("roofline_sample.json");
+    let base = ["--measured", ps(&m), "--roofline", ps(&r), "--spec-declared", "off"];
+    let verdict = |extra: &[&str]| {
+        let mut args = base.to_vec();
+        args.extend_from_slice(extra);
+        parse(&ok(&run(&s.0, "verdict_rule.sh", &args), &format!("verdict {extra:?}")), "verdict")
+    };
+    let doc = verdict(&["--authority", "weak", "--reference-tps", "50", "--tolerance", "0.2"]);
+    assert_eq!(doc.at("rubric").at("reference_E"), &Json::Num("50.0".into()));
+    assert_eq!(doc.at("rubric").at("tolerance"), &Json::Num("0.2".into()));
+    let doc = verdict(&["--authority", "explicit", "--target-tps", "20"]);
+    assert_eq!(doc.at("rubric").at("target_c"), &Json::Num("20.0".into()));
+    let mut args = base.to_vec();
+    args.extend_from_slice(&["--authority", "weak", "--node-vram-gib", "100,100"]);
+    let at = args.len() - 2;
+    assert_parser_takes(&s.0, "verdict_rule.sh", &args, at, &[]);
+    let mut args = base.to_vec();
+    args.extend_from_slice(&["--authority", "weak", "--spec-supported"]);
+    let at = args.len() - 1;
+    assert_parser_takes(&s.0, "verdict_rule.sh", &args, at, &[]);
+}
+
+/// run_bench.sh `resolve_bench_tool --tool guidellm --tool-version V --json`: a recorded version is the answer's
+/// `version` (status absent = exit 3 here: the engine stand-in has no image); a version the record lacks is a domain
+/// refusal, not a usage error.
+#[test]
+fn resolve_bench_tool_consumer_options_by_argument_probe() {
+    let s = scratch("bench-tool-probe");
+    let pin = s.0.join("bench_tool_pin.json");
+    std::fs::copy(skill().join("bench_tool_pin.json"), &pin).unwrap();
+    let bin = s.0.join("bin");
+    let engine = bin.join("docker");
+    write(&engine, "#!/bin/sh\necho 'Error: No such image' >&2\nexit 1\n");
+    std::fs::set_permissions(&engine, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
+    let path = std::ffi::OsString::from(format!("{}:{}", ps(&bin), std::env::var("PATH").unwrap_or_default()));
+    let version = read_json(&pin).at("tools").at("guidellm").at("default_version").str().unwrap().to_string();
+    let out = Run::new(&s.0, "resolve_bench_tool.sh", &["--tool", "guidellm", "--tool-version", &version, "--pin", ps(&pin), "--json"]).env("PATH", &path).out();
+    assert_eq!(out.status.code(), Some(3), "{}", text(&out.stderr));
+    assert_eq!(parse(&text(&out.stdout), "absent").at("version").str(), Some(version.as_str()));
+    let args = ["--tool", "guidellm", "--tool-version", "0.0.0-contract-absent", "--pin", ps(&pin), "--json"];
+    let out = Run::new(&s.0, "resolve_bench_tool.sh", &args).env("PATH", &path).out();
+    assert_ne!(out.status.code(), Some(0), "an unrecorded version");
+    let path_dir = std::path::PathBuf::from(&path);
+    assert_parser_takes(&s.0, "resolve_bench_tool.sh", &args, 2, &[("PATH", &path_dir)]);
+}
+
+/// run_bench.sh `dataset_prep slice --spec --cache --run-index --sweep-salt --count --input-len --output-len --out
+/// --sidecar --tokenizer-label` on a prepared cache writes the rows to `--out` (not `--output-len`) and the sidecar
+/// with the values it was given; `prepare --spec --tokstage --cache --image --budget-mib --input-len --output-len` takes
+/// every option (an absent dataset file is its domain refusal; the tokenizer image is never started).
+#[test]
+fn dataset_prep_prepare_and_slice_by_argument_probe() {
+    let s = scratch("dataset-probe");
+    let spec = s.0.join("spec.json");
+    write(&spec, "{\"dataset_kind\": \"json_file\", \"seed\": 7, \"dataset_path\": \"absent.jsonl\"}");
+    let cache = s.0.join("cache");
+    write(&cache.join("prepared_meta.json"), "{\"rows\": 3, \"key\": {\"tokenizer_digest\": \"d0\"}}");
+    let rows: String = (1..=3).map(|i| format!("{{\"prompt\": \"p{i}\", \"prompt_tokens_count\": 128, \"output_tokens_count\": 64}}\n")).collect();
+    write(&cache.join("prepared.jsonl"), &rows);
+    let (out_rows, side) = (s.0.join("rows.jsonl"), s.0.join("side.json"));
+    let args = [
+        "slice", "--spec", ps(&spec), "--cache", ps(&cache), "--run-index", "0", "--sweep-salt", "s1", "--count", "2", "--input-len", "128",
+        "--output-len", "64", "--out", ps(&out_rows), "--sidecar", ps(&side), "--tokenizer-label", "tok-x",
+    ];
+    ok(&run(&s.0, "dataset_prep.sh", &args), "slice");
+    assert_eq!(std::fs::read_to_string(&out_rows).unwrap().lines().count(), 2);
+    let d = read_json(&side);
+    for (k, v) in [("input_len", "128"), ("output_len", "64"), ("run_index", "0"), ("rows_used", "2")] {
+        assert_eq!(d.at(k), &Json::Num(v.into()), "{k}");
+    }
+    assert_eq!(d.at("sweep_salt").str(), Some("s1"));
+    assert_eq!(d.at("tokenizer").str(), Some("tok-x"));
+    let tok = s.0.join("tokstage");
+    std::fs::create_dir_all(&tok).unwrap();
+    let cache2 = s.0.join("cache2");
+    let prepare = [
+        "prepare", "--spec", ps(&spec), "--tokstage", ps(&tok), "--cache", ps(&cache2), "--image", "contract-image:1",
+        "--budget-mib", "1024", "--input-len", "128", "--output-len", "64",
+    ];
+    for at in (1..prepare.len()).step_by(2) {
+        assert_parser_takes(&s.0, "dataset_prep.sh", &prepare, at, &[]);
+    }
 }
 
 /// A text argument that is not UTF-8 is a usage error (exit 2, nothing on stdout), never a crash (types.md 2절).

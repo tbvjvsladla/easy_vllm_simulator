@@ -205,7 +205,13 @@ fn harness(t: &Scratch, args: &[&str], env: &[(&str, &str)]) -> (Output, String)
         c.env(k, v);
     }
     let out = c.current_dir(&t.0).output().unwrap();
-    (out, std::fs::read_to_string(&log).unwrap_or_default())
+    // No log = no stage ran; any other read failure is a failure of the check itself.
+    let stages = match std::fs::read_to_string(&log) {
+        Ok(stages) => stages,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => String::new(),
+        Err(e) => panic!("{}: {e}", log.display()),
+    };
+    (out, stages)
 }
 
 /// All stages green: exit 0; stage 1 is `policy_registry.sh verify --as-of <date>` plus the passthrough options in the

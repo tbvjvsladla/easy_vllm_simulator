@@ -8,7 +8,13 @@
 //!   `--verdict-json-src`, …), and `-h`;
 //! - `finalize` hands the work manifest to `completion_gate.sh verify` and relays the gate's exit code and stdout
 //!   unchanged (consumers.md 「고정 표면」 completion_gate row);
-//! - the hint e2e fixture and the sync scripts name the launcher path and its override `EVIDENCE_PUBLISHER_BIN`.
+//! - the hint e2e fixture and the sync scripts name the launcher path and its override `EVIDENCE_PUBLISHER_BIN`;
+//!   hint-publisher `core.rs:32`·`:667-669` runs the `.sh` launcher beside the `.py` name it keeps;
+//! - hint-publisher `evidence/e4.rs` drives `init`·`append-raw`·`set-narrative`·`publish-benchmark`·`publish-lite-report`·
+//!   `set-promotion-target`·`finalize` as `<subcommand> --repo-root <repo> …` and reads `reason_codes`·`messages`; the
+//!   options it passes beyond the documents (`--benchmark-mode`, `--benchmark-verdict`, `--dest-name`,
+//!   `--downgrade-from`, `--downgrade-reason`, `promotion_target`) are run through to the record;
+//! - `append-raw` re-writes the publication record and never drops a key it does not know (types.md 4절).
 //!
 //! The program runs for real through its launcher (argv[0] = the launcher, so the program finds the repository's
 //! schemas) with `--repo-root` set to a scratch directory, so nothing is written into the repository. stdout is one JSON
@@ -250,6 +256,124 @@ fn subcommands_long_options_and_usage_errors() {
         assert_eq!(doc.at("ok"), &Json::Bool(false), "{args:?}");
         assert_eq!(doc.at("reason_codes").strs(), ["CLI_USAGE_ERROR"], "{args:?}");
     }
+}
+
+fn read_json(path: &Path) -> Json {
+    let body = std::fs::read_to_string(path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
+    Json::parse(&body).unwrap_or_else(|e| panic!("{} is not JSON ({e}): {body}", path.display()))
+}
+
+/// The options hint-publisher's driver (`evidence/e4.rs` `_publisher`, `drive_publisher`, `_append_simlog`,
+/// `set_promotion_target`, `_finalize`) passes after `<subcommand> --repo-root <repo>` reach the publication record:
+/// - `init --task-class full_benchmark --benchmark-mode full --benchmark-verdict PASS` records `benchmark.{mode,verdict}`;
+/// - `append-raw --kind simlog --src --recorded-utc --dest-name NAME` copies the file into the scaffolded simlog folder
+///   under NAME (`recorded_path`);
+/// - `publish-benchmark --verdict --generated-utc --bench-report-src` binds the report; the downgrade `init --task-class
+///   hint_map_only --benchmark-mode lite --benchmark-verdict --downgrade-from full_benchmark --downgrade-reason R`
+///   reclassifies the record (`reclassification.{from,reason}`, `task_class`, `benchmark.mode`), with the reason
+///   matched against the report's measurement table; `--downgrade-from` without a reason and `--downgrade-reason`
+///   without `--downgrade-from` are their own reason codes (each option is parsed as itself);
+/// - `set-promotion-target --tag --topology --anchor --generated-utc` records `promotion_target` (and returns it), and
+///   `finalize --pii-scan-json --runtime-json` (accepted exit codes 0 and 1, as the driver accepts them) emits it into
+///   the work manifest unchanged.
+#[test]
+fn hint_driver_options_reach_the_record() {
+    let s = scratch("driver");
+    let r = s.0.to_str().unwrap();
+    write(&s.0.join("identity.json"), IDENTITY);
+    let call = |sub: &str, args: &[&str]| {
+        let mut argv = vec![sub, "--repo-root", r];
+        argv.extend_from_slice(args);
+        let out = publish(&s.0, &argv);
+        (out.status.code(), envelope(&out))
+    };
+    let ok = |sub: &str, args: &[&str]| {
+        let (rc, doc) = call(sub, args);
+        assert_eq!(rc, Some(0), "{sub} {args:?}: {doc:?}");
+        assert_eq!(doc.at("ok"), &Json::Bool(true), "{sub} {args:?}");
+        doc
+    };
+    let init = ["--topic", "b1", "--generated-utc", "2026-01-01T00:00:00Z", "--identity-json", "identity.json"];
+    let mut full = init.to_vec();
+    full.extend_from_slice(&["--task-class", "full_benchmark", "--benchmark-mode", "full", "--benchmark-verdict", "PASS"]);
+    ok("init", &full);
+    let record = s.0.join("docs/_evidence/b1.json");
+    let rec = read_json(&record);
+    assert_eq!(rec.at("benchmark").at("mode").str(), Some("full"));
+    assert_eq!(rec.at("benchmark").at("verdict").str(), Some("PASS"));
+
+    write(&s.0.join("measured.json"), "{\"measurement_ok\": true}\n");
+    let doc = ok("append-raw", &["--topic", "b1", "--kind", "simlog", "--src", "measured.json", "--recorded-utc", "2026-01-01T00:01:00Z", "--dest-name", "level_01_measured.json"]);
+    let simlog = rec.at("scaffolded").at("simlog").str().unwrap().to_string();
+    let copied = format!("{simlog}/level_01_measured.json");
+    assert_eq!(doc.at("recorded_path").str(), Some(copied.as_str()));
+    assert_eq!(std::fs::read_to_string(s.0.join(&copied)).unwrap(), "{\"measurement_ok\": true}\n");
+
+    let report = "docs/benchmark/bench_report_26010103_m_GB10_0.0.0.md";
+    write(
+        &s.0.join(report),
+        "# report\n생성일 2026-01-01T03:00:00Z.\n\n## 측정 구성 — bench_mode · 도구 · 반복 (기재 · 게이트 아님)\n\n| 키 | 값 |\n|---|---|\n| bench_mode | lite |\n| bench_mode_kind | downgraded-lite |\n| bench_mode_source | contract |\n| downgrade_reason | run_failed |\n",
+    );
+    ok("publish-benchmark", &["--topic", "b1", "--verdict", "PASS", "--generated-utc", "2026-01-01T03:05:00Z", "--bench-report-src", report]);
+    let mut lite = init.to_vec();
+    lite.extend_from_slice(&["--task-class", "hint_map_only"]);
+    for (extra, code) in [
+        (&["--downgrade-from", "full_benchmark"][..], "INIT_DOWNGRADE_REASON_REQUIRED"),
+        (&["--downgrade-reason", "run_failed"], "INIT_DOWNGRADE_REASON_WITHOUT_FROM"),
+    ] {
+        let mut args = lite.clone();
+        args.extend_from_slice(extra);
+        let (rc, doc) = call("init", &args);
+        assert_ne!(rc, Some(0), "{extra:?}");
+        assert_eq!(doc.at("reason_codes").strs(), [code], "{extra:?}");
+    }
+    let mut down = lite.clone();
+    down.extend_from_slice(&["--benchmark-mode", "lite", "--benchmark-verdict", "PASS", "--downgrade-from", "full_benchmark", "--downgrade-reason", "run_failed"]);
+    let doc = ok("init", &down);
+    assert_eq!(doc.at("reclassification").at("from").str(), Some("full_benchmark"));
+    let rec = read_json(&record);
+    assert_eq!(rec.at("task_class").str(), Some("hint_map_only"));
+    assert_eq!(rec.at("benchmark").at("mode").str(), Some("lite"));
+    assert_eq!(rec.at("reclassification").at("reason").str(), Some("run_failed"));
+
+    let anchor = "0123456789abcdef0123456789abcdef01234567";
+    let doc = ok("set-promotion-target", &["--topic", "b1", "--tag", "hint/contract-1", "--topology", "single TP=1", "--anchor", anchor, "--generated-utc", "2026-01-01T05:00:00Z"]);
+    let target = doc.at("promotion_target").clone();
+    assert_eq!(target.at("kind").str(), Some("hint"));
+    assert_eq!(target.at("tag").str(), Some("hint/contract-1"));
+    assert_eq!(target.at("topology").str(), Some("single TP=1"));
+    assert_eq!(target.at("anchor").str(), Some(anchor));
+    assert_eq!(read_json(&record).at("promotion_target"), &target);
+    write(&s.0.join("pii.json"), r#"{"passed": true, "scanned_paths": []}"#);
+    write(&s.0.join("runtime.json"), &format!(r#"{{"health_ok": true, "functional_smoke_passed": true, "identity": {IDENTITY}, "containers": []}}"#));
+    let fin = publish(&s.0, &["finalize", "--repo-root", r, "--topic", "b1", "--pii-scan-json", "pii.json", "--runtime-json", "runtime.json"]);
+    assert!(matches!(fin.status.code(), Some(0) | Some(1)), "finalize: {:?}\n{}", fin.status, text(&fin.stdout));
+    assert_eq!(read_json(&s.0.join("docs/_evidence/b1.work-manifest.json")).at("promotion_target"), &target);
+}
+
+/// `append-raw` never drops a key of the publication record it does not know (types.md 4절 「영속 문서」 4): after the
+/// call the record still holds the unknown key and its value. Whether the call then succeeds is not fixed here — the base
+/// treats the record as a closed schema and refuses it (see the cell record), which types.md's "preserve" wording does
+/// not describe.
+#[test]
+fn append_raw_never_drops_unknown_record_keys() {
+    let s = publication_root("unknown-keys");
+    let r = s.0.to_str().unwrap();
+    let out = publish(
+        &s.0,
+        &["init", "--repo-root", r, "--topic", "t1", "--task-class", "minor_patch", "--generated-utc", "2026-01-01T00:00:00Z", "--identity-json", "identity.json"],
+    );
+    assert_eq!(out.status.code(), Some(0));
+    let record = s.0.join("docs/_evidence/t1.json");
+    let body = std::fs::read_to_string(&record).unwrap();
+    assert!(body.contains("\"identity\": {"), "{body}");
+    let body = body.replacen('{', "{\"_contract_top\": \"keep-top\", ", 1).replacen("\"identity\": {", "\"identity\": {\"_contract_item\": \"keep-item\", ", 1);
+    std::fs::write(&record, body).unwrap();
+    let out = publish(&s.0, &["append-raw", "--repo-root", r, "--topic", "t1", "--kind", "verification", "--src", "verify.txt", "--recorded-utc", "2026-01-01T00:01:00Z"]);
+    envelope(&out);
+    let rec = read_json(&record);
+    assert_eq!(rec.at("_contract_top").str(), Some("keep-top"));
+    assert_eq!(rec.at("identity").at("_contract_item").str(), Some("keep-item"));
 }
 
 /// A small RFC 8259 reader for the contract checks: the fixed surface is the parsed value (L2), so the checks read the

@@ -7,8 +7,11 @@
 //!
 //! The full acceptance run needs the whole checkout and its built children (minutes, W gate). Here the program runs for
 //! real through a copy of its launcher in a scratch checkout (argv[0] = `<scratch>/.claude/policies/runtime/
-//! verify_distribution.sh`, so the scratch directory is the repository it judges): every check fails closed, which fixes
-//! the report shape, the FAIL exit code, `--json-out` and the reference-date record without touching the repository.
+//! verify_distribution.sh`, so the scratch directory is the repository it judges): the near-empty checkout is judged
+//! FAIL (the checks that need the absent files fail; which of the others pass is not pinned), which fixes the report
+//! shape, the FAIL exit code, `--json-out` and the reference-date record without touching the repository. One check is
+//! pinned by its inputs: `sub_retirement_consumer_audit_before_tombstone` holds the source tokens of `sub_runner.rs`
+//! that the sub's retirement scan relies on (consumers.md 「고정 표면」 sub_runner row; the check must not be weakened).
 //! Values are L2, exit codes and key names L1, check details and message texts L3. A non-UTF-8 argument panics today
 //! (`src/bin/verify_distribution.rs:3` `std::env::args()`); that is recorded as a defect of the base and not pinned here.
 use std::path::{Path, PathBuf};
@@ -41,7 +44,8 @@ fn text(b: &[u8]) -> String {
 const LAUNCHER_REL: &str = ".claude/policies/runtime/verify_distribution.sh";
 
 /// A scratch checkout holding a copy of the launcher and the two files the run reads before its first check
-/// (`.dockerignore`, terraforming_node SKILL.md); everything else is absent, so every check fails closed.
+/// (`.dockerignore`, terraforming_node SKILL.md); everything else is absent, so the checks that need those files fail and
+/// the verdict is FAIL.
 fn checkout(tag: &str) -> Scratch {
     let s = scratch(tag);
     let l = s.0.join(LAUNCHER_REL);
@@ -131,6 +135,37 @@ fn observed_reference_date_is_recorded() {
     assert_eq!(rec.at("observed_utc").kind(), "string");
     assert_eq!(rec.at("as_of").str().map(str::len), Some(10));
     assert_eq!(rec.at("repro_as_of"), rec.at("as_of"));
+}
+
+/// The sub's retirement scan (`sync_to_sub.sh` → `sub_runner retirement-scan`) is audited through the source text of
+/// `sub_runner.rs`: with this checkout's `sync_to_sub.sh` and `sub_runner.rs` the check
+/// `sub_retirement_consumer_audit_before_tombstone` is ok; without one of the tokens `let owner = format!(`,
+/// `while lo > 0 && is_chars(cs[lo - 1])`, `if token != owner` it is not (and the run is exit 1).
+#[test]
+fn sub_runner_source_tokens_are_audited() {
+    let sync = ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh";
+    let runner = ".claude/skills/upstream-version-watch/rust/runtime/src/bin/sub_runner.rs";
+    let audit = |s: &Scratch| -> Json {
+        let out = verify(s, &[]);
+        assert_eq!(out.status.code(), Some(1), "stderr:\n{}", text(&out.stderr));
+        let doc = report(&out);
+        let checks = doc.at("checks").arr().expect("checks is an array").to_vec();
+        let found = checks.into_iter().find(|c| c.at("name").str() == Some("sub_retirement_consumer_audit_before_tombstone"));
+        found.unwrap_or_else(|| panic!("the check is part of the report: {doc:?}"))
+    };
+    let s = checkout("sub-runner");
+    for rel in [sync, runner] {
+        let dst = s.0.join(rel);
+        std::fs::create_dir_all(dst.parent().unwrap()).unwrap();
+        std::fs::copy(root().join(rel), &dst).unwrap();
+    }
+    assert_eq!(audit(&s).at("ok"), &Json::Bool(true));
+    let source = std::fs::read_to_string(root().join(runner)).unwrap();
+    for token in ["let owner = format!(", "while lo > 0 && is_chars(cs[lo - 1])", "if token != owner"] {
+        assert!(source.contains(token), "{token}");
+        std::fs::write(s.0.join(runner), source.replace(token, "/* contract: token removed */")).unwrap();
+        assert_eq!(audit(&s).at("ok"), &Json::Bool(false), "without {token:?}");
+    }
 }
 
 /// Usage errors (a malformed `--policy-as-of`, an unknown argument, a missing value) are exit 2 with nothing on stdout.
