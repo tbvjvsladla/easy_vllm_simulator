@@ -35,3 +35,12 @@
 {"id": "r35", "kind": "exception", "type": "HintError", "code": "HINT_BRANCH_TRANSITION_DOWNGRADE", "message": "원격 안내 1c84dc8ba893 의 형식 v8 가 이 발행기 v7 보다 새것이다 — 되돌리지 않는다.", "remedy": "발행기(저장소)를 갱신한다.", "exit_code": 1}
 {"id": "r36", "kind": "exception", "type": "HintError", "code": "HINT_BRANCH_FORMAT_MISMATCH", "message": "원격 refs/heads/hint tip 1c84dc8ba893 는 발행기 형식 v7 의 안내 커밋이 아니다 — 안내 형식 v8 ≠ 발행기 형식 v7", "remedy": "형식 전환이 필요하다: 사람 승인(G2) 뒤 `hint.sh branch-transition --remote <원격> --generated-utc <UTC> --approved-by \"<사람 발화 전사>\" --approved-utc <UTC>` 가 그 위에 v7 안내 커밋을 얹고 exact refspec 로 non-force push 한다(발행은 브랜치를 밀지 않는다).", "exit_code": 1}
 {"id": "r37", "kind": "value", "value": {"rc": 0, "stdout": "", "stderr": ""}}
+{"id": "r38", "kind": "value", "value": {"rc": 0, "stdout": "", "stderr": ""}}
+{"id": "r39", "kind": "exception", "type": "HintError", "code": "HINT_BRANCH_TRANSITION_SSH_ONLY", "message": "hint 브랜치 push 는 ssh 키로만 한다 — 원격 'fx-https' 의 전송 ['https'] 은 허용 밖이다(GITHUB_TOKEN 은 태그 push 와 그 원격 조회에만). 원격을 조회하지 않았고 어느 ref 도 쓰지 않았다.", "remedy": "메인의 ssh 원격(ssh:// 또는 scp형 user@host:path)으로 다시 실행한다.", "exit_code": 1}
+{"id": "r40", "kind": "value", "value": {"rc": 0, "stdout": "refs/heads/hint 8403f26abaf1c79f16eb97b3e60b4e5bd7dcf541\nrefs/heads/main e0eb8050370898b2dbda70d06435c4606dc5ad4c\nrefs/remotes/origin/hint 8403f26abaf1c79f16eb97b3e60b4e5bd7dcf541\n8403f26abaf1c79f16eb97b3e60b4e5bd7dcf541\n", "stderr": ""}}
+{"id": "r41", "kind": "value", "value": {"remote": "fx-ssh", "refspec": "refs/heads/hint:refs/heads/hint", "format": "v7", "approved_by": "사람", "approved_utc": "2026-09-21T10:21:01Z", "local_before": "8403f26abaf1c79f16eb97b3e60b4e5bd7dcf541", "remote_before": "8403f26abaf1c79f16eb97b3e60b4e5bd7dcf541", "status": "already-transitioned", "new": "8403f26abaf1c79f16eb97b3e60b4e5bd7dcf541", "local_after": "8403f26abaf1c79f16eb97b3e60b4e5bd7dcf541", "remote_after": "8403f26abaf1c79f16eb97b3e60b4e5bd7dcf541"}}
+{"id": "r42", "kind": "value", "value": {"__path__": "fx/sub"}}
+{"id": "r43", "kind": "value", "value": {"rc": 0, "stdout": "", "stderr": ""}}
+{"id": "r44", "kind": "exception", "type": "HintError", "code": "HINT_BRANCH_TRANSITION_MAIN_ONLY", "message": "hint 브랜치 형식 전환은 메인에서만 한다 — 카탈로그 권위 선언 `hints/.central_authority` 이 없다. 원격을 조회하지 않았고 어느 ref 도 쓰지 않았다.", "remedy": "메인 체크아웃(카탈로그 권위 선언이 있는 쪽)에서 실행한다 — 서브·상류 기여 체크아웃은 형식 전환을 하지 않는다.", "exit_code": 1}
+{"id": "r45", "kind": "value", "value": null}
+{"id": "r46", "kind": "value", "value": "8403f26abaf1c79f16eb97b3e60b4e5bd7dcf541"}

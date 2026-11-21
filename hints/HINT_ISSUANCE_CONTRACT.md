@@ -477,14 +477,20 @@ hint.sh refacts --draft <draft>   같은 generated_utc 로 FACT 블록 · PAYLOA
   저장소에서 재현 · 2026-09-22). 성공 로그는 **실제 refspec** 을 출력한다.
 - **hint 브랜치는 발행이 밀지 않는다.** 태그 push 가 페이로드 커밋 오브젝트(와 그 부모 = 안내 커밋)를 함께 나르므로 zip 은 태그만으로
   성립하고, 원격 hint 브랜치 tip(= 안내 커밋)은 발행으로 움직이지 않는다. 브랜치가 움직이는 것은 페이로드 **형식이 바뀔 때**
-  `hint.sh branch-transition`(사람 승인 전사 · exact refspec `refs/heads/hint:refs/heads/hint` · non-force)뿐이다(§6.5 · U8 — 발행기에 브랜치
-  자동 push 권한 ✗).
+  `hint.sh branch-transition`(사람 승인 전사 · 메인 · ssh 키만 · exact refspec `refs/heads/hint:refs/heads/hint` · non-force)뿐이다(§6.5 · U8 —
+  발행기에 브랜치 자동 push 권한 ✗).
 - push 전에 이 태그 1개를 로컬 검증하고(검증 범위 = 전송 범위), 원격에 같은 오브젝트가 이미 있으면 push 를 생략(멱등), 다른 오브젝트면
   `HINT_REMOTE_TAG_CONFLICT`(강제 ✗). push 뒤 원격 태그 오브젝트 SHA 를 로컬과 대조한다.
-- **자격증명**(2026-09-04 "could not read Username" 사건): https 원격만 토큰이 필요하다(환경변수 `GITHUB_TOKEN` → `envs/.env` 의 같은 키 ·
-  없으면 `HINT_PUSH_CREDENTIAL_ABSENT`). ssh · scp형 · 로컬 경로 원격은 토큰 불요. 토큰은 argv · URL · reflog · remote.url 에 남지 않고
+- **자격증명 — 태그**(2026-09-04 "could not read Username" 사건 · 2026-11-20 h56 · plan_26112012 #5b · #13): 태그 push 는 https + PAT 다.
+  **메인의 정식 태그 원격 = `origin`**(https · PAT = 환경변수 `GITHUB_TOKEN` → `envs/.env` 의 같은 키 · 없으면 `HINT_PUSH_CREDENTIAL_ABSENT`)이고,
+  single 서브는 별도 hint 클론의 `origin`(https · push 주소 `remote.origin.pushurl` 고정 = 장착 도구 · plan_26112012 S1 · §6.6)에서 민다. 정식 원격을 정한 것이지 금지가
+  아니다 — ssh · scp형 · 로컬 경로 원격의 태그 push 는 토큰 불요이고 코드가 막지 않는다. 토큰은 argv · URL · reflog · remote.url 에 남지 않고
   (`credential.helper=` 로 상속 헬퍼를 비운다 · `GIT_TERMINAL_PROMPT=0`), 평문 http · URL 속 자격증명은 거부한다. 이 경로는 Rust `.claude/skills/hint-publisher/rust/src/tag.rs` 의
-  `git_push_authenticated` 다. upstream `push_branches.sh`(Rust)는 이 경로를 재사용하지 않는다 — 토큰이 필요 없는 원격(ssh·scp형·로컬 경로)만 밀고 https 원격은 `HTTPS_NEEDS_HINTLIB` 로 멈춘다.
+  `git_push_authenticated` 다.
+- **자격증명 — 브랜치**: branch push 는 메인에서 ssh 키로만 한다(`branch-transition` 포함 · PAT ✗ · 규칙의 권위 `ENV_SECRET_KEY_LEDGER` C3).
+  `branch-transition` 은 원격 조회 · ref 쓰기 전에 전송을 판정해 https · http 면 `HINT_BRANCH_TRANSITION_SSH_ONLY` 로 멈춘다(§6.5). upstream
+  `push_branches.sh`(Rust)는 `git_push_authenticated` 를 재사용하지 않는다 — 같은 정책으로 ssh · scp형 · 로컬 경로 원격만 밀고 https 원격은
+  `HTTPS_NEEDS_HINTLIB` 로 멈춘다. GitHub 룰셋 bypass 는 계정 단위라 GitHub 는 PAT 의 브랜치 push 를 막지 않는다 — W 코드가 막는다.
 
 ### 6.3 게이트 범위 = 이번 발행분만 (D10 · P1 의 귀결)
 
@@ -554,6 +560,12 @@ verify 에서 막혔고, 브랜치를 push 하면 원격 첫 화면이 마지막
   ref 쓰기 0). 원격이 이미 이 형식이면 `already-transitioned`(로컬 hint 가 다르면 원격 tip 으로 맞춤 = 옛 체인형 로컬 정리) · 원격이 더 새
   형식이면 `HINT_BRANCH_TRANSITION_DOWNGRADE` · 로컬 hint 를 옮기면 태그가 붙잡지 않는 페이로드 커밋이 고아가 되면
   `HINT_BRANCH_TRANSITION_ORPHAN_PAYLOAD`(아무것도 쓰지 않는다). 태그 · 카탈로그 · 코드 워크트리는 건드리지 않는다.
+- **형식 전환은 메인 · ssh 키만**(plan_26112012 #1 · 규칙의 권위 `ENV_SECRET_KEY_LEDGER` C3 — 여기는 집행만 적는다): 승인 확인 · 원격 조회 ·
+  ref 쓰기 전에 두 판정을 한다(부수효과 0). ① 전송 — 선언 URL(insteadOf 전개 전)의 push 쪽(pushurl → url)과 조회 쪽(url)이 모두
+  ssh · scp형 · 로컬 경로여야 하고, https · http(그 밖의 스킴 포함)가 하나라도 있으면 `HINT_BRANCH_TRANSITION_SSH_ONLY` — 조회도 https 면
+  토큰을 싣기 때문이다. 로컬 경로는 GitHub 에 닿지 않고 자체검사 · parity 의 격리 저장소가 쓰므로 통과다. ② 메인 — 카탈로그 권위 선언
+  `hints/.central_authority`(§6.4)가 없으면 `HINT_BRANCH_TRANSITION_MAIN_ONLY`(push 역할 선언 `hints/.push_authority` 로는 통과하지 않는다).
+  집행 자리 = `branch.rs` 의 `_require_branch_push_ssh` · `_require_branch_push_main`(`branch_transition` 머리).
 - 페이로드 커밋은 **배관만** 쓴다(임시 인덱스 · commit-tree). 메인 워킹트리 · 인덱스 · HEAD · 모든 ref 는 움직이지 않는다. **hint 브랜치를
   체크아웃하지 않는다** — 브랜치 전환이 산출물을 파괴한 실측 이력이 있다. hint 브랜치는 빌딩블럭이 아니라 산출물이므로 `sync_branches`
   대상이 아니다.
@@ -572,7 +584,9 @@ verify 에서 막혔고, 브랜치를 push 하면 원격 첫 화면이 마지막
 - **승인** — 사람이 메인 선언에 적는다(`campaign_init.sh --hint-approve --node <서브>`). 파생 선언(`--emit-slice <서브>`)이 그 노드 몫만
   운반하고, 서브 인스턴스는 남의 몫·자기 승인을 들 수 없다(검증기 · writer 거부). 셀별 Y/N 규칙(§6.1)은 그대로다.
 - **push** — 서브 워크스페이스 git 은 local-only 그대로다(policy SUB_GIT_LOCAL_ONLY). 태그는 그 밖의 **별도 hint 클론**(경로 선언 =
-  서브 `envs/.env` 의 `HINT_CLONE_DIR`)에서 정확한 태그 1개로 push 한다(§6.2). 토큰은 사람이 그 노드에 둔다(배달 ✗).
+  서브 `envs/.env` 의 `HINT_CLONE_DIR`)의 `origin`(https · push 주소 `remote.origin.pushurl` 고정 = 장착 도구 S1 · PAT)에서 정확한 태그 1개로 push 한다
+  (§6.2 자격증명 — 태그). 서브는 브랜치를 밀지 않는다 — 카탈로그 권위 선언이 없어 `branch-transition` 이 `HINT_BRANCH_TRANSITION_MAIN_ONLY`
+  로 멈추고, https 클론은 ssh 전송도 아니다(§6.2 자격증명 — 브랜치 · §6.5). 토큰은 사람이 그 노드에 둔다(배달 ✗).
 - **역할** — 태그 push 역할 선언(`hints/.push_authority`)과 카탈로그 권위 선언(`hints/.central_authority`)은 다르다. 서브는 push 역할만
   가지며 카탈로그 단계를 건너뛰고 testlog(승인 출처 · 태그 · 원격 태그 SHA · 엔진 리비전)로 보고한다. 메인이 문서기반으로 회수해
   승인 출처를 대조한 뒤 카탈로그를 파생한다(카탈로그는 메인 단독). 장착 절차 = terraforming_node `references/install/sub_agent_env.md` §2.5.1.
@@ -952,6 +966,7 @@ artifacts 헤더에만 기록된 필요조건을 inherited 로 강등했다. 00 
   01 §1.5 노드 접기는 Ray 가 접은 줄에서 다른 쪽 부재를 단언하지 않는다 · 탐침 규칙 단일 소유 = artifacts 실행기) — 형식 문자열(`hint-payload/v6`)과 이름 문법은 그대로다 |
 | **v7** | **2026-09-29** | plan_26092908(v6 4태그 적대 검증 · 블라인드 수신자 3 · 세션 채굴 2 · 구조 감사 1 → 사용자 결정 U1~U9): 이름 = 결정론 `q·len·kv` + Agent 꼬리(`tail.json` · 형식 · 뜻 · 근거 대조 · v6 뒤 3축 모양 거부) + 원격·로컬 중복 시 `-t<YYMMDDHHMM>`(§4) · native 구조 통일과 파일 단위 verification · generated_by · relevance(세 자리 일치 · §3.3) · 판정 기계 표면(`measurement.verdict` · 판정 행 · 배너 · 카탈로그 판정 열 · §3.0.2) · footer v2(`bench_ref` · `bench_kind` · §7.3) · 인증서 요구 = explicit ∧ PASS 만(§3.0.1 · completion_gate) · 관측 > 선언(driver_conflict · §7.2) · 사실 검증이 FACT 도(`target` · `refacts` · §6.7) · 페이로드 커밋 부모 = 안내 커밋 · 형식 마커 · `branch-transition`(§6.5) · 봉인 뒤 verify 출처 변경 = INFO(§6.3) · LINEAGE 요약/전체 분리(§8.1) · 거부된 publish 의 시각 채택 · `--node` 자동 · 카탈로그 자동 커밋(§6) · 새 결손 코드 3종 · V15 잔재 정리(§10 D-d · 평면 코드명 통일 `HINT_PLANE_UNDERIVABLE`) — 형식 `hint-payload/v7` · PAYLOAD schema 3 |
 | **v8** | **2026-10-11** | plan_26101104 Step 1(인터뷰 `interview_20261010_191736` · Seed `seed_1fea372f89b3`): 발행 게이트 = 서빙 성립 ∧ 유효 측정(권한 무관 · `BENCHMARK_VERDICT_ANNOTATED`) · REFUTE·FAIL 은 표시만 · loop-until-done 은 성능 게이트로 분리 · 기준 부재 full 셀 = `OBSERVATION-ONLY`(판정기 NEEDS_RUBRIC 사다리 공백 · `BENCHMARK_OBSERVATION_ONLY_PROMOTION` · 배너 · 루프 없음) · 성능 면제 필드 폐기(스키마 · 게이트 · 린트 · 바인딩 원천) · hint_map_only 의 FAIL 차단 제거 · 인증서 = explicit ∧ PASS 불변 · 과거 태그 불변(§3.2) |
+| v8.1 | 2026-11-21 | plan_26112012 #1 · #5b · #13(형식 문자열 · 이름 문법 불변): `branch-transition` = 메인 · ssh 키만(`HINT_BRANCH_TRANSITION_SSH_ONLY` · `_MAIN_ONLY` · §6.5) · 자격증명 문단을 태그(https + PAT · 메인 정식 원격 `origin`)와 브랜치(ssh 키만)로 나눔(§6.2) · 서브 push 문단(§6.6) |
 | **v6** | **2026-09-22** | plan_26092119: 셀 1개 = 태그 1개 · 단일 진입 `hint.py`(옛 CLI 5종 · families · 스캐폴드 템플릿 제거 · shim ✗) · 이름 전량 도구 파생(5세그먼트 · 어휘표 · 전 축 필수) · 발행 자격 = 관측 · 승인 = 셀별 사전 기록(O6) · A 층 = 평면별 재현 입력 "쓰인 것만" · 지도가 zip 안(00-hint) · 계보 서사 PROMPT 템플릿 · 발췌 허용 + 무결성 · 값의 지위 · 커밋 신원도 합성 · push = 태그 1개(브랜치 ✗) · 게이트 = 이번 발행분만 |
 
 v5 의 옛 절 번호 인용(`계약 v5 §3` C행 · `§3.-1` 앵커 검사 · `§3.-2` 노드축 대조)은 각각 v6 의 §3(C행 = §3 표의 C 층 · 통로는 §3.0.1) ·

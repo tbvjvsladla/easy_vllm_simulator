@@ -1166,6 +1166,49 @@ pub fn _require_approval(approved_by: Option<&str>, approved_utc: Option<&str>) 
     core::require_utc(approved_utc, "--generated-utc")
 }
 
+/// 형식 전환(branch push)이 통과시키는 push 전송: h53 「branch push = 메인노드만, ssh 키로만」(규칙의 권위 = ENV_SECRET_KEY_LEDGER.C3 ·
+/// plan_26112012 #1). `local`(로컬 경로)은 GitHub 에 닿지 않고 자체검사·parity 의 격리 저장소가 쓰므로 통과다(계약 §6.5).
+pub const BRANCH_PUSH_TRANSPORTS: [&str; 2] = ["local", "ssh"];
+
+/// branch push 전송 판정 — 원격 조회·ref 쓰기 전(부수효과 0). 선언 URL(insteadOf 전개 전 · `tag::_remote_transports`)의 push 쪽
+/// (pushurl → url)과 조회 쪽(url) 전송이 모두 `BRANCH_PUSH_TRANSPORTS` 안이어야 한다: 조회(`ls-remote`·fetch)도 https 면 PAT 를
+/// 싣는다(`tag::_remote_env`). 밖(https·http 등) = `HINT_BRANCH_TRANSITION_SSH_ONLY`.
+pub fn _require_branch_push_ssh(repo: &Path, remote: &str) -> HR<()> {
+    let mut transports = crate::tag::_remote_transports(repo, remote, true)?;
+    transports.extend(crate::tag::_remote_transports(repo, remote, false)?);
+    transports.sort();
+    transports.dedup();
+    let refused: Vec<String> = transports.into_iter().filter(|t| !BRANCH_PUSH_TRANSPORTS.contains(&t.as_str())).collect();
+    if refused.is_empty() {
+        return Ok(());
+    }
+    core::fail(
+        "HINT_BRANCH_TRANSITION_SSH_ONLY",
+        format!(
+            "hint 브랜치 push 는 ssh 키로만 한다 — 원격 {} 의 전송 {} 은 허용 밖이다(GITHUB_TOKEN 은 태그 push 와 그 원격 조회에만). 원격을 조회하지 않았고 어느 ref 도 쓰지 않았다.",
+            crate::value::py_repr(remote),
+            strs_repr(&refused)
+        ),
+        Some("메인의 ssh 원격(ssh:// 또는 scp형 user@host:path)으로 다시 실행한다."),
+    )
+}
+
+/// 메인 전용 판정 — 형식 전환은 카탈로그 권위 선언(`hints/.central_authority` · 메인 단독 · 계약 §6.4 · §6.6)이 있는 체크아웃만 한다.
+/// 서브는 이 선언을 갖지 않는다(태그 push 역할 선언 `hints/.push_authority` 는 여기서 통과가 아니다). 없음 = `HINT_BRANCH_TRANSITION_MAIN_ONLY`(부수효과 0).
+pub fn _require_branch_push_main(repo: &Path) -> HR<()> {
+    if repo.join(core::REL_CENTRAL_FLAG).is_file() {
+        return Ok(());
+    }
+    core::fail(
+        "HINT_BRANCH_TRANSITION_MAIN_ONLY",
+        format!(
+            "hint 브랜치 형식 전환은 메인에서만 한다 — 카탈로그 권위 선언 `{}` 이 없다. 원격을 조회하지 않았고 어느 ref 도 쓰지 않았다.",
+            core::REL_CENTRAL_FLAG
+        ),
+        Some("메인 체크아웃(카탈로그 권위 선언이 있는 쪽)에서 실행한다 — 서브·상류 기여 체크아웃은 형식 전환을 하지 않는다."),
+    )
+}
+
 fn orphan_fail(prefix: &str, orphans: &[String]) -> HR<()> {
     let short: Vec<String> = orphans.iter().take(10).map(|c| core::head_chars(c, 12)).collect();
     core::fail(
@@ -1183,12 +1226,14 @@ fn with(base: &Map, extra: Vec<(&str, J)>) -> J {
     J::Dict(m)
 }
 
-/// 형식 전환(브랜치 push 의 유일한 경로 · 사람 승인 필수).
+/// 형식 전환(브랜치 push 의 유일한 경로 · 사람 승인 필수 · 메인 · ssh 키만).
 pub fn branch_transition(repo: &Path, remote: &str, generated_utc: &str, approved_by: Option<&str>, approved_utc: Option<&str>) -> HR<J> {
     let utc = core::require_utc(Some(generated_utc), "--generated-utc")?;
     if remote_bad(remote) {
         return core::fail("HINT_BRANCH_REMOTE_INVALID", format!("전환 remote 인자가 올바르지 않다: {}", crate::value::py_repr(remote)), None);
     }
+    _require_branch_push_ssh(repo, remote)?;
+    _require_branch_push_main(repo)?;
     let appr_utc = _require_approval(approved_by, approved_utc)?;
     _require_hint_not_checked_out(repo)?;
     let readme = _transition_template_bytes(repo)?;
@@ -2184,6 +2229,10 @@ fn _transition_selftest(tmp: &Path, c: &mut Ck) -> HR<()> {
         write_text(&target, &format!("{}{tpl_body}", if with_marker { format!("{marker}\n") } else { String::new() }))?;
         core::git(&r, &["add", _BRANCH_TEMPLATE_REL])?;
         core::git(&r, &["commit", "-qm", "tracked transition template"])?;
+        // 형식 전환은 메인 전용이다(plan_26112012 #1): 이 픽스처는 카탈로그 권위 선언(비추적)을 가진 메인 체크아웃이다.
+        let flag = r.join(core::REL_CENTRAL_FLAG);
+        mkdirs(flag.parent().unwrap())?;
+        write_text(&flag, "fixture main checkout\n")?;
         Ok(r)
     };
     let mk_bare = |name: &str| -> HR<PathBuf> {
@@ -2271,6 +2320,58 @@ fn _transition_selftest(tmp: &Path, c: &mut Ck) -> HR<()> {
         branch_transition(repo, "origin", "2026-09-22T00:00:00Z", ab, au)?.get_str("status") == Some("already-transitioned") && hint_tip(repo)? == Some(new.clone()),
     );
     c.ck("전환 뒤 guide_commit(origin) = (새 안내, v7)", guide_commit(repo, "origin", None)? == (new.clone(), BRANCH_FORMAT.into()));
+
+    // plan_26112012 #1 (규칙의 권위 = ENV_SECRET_KEY_LEDGER.C3): branch push = 메인 · ssh 키만, 원격 조회·ref 쓰기 전에 판정한다.
+    // 픽스처 원격의 선언 URL 은 insteadOf 로 로컬 bare 를 가리킨다 — 판정은 선언 URL 을 읽고 git 은 네트워크에 닿지 않는다.
+    const FX_HTTPS: &str = "https://example.invalid/hint.git";
+    const FX_HTTP: &str = "http://example.invalid/hint.git";
+    const FX_SCP: &str = "git@example.invalid:hint.git";
+    const FX_SSH: &str = "ssh://git@example.invalid/hint.git";
+    for u in [FX_HTTPS, FX_HTTP, FX_SCP, FX_SSH] {
+        core::git(repo, &["config", "--add", &format!("url.{bare_s}.insteadOf"), u])?;
+    }
+    let add_remote = |name: &str, url: &str, pushurl: Option<&str>| -> HR<()> {
+        core::git(repo, &["remote", "add", name, url])?;
+        if let Some(p) = pushurl {
+            core::git(repo, &["config", &format!("remote.{name}.pushurl"), p])?;
+        }
+        Ok(())
+    };
+    add_remote("fx-https", FX_HTTPS, None)?;
+    add_remote("fx-http", FX_HTTP, None)?;
+    add_remote("fx-pushurl", &bare_s, Some(FX_HTTPS))?;
+    add_remote("fx-fetchurl", FX_HTTPS, Some(FX_SCP))?;
+    add_remote("fx-scp", FX_SCP, None)?;
+    add_remote("fx-ssh", FX_SSH, None)?;
+    let refs1 = refs_snapshot(repo)?;
+    for name in ["fx-https", "fx-http", "fx-pushurl", "fx-fetchurl", FX_HTTPS] {
+        c.ck(
+            &format!("★{name}: push·조회 전송에 https·http = HINT_BRANCH_TRANSITION_SSH_ONLY"),
+            expect_code(|| branch_transition(repo, name, _FX_UTC, ab, au), "HINT_BRANCH_TRANSITION_SSH_ONLY"),
+        );
+    }
+    c.ck(
+        "★SSH_ONLY 거부 뒤 로컬 ref 불변 · 원격 tip 불변(push 0)",
+        refs_snapshot(repo)? == refs1 && _remote_hint_tip(repo, "origin")? == Some(new.clone()),
+    );
+    for name in ["fx-scp", "fx-ssh"] {
+        c.ck(
+            &format!("{name}: ssh·scp형 원격 + 메인 선언 = 기존 결과(already-transitioned)"),
+            branch_transition(repo, name, _FX_UTC, ab, au)?.get_str("status") == Some("already-transitioned"),
+        );
+    }
+    let sub = mk_repo("transition-sub", true)?;
+    let sub_flag = sub.join(core::REL_CENTRAL_FLAG);
+    std::fs::remove_file(&sub_flag).map_err(|e| core::io_err(&e, &sub_flag))?;
+    write_text(&sub.join(core::REL_PUSH_FLAG), "fixture sub push role\n")?;
+    core::git(&sub, &["remote", "add", "origin", &bare_s])?;
+    let sub_refs = refs_snapshot(&sub)?;
+    c.ck(
+        "★카탈로그 권위 선언 없음(push 역할 선언만) = HINT_BRANCH_TRANSITION_MAIN_ONLY · 로컬 hint 생성 ✗ · 원격 불변",
+        expect_code(|| branch_transition(&sub, "origin", _FX_UTC, ab, au), "HINT_BRANCH_TRANSITION_MAIN_ONLY")
+            && refs_snapshot(&sub)? == sub_refs
+            && _remote_hint_tip(repo, "origin")? == Some(new.clone()),
+    );
 
     let clone = selftest_repo(tmp, "transition-clone")?;
     core::git(&clone, &["remote", "add", "origin", &bare_s])?;

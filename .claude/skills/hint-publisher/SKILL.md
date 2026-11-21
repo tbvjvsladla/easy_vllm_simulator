@@ -167,7 +167,7 @@ bash $H continue --campaign <id> --cell <cell> --generated-utc <UTC>  # 승인 �
 | `push --tag T` | `--apply` 때만 원격 쓰기 | `hint_push` · 중앙 권위 선언(D8) | 정확한 태그 1개 · 기본 dry-run(실패 안 삼킴) · 카탈로그 · 위상은 하지 않는다(continue 가 한다) |
 | `catalog derive` | `hints/index.json` · `HINTS.md` | 중앙 권위 선언 | `--remote` · `--generated-kst` · `--record-missing`(로컬 오브젝트 없는 원격 태그를 정직한 행으로 · rc 0) · `--dry-run` · `--allow-empty`(원격 hint 태그 0건을 정상으로 선언) |
 | `match` | 0 | — | 수신자 근-미스 발견 · gitless(`hints/index.json` 만) · 정규화 슬러그 + `base_model` · 결정론부로 1차 매칭(꼬리 뜻은 보조) |
-| `branch-transition` | 원격 `refs/heads/hint` 1개(exact refspec · non-force) · 로컬 `hint` | 사람 승인 전사 필수(`--approved-by` · `--approved-utc`) | **형식 전환 때만** — 원격 hint tip 위에 이 발행기 형식(v7)의 안내 커밋(README 하나 · 첫 줄 `<!-- hint-branch-format: v7 -->`)을 얹고 민다 · 태그 · 카탈로그 · 코드 워크트리 ✗ · 더 새 형식이면 거부(`_DOWNGRADE`) · 태그 없는 페이로드 커밋을 고아로 만들면 거부(`_ORPHAN_PAYLOAD`) |
+| `branch-transition` | 원격 `refs/heads/hint` 1개(exact refspec · non-force) · 로컬 `hint` | 사람 승인 전사 필수(`--approved-by` · `--approved-utc`) · 메인(`hints/.central_authority`) · ssh 키만(https·http 원격 = `_SSH_ONLY` · 선언 없음 = `_MAIN_ONLY` · 원격 조회 전) | **형식 전환 때만** — 원격 hint tip 위에 이 발행기 형식(v7)의 안내 커밋(README 하나 · 첫 줄 `<!-- hint-branch-format: v7 -->`)을 얹고 민다 · 태그 · 카탈로그 · 코드 워크트리 ✗ · 더 새 형식이면 거부(`_DOWNGRADE`) · 태그 없는 페이로드 커밋을 고아로 만들면 거부(`_ORPHAN_PAYLOAD`) |
 | `--self-test` | 0(격리 임시 저장소) | — | 전 모듈 자체검사 + 파서 + 격리 E2E(라이브 태그 · 브랜치 · 캠페인 비의존) |
 
 전역 `--repo R` 은 **서브명령 앞**에 둔다(2026-09-12: 인자 순서가 틀린 호출이 한 번도 성공한 적 없었다). 게이트 거부는 게이트 JSON 을
@@ -255,8 +255,9 @@ footer 도 페이로드 형식도 없고, 카탈로그는 원격 태그에서 �
 - **게이트 = 이번 발행분만** — verify · push 는 이 태그 1개만 본다. 과거 · 타 PC 태그의 결함은 신규 발행을 막지 않는다(계약 §6.3).
 - **push = 정확한 태그 1개**(`refs/tags/<그 태그>` · `--tags` ✗ · glob ✗ · `--no-follow-tags`). **hint 브랜치 push 는 발행에 속하지 않는다** —
   발행은 안내 커밋을 **읽기만** 하고 브랜치를 밀지도 로컬 `hint` 를 움직이지도 않는다. 브랜치가 움직이는 것은 페이로드 **형식 전환** 때
-  `hint.sh branch-transition`(사람 승인 전사 · exact refspec · non-force)뿐이다. ssh · 로컬 원격은 토큰 불요, https 는
-  `GITHUB_TOKEN`(환경 또는 `envs/.env`)(계약 §6.2 · §6.5).
+  `hint.sh branch-transition`(사람 승인 전사 · exact refspec · non-force)뿐이다. 태그 push 의 메인 정식 원격은 `origin`(https · PAT =
+  `envs/.env` 의 `GITHUB_TOKEN` 또는 같은 이름의 환경변수)이고 ssh · 로컬 원격 태그 push 는 토큰 불요다. 브랜치 push(`branch-transition`)는
+  메인에서 ssh 키로만 하고 PAT 를 쓰지 않는다(policy:ENV_SECRET_KEY_LEDGER C3 · 계약 §6.2 · §6.5).
 - **카탈로그는 손으로 쓰지 않는다** — 진실원천은 `git ls-remote`. 조회 실패 = 캐시로 대체하지 않고 중단. `HINTS.md` 는 마커 구간만 생성물이고 구간 밖은 사람 서사(파생기가 건드리지 않는다).
 - **손 JSON 0** — identity · runtime · pii · promotion_target 은 도구가 쓴다. `state.json` 도 손으로 고치지 않는다. 예외는 하나 —
   `inputs/factcheck.json` 은 **검증 Agent** 가 쓰는 보고다(저작자가 대신 쓰지 않는다 · 도구는 모양과 열린 항목만 판정한다).

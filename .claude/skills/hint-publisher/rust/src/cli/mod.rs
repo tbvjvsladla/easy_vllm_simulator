@@ -222,7 +222,9 @@ fn build_parser() -> Parser {
     m.add(Act::opt("--json", K::True));
 
     let bt = p.add_parser("branch-transition", Some("maintenance-only: README 하나의 hint 브랜치 형식 전환(CAS·정확한 branch push · 사람 승인)"));
-    bt.add(Act::opt("--remote", K::Store).req().help("live hint tip을 대조하고 refs/heads/hint 하나만 밀 원격"));
+    bt.add(Act::opt("--remote", K::Store).req().help(
+        "live hint tip을 대조하고 refs/heads/hint 하나만 밀 원격 — 메인(hints/.central_authority)의 ssh·scp형·로컬 경로 원격만(https·http = HINT_BRANCH_TRANSITION_SSH_ONLY · PAT ✗)",
+    ));
     bt.add(Act::opt("--generated-utc", K::Store).req().help("주입 UTC YYYY-MM-DDTHH:MM:SSZ(벽시계 ✗)"));
     bt.add(Act::opt("--approved-by", K::Store).req().help("형식 전환 승인: 사람 발화 전사(한 줄 · 반환값에만 실린다 — 배포 오브젝트 ✗)"));
     bt.add(Act::opt("--approved-utc", K::Store).req().help("승인 시각 UTC"));
