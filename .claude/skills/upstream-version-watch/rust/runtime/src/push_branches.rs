@@ -15,7 +15,7 @@ const OPERATIONAL: [&str; 2] = ["single-node", "multi-node"];
 pub(crate) const SCOPE_ARGS: [&str; 2] = ["--no-follow-tags", "--no-recurse-submodules"];
 /// The reason code of a branch push refused because a declared push address is http(s) (plan_26112012 #5d: the name
 /// states the policy, not a porting gap).
-pub(crate) const HTTPS_REFUSED: &str = "BRANCH_PUSH_HTTPS_REFUSED";
+pub const HTTPS_REFUSED: &str = "BRANCH_PUSH_HTTPS_REFUSED";
 
 /// One token-free `git push` with the given scope options; the self-test passes an emptied list to prove its tag-leak control is not vacuous.
 pub(crate) fn push_local(repo: &str, remote: &str, refspec: &str, dry: bool, scope: &[&str]) -> Result<(i32, String), String> {
@@ -90,6 +90,12 @@ fn declared_push_urls(repo: &str, remote: &str) -> Vec<String> {
     vec![remote.to_string()]
 }
 
+/// Whether a branch push to `remote` is refused: one of its declared push addresses ([`declared_push_urls`]) is http(s). [`run`]
+/// refuses every branch with [`HTTPS_REFUSED`] on it; the predicate of ENV_SECRET_KEY_LEDGER C3 asks the same judgement in process.
+pub fn refuses_http_push_address(repo: &str, remote: &str) -> bool {
+    declared_push_urls(repo, remote).iter().any(|u| u.starts_with("https://") || u.starts_with("http://"))
+}
+
 pub fn run(args: &[String]) -> i32 {
     let (mut repo, mut remote, mut branches, mut dry) = (".".to_string(), None::<String>, Vec::new(), false);
     let mut i = 0;
@@ -137,7 +143,7 @@ pub fn run(args: &[String]) -> i32 {
             return 2;
         }
     }
-    let https = declared_push_urls(&repo, &remote).iter().any(|u| u.starts_with("https://") || u.starts_with("http://"));
+    let https = refuses_http_push_address(&repo, &remote);
     let mut items = Vec::new();
     let mut ok = true;
     for br in &branches {

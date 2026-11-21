@@ -362,6 +362,11 @@ pub fn push_transport_value(ws: &Path) -> (PyValue, i32) {
     push_transport(ws)
 }
 
+/// `--narrow-env-mode [--sub-workspace-shared V]` (#2 · #2b) as its correction record and whether it acted, for the same callers.
+pub fn narrow_env_value(ws: &Path, workspace_shared: Option<&str>) -> (PyValue, bool) {
+    narrow_env_record(ws, workspace_shared)
+}
+
 fn ignored(ws: &Path, rel: &str) -> Option<bool> {
     match git(ws, &["check-ignore", "-q", "--", rel]).code {
         0 => Some(true),
