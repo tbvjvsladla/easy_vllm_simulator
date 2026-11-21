@@ -464,8 +464,8 @@
     ],
     "MODEL_ACQUISITION_TERNARY_GATE.C4": [
       {
-        "path": "manifest.template.yaml",
-        "assertion_ids": ["hf_token_env_file"]
+        "path": ".claude/rust/role-contract/src/env_secret.rs",
+        "assertion_ids": ["HF_TOKEN_KEY", "hf_token_present", "remote_presence_test"]
       },
       {
         "path": ".claude/rust/policy-predicates/src/claims_tf.rs",

@@ -1424,7 +1424,7 @@
    "args": [
     "user@203.0.113.11",
     "/nas/models",
-    "/h/token.env"
+    "/h/ws"
    ],
    "kwargs": {},
    "setup": {
@@ -1451,10 +1451,14 @@
       "bash",
       "-ls"
      ],
-     "stdin_hex": "5b202d64202f6e61732f6d6f64656c73205d202626206563686f204e41533d31207c7c206563686f204e41533d300a5b202d66202f682f746f6b656e2e656e76205d202626206563686f20544f4b3d31207c7c206563686f20544f4b3d300a"
+     "stdin_hex": "5b202d64202f6e61732f6d6f64656c73205d202626206563686f204e41533d31207c7c206563686f204e41533d300a67726570202d457120225e5b5b3a73706163653a5d5d2a48465f544f4b454e3d2e2a5b5e5b3a73706163653a5d5c22275d22202f682f77732f656e76732f2e656e7620323e2f6465762f6e756c6c202626206563686f20544f4b3d31207c7c206563686f20544f4b3d300a"
     }
    ],
-   "args_after_equal": true
+   "args_after_equal": true,
+   "plan_26112012": {
+    "change": "third argument = the sub's work dir (was the main's token-file pointer); token line = the HF_TOKEN presence test over <work dir>/envs/.env (exit code only)",
+    "cell": "c83-gc-terraform"
+   }
   },
   {
    "id": "S50K33",

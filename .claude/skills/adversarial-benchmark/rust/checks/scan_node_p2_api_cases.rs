@@ -391,7 +391,7 @@ fn every_saved_p2_api_row_is_reproduced_by_the_native_probes_on_own_fakes() {
             "_iface_ipv4" => &["iface"],
             "collect_peer_hw" => &["ssh_target", "ssh_opts"],
             "collect_peer_model_env" => {
-                &["ssh_target", "nas_path", "hf_token_env_file", "ssh_opts"]
+                &["ssh_target", "nas_path", "sub_work_dir", "ssh_opts"]
             }
             "collect_peer_egress" => &[
                 "ssh_target",
@@ -627,7 +627,7 @@ fn a_successful_probe_has_no_effects_and_a_model_env_failure_is_named_model_env(
         &[
             ("ssh_target", s("user@h")),
             ("nas_path", s("/nas/it's here")),
-            ("hf_token_env_file", r#"{"t":"none"}"#.into()),
+            ("sub_work_dir", r#"{"t":"none"}"#.into()),
             (
                 "ssh_opts",
                 r#"{"t":"list","v":[{"t":"str","v":"-o"},{"t":"str","v":"BatchMode=yes"}]}"#.into(),
@@ -667,7 +667,7 @@ fn a_successful_probe_has_no_effects_and_a_model_env_failure_is_named_model_env(
         &[
             ("ssh_target", s("user@h")),
             ("nas_path", s("/n")),
-            ("hf_token_env_file", r#"{"t":"none"}"#.into()),
+            ("sub_work_dir", r#"{"t":"none"}"#.into()),
             ("ssh_opts", r#"{"t":"none"}"#.into()),
         ],
         &hostkey,

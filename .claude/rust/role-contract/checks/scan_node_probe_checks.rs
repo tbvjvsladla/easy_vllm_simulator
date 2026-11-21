@@ -437,14 +437,14 @@ fn peer_egress_and_model_env_follow_the_originals_probe_text_and_folding() {
         );
     }
     let env = ssh_host(|_, stdin| {
-        assert_eq!(String::from_utf8_lossy(stdin.expect("input")), "[ -d /nas/models ] && echo NAS=1 || echo NAS=0\n[ -f '/h/to ken' ] && echo TOK=1 || echo TOK=0\n");
+        assert_eq!(String::from_utf8_lossy(stdin.expect("input")), "[ -d /nas/models ] && echo NAS=1 || echo NAS=0\ngrep -Eq \"^[[:space:]]*HF_TOKEN=.*[^[:space:]\\\"']\" '/h/w s'/envs/.env 2>/dev/null && echo TOK=1 || echo TOK=0\n");
         out(0, "NAS=0\nTOK=1\nother\n")
     });
     let found = probe::collect_peer_model_env(
         &env,
         &s("u@h"),
         &s("/nas/models"),
-        &s("/h/to ken"),
+        &s("/h/w s"),
         &PyValue::None,
     )
     .expect("env");

@@ -181,6 +181,9 @@ pub trait Local {
     fn cwd(&self) -> Res<PyStr>;
     fn is_dir(&self, path: &PyStr) -> bool;
     fn is_file(&self, path: &PyStr) -> bool;
+    /// plan_26112012 #11: whether the main workspace's `envs/.env` gives `HF_TOKEN` a value (a bool only; the fixed path under the
+    /// workspace the launcher's owner path names). `None` = no workspace root follows from the owner path.
+    fn hf_token_present(&self) -> Option<bool>;
 }
 
 /// An OS failure as the exception class and `str()` text CPython gives it (`[Errno N] strerror`); frames/`args` tuple are not reproduced.
@@ -274,6 +277,11 @@ impl Local for StdLocal {
             use std::os::unix::ffi::OsStrExt;
             std::fs::metadata(std::ffi::OsStr::from_bytes(&bytes)).is_ok_and(|meta| meta.is_file())
         })
+    }
+
+    fn hf_token_present(&self) -> Option<bool> {
+        let owner = std::env::var_os(crate::scan_node_bridge::OWNER_ENV).map(std::path::PathBuf::from);
+        workspace_of_owner(owner.as_deref()).map(|root| role_contract::env_secret::hf_token_present(&root))
     }
 }
 
@@ -815,18 +823,27 @@ fn scan_flow(
                 _ => PyValue::None,
             };
             let mut nas_source = "measured:main-fs";
-            let token_file =
-                match files::read_manifest_field(files, &mani_path, &text("hf_token_env_file")) {
-                    Ok(found) => found,
-                    Err(Failure::Raised(raised)) if raised.class == "ManifestUnreadable" => {
+            // plan_26112012 #11 (h57 · h58 D3 (가-1)): HF_TOKEN is the key of the workspace file envs/.env at a fixed path; the
+            // manifest carries no pointer. A pointer field left in an earlier manifest is never read for the verdict: one warning.
+            let retired_pointer = match files::read_manifest_field(
+                files,
+                &mani_path,
+                &text(role_contract::env_secret::RETIRED_TOKEN_POINTER_FIELD),
+            ) {
+                Ok(found) => !matches!(found.peel(), PyValue::None),
+                Err(Failure::Raised(raised)) if raised.class == "ManifestUnreadable" => false,
+                Err(other) => return Err(other),
+            };
+            if retired_pointer {
+                say(stderr, "[scan] WARN: manifest 의 hf_token_env_file 은 폐기된 필드다 — 판정에 쓰지 않고 무시한다(HF_TOKEN 거처 = 워크스페이스 envs/.env 의 HF_TOKEN 키 · plan_26112012 #11).\n");
+            }
+            let mut token_present = if free_form {
+                match local.hf_token_present() {
+                    Some(present) => PyValue::Bool(present),
+                    None => {
+                        say(stderr, "[scan] WARN: 워크스페이스 루트를 정할 수 없다(SCAN_NODE_OWNER_PATH) — 메인 HF_TOKEN 을 판정하지 않는다.\n");
                         PyValue::None
                     }
-                    Err(other) => return Err(other),
-                };
-            let mut token_present = if free_form {
-                match token_file.peel() {
-                    PyValue::Str(path) if !path.is_empty() => PyValue::Bool(local.is_file(path)),
-                    _ => PyValue::Bool(false),
                 }
             } else {
                 PyValue::None
@@ -837,7 +854,7 @@ fn scan_flow(
                     host,
                     &peer_ssh_value,
                     &nas_path,
-                    &token_file,
+                    &opt_text(a.sub_work_dir_set()),
                     &PyValue::None,
                 )?;
                 result_map.set("model_env_peer", peer_env.clone());

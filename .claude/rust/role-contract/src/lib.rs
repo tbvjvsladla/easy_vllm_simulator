@@ -20,6 +20,7 @@ use agent_runtime_support::pystr::PyStr;
 use agent_runtime_support::pyvalue::{PyDict, PyValue};
 pub mod campaign;
 pub mod env_file_mode;
+pub mod env_secret;
 pub mod identity;
 pub mod load;
 pub mod manifest_gate;

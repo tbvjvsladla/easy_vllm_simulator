@@ -493,7 +493,7 @@ fn serve_request(
                 host,
                 &p.get("ssh_target")?,
                 &p.get("nas_path")?,
-                &p.get("hf_token_env_file")?,
+                &p.get("sub_work_dir")?,
                 &p.get("ssh_opts")?,
             ),
         ),

@@ -800,7 +800,7 @@
         },
         {
           "clause_id": "MODEL_ACQUISITION_TERNARY_GATE.C4",
-          "statement": "An hf_token, when needed, is registered as a manifest file pointer only -- the raw token itself is never tracked."
+          "statement": "HF_TOKEN, when needed, is the key HF_TOKEN in the untracked workspace file envs/.env (a fixed path; ENV_SECRET_KEY_LEDGER) -- there is no manifest pointer field; the value is never tracked, never emitted, never printed; a download that uses it still needs the per-event approval of C2."
         },
         {
           "clause_id": "MODEL_ACQUISITION_TERNARY_GATE.C5",
@@ -851,12 +851,14 @@
           ]
         },
         {
-          "path": "manifest.template.yaml",
+          "path": ".claude/rust/role-contract/src/env_secret.rs",
           "supports": [
             "MODEL_ACQUISITION_TERNARY_GATE.C4"
           ],
           "assertion_ids": [
-            "hf_token_env_file"
+            "HF_TOKEN_KEY",
+            "hf_token_present",
+            "remote_presence_test"
           ]
         },
         {

@@ -63,13 +63,13 @@ const CLAUSES: [&str; 10] = [
 
 /// (clause, file, old, new, expected error prefix)
 const MUTATIONS: [(&str, &str, &str, &str, &str); 11] = [
-    ("MODEL_ACQUISITION_TERNARY_GATE.C4", ".claude/skills/adversarial-benchmark/rust/src/scan_node_cli.rs",
-     "PyValue::Str(path) if !path.is_empty() => PyValue::Bool(local.is_file(path)),",
-     "PyValue::Str(path) if !path.is_empty() => PyValue::Bool(local.is_dir(path)),",
-     "PredicateFailure: hf_token_env_file may only be passed to existence checks (local or remote), found: a non-isfile local use"),
+    // plan_26112012 #11: the judgement prints nothing of the file; the remote probe answers by an exit code only.
+    ("MODEL_ACQUISITION_TERNARY_GATE.C4", ".claude/rust/role-contract/src/env_secret.rs",
+     "        Err(_) => false,\n", "        Err(error) => {\n            eprintln!(\"{error}\");\n            false\n        }\n",
+     "PredicateFailure: the HF_TOKEN judgement (env_secret::hf_token_present) must print or return nothing of the file"),
     ("MODEL_ACQUISITION_TERNARY_GATE.C4", ".claude/rust/role-contract/src/scan_node_probe.rs",
-     "\"[ -f {} ] && echo TOK=1 || echo TOK=0\"", "\"cat {} && echo TOK=1 || echo TOK=0\"",
-     "PredicateFailure: the remote existence probe must never read the token file content"),
+     "crate::env_secret::remote_presence_test(", "format!(\"cat {}/envs/.env && echo TOK=1 # {}\", \"\", ",
+     "PredicateFailure: the remote probe must test HF_TOKEN with env_secret::remote_presence_test (an exit code only)"),
     ("TERRAFORM_FLAG_GATE.C1", ".claude/skills/adversarial-benchmark/rust/src/scan_node_cli.rs",
      "if a.emit_manifest && gate_ok && (a.topology", "if a.emit_manifest && (a.topology",
      "PredicateFailure: the Flag-attestation emit call must be gated on gate.status=='ok'"),

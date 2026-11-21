@@ -16040,16 +16040,6 @@
      [
       {
        "t": "str",
-       "v": "hf_token_env_file"
-      },
-      {
-       "t": "str",
-       "v": ""
-      }
-     ],
-     [
-      {
-       "t": "str",
        "v": "quant_model_path"
       },
       {
@@ -16303,6 +16293,11 @@
     "bindings": {},
     "files": [],
     "case_dir": "cases/S50W01"
+   },
+   "plan_26112012": {
+    "change": "the issued sub manifest no longer carries hf_token_env_file (retired: HF_TOKEN is the key of the fixed envs/.env)",
+    "cell": "c83-gc-terraform",
+    "raw_sha256": "still names the original raw, which carried the key"
    }
   },
   {
@@ -16910,16 +16905,6 @@
      [
       {
        "t": "str",
-       "v": "hf_token_env_file"
-      },
-      {
-       "t": "str",
-       "v": ""
-      }
-     ],
-     [
-      {
-       "t": "str",
        "v": "quant_model_path"
       },
       {
@@ -17142,6 +17127,11 @@
     "bindings": {},
     "files": [],
     "case_dir": "cases/S50W02"
+   },
+   "plan_26112012": {
+    "change": "the issued sub manifest no longer carries hf_token_env_file (retired: HF_TOKEN is the key of the fixed envs/.env)",
+    "cell": "c83-gc-terraform",
+    "raw_sha256": "still names the original raw, which carried the key"
    }
   },
   {
@@ -17687,16 +17677,6 @@
      [
       {
        "t": "str",
-       "v": "hf_token_env_file"
-      },
-      {
-       "t": "str",
-       "v": ""
-      }
-     ],
-     [
-      {
-       "t": "str",
        "v": "quant_model_path"
       },
       {
@@ -17828,6 +17808,11 @@
     "bindings": {},
     "files": [],
     "case_dir": "cases/S50W03"
+   },
+   "plan_26112012": {
+    "change": "the issued sub manifest no longer carries hf_token_env_file (retired: HF_TOKEN is the key of the fixed envs/.env)",
+    "cell": "c83-gc-terraform",
+    "raw_sha256": "still names the original raw, which carried the key"
    }
   },
   {
@@ -18445,16 +18430,6 @@
      [
       {
        "t": "str",
-       "v": "hf_token_env_file"
-      },
-      {
-       "t": "str",
-       "v": ""
-      }
-     ],
-     [
-      {
-       "t": "str",
        "v": "quant_model_path"
       },
       {
@@ -18677,6 +18652,11 @@
     "bindings": {},
     "files": [],
     "case_dir": "cases/S50W04"
+   },
+   "plan_26112012": {
+    "change": "the issued sub manifest no longer carries hf_token_env_file (retired: HF_TOKEN is the key of the fixed envs/.env)",
+    "cell": "c83-gc-terraform",
+    "raw_sha256": "still names the original raw, which carried the key"
    }
   },
   {

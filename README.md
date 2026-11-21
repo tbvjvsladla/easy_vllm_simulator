@@ -123,7 +123,7 @@ terraforming:
 # ── 모델을 어디서 가져올 것인가 (인터뷰로 확정) ──────────────────
 model_source: managed         # managed(NAS read-only) │ ephemeral(컨테이너 임시) │ custom(지정경로)
 nas_model_path: /mnt/models   # → [서빙] 컨테이너 /app/models 로 read-only 마운트되는 원본
-hf_token_env_file: ""         # ⚠ 토큰 자체가 아니라, 토큰이 든 파일의 **포인터만** 둡니다
+# HF 토큰은 manifest 에 두지 않습니다 — 워크스페이스 envs/.env(비추적 · 고정 경로)의 HF_TOKEN 키입니다
 
 host_safety:
   installed: true             # 노드 블랙박스 설치 Y/N (1-2 에서 물어보는 그것)

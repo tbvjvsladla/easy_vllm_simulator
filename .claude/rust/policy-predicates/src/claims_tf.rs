@@ -203,24 +203,9 @@ fn grounding_fixture(camp: &Path, status: &str, reason: Option<&str>) -> R {
     write(&camp.join("grounding/20260908T000000Z.json"), &doc)
 }
 
-/// The real `Files` boundary of the P1 scanner (what the production command line hands in).
-struct OsFiles;
-impl role_contract::scan_node_files::Files for OsFiles {
-    fn exists(&self, path: &[u8]) -> bool {
-        use std::os::unix::ffi::OsStrExt;
-        std::fs::metadata(std::ffi::OsStr::from_bytes(path)).is_ok()
-    }
-    fn read(&self, path: &[u8]) -> Result<Vec<u8>, role_contract::scan_node_files::FileFault> {
-        use std::os::unix::ffi::OsStrExt;
-        std::fs::read(std::ffi::OsStr::from_bytes(path)).map_err(|e| role_contract::scan_node_files::FileFault {
-            errno: e.raw_os_error().unwrap_or(0),
-            strerror: e.to_string(),
-        })
-    }
-}
-
 const SCAN_NODE_CLI_RS: &str = ".claude/skills/adversarial-benchmark/rust/src/scan_node_cli.rs";
 const SCAN_NODE_PROBE_RS: &str = ".claude/rust/role-contract/src/scan_node_probe.rs";
+const ENV_SECRET_RS: &str = ".claude/rust/role-contract/src/env_secret.rs";
 const SCAN_NODE_P1_T_SOURCES: [&str; 3] = [
     ".claude/rust/role-contract/src/scan_node.rs",
     ".claude/rust/role-contract/src/scan_node_manifest.rs",
@@ -231,69 +216,75 @@ const CAMPAIGN_WRITE_RS: &str = ".claude/skills/adversarial-benchmark/rust/src/c
 // ---------------------------------------------------------------- MODEL_ACQUISITION_TERNARY_GATE.C4
 
 pub fn predicate_MODEL_ACQUISITION_TERNARY_GATE_C4() -> R {
+    // plan_26112012 #11 (h57 · h58 D3 (가-1)): HF_TOKEN is the key HF_TOKEN of the untracked workspace file envs/.env at a fixed path
+    // (ENV_SECRET_KEY_LEDGER) -- no manifest pointer field; the value is never tracked, emitted or printed.
+    // ① no pointer field: the template carries none and the P1 parts (the sub-manifest issuance included) never copy one.
+    let pointer = role_contract::env_secret::RETIRED_TOKEN_POINTER_FIELD;
     let tmpl = read("manifest.template.yaml")?;
-    req(search("hf_token_env_file:\\s*\"\"", &tmpl).is_some(), "must default to an empty pointer field")?;
-    let gitignore = read(".gitignore")?;
-    let lines = splitlines(&gitignore);
-    req(lines.contains(&".env") && lines.contains(&"envs/.env.*"), "env files (where a real hf token would live) must be gitignored")?;
-
-    // Code-level: read_manifest_field (the Rust P1 owner) resolves the pointer -- a path string, never file content.
-    let tmp = TempDir::new("pp-mat-c4-")?;
-    let mpath = tmp.path().join("manifest.yaml");
-    write(&mpath, "hf_token_env_file: /some/host/path/token.env\n")?;
-    let got = role_contract::scan_node_files::read_manifest_field(&OsFiles, &PyValue::str(&ps(&mpath)), &PyValue::str("hf_token_env_file"))
-        .map_err(|e| Fail::new("RuntimeError", format!("{e:?}")))?;
-    req(jstr(&got).as_deref() == Some("/some/host/path/token.env"), "predicate requirement failed at original line 1203")?;
-
-    // Source-level (mutation-sensitive), retargeted from scan_node_original.py's main() to the Rust command line that now
-    // carries it (`scan_node_cli.rs`): every use of the resolved pointer `token_file` is its definition, an existence check
-    // (`local.is_file(path)` inside `match token_file.peel()`), or the remote probe `collect_peer_model_env(.., &token_file, ..)`.
-    let cli = read(SCAN_NODE_CLI_RS)?;
-    let def = "match files::read_manifest_field(files, &mani_path, &text(\"hf_token_env_file\"))";
-    req(cli.contains(def), "hf_token_env_file must actually be consumed somewhere (not dead code)")?;
-    let tok = re(r"\btoken_file\b");
-    let mut sinks: Vec<String> = Vec::new();
-    for m in tok.find_iter(&cli).flatten() {
-        let (s, e) = (m.start(), m.end());
-        let before = &cli[s.saturating_sub(4)..s];
-        let after = &cli[e..(e + 8).min(cli.len())];
-        let call_open = cli[..s].rfind("collect_peer_model_env(");
-        let in_probe_call = call_open.map_or(false, |o| !cli[o..s].contains(")?") && before.ends_with('&'));
-        let kind = if before.ends_with("let ") {
-            "definition"
-        } else if after.starts_with(".peel()") {
-            "isfile"
-        } else if in_probe_call {
-            "collect_peer_model_env"
-        } else {
-            "other"
-        };
-        sinks.push(kind.to_string());
-    }
-    req(sinks.iter().any(|k| k != "definition"), "hf_token_env_file must actually be consumed somewhere (not dead code)")?;
-    let allowed = ["definition", "isfile", "collect_peer_model_env"];
-    req(sinks.iter().all(|k| allowed.contains(&k.as_str())), format!("hf_token_env_file may only be passed to existence checks (local or remote), found: {}", repr_list(&sinks)))?;
-    let m = index(&cli, "match token_file.peel()")?;
-    let arm_end = index_from(&cli, "};", m)?;
-    let arm = &cli[m..arm_end];
-    req(arm.contains("local.is_file(path)"), "hf_token_env_file may only be passed to existence checks (local or remote), found: a non-isfile local use")?;
-    for banned in ["read_file", "read_to_string", "fs::read", "open("] {
-        req(!arm.contains(banned), "the raw token file's content must never be read")?;
-    }
-    req(search(r"(?:read|open)[A-Za-z_]*\([^)]*token_file", &cli).is_none(), "the raw token file's content must never be read")?;
-    let peer = rust_fn_body(&read(SCAN_NODE_PROBE_RS)?, "collect_peer_model_env")?;
-    req(!peer.contains("open(") && !peer.contains("read_file") && !peer.contains("read_to_string") && !peer.contains("cat "), "the remote existence probe must never read the token file content")?;
-    req(peer.contains("[ -f "), "the remote probe must be an existence test, not a content read")?;
-
-    // The P1 parts (Rust T sources) never read the token file either.
+    req(!tmpl.contains(pointer), "manifest.template.yaml must not carry the retired hf_token_env_file pointer -- HF_TOKEN is the key of envs/.env")?;
     let mut p1: Vec<(String, String)> = Vec::new();
     for rel in SCAN_NODE_P1_T_SOURCES {
         p1.push((rel.to_string(), read(rel)?));
     }
+    req(p1.iter().all(|(_, t)| !t.contains(pointer)), "the P1 Rust T sources (the sub-manifest issuance included) must not carry the retired hf_token_env_file pointer")?;
     req(p1.iter().all(|(_, t)| ["std::fs", "File::open", "read_to_string"].iter().all(|n| !t.contains(n))), "the P1 Rust T sources must read files only through the Files boundary")?;
-    let quoted = re(r".hf_token_env_file.");
-    req(p1.iter().all(|(_, t)| quoted.find_iter(t).flatten().all(|m| m.as_str().starts_with('"') && m.as_str().ends_with('"'))), "hf_token_env_file may appear in the P1 Rust T sources only as a quoted manifest key")?;
-    req(!p1.iter().find(|(r, _)| r.ends_with("scan_node_files.rs")).map(|(_, t)| t.contains("hf_token")).unwrap_or(true), "the P1 file reader must not know the token pointer at all")
+
+    // ② the secret file and its variants are gitignored.
+    let gitignore = read(".gitignore")?;
+    let lines = splitlines(&gitignore);
+    req(lines.contains(&".env") && lines.contains(&"envs/.env") && lines.contains(&"envs/.env.*"), "env files (where a real hf token would live) must be gitignored")?;
+
+    // ③ the main's judgement answers a bool over the fixed path and nothing else: in process on fixtures, and by its source
+    //    (mutation-sensitive): the function takes the workspace, returns bool, and no line of it prints, formats or logs.
+    let tmp = TempDir::new("pp-mat-c4-")?;
+    let env = tmp.path().join("envs/.env");
+    let fixtures: [(Option<&str>, bool); 6] = [
+        (Some("HF_TOKEN=hf_fixture_value\n"), true),
+        (Some("  HF_TOKEN='hf_fixture_value'\n"), true),
+        (Some("OTHER_KEY=1\n"), false),
+        (Some("HF_TOKEN=\n"), false),
+        (Some("HF_TOKEN=\"\"\n# HF_TOKEN=hf_fixture_value\n"), false),
+        (None, false),
+    ];
+    for (i, (content, want)) in fixtures.iter().enumerate() {
+        match content {
+            Some(text) => write(&env, text)?,
+            None => {
+                let _ = std::fs::remove_file(&env);
+            }
+        }
+        req(role_contract::env_secret::hf_token_present(tmp.path()) == *want, format!("the HF_TOKEN judgement must answer {want} for fixture {i} (value, quoted value, other key, empty, empty+comment, absent)"))?;
+    }
+    let secret = read(ENV_SECRET_RS)?;
+    req(secret.contains("pub fn hf_token_present(workspace: &Path) -> bool {"), "the HF_TOKEN judgement (env_secret::hf_token_present) must take the workspace and answer a bool only")?;
+    let judge = rust_fn_body(&secret, "hf_token_present")?;
+    for banned in ["print", "write", "format!", "log", "stdout", "stderr", "Err(e"] {
+        req(!judge.contains(banned), "the HF_TOKEN judgement (env_secret::hf_token_present) must print or return nothing of the file")?;
+    }
+    // the scan takes that bool, from the launcher's workspace, and reads the retired pointer only to warn
+    let cli = read(SCAN_NODE_CLI_RS)?;
+    req(
+        cli.contains("match local.hf_token_present() {") && cli.contains("Some(present) => PyValue::Bool(present),")
+            && cli.contains("role_contract::env_secret::hf_token_present(&root)"),
+        "the scan must take hf_token_present from the fixed-path judgement of the launcher's workspace, as a bool",
+    )?;
+    req(
+        count(&cli, "env_secret::RETIRED_TOKEN_POINTER_FIELD") == 1 && count(&cli, "retired_pointer") == 2 && cli.contains("if retired_pointer {"),
+        "a retired hf_token_env_file left in a manifest may only be read for its one warning line, never for a verdict",
+    )?;
+
+    // ④ the sub's answer is an exit code: the probe sends env_secret::remote_presence_test over <work dir>/envs/.env and reads TOK only.
+    let peer = rust_fn_body(&read(SCAN_NODE_PROBE_RS)?, "collect_peer_model_env")?;
+    req(peer.contains("env_secret::remote_presence_test("), "the remote probe must test HF_TOKEN with env_secret::remote_presence_test (an exit code only)")?;
+    req(!peer.contains("open(") && !peer.contains("read_file") && !peer.contains("read_to_string") && !peer.contains("cat "), "the remote existence probe must never read the token file content")?;
+    let test = rust_fn_body(&secret, "remote_presence_test")?;
+    req(
+        test.contains("grep -Eq ") && test.contains("2>/dev/null && echo TOK=1 || echo TOK=0") && !test.contains("cat "),
+        "the remote HF_TOKEN test must answer by grep's exit code only (grep -Eq, TOK=1/0), never print a line",
+    )?;
+    let line = role_contract::env_secret::remote_presence_test("/w");
+    req(line.starts_with("grep -Eq ") && line.ends_with("&& echo TOK=1 || echo TOK=0"), "the remote HF_TOKEN test must answer by grep's exit code only (grep -Eq, TOK=1/0), never print a line")?;
+    req(!p1.iter().find(|(r, _)| r.ends_with("scan_node_files.rs")).map(|(_, t)| t.contains("hf_token")).unwrap_or(true), "the P1 file reader must not know the token at all")
 }
 
 // ---------------------------------------------------------------- TERRAFORM_FLAG_GATE.C1
