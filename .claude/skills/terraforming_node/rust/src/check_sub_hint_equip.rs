@@ -572,17 +572,32 @@ fn pin_push_url(clone: &Path, url: &str) -> Result<(), Fail> {
     Ok(())
 }
 
-/// `--push-transport` (M1-②): the four keys and the exit code. A read that fails (an unreadable `envs/.env`, a declared path that is no
-/// git root, an unreadable origin) is a block, never a usage error.
+/// `--push-transport`'s read of `HINT_CLONE_DIR` (D6, review r1-c83-B2): `Ok(None)` (not applicable) only when `envs/.env` is absent
+/// (lstat NotFound) or is a readable file without that line. A path that is there but no readable regular file -- a broken link, a
+/// directory or another non-regular file, an lstat error such as a parent without search permission, a read error -- is `Err`: a read
+/// failure the main's sync blocks on, never folded into "not declared". A link to a regular file is read through, as the verdict's
+/// reader [`read_env_key`] reads it.
+fn declared_clone_dir(ws: &Path) -> Result<Option<String>, ()> {
+    let env_file = ws.join(ENV_FILE_REL);
+    match std::fs::symlink_metadata(&env_file) {
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Ok(_) if env_file.is_file() => read_env_key(ws, CLONE_DIR_KEY).map_err(|_| ()),
+        _ => Err(()),
+    }
+}
+
+/// `--push-transport` (M1-②): the four keys and the exit code. Only an absent `envs/.env` or one without the line is not applicable
+/// (exit 0). A read that fails (an `envs/.env` that is there but no readable regular file, a declared path that is no git root, an
+/// unreadable origin) is a block, never a usage error.
 fn push_transport(ws: &Path) -> (PyValue, i32) {
     let answer = |declared: PyValue, fetch: PyValue, push: PyValue, pinned: PyValue| {
         obj(vec![("hint_clone_declared", declared), ("fetch_scheme", fetch), ("push_scheme", push), ("pushurl_pinned", pinned)])
     };
     let unreadable = |declared: PyValue| (answer(declared, PyValue::None, PyValue::None, PyValue::None), EXIT_PUSH_TRANSPORT_BLOCKED);
-    let raw = match read_env_key(ws, CLONE_DIR_KEY) {
+    let raw = match declared_clone_dir(ws) {
         Ok(Some(raw)) => raw,
         Ok(None) => return (answer(PyValue::Bool(false), PyValue::None, PyValue::None, PyValue::None), EXIT_READY),
-        Err(_) => return unreadable(PyValue::None),
+        Err(()) => return unreadable(PyValue::None),
     };
     let p = PathBuf::from(&raw);
     if !p.is_absolute() || !p.is_dir() {
@@ -755,6 +770,32 @@ fn self_test() -> i32 {
     let (pt0, pt0_code) = push_transport(&ws);
     ck("--push-transport 미선언 → exit 0(not_applicable) · hint_clone_declared=False",
         pt0_code == EXIT_READY && at(&Some(pt0.clone()), &["hint_clone_declared"]) == "False", &crate::py::dumps_unicode(&pt0));
+    // review r1-c83-B2: only an absent envs/.env (or a readable one without the line) is "not declared"; a path that is there but no
+    // readable regular file is a read failure (exit 3, the four values null).
+    let env_path = ws.join(ENV_FILE_REL);
+    let all_null = |v: &PyValue| {
+        ["hint_clone_declared", "fetch_scheme", "push_scheme", "pushurl_pinned"].iter().all(|k| at(&Some(v.clone()), &[*k]) == "None")
+    };
+    std::fs::write(&env_path, "# 선언 줄 없음\n").unwrap();
+    let (pt_plain, pt_plain_code) = push_transport(&ws);
+    ck("--push-transport envs/.env 일반 파일 · 선언 줄 없음 → exit 0(not_applicable) · hint_clone_declared=False",
+        pt_plain_code == EXIT_READY && at(&Some(pt_plain.clone()), &["hint_clone_declared"]) == "False", &crate::py::dumps_unicode(&pt_plain));
+    let plain_target = td.join("plain.env");
+    std::fs::rename(&env_path, &plain_target).unwrap();
+    std::os::unix::fs::symlink(&plain_target, &env_path).unwrap();
+    let (pt_link, pt_link_code) = push_transport(&ws);
+    ck("--push-transport envs/.env 가 일반 파일을 가리키는 링크 → 판정 독자처럼 대상을 읽는다 · 선언 줄 없음 → exit 0",
+        pt_link_code == EXIT_READY && at(&Some(pt_link.clone()), &["hint_clone_declared"]) == "False", &crate::py::dumps_unicode(&pt_link));
+    std::fs::remove_file(&plain_target).unwrap();
+    let (pt_broken, pt_broken_code) = push_transport(&ws);
+    ck("★--push-transport envs/.env 끊긴 링크 → exit 3(판독 실패 · 미선언으로 접지 않는다) · 네 값 null",
+        pt_broken_code == EXIT_PUSH_TRANSPORT_BLOCKED && all_null(&pt_broken), &crate::py::dumps_unicode(&pt_broken));
+    std::fs::remove_file(&env_path).unwrap();
+    std::fs::create_dir(&env_path).unwrap();
+    let (pt_dir, pt_dir_code) = push_transport(&ws);
+    ck("★--push-transport envs/.env 디렉터리 → exit 3(판독 실패 · 미선언으로 접지 않는다) · 네 값 null",
+        pt_dir_code == EXIT_PUSH_TRANSPORT_BLOCKED && all_null(&pt_dir), &crate::py::dumps_unicode(&pt_dir));
+    std::fs::remove_dir(&env_path).unwrap();
     ck("미선언 --clone 거부", matches!(equip_clone(&ws, https), Err(Fail::Usage(_))), "통과했다");
     std::fs::write(ws.join("envs/.env"), format!("{CLONE_DIR_KEY}={}\n", disp(&ws.join("inner")))).unwrap();
     ck("워크스페이스 안 클론 경로 거부", matches!(equip_clone(&ws, https), Err(Fail::Usage(_))), "통과했다");

@@ -1,6 +1,10 @@
   [PASS] 미장착 → ready=False · 클론 missing(미선언) · 토큰 absent · 마커 missing
   [PASS] 미장착 → 다음 행동에 사람 요청(템플릿 경로 포함)
   [PASS] --push-transport 미선언 → exit 0(not_applicable) · hint_clone_declared=False
+  [PASS] --push-transport envs/.env 일반 파일 · 선언 줄 없음 → exit 0(not_applicable) · hint_clone_declared=False
+  [PASS] --push-transport envs/.env 가 일반 파일을 가리키는 링크 → 판정 독자처럼 대상을 읽는다 · 선언 줄 없음 → exit 0
+  [PASS] ★--push-transport envs/.env 끊긴 링크 → exit 3(판독 실패 · 미선언으로 접지 않는다) · 네 값 null
+  [PASS] ★--push-transport envs/.env 디렉터리 → exit 3(판독 실패 · 미선언으로 접지 않는다) · 네 값 null
   [PASS] 미선언 --clone 거부
   [PASS] 워크스페이스 안 클론 경로 거부
   [PASS] 워크스페이스 안 선언 → 판정 invalid
@@ -40,4 +44,4 @@
   [PASS] covers_topologies: 메인 판정 shared → [single, multi] · 그 밖 → [single] · 출처 relayed
   [PASS] ★envs/.env 내용(키 이름·값) 0바이트 출력 · 경로 값 0
   [PASS] 사람 요청 템플릿이 실재한다(메인 트리 · 서브 렌더 트리는 메인 전용이라 부재 정상)
---- 42/42 PASS
+--- 46/46 PASS
