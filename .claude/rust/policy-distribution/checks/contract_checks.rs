@@ -174,6 +174,40 @@ fn sub_runner_source_tokens_are_audited() {
     }
 }
 
+/// sync_to_sub.sh's bootstrap path (B0) delivers, verifies and lays its tombstones before it attests the sub's zero
+/// remotes (`sub_bootstrap_replacement_before_tombstone`). plan_26112012 M1-① moved that read into the function
+/// `assert_sub_origin_zero`, called by B0 and by each B1 target, so the order ends at B0's call; the inline read of the
+/// older tree (the frozen goldens' b1f3563e) still ends it; with neither after the bootstrap delivery the check fails.
+#[test]
+fn sub_bootstrap_order_ends_at_the_origin_attestation() {
+    let sync = ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh";
+    let check = |s: &Scratch| -> Json {
+        let out = verify(s, &[]);
+        assert_eq!(out.status.code(), Some(1), "stderr:\n{}", text(&out.stderr));
+        let doc = report(&out);
+        let checks = doc.at("checks").arr().expect("checks is an array").to_vec();
+        let found = checks
+            .into_iter()
+            .find(|c| c.at("name").str() == Some("sub_bootstrap_replacement_before_tombstone"));
+        found.unwrap_or_else(|| panic!("the check is part of the report: {doc:?}"))
+    };
+    let s = checkout("b0-attest");
+    let dst = s.0.join(sync);
+    std::fs::create_dir_all(dst.parent().unwrap()).unwrap();
+    let source = std::fs::read_to_string(root().join(sync)).unwrap();
+    std::fs::write(&dst, &source).unwrap();
+    assert_eq!(check(&s).at("ok"), &Json::Bool(true), "the checkout's sync_to_sub.sh");
+    let b0_call = "\n    assert_sub_origin_zero\n";
+    let b1_call = "\n    assert_sub_origin_zero \"$t\"\n";
+    assert!(source.contains(b0_call) && source.contains(b1_call), "the B0 and B1 calls");
+    let inline = "\n    REMOTES=\"$(sub_run 'git remote')\" || exit 7\n";
+    std::fs::write(&dst, source.replacen(b0_call, inline, 1)).unwrap();
+    assert_eq!(check(&s).at("ok"), &Json::Bool(true), "the inline read of the older tree");
+    std::fs::write(&dst, source.replacen(b0_call, "\n", 1).replacen(b1_call, "\n", 1)).unwrap();
+    let got = check(&s);
+    assert_eq!(got.at("ok"), &Json::Bool(false), "no attestation after the bootstrap delivery: {got:?}");
+}
+
 #[test]
 fn usage_errors_are_exit_2() {
     let s = checkout("usage");

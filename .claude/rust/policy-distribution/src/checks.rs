@@ -682,6 +682,13 @@ fn sub_checks(repo: &Path, sub_text: &str) -> Result<Vec<PyValue>, PyError> {
     let disjoint = sub_relocations.is_disjoint(&sub_retirements);
     let union: BTreeSet<String> = sub_relocations.union(&sub_retirements).cloned().collect();
     let retire_calls = re(r"verify_destination_retirement_consumers\s+\S+\s*\|\|").find_iter(sub_text).flatten().count();
+    // The B0 order ends at the origin-zero attestation. Since plan_26112012 M1-① that read lives in the function
+    // `assert_sub_origin_zero` (called by B0 and by each B1 target), so the end is B0's call of it; a tree without the
+    // function (the frozen goldens' b1f3563e) ends at the inline `REMOTES="$(sub_run` read, as it always did.
+    let b0_attest = match sub_text.find("deliver_build multi 0") {
+        Some(i) if sub_text[i..].contains("assert_sub_origin_zero") => "assert_sub_origin_zero",
+        _ => "REMOTES=\"$(sub_run",
+    };
     let band2 = re(r"(?m)^BAND2_RUNTIME_PATCH_STEMS=\(\s*[a-z0-9][a-z0-9.-]*(?:\s+[a-z0-9][a-z0-9.-]*)*\s*\)")
         .is_match(sub_text)
         .unwrap_or(false);
@@ -694,7 +701,7 @@ fn sub_checks(repo: &Path, sub_text: &str) -> Result<Vec<PyValue>, PyError> {
                   ("actual", dict(vec![("relocations", sorted(&sub_relocations)), ("retirements", sorted(&sub_retirements))]))]),
         dict(vec![("name", s("sub_additive_overlay_has_no_apply_delete")),
                   ("ok", b(!additive_body.is_empty() && !additive_body.contains("rm -f")))]),
-        order_check("sub_bootstrap_replacement_before_tombstone", sub_text, "deliver_build multi 0", "REMOTES=\"$(sub_run", order),
+        order_check("sub_bootstrap_replacement_before_tombstone", sub_text, "deliver_build multi 0", b0_attest, order),
         order_check("sub_incremental_replacement_before_tombstone", sub_text, "deliver_build \"$t\" 0", "REST_BRANCH=", order),
         dict(vec![("name", s("sub_render_uses_transactional_source")),
                   ("ok", b(["prepare_transactional_source", "mktemp -d", "CANONICAL_SRC", "SRC=\"$TRANSACTIONAL_SRC/\""].iter().all(|t| has(t))

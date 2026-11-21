@@ -28,5 +28,9 @@
    "test": "test_sync_branches_never_tags_or_hard_resets"},
   {"id": "M13-no-sidecar-transfer", "file": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
    "old": "validate_runtime_patches \"$1\"", "new": "validate_runtime_patches_disabled \"$1\"", "unit": "runtime_patch_predicate",
-   "test": "test_sync_delivery_calls_production_validator_and_transfers_sidecar"}
+   "test": "test_sync_delivery_calls_production_validator_and_transfers_sidecar"},
+  {"id": "M14-origin-zero-b1-dropped", "file": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
+   "old": "    assert_sub_origin_zero \"$t\"\n", "new": "    : \"$t\"\n", "clause": "SUB_GIT_LOCAL_ONLY.C1"},
+  {"id": "M15-origin-zero-b0-dropped", "file": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
+   "old": "    # origin 부재 불변식 확증(B0 · M1-①)\n    assert_sub_origin_zero\n", "new": "    # origin 부재 불변식 확증(B0 · M1-①)\n", "clause": "SUB_GIT_LOCAL_ONLY.C1"}
 ]

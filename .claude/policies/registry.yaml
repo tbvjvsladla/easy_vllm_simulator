@@ -1184,11 +1184,11 @@
       "clauses": [
         {
           "clause_id": "SUB_GIT_LOCAL_ONLY.C1",
-          "statement": "A sub node's git workspace is local-only: origin is permanently unconfigured."
+          "statement": "A sub node's git workspace is local-only: origin is permanently unconfigured; the main sync attests this on every sync -- at B0 and at the start of each B1 target -- with one read-only git remote read (sync_to_sub.sh assert_sub_origin_zero), and a remote present or an unreadable answer stops the sync."
         },
         {
           "clause_id": "SUB_GIT_LOCAL_ONLY.C2",
-          "statement": "push/pull/fetch/remote on the sub workspace repo are denied at the persona layer, backed by the structural fact that no remote exists."
+          "statement": "push/pull/fetch/remote on the sub workspace repo are denied at the persona layer, backed by the structural fact that no remote exists, which the main sync attests on every sync (B0 and each B1 target)."
         },
         {
           "clause_id": "SUB_GIT_LOCAL_ONLY.C3",
@@ -1210,6 +1210,16 @@
           "assertion_ids": [
             "sub_has_git",
             "sub_branch_current"
+          ]
+        },
+        {
+          "path": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
+          "supports": [
+            "SUB_GIT_LOCAL_ONLY.C1",
+            "SUB_GIT_LOCAL_ONLY.C2"
+          ],
+          "assertion_ids": [
+            "assert_sub_origin_zero"
           ]
         },
         {

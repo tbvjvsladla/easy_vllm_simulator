@@ -8,7 +8,7 @@
 # 흐름:
 #   B0 멱등 self-bootstrap — 서브 .git 부재 시: git init + base(.gitignore) 커밋 + multi·single 브랜치 생성,
 #                            그리고 multi 브랜치 초기 전체 배달(+커밋). single=base(dormant). **첫 init=HITL(--apply)**.
-#   B1 per-branch 증분(--branch) — dirty 체크(fail-closed) → checkout → render → rsync(빌드+오버레이) → [sync] 커밋.
+#   B1 per-branch 증분(--branch) — 원격 0 확증(M1-①) → dirty 체크(fail-closed) → checkout → render → rsync(빌드+오버레이) → [sync] 커밋.
 #        겹침 = main-canonical(sub-yields). 서브 [improve] history 는 git 에 잔존.
 #   single 확장 게이트(D12 Gap B) — 판정은 `node_role_contract.py … --field delivery_plane`(단일 소유자)가 한다.
 #        single 의 sub_mode=a2a-agent → **dormant(빌드킷 배달 skip)** · multi 의 sub 만 ray-worker → active.
@@ -2347,6 +2347,16 @@ if ! ssh_run "$SUB_HOST" "[ -d '$SUB_WORK_DIR' ]" 2>/dev/null; then
     PROVISIONED_BY_SYNC=1
 fi
 
+# ── 매 동기화 원격 0 확증 (plan_26112012 #3 M1-① · policy:SUB_GIT_LOCAL_ONLY C1·C2) ──
+# 서브 작업 폴더 git 에 원격이 없음을 매 동기화마다 확증한다 — B0 와 B1 각 타겟 시작(dirty 검사 앞)에서 부른다.
+#   원격 판독은 이 함수 한 곳뿐이다(C2 술어: 원격 디스패치는 맨 판독 1개). 판독 실패는 "원격 없음"이 아니다(F9) —
+#   판독 실패와 원격 존재 모두 exit 7 로 멈춘다. $1 = 표시 라벨(B1 = 타겟 · B0 = 없음, 옛 B0 출력 그대로).
+assert_sub_origin_zero() {
+    REMOTES="$(sub_run 'git remote')" \
+        || { echo "[sync] FAIL(F9): 서브 origin 판독 실패${1:+($1)} — 로컬 전용(D12)을 확증할 수 없으므로 거부." >&2; exit 7; }
+    [ -z "$REMOTES" ] && echo "[sync] ${1:+[$1] }✅ origin 0 (로컬 전용 확증)" || { echo "[sync] FAIL: 서브에 원격 존재${1:+($1)}($REMOTES) — D12 위반"; exit 7; }
+}
+
 # ── B0 멱등 self-bootstrap (서브 .git 부재 시) ──
 if [ $HAS_GIT = 0 ]; then
     echo "[sync] B0 BOOTSTRAP — 서브 git init + multi·single 브랜치 (로컬 전용·origin 없음)"
@@ -2383,10 +2393,8 @@ if [ $HAS_GIT = 0 ]; then
         sub_run "git checkout -q single"
         echo "[sync] B0: multi 는 base 로 남긴다(타겟 아님 — 싱글 서브는 자기 빌드킷을 자율 저작한다)."
     fi
-    # origin 부재 불변식 확증
-    REMOTES="$(sub_run 'git remote')" \
-        || { echo "[sync] FAIL(F9): 서브 origin 판독 실패 — 로컬 전용(D12)을 확증할 수 없으므로 거부." >&2; exit 7; }
-    [ -z "$REMOTES" ] && echo "[sync] ✅ origin 0 (로컬 전용 확증)" || { echo "[sync] FAIL: 서브에 원격 존재($REMOTES) — D12 위반"; exit 7; }
+    # origin 부재 불변식 확증(B0 · M1-①)
+    assert_sub_origin_zero
     echo "[sync] B0 완료 — multi=$([ -n "$BOOTSTRAP_POPULATE" ] && echo populated || echo 'base(타겟 아님)'), single=base. 브랜치: $(sub_run 'git branch | tr -d "\n"')"
     # bootstrap 이 multi 를 이미 채움 → TARGETS 에서 multi 제거. 남은 타겟(single, --branch both/single)이 있으면 B1 로 진행.
     NEWT=(); for x in "${TARGETS[@]}"; do
@@ -2419,6 +2427,8 @@ for t in "${TARGETS[@]}"; do
         echo "           단 **에이전트 환경 오버레이는 배달한다** — 정체성·런타임 스킬이 곧 그 확장기능이다."
     fi
     echo "[sync] [$t] 증분 싱크 시작"
+    # (0) 원격 0 확증 — 매 타겟 시작에서, dirty 검사 앞(M1-① · B0 를 건너뛴 정기 동기화도 여기서 확증한다).
+    assert_sub_origin_zero "$t"
     # (1) dirty 체크 → 덮어쓰기 前 보존 (policy:SUB_SYNC_DIRTY_AUTOSAVE · plan_26081313)
     #   ⚠ 2026-08-13 교정: 옛 동작은 dirty 면 배달을 **거부**하고 "서브가 스스로 clean 화 후
     #   'ready-for-sync' 어테스트" 를 요구했다. 그 요구는 **평면 A(사용자↔메인)의 승인 규칙을

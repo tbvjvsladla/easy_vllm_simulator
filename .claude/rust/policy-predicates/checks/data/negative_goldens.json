@@ -63,5 +63,13 @@
    "test_validator_stamps_and_rejects_every_stale_dimension"
   ],
   "unit": "runtime_patch_predicate"
+ },
+ "M14-origin-zero-b1-dropped": {
+  "clause": "SUB_GIT_LOCAL_ONLY.C1",
+  "error": "PredicateFailure: each B1 target must call assert_sub_origin_zero at its start, before the dirty check"
+ },
+ "M15-origin-zero-b0-dropped": {
+  "clause": "SUB_GIT_LOCAL_ONLY.C1",
+  "error": "PredicateFailure: B0 must call assert_sub_origin_zero (every sync attests the sub's zero remotes)"
  }
 }

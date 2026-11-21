@@ -555,7 +555,7 @@
     "SUB_GIT_LOCAL_ONLY.C1": [
       {
         "path": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
-        "assertion_ids": ["sub_branch_current", "sub_has_git"]
+        "assertion_ids": ["assert_sub_origin_zero", "sub_branch_current", "sub_has_git"]
       },
       {
         "path": ".claude/rust/policy-predicates/src/claims_text.rs",
@@ -565,7 +565,7 @@
     "SUB_GIT_LOCAL_ONLY.C2": [
       {
         "path": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
-        "assertion_ids": ["sub_branch_current", "sub_has_git"]
+        "assertion_ids": ["assert_sub_origin_zero", "sub_branch_current", "sub_has_git"]
       },
       {
         "path": ".claude/rust/policy-predicates/src/claims_text.rs",
