@@ -1,14 +1,21 @@
-//! `push_branches.py` (non-self-test part): branch-by-branch `git push` of the closing sequence, one JSON document on stdout.
+//! `push_branches` (non-self-test part): branch-by-branch `git push` of the closing sequence, one JSON document on stdout.
 //!
-//! Port boundary: the Python tool loads `hintlib.tag.git_push_authenticated` (hint-publisher, Python) for the credential path. That path is not
-//! reproducible without Python, so this port pushes only to remotes that need no token (ssh, scp-like, local path) with the same scope options
-//! as the Python fallback (`--no-follow-tags --no-recurse-submodules`, `GIT_TERMINAL_PROMPT=0`). A remote whose DECLARED url is http(s) fails
-//! loud per branch with code `HTTPS_NEEDS_HINTLIB` (no silent degrade). `--self-test` is `push_branches_selftest` (Rust-owned contract; hintlib scope-args read as text from tag.py; HintError mutation control N/A).
+//! Policy (plan_26112012 #5d, h53; the rule's authority is ENV_SECRET_KEY_LEDGER C3): a branch push runs on main over an
+//! ssh key only -- the PAT (`GITHUB_TOKEN`) authenticates the hint tag push and nothing else (its credential path is
+//! `hint-publisher/rust/src/tag.rs::git_push_authenticated`). So this tool pushes only to remotes that need no token (ssh,
+//! scp-like, local path), with the scope options of the tag push (`--no-follow-tags --no-recurse-submodules`,
+//! `GIT_TERMINAL_PROMPT=0`). The judgement reads the DECLARED push addresses (before insteadOf) in git's own order (#9):
+//! `remote.<r>.pushurl`, else `remote.<r>.url`, else the argument itself -- the order of `tag.rs::_declared_urls`. When any
+//! of them is http(s), every branch fails loud with code [`HTTPS_REFUSED`] (no silent degrade, nothing is pushed).
+//! `--self-test` is `push_branches_selftest`.
 
 use std::process::{Command, Stdio};
 
 const OPERATIONAL: [&str; 2] = ["single-node", "multi-node"];
 pub(crate) const SCOPE_ARGS: [&str; 2] = ["--no-follow-tags", "--no-recurse-submodules"];
+/// The reason code of a branch push refused because a declared push address is http(s) (plan_26112012 #5d: the name
+/// states the policy, not a porting gap).
+pub(crate) const HTTPS_REFUSED: &str = "BRANCH_PUSH_HTTPS_REFUSED";
 
 /// One token-free `git push` with the given scope options; the self-test passes an emptied list to prove its tag-leak control is not vacuous.
 pub(crate) fn push_local(repo: &str, remote: &str, refspec: &str, dry: bool, scope: &[&str]) -> Result<(i32, String), String> {
@@ -53,13 +60,34 @@ fn tail(s: &str, n: usize) -> String {
     t.trim().to_string()
 }
 
-fn declared_url(repo: &str, remote: &str) -> String {
+/// git's remote-name rule (`remote.c` valid_remote_nick), as `tag.rs::_is_remote_nick` has it: anything else is a URL or a
+/// path given directly.
+fn is_remote_nick(name: &str) -> bool {
+    !name.is_empty() && name != "." && name != ".." && !name.contains('/') && !name.contains('\\')
+}
+
+/// Every value of one git config key (`--get-all`), trimmed, empty values dropped.
+fn config_values(repo: &str, key: &str) -> Vec<String> {
     Command::new("git")
-        .args(["-C", repo, "config", "--get", &format!("remote.{remote}.url")])
+        .args(["-C", repo, "config", "--get-all", key])
         .stderr(Stdio::null())
         .output()
-        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .map(|o| String::from_utf8_lossy(&o.stdout).lines().map(str::trim).filter(|v| !v.is_empty()).map(str::to_string).collect())
         .unwrap_or_default()
+}
+
+/// The DECLARED push addresses of `remote` (insteadOf not applied), in the order git pushes (plan_26112012 #9): every
+/// `remote.<r>.pushurl`, else every `remote.<r>.url`, else the argument itself.
+fn declared_push_urls(repo: &str, remote: &str) -> Vec<String> {
+    if is_remote_nick(remote) {
+        for key in [format!("remote.{remote}.pushurl"), format!("remote.{remote}.url")] {
+            let values = config_values(repo, &key);
+            if !values.is_empty() {
+                return values;
+            }
+        }
+    }
+    vec![remote.to_string()]
 }
 
 pub fn run(args: &[String]) -> i32 {
@@ -109,9 +137,7 @@ pub fn run(args: &[String]) -> i32 {
             return 2;
         }
     }
-    let decl = declared_url(&repo, &remote);
-    let probe = if decl.is_empty() { remote.clone() } else { decl };
-    let https = probe.starts_with("https://") || probe.starts_with("http://");
+    let https = declared_push_urls(&repo, &remote).iter().any(|u| u.starts_with("https://") || u.starts_with("http://"));
     let mut items = Vec::new();
     let mut ok = true;
     for br in &branches {
@@ -119,9 +145,9 @@ pub fn run(args: &[String]) -> i32 {
         let (rc, code, path, err): (i32, Option<&str>, String, String) = if https {
             (
                 1,
-                Some("HTTPS_NEEDS_HINTLIB"),
-                "rust-native (https remote needs hintlib credential path; not ported)".to_string(),
-                "https remote: authenticated push is owned by hintlib (Python); use push_branches.sh".to_string(),
+                Some(HTTPS_REFUSED),
+                "refused (a declared push address is http(s); a branch push runs over an ssh key only)".to_string(),
+                "http(s) push address: a branch push runs on main over an ssh key only (ENV_SECRET_KEY_LEDGER C3) -- declare an ssh, scp-like or local push address (remote.<r>.pushurl, else url)".to_string(),
             )
         } else {
             match push_local(&repo, &remote, &refspec, dry, &SCOPE_ARGS) {

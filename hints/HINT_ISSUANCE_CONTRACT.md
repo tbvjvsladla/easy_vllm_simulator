@@ -489,8 +489,8 @@ hint.sh refacts --draft <draft>   같은 generated_utc 로 FACT 블록 · PAYLOA
   `git_push_authenticated` 다.
 - **자격증명 — 브랜치**: branch push 는 메인에서 ssh 키로만 한다(`branch-transition` 포함 · PAT ✗ · 규칙의 권위 `ENV_SECRET_KEY_LEDGER` C3).
   `branch-transition` 은 원격 조회 · ref 쓰기 전에 전송을 판정해 https · http 면 `HINT_BRANCH_TRANSITION_SSH_ONLY` 로 멈춘다(§6.5). upstream
-  `push_branches.sh`(Rust)는 `git_push_authenticated` 를 재사용하지 않는다 — 같은 정책으로 ssh · scp형 · 로컬 경로 원격만 밀고 https 원격은
-  `HTTPS_NEEDS_HINTLIB` 로 멈춘다. GitHub 룰셋 bypass 는 계정 단위라 GitHub 는 PAT 의 브랜치 push 를 막지 않는다 — W 코드가 막는다.
+  `push_branches.sh`(Rust)는 `git_push_authenticated` 를 재사용하지 않는다 — 같은 정책으로 ssh · scp형 · 로컬 경로 원격만 밀고, 선언된
+  push 주소(`pushurl` → 없으면 `url`)가 https · http 면 `BRANCH_PUSH_HTTPS_REFUSED` 로 멈춘다. GitHub 룰셋 bypass 는 계정 단위라 GitHub 는 PAT 의 브랜치 push 를 막지 않는다 — W 코드가 막는다.
 
 ### 6.3 게이트 범위 = 이번 발행분만 (D10 · P1 의 귀결)
 
@@ -967,6 +967,7 @@ artifacts 헤더에만 기록된 필요조건을 inherited 로 강등했다. 00 
 | **v7** | **2026-09-29** | plan_26092908(v6 4태그 적대 검증 · 블라인드 수신자 3 · 세션 채굴 2 · 구조 감사 1 → 사용자 결정 U1~U9): 이름 = 결정론 `q·len·kv` + Agent 꼬리(`tail.json` · 형식 · 뜻 · 근거 대조 · v6 뒤 3축 모양 거부) + 원격·로컬 중복 시 `-t<YYMMDDHHMM>`(§4) · native 구조 통일과 파일 단위 verification · generated_by · relevance(세 자리 일치 · §3.3) · 판정 기계 표면(`measurement.verdict` · 판정 행 · 배너 · 카탈로그 판정 열 · §3.0.2) · footer v2(`bench_ref` · `bench_kind` · §7.3) · 인증서 요구 = explicit ∧ PASS 만(§3.0.1 · completion_gate) · 관측 > 선언(driver_conflict · §7.2) · 사실 검증이 FACT 도(`target` · `refacts` · §6.7) · 페이로드 커밋 부모 = 안내 커밋 · 형식 마커 · `branch-transition`(§6.5) · 봉인 뒤 verify 출처 변경 = INFO(§6.3) · LINEAGE 요약/전체 분리(§8.1) · 거부된 publish 의 시각 채택 · `--node` 자동 · 카탈로그 자동 커밋(§6) · 새 결손 코드 3종 · V15 잔재 정리(§10 D-d · 평면 코드명 통일 `HINT_PLANE_UNDERIVABLE`) — 형식 `hint-payload/v7` · PAYLOAD schema 3 |
 | **v8** | **2026-10-11** | plan_26101104 Step 1(인터뷰 `interview_20261010_191736` · Seed `seed_1fea372f89b3`): 발행 게이트 = 서빙 성립 ∧ 유효 측정(권한 무관 · `BENCHMARK_VERDICT_ANNOTATED`) · REFUTE·FAIL 은 표시만 · loop-until-done 은 성능 게이트로 분리 · 기준 부재 full 셀 = `OBSERVATION-ONLY`(판정기 NEEDS_RUBRIC 사다리 공백 · `BENCHMARK_OBSERVATION_ONLY_PROMOTION` · 배너 · 루프 없음) · 성능 면제 필드 폐기(스키마 · 게이트 · 린트 · 바인딩 원천) · hint_map_only 의 FAIL 차단 제거 · 인증서 = explicit ∧ PASS 불변 · 과거 태그 불변(§3.2) |
 | v8.1 | 2026-11-21 | plan_26112012 #1 · #5b · #13(형식 문자열 · 이름 문법 불변): `branch-transition` = 메인 · ssh 키만(`HINT_BRANCH_TRANSITION_SSH_ONLY` · `_MAIN_ONLY` · §6.5) · 자격증명 문단을 태그(https + PAT · 메인 정식 원격 `origin`)와 브랜치(ssh 키만)로 나눔(§6.2) · 서브 push 문단(§6.6) |
+| v8.2 | 2026-11-21 | plan_26112012 #5d · #9(형식 문자열 · 이름 문법 불변): `push_branches.sh` 의 https 거부 사유코드 이름 `HTTPS_NEEDS_HINTLIB` → `BRANCH_PUSH_HTTPS_REFUSED`(정책 이름 · §6.2) · 판정 대상 = 선언된 push 주소(`pushurl` → `url`) |
 | **v6** | **2026-09-22** | plan_26092119: 셀 1개 = 태그 1개 · 단일 진입 `hint.py`(옛 CLI 5종 · families · 스캐폴드 템플릿 제거 · shim ✗) · 이름 전량 도구 파생(5세그먼트 · 어휘표 · 전 축 필수) · 발행 자격 = 관측 · 승인 = 셀별 사전 기록(O6) · A 층 = 평면별 재현 입력 "쓰인 것만" · 지도가 zip 안(00-hint) · 계보 서사 PROMPT 템플릿 · 발췌 허용 + 무결성 · 값의 지위 · 커밋 신원도 합성 · push = 태그 1개(브랜치 ✗) · 게이트 = 이번 발행분만 |
 
 v5 의 옛 절 번호 인용(`계약 v5 §3` C행 · `§3.-1` 앵커 검사 · `§3.-2` 노드축 대조)은 각각 v6 의 §3(C행 = §3 표의 C 층 · 통로는 §3.0.1) ·

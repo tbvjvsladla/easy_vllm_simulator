@@ -120,9 +120,10 @@ hint 발행을 제안한다. 발동 규칙(셀 단위 · 제안 Y/N · 무인 �
 ### ③ 승인 — 사람 게이트 1회
 
 분류표·근거·린트 요약을 한국어 팝업으로 제시하고 승인/수정/중단을 받는다. 승인 이후 ④~⑦에는
-**추가 프롬프트가 없다** — git 자동화는 `hint-publisher` 가 이미 갖춘 자격증명 경로를 재사용한다
-(`push_branches.sh`(Rust)는 토큰이 필요 없는 원격(ssh·로컬 경로)만 민다 — https 원격은 `HTTPS_NEEDS_HINTLIB` 로 fail-loud(PAT 경로 = 공개 API `hintlib.tag.git_push_authenticated` · 복제 ✗) · https 원격만 토큰이 필요하고
-ssh · 로컬 경로 원격은 토큰 불요).
+**추가 프롬프트가 없다** — branch push(`push_branches.sh`, Rust)는 메인에서 ssh 키로만 한다(h53 · 규칙의 권위 =
+키 대장 `ENV_SECRET_KEY_LEDGER` C3): ssh · scp형 · 로컬 경로 원격만 밀고, 선언된 push 주소(`pushurl` → 없으면 `url`)가
+https · http 면 `BRANCH_PUSH_HTTPS_REFUSED` 로 멈춘다 — https 거부는 이식 공백이 아니라 정책이다. PAT 경로
+(`hint-publisher/rust/src/tag.rs::git_push_authenticated`)는 hint 태그 push 만 쓴다.
 
 ### 이중 방어
 
