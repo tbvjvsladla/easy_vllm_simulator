@@ -466,6 +466,68 @@ fn peer_egress_and_model_env_follow_the_originals_probe_text_and_folding() {
     );
 }
 
+/// plan_26112012 #11 acceptance ① on the sub side (review r1-c83-B1): the remote HF_TOKEN probe, run for real over scratch work
+/// folders. The line `env_secret::remote_presence_test` makes is run by `sh -c` and by `bash -c` (the sub answers in `bash -ls`), and
+/// the same line as `collect_peer_model_env` composes it (its own quoting of a folder name with a space and a quote) is handed by the
+/// scripted `ssh` to a local `sh`. Every case must give the answer of the main rule `env_secret::hf_token_present` over the same
+/// folder, and no output carries a byte of the value. The rule is the module's; this check only holds both sides to one answer.
+#[test]
+fn the_sub_hf_token_probe_run_by_a_shell_answers_as_the_main_rule_over_the_same_folder_and_prints_no_value() {
+    use role_contract::env_file_mode::ENV_FILE_REL;
+    use role_contract::env_secret::{hf_token_present, remote_presence_test};
+    use std::process::Command;
+    const VALUE: &str = "fixture-value-r1-c83-b1";
+    let quoted = |dir: &std::path::Path| format!("'{}'", dir.display().to_string().replace('\'', "'\"'\"'"));
+    let root = std::env::temp_dir().join(format!("rc-hf-probe-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    let cases: Vec<(&str, Option<String>, bool)> = vec![
+        ("a value", Some(format!("HF_TOKEN={VALUE}\n")), true),
+        ("no key", Some("GITHUB_TOKEN=fixture-pat\nHINT_CLONE_DIR=/fixture/hint\n".to_string()), false),
+        ("the key with an empty value", Some("HF_TOKEN=\n".to_string()), false),
+        ("no file", None, false),
+        ("a value, CRLF", Some(format!("HF_TOKEN={VALUE}\r\n")), true),
+        ("an empty value, CRLF", Some("HF_TOKEN=\r\n".to_string()), false),
+        ("double quotes only", Some("HF_TOKEN=\"\"\n".to_string()), false),
+        ("single quotes only", Some("HF_TOKEN=''\n".to_string()), false),
+        ("a quoted value", Some(format!("HF_TOKEN=\"{VALUE}\"\n")), true),
+        ("a comment line", Some(format!("# HF_TOKEN={VALUE}\n")), false),
+        ("an indented line", Some(format!("  HF_TOKEN={VALUE}\n")), true),
+    ];
+    for (n, (case, content, expected)) in cases.into_iter().enumerate() {
+        let work_dir = root.join(format!("w {n}'s"));
+        std::fs::create_dir_all(&work_dir).unwrap();
+        if let Some(text) = &content {
+            std::fs::create_dir_all(work_dir.join("envs")).unwrap();
+            std::fs::write(work_dir.join(ENV_FILE_REL), text).unwrap();
+        }
+        let main = hf_token_present(&work_dir);
+        assert_eq!(main, expected, "the main rule, {case}");
+        let line = remote_presence_test(&quoted(&work_dir));
+        for shell in ["sh", "bash"] {
+            let ran = Command::new(shell).arg("-c").arg(&line).output().expect(shell);
+            let (stdout, stderr) = (String::from_utf8_lossy(&ran.stdout), String::from_utf8_lossy(&ran.stderr));
+            assert!(ran.status.success() && stderr.is_empty(), "{shell}, {case}: {ran:?}");
+            assert_eq!(stdout, if main { "TOK=1\n" } else { "TOK=0\n" }, "{shell} against the main rule, {case}");
+            assert!(!stdout.contains(VALUE) && !stderr.contains(VALUE), "{shell}, {case}");
+        }
+        let ssh = ssh_host(|_, stdin| {
+            let script = String::from_utf8_lossy(stdin.expect("input")).into_owned();
+            let ran = Command::new("sh").arg("-c").arg(&script).output().expect("sh");
+            assert!(!String::from_utf8_lossy(&ran.stdout).contains(VALUE) && ran.stderr.is_empty(), "{ran:?}");
+            Capture::Exited { code: ran.status.code().unwrap_or(-1), stdout: ran.stdout, stderr: ran.stderr }
+        });
+        let found = probe::collect_peer_model_env(&ssh, &s("u@h"), &PyValue::None, &s(&work_dir.display().to_string()), &PyValue::None)
+            .expect("env");
+        assert_eq!(
+            shown(&found),
+            format!(r#"{{"nas_reachable": null, "hf_token_present": {main}, "probed": true, "source": "measured:peer-ssh"}}"#),
+            "the composed sub probe against the main rule, {case}"
+        );
+        assert!(!shown(&found).contains(VALUE) && ssh.errors.borrow().is_empty() && ssh.stderr.borrow().is_empty(), "{case}");
+    }
+    let _ = std::fs::remove_dir_all(&root);
+}
+
 #[test]
 fn loopback_resolution_takes_the_first_loopback_address_in_resolver_order() {
     let mut host = Scripted::default();
