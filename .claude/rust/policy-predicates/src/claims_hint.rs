@@ -1296,7 +1296,7 @@ pub fn predicate_HINT_TAG_ACTIVATION_GATE_C4() -> R {
     let judged = index_from(&sync_src, "check_sub_push_transport \"$t\"", b1);
     let loop_end = index_from(&sync_src, "LAST_DELIVERED=\"$t\"", b1)?;
     req(
-        judged.as_ref().map_or(false, |&j| checked < j && j < loop_end),
+        judged.is_ok_and(|j| checked < j && j < loop_end),
         "the M1-② push-transport judgement must run in each B1 target after verify_checksums (after the delivery)",
     )?;
     let closed = rindex(&sync_src, "\nfinalize_remote_transactions\n")?;
