@@ -129,8 +129,10 @@ single 서브(sub_mode `a2a-agent`)는 **자기가 잰 셀을 스스로 hint 태
 |---|---|---|
 | 엔진 | `node_role_contract.TOOL_PLANE_BY_SUB_MODE["a2a-agent"]` → `render_sub_env` | `hint-publisher` + 엔진 의존. 정상 배달(§2.3)로 간다 — 별도 절차 없음 |
 | hint 클론 경로 | 서브 워크스페이스 `envs/.env` 의 `HINT_CLONE_DIR=<절대경로>` | **워크스페이스 밖**. `envs/.env` 는 서브 저작·비추적·비배달 평면이라 그 노드의 경로를 그 노드가 든다 |
+| push 주소 = https 고정(S1) | hint 클론의 `remote.origin.pushurl` = `--remote-url` 과 같은 자격 없는 https URL | 장착 도구 `--clone` 이 새 클론과 이미 장착된 클론 모두에 쓴다(멱등 · git 설정은 실행체의 자식 git 이 쓴다 — 서브 에이전트의 Bash 가 `git config` 를 치지 않는다). `--remote-url` 이 https 가 아니면(ssh·scp형·로컬 경로·평문 http) 사용 오류다. 서브는 GitHub 에 ssh 로 닿지 않는다(h53 · plan_26112012 S1) |
+| `envs/.env` 권한 | mode 600 이하 | 판정 `checks.env_file_mode`(lstat 만 · 링크를 따라가지 않는다 · 내용·키 이름 비열람) · 교정 `--narrow-env-mode`(mode & 0o600 · 넓히지 않는다 · plan_26112012 #2) |
 | push 역할 선언 | 서브 워크스페이스 `hints/.push_authority`(비추적) | hint.sh 가 도는 체크아웃의 역할 선언. 카탈로그 권위 `hints/.central_authority` 는 메인 단독 — 서브에 두면 위반 |
-| push 토큰 | 서브 워크스페이스 `envs/.env` 의 `GITHUB_TOKEN`(또는 환경변수) | 메인이 `envs/.env` 에서 읽는 것과 **같은 규칙**(`hintlib.tag.read_push_token`). **사람이 둔다** — 비밀은 배달 평면 ✗ |
+| push 토큰 | 서브 워크스페이스 `envs/.env` 의 `GITHUB_TOKEN`(또는 환경변수) | 메인이 `envs/.env` 에서 읽는 것과 **같은 규칙**(`hint-publisher/rust/src/tag.rs` 의 `read_push_token`). **사람이 둔다** — 비밀은 배달 평면 ✗ |
 | PII 리터럴 | 서브 워크스페이스 `.claude/pii_terms.txt`(비추적) | 그 노드의 리터럴. hint 4종 스캔이 부재를 fail-closed 로 막는다. `.claude/**` 는 서브 에이전트가 쓸 수 없어 **사람이 둔다** |
 
 절차(메인이 A2A Task 로 지시 · 서브가 수행 · 결과는 서브 testlog 로 회수 — ssh 직접 관측 ✗):
@@ -139,7 +141,9 @@ single 서브(sub_mode `a2a-agent`)는 **자기가 잰 셀을 스스로 hint 태
    `HINT_CLONE_DIR=<워크스페이스 밖 절대경로>` 한 줄을 두고
    `bash .claude/skills/terraforming_node/scripts/check_sub_hint_equip.sh --clone --remote-url <URL>` —
    `git clone --single-branch --branch hint --depth 1 --no-tags` 로 별도 저장소를 만든다(워크스페이스 git 에 원격을 붙이지 않는다 ·
-   policy:SUB_GIT_LOCAL_ONLY 는 워크스페이스 git 을 다스린다). 멱등이며, 경로가 비어 있지 않은 다른 것이면 지우지 않고 멈춘다.
+   policy:SUB_GIT_LOCAL_ONLY 는 워크스페이스 git 을 다스린다). 클론 뒤 push 주소 `remote.origin.pushurl` 을 같은 https URL 로 고정한다(S1).
+   멱등이며, 이미 장착된 클론(fetch 가 https)에서는 push 주소만 다시 고정하고 `already` 를 낸다. 경로가 비어 있지 않은 다른 것이면
+   지우지 않고 멈춘다. `--remote-url` 이 https 가 아니면(ssh·scp형·로컬 경로) 사용 오류(상태 2)다.
 2. **push 역할 선언** — `check_sub_hint_equip.sh --write-push-authority [--utc <UTC>]`. 그 경로가 서브 `.gitignore` 에 덮이지
    않으면 쓰지 않는다(추적되면 `[sync]` 커밋으로 남고 복사된다).
 3. **토큰·PII 리터럴 = 사람** — 판정에 `token: absent` 또는 `pii_terms: absent` 가 나오면 서브는 **보고만** 하고 그 단계를 멈춘다.
@@ -148,9 +152,35 @@ single 서브(sub_mode `a2a-agent`)는 **자기가 잰 셀을 스스로 hint 태
    전제·명령·성공판정·실패분기·회수물·소요를 갖춘 수행지시서 · 서브에는 `docs/request/` 가 없다 — 메인 몫). 사람이 둔 뒤 에이전트는
    **존재만** 다시 확인한다 — 값을 읽어 비교하거나 출력하지 않는다.
 4. **판정·보고** — `check_sub_hint_equip.sh`(인자 없음)의 JSON(`checks.{hint_clone,push_authority,central_authority,token,pii_terms,
-   workspace_git_local_only}` · `ready` · `next_actions[]` · `provenance: measured`)을 서브 testlog 에 그대로 싣고 task-report 로 경로를
+   workspace_git_local_only,env_file_mode}` · `ready` · `next_actions[]` · `provenance: measured`)을 서브 testlog 에 그대로 싣고 task-report 로 경로를
    전달한다. exit 0 = ready · 3 = 미장착(판정 정상) · 2 = 선언 결함 · 4 = 장착 실패. 역할·원격 위반(`present_violation`·`violation`)은
    서브가 스스로 고치지 않는다 — 메인 HITL.
+   - `hint_clone`(plan_26112012 S1 · #7): `origin_scheme`(fetch) · `push_scheme`(push URL 전부 — `pushurl`, 없으면 url) · `pushurl_pinned`.
+     `ok` = fetch·push 모두 https ∧ push 주소 고정. fetch 나 push 가 ssh·scp형이면 `violation`(ready ✗ · 메인 에스컬레이션) · 고정이
+     없으면 `pushurl_unpinned`(ready ✗ · `next_actions` sub-agent `reinstall`) · 평문 http·로컬 경로·hint ref 없음은 `invalid`.
+   - `token`: `not_required` 는 origin 이 **로컬 경로**(자체검사 격리 픽스처 · GitHub 에 닿지 않는다)일 때만 남는다. ssh origin 은 토큰을
+     건너뛰는 사유가 아니라 클론 위반이다. ready 는 토큰 `present` 를 요구한다(https 클론은 토큰이 필요하다).
+   - `env_file_mode`: `{path_rel: envs/.env, status: ok|wide|absent|unknown}`(lstat 만 · 내용 비열람 · 8진 mode 는 교정 기록에만). `wide` 면
+     `next_actions` sub-agent `narrow_env_mode` · `unknown`(링크·일반 파일 아님·stat 실패)이면 메인 에스컬레이션. ready 조건은 아니다.
+   - **`--push-transport`**(읽기 전용 · 메인 `sync_to_sub.sh` 가 배달 뒤 `sub_run` 으로 부른다 · M1-②): 한 줄 JSON 네 키
+     `hint_clone_declared`·`fetch_scheme`·`push_scheme`·`pushurl_pinned` 뿐이다(URL·경로·토큰 ✗). **종료 0** = fetch·push https ∧ 고정,
+     또는 `HINT_CLONE_DIR` 미선언(not_applicable · 장착 전 서브). **종료 3** = 차단(ssh·scp형 push · https 아닌 push · 미고정 · 선언·클론
+     판독 실패). 종료 2 는 사용 오류뿐이다(이 모드를 모르는 옛 실행체도 2 를 낸다) — 메인은 0 만 통과로 본다.
+
+**재장착(배달 뒤 · plan_26112012 §4-3 · 승인 ③ = A2A 위임 · 실행자 = 서브 에이전트)** — 메인이 relay 지시로 다음 순서를 준다. 배달은
+terraforming 실행체를 나르지 않으므로(소스만 · `target/` ✗) 옛 실행체는 `--push-transport`·`--narrow-env-mode` 를 모르고 push 주소도
+고정하지 않는다. 그래서 재빌드가 먼저다.
+
+1. 서브 재빌드 — `bash .claude/skills/terraforming_node/scripts/build_rust_packages.sh`(배달된 소스의 locked release 빌드).
+2. S1 재장착 — `bash .claude/skills/terraforming_node/scripts/check_sub_hint_equip.sh --clone --remote-url <자격 없는 https URL>`(멱등 · 이미
+   장착된 클론은 push 주소만 고정 · `{"equip": "clone", "result": "already"}`).
+3. `.env` 교정 — `check_sub_hint_equip.sh --narrow-env-mode --sub-workspace-shared <메인 판정>`. 메인 판정은 메인이 로컬에서 낸
+   `node_role_contract.sh evaluate --field sub_workspace_shared --format value`(두 토폴로지 manifest 의 서브 `node_id`·`work_dir` 동일성 ·
+   `shared|distinct|unknown` · 값 비출력)이고 relay 지시가 싣는다. 기록 = `{path_rel, before, after, action: narrowed|unchanged|absent|unknown,
+   provenance: measured, covers_topologies, covers_source}` — `shared` 면 `covers_topologies: [single, multi]`(한 파일이 둘을 덮는다 · #2b) ·
+   `covers_source: relayed:sub_workspace_shared=<값>`. `unknown` 은 고치지 않고 종료 4(사람).
+4. 판정 — 인자 없는 `check_sub_hint_equip.sh` 의 JSON 을 서브 testlog 에 싣는다(`push_scheme https` · `pushurl_pinned true` · `ready true` 기대).
+   메인은 회수한 JSON 을 인수하고 같은 검사를 다시 하지 않는다. 다음 정기 동기화의 `--push-transport` 가 종료 0 이면 닫힌다.
 5. **발행(장착 뒤 · 승인된 자기 셀만)** — 서브는 파생 선언(`--from-slice`)에 실린 `hint_targets` 의 셀만
    `hint.sh publish → 저작 → 독립 사실 검증(저작자 ≠ 검증자 · 서브 안의 별도 Agent) → continue --hint-clone "$HINT_CLONE_DIR"` 로 낸다.
    카탈로그 단계는 건너뛰고(push 역할만), 서브 testlog 에 승인 출처(메인 캠페인 id · approved_by · approved_utc · 슬라이스 발급 시각) ·

@@ -11,8 +11,7 @@
 
 - 대상: single 서브 노드 1대(manifest `nodes[sub]` · sub_mode `a2a-agent`). 그 노드에 셸로 로그인할 수 있는 사람.
 - 서브 워크스페이스 경로: `<SUB_WORKSPACE>` — 얻는 법: 메인 `output/single/manifest.yaml` 의 `nodes[sub].work_dir`.
-- 토큰: 프로젝트 원격에 **태그 push 권한만** 가진 fine-grained PAT(contents: write 범위 · 만료일 지정 권장).
-  원격이 ssh(`git@…`) 또는 로컬 경로면 토큰은 필요 없다 — 그 경우 ③-A 를 건너뛴다.
+- 토큰: 프로젝트 원격에 **태그 push 권한만** 가진 fine-grained PAT(contents: write 범위).
 - 이번 보고가 요구한 항목(서브 testlog `next_actions[].what` 그대로): `<WHAT_LIST>`
 
 ## ② 단계별 명령 (서브 노드에서 · 사람이 직접)
@@ -35,12 +34,15 @@ chmod 600 .claude/pii_terms.txt
 
 ## ③ 성공 판정
 
+판정 전: 이번 배달 뒤 서브 에이전트의 재장착(재빌드 `build_rust_packages.sh` → `--clone --remote-url <자격 없는 https URL>` →
+`--narrow-env-mode`)이 끝나 있어야 한다(`references/install/sub_agent_env.md` §2.5.1 재장착 · 옛 실행체는 새 판정 키를 모른다).
+
 ```bash
 cd <SUB_WORKSPACE>
 bash .claude/skills/terraforming_node/scripts/check_sub_hint_equip.sh | jq -r '.checks.token.status + " " + .checks.pii_terms.status'
 ```
 
-- 기대: `present present`(ssh·로컬 원격이면 `not_required present`). 토큰 **값**은 어디에도 출력되지 않아야 한다.
+- 기대: `present present`. 토큰 **값**은 어디에도 출력되지 않아야 한다.
 - `git -C <SUB_WORKSPACE> status --short` 에 `envs/.env` · `.claude/pii_terms.txt` 가 **보이지 않아야** 한다(추적되면 안 된다).
 
 ## ④ 실패 시 분기
@@ -54,7 +56,7 @@ bash .claude/skills/terraforming_node/scripts/check_sub_hint_equip.sh | jq -r '.
 ## ⑤ 회수물 (에이전트에게 돌려줄 것)
 
 - `check_sub_hint_equip.sh` 출력 JSON 전체(비밀 미포함) — 메인이 다음 A2A 지시로 서브에게 다시 돌리게 해도 된다.
-- 토큰 만료일(날짜만). 토큰 값 · PII 리터럴 내용은 **회수물이 아니다**.
+- 토큰 값 · PII 리터럴 내용은 **회수물이 아니다**.
 
 ## ⑥ 예상 소요·비용
 

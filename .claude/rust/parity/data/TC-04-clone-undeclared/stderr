@@ -1,1 +1,1 @@
-[check_sub_hint_equip] FAIL: HINT_CLONE_DIR 미선언 — envs/.env 에 워크스페이스 밖 절대경로 한 줄을 먼저 둔다(선언 자리는 하나)
+[check_sub_hint_equip] FAIL: --remote-url 은 자격 없는 https URL 이어야 한다 — ssh·scp형·로컬 경로는 받지 않는다(S1 · 서브는 GitHub 에 ssh 로 닿지 않는다)

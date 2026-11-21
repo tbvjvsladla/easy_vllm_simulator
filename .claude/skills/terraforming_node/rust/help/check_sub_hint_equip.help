@@ -1,7 +1,9 @@
 usage: check_sub_hint_equip.sh [-h] [--workspace WORKSPACE] [--clone]
                                [--remote-url REMOTE_URL]
                                [--write-push-authority] [--utc UTC]
-                               [--self-test]
+                               [--self-test] [--push-transport]
+                               [--narrow-env-mode]
+                               [--sub-workspace-shared {shared,distinct,unknown}]
 
 single 서브 hint 발행 장착 판정·장착(비밀 미출력)
 
@@ -9,11 +11,22 @@ options:
   -h, --help            show this help message and exit
   --workspace WORKSPACE
                         서브 워크스페이스 루트(기본: 이 스크립트 위치에서 파생)
-  --clone               ① hint 클론 장착(HINT_CLONE_DIR 선언 필수)
+  --clone               ① hint 클론 장착 + push 주소(remote.origin.pushurl)
+                        고정(HINT_CLONE_DIR 선언 필수 · 멱등 · 이미 장착된 클론도 고정)
   --remote-url REMOTE_URL
-                        --clone 의 프로젝트 원격(메인이 Task Message 로 준다 · 자격증명 박힌 URL
-                        거부)
+                        --clone 의 프로젝트 원격(메인이 Task Message 로 준다 · 자격 없는 https
+                        URL 만 · ssh·scp형·로컬 경로·자격증명 박힌 URL 거부)
   --write-push-authority
                         ② hints/.push_authority 작성
   --utc UTC             --write-push-authority 의 선언 시각(주입 · 생략 가능)
   --self-test
+  --push-transport      읽기 전용 push 전송 판정(메인 동기화가 sub_run 으로 부른다) · 한 줄 JSON 네
+                        키 hint_clone_declared · fetch_scheme · push_scheme ·
+                        pushurl_pinned · URL·경로·토큰 비출력 · 종료 0 = fetch·push
+                        https + 고정 또는 HINT_CLONE_DIR 미선언(not_applicable) · 3 =
+                        차단(ssh·scp형 · https 아님 · 미고정 · 판독 실패)
+  --narrow-env-mode     ③ envs/.env 권한을 mode & 0o600 으로 좁힌다(넓히지 않음 · 내용 비열람 ·
+                        링크·비정규 파일·stat 실패는 unknown 으로 두고 종료 4)
+  --sub-workspace-shared {shared,distinct,unknown}
+                        --narrow-env-mode 기록에 실을 메인 판정(node_role_contract
+                        sub_workspace_shared · 재장착 지시가 준다)
