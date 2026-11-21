@@ -186,6 +186,11 @@ hint 태그의 로컬 오브젝트 부재면 그 원격의 fetch 명령을 안�
 - `scripts/check_smoke_model.sh` — ⑤ no-download NAS 모델 실재 체크.
 - `scripts/classify_failure.sh` + `failure_patterns.yaml` — ⑥ 실패 결정론 분류(미지→Model-C). Rust 실행 파일로 저장소 registry의 빌드/스모크 로그를 분류한다.
 - `scripts/sync_to_sub.sh` — 멀티노드 [전달](dry-run 기본/`--apply`, 체크섬, 빌딩블럭 제외).
+  매 동기화마다(plan_26112012 #3 M1 · #2b) B0 와 B1 각 타겟 시작에서 서브 작업 폴더 원격 0 을 확증하고(`assert_sub_origin_zero` ·
+  어긋나면 exit 7), B1 각 타겟의 배달 뒤에 `[sync] env-mode(<t>)`(서브 `envs/.env` 의 종류·mode 만 · 막지 않음)와
+  `[sync] push-transport(<t>)`(서브 hint 클론 push 전송 · ray-worker 는 `not_applicable`)를 적는다. push 전송 차단은
+  배달 거래를 마감한 뒤 **exit 13** 으로 끝난다 — 배달된 내용은 남고, 이것은 실패가 아니라 정상 차단이다(서브 재빌드 뒤 재장착 ·
+  terraforming_node §2.5.1). 우회하지 않는다.
 - `scripts/multinode_serve_smoke.sh` — 2노드 Ray 서빙+multi-smoke 오케스트레이션. **teardown(`--down`)은 멀티 전용**이다(경로가 `output/multi/` 고정 · SSH 슬레이브 전제).
   - 스모크 합격 기준은 **생성 실재**다(2026-08-22 · W-10): `content` 비었고 `reasoning` 만 있으면
     PASS 하지 않고 파서를 우회한 `/v1/completions` 로 확증한다. 통과 로그는 언제나 증거원을 밝힌다
