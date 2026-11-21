@@ -5,8 +5,8 @@ use sweep_stop::cli::on_large_stack;
 use sweep_stop::cli::Streams;
 use sweep_stop::pystr::PyStr;
 use sweep_stop::scan_node_boundary::{LocalClock, StdFiles};
-use sweep_stop::scan_node_bridge::{serve, Environment, BRIDGE_ENV, EXIT_CONTROL_FAILURE};
-use sweep_stop::scan_node_cli::{run as run_cli, StdLocal, World};
+use sweep_stop::scan_node_bridge::{serve, Environment, BRIDGE_ENV, EXIT_CONTROL_FAILURE, OWNER_ENV};
+use sweep_stop::scan_node_cli::{narrow_env_mode, run as run_cli, StdLocal, World, NARROW_ENV_MODE_FLAG};
 use sweep_stop::scan_node_host::StdHost;
 use sweep_stop::scan_node_selfcheck::report;
 use sweep_stop::stdout::StdoutProfile;
@@ -15,8 +15,8 @@ use sweep_stop::stdout::StdoutProfile;
 /// command line itself (P3, no bridge variable): the original's argparse interface and flow, `--self-test` being a named boundary.
 fn main() -> ExitCode {
     // `--p1-self-check`: the native P1 rows against the embedded saved raw (the program's own check; no bridge, no Python)
-    let mut args = std::env::args_os().skip(1);
-    if args.next().is_some_and(|arg| arg == "--p1-self-check") && args.next().is_none() {
+    let only: Vec<std::ffi::OsString> = std::env::args_os().skip(1).take(2).collect();
+    if only.len() == 1 && only[0] == "--p1-self-check" {
         let (lines, ok) = report();
         for line in lines {
             let _ = writeln!(stdout(), "[scan_node] {line}");
@@ -26,6 +26,17 @@ fn main() -> ExitCode {
         } else {
             ExitCode::from(1)
         };
+    }
+    // `--narrow-env-mode` (plan_26112012 #2): the main workspace's `envs/.env` narrowed to mode & 0o600, the workspace taken from
+    // the launcher's owner path; decided before the argparse interface, like `--p1-self-check`.
+    if only.len() == 1 && only[0] == NARROW_ENV_MODE_FLAG {
+        let owner = std::env::var_os(OWNER_ENV).map(std::path::PathBuf::from);
+        let (answer, status) = narrow_env_mode(owner.as_deref());
+        let _ = match answer {
+            Ok(line) => writeln!(stdout(), "{line}"),
+            Err(reason) => writeln!(stderr(), "{reason}"),
+        };
+        return ExitCode::from(u8::try_from(status).unwrap_or(1));
     }
     let environment = Environment::from_process();
     if !std::env::var_os(BRIDGE_ENV).is_some_and(|value| !value.is_empty()) {

@@ -314,3 +314,45 @@ fn a_bridge_start_reaches_the_rust_program_even_when_the_caller_exported_the_pro
     assert_eq!(output.status.code(), Some(2));
     assert!(output.stdout.is_empty());
 }
+
+/// plan_26112012 #2 (the main side): `scan_node --narrow-env-mode` narrows `envs/.env` of the workspace its owner path names to
+/// mode & 0o600, prints one record and never the content, and refuses an owner path outside the launcher directory (no guess).
+#[test]
+fn narrow_env_mode_corrects_only_the_file_of_the_workspace_the_owner_path_names() {
+    let root = std::env::temp_dir().join(format!("scan-node-env-mode-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(root.join("envs")).unwrap();
+    std::fs::create_dir_all(root.join(".claude/skills/terraforming_node/scripts")).unwrap();
+    let file = root.join("envs/.env");
+    std::fs::write(&file, "HF_TOKEN=hf_BOUNDARY_VALUE_5\n").unwrap();
+    std::fs::set_permissions(&file, std::fs::Permissions::from_mode(0o664)).unwrap();
+    let run = |owner: &std::path::Path| {
+        Command::new(env!("CARGO_BIN_EXE_scan_node"))
+            .arg("--narrow-env-mode")
+            .env("SCAN_NODE_OWNER_PATH", owner)
+            .env_remove("SCAN_NODE_BRIDGE")
+            .output()
+            .expect("scan_node")
+    };
+    let mode = || std::fs::metadata(&file).unwrap().permissions().mode() & 0o7777;
+    let owner = root.join(".claude/skills/terraforming_node/scripts/scan_node.sh");
+    let record = |before: &str, after: &str, action: &str| {
+        format!("{{\"path_rel\": \"envs/.env\", \"before\": \"{before}\", \"after\": \"{after}\", \"action\": \"{action}\", \"provenance\": \"measured\"}}\n")
+    };
+    let first = run(&owner);
+    assert_eq!(first.status.code(), Some(0), "{first:?}");
+    assert_eq!(String::from_utf8_lossy(&first.stdout), record("664", "600", "narrowed"));
+    assert_eq!(mode(), 0o600);
+    let again = run(&owner);
+    assert_eq!((again.status.code(), String::from_utf8_lossy(&again.stdout).into_owned()), (Some(0), record("600", "600", "unchanged")));
+    std::fs::set_permissions(&file, std::fs::Permissions::from_mode(0o644)).unwrap();
+    let stray = run(&root.join("elsewhere/scan_node.sh"));
+    assert_eq!(stray.status.code(), Some(2));
+    assert!(stray.stdout.is_empty() && String::from_utf8_lossy(&stray.stderr).contains("[scan_node] FAIL: --narrow-env-mode"));
+    assert_eq!(mode(), 0o644, "no workspace, no correction");
+    for out in [&first, &again, &stray] {
+        let all = format!("{}{}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
+        assert!(!all.contains("HF_TOKEN") && !all.contains("BOUNDARY_VALUE"), "{all}");
+    }
+    let _ = std::fs::remove_dir_all(&root);
+}

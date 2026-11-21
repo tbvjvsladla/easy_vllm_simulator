@@ -32,6 +32,53 @@ use std::cell::RefCell;
 /// Exit status of a boundary the port does not carry (the same status the bridge uses for a control failure).
 pub const EXIT_BOUNDARY: i32 = 3;
 
+/// `scan_node.sh --narrow-env-mode` (plan_26112012 #2, the main side; a correction, run only at its approved step). It is decided
+/// before the argparse interface (like `--p1-self-check`), so the original's usage and help stay as they were.
+pub const NARROW_ENV_MODE_FLAG: &str = "--narrow-env-mode";
+/// Where the launcher sits under the workspace root that its owner path (`SCAN_NODE_OWNER_PATH`) names.
+const OWNER_DIR_REL: &str = ".claude/skills/terraforming_node/scripts";
+/// `--narrow-env-mode`: no workspace root follows from the owner path.
+pub const EXIT_NO_WORKSPACE: i32 = 2;
+/// `--narrow-env-mode`: the file was not corrected (`unknown`).
+pub const EXIT_NOT_NARROWED: i32 = 4;
+
+/// The main workspace root that the launcher's owner path (`<root>/.claude/skills/terraforming_node/scripts/scan_node.sh`) names;
+/// `None` when the path is missing or does not sit in that directory (the working directory is never a fallback).
+pub fn workspace_of_owner(owner: Option<&std::path::Path>) -> Option<std::path::PathBuf> {
+    let dir = owner?.parent()?;
+    let rel = std::path::Path::new(OWNER_DIR_REL);
+    let mut root = dir;
+    for _ in rel.components() {
+        root = root.parent()?;
+    }
+    (root.join(rel) == dir).then(|| root.to_path_buf())
+}
+
+/// `scan_node.sh --narrow-env-mode`: narrows the main workspace's `envs/.env` to `mode & 0o600` through
+/// `role_contract::env_file_mode` (the same correction as the sub's `check_sub_hint_equip --narrow-env-mode`) and answers the
+/// one-line record `{path_rel, before, after, action, provenance}` (stdout) or the reason no workspace follows (stderr), with the exit
+/// status: 0 narrowed/unchanged/absent, 4 unknown (not a regular file, lstat failed or the mode did not narrow: not corrected), 2 no
+/// workspace root. The file path is never an argument and the content is never opened.
+pub fn narrow_env_mode(owner: Option<&std::path::Path>) -> (Result<String, String>, i32) {
+    use role_contract::env_file_mode::{narrow, narrowing_value, NarrowAction};
+    let Some(root) = workspace_of_owner(owner) else {
+        return (
+            Err(format!(
+                "[scan_node] FAIL: {NARROW_ENV_MODE_FLAG} 은 런처의 owner 경로(SCAN_NODE_OWNER_PATH = <워크스페이스>/{OWNER_DIR_REL}/scan_node.sh)에서 워크스페이스를 정한다 — 그 경로가 없거나 그 자리가 아니다"
+            )),
+            EXIT_NO_WORKSPACE,
+        );
+    };
+    let narrowing = narrow(&root);
+    let line = narrowing_value(&narrowing)
+        .dumps_unicode()
+        .ok()
+        .and_then(|text| text.to_utf8())
+        .unwrap_or_default();
+    let status = if narrowing.action == NarrowAction::Unknown { EXIT_NOT_NARROWED } else { 0 };
+    (Ok(line), status)
+}
+
 pub mod args {
     pub const TOPOLOGY: usize = 1;
     pub const PEER_IP: usize = 2;
