@@ -479,7 +479,7 @@
         },
         {
           "clause_id": "HINT_TAG_ACTIVATION_GATE.C4",
-          "statement": "Publication is main-only with one exception, the single-node sub (sub_mode a2a-agent) for its own cells (2026-10-11, plan_26101104): the hint engine (hint.sh, the Rust crate hint-publisher/rust) never executes a remote shell or calls the sub delivery/relay tooling; the main-to-sub delivery carries the engine and the hints/ contract+vocabulary only to a sub whose contract-derived runtime-skill plane includes hint-publisher (a2a-agent: the three runtime skills + hint-publisher; ray-worker: none) and never carries the catalog (hints/index.json, HINTS.md) or any role marker (hints/.central_authority, hints/.push_authority); a derived campaign slice carries exactly that node's hint_targets with their approvals when the node self-publishes and none otherwise (other nodes' entries, main's included, are cut), and a sub instance holding another node's entry or belonging to a non-self-publishing topology is refused; the sub pushes from a separate hint clone outside its workspace git, holds only the push-role marker, skips the catalog and reports by document -- catalog derivation stays main-only and multi-node subs never author or publish hints."
+          "statement": "Publication is main-only with one exception, the single-node sub (sub_mode a2a-agent) for its own cells (2026-10-11, plan_26101104): the hint engine (hint.sh, the Rust crate hint-publisher/rust) never executes a remote shell or calls the sub delivery/relay tooling; the main-to-sub delivery carries the engine and the hints/ contract+vocabulary only to a sub whose contract-derived runtime-skill plane includes hint-publisher (a2a-agent: the three runtime skills + hint-publisher; ray-worker: none) and never carries the catalog (hints/index.json, HINTS.md) or any role marker (hints/.central_authority, hints/.push_authority); a derived campaign slice carries exactly that node's hint_targets with their approvals when the node self-publishes and none otherwise (other nodes' entries, main's included, are cut), and a sub instance holding another node's entry or belonging to a non-self-publishing topology is refused; the sub pushes from a separate hint clone outside its workspace git, holds only the push-role marker, skips the catalog and reports by document -- catalog derivation stays main-only and multi-node subs never author or publish hints. On every sync the main judges, after delivery, the sub's hint-clone push transport (sync_to_sub.sh check_sub_push_transport runs check_sub_hint_equip.sh --push-transport over its sub_run channel): only exit 0 passes; an ssh or scp-like push, an unpinned or non-https push URL, a sub executable that predates the mode, an absent launcher or an unreadable answer is a normal block -- the sync still closes its delivery transaction, so the delivered content stays, and then ends non-zero (sub rebuild, then reinstall, sub_agent_env.md §2.5.1); the main never corrects it, and a ray-worker (multi-node) sub, which has no equip tool, is not applicable and is not called."
         },
         {
           "clause_id": "HINT_TAG_ACTIVATION_GATE.C5",
@@ -603,6 +603,15 @@
           ],
           "assertion_ids": [
             "hint_target_reasons"
+          ]
+        },
+        {
+          "path": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
+          "supports": [
+            "HINT_TAG_ACTIVATION_GATE.C4"
+          ],
+          "assertion_ids": [
+            "check_sub_push_transport"
           ]
         },
         {

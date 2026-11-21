@@ -1272,6 +1272,38 @@ pub fn predicate_HINT_TAG_ACTIVATION_GATE_C4() -> R {
         !reasons(&smuggled_m_text).is_empty() && approval_from(&smuggled_m_text, "cell-s", "sub")?.is_none(),
         "a multi-node sub instance holding an approval must be refused -- a ray-worker never self-publishes",
     )?;
+
+    // (5) M1-② (plan_26112012 #3 S4, h90-h92): on every sync the main judges the sub's hint-clone push transport AFTER the
+    //     delivery, strictly (only exit 0 passes), never calls it on a ray-worker, and ends the sync non-zero only after the
+    //     delivery transaction is closed -- an exit inside the transaction would roll the delivery back.
+    let judge = extract_bash_function(&sync_src, "check_sub_push_transport")?;
+    req(
+        judge.lines().any(|l| l.contains("sub_run \"bash ") && l.contains("/check_sub_hint_equip.sh --push-transport\"")),
+        "check_sub_push_transport must ask the sub's equip tool (check_sub_hint_equip.sh --push-transport) over sub_run",
+    )?;
+    let (ray, call) = (judge.find("\"ray-worker\""), judge.find("--push-transport"));
+    req(
+        matches!((ray, call), (Some(r), Some(c)) if r < c) && judge.contains("push-transport($t): not_applicable"),
+        "a ray-worker sub has no equip tool: check_sub_push_transport must record not_applicable before (instead of) calling it",
+    )?;
+    req(
+        judge.contains("if [ \"$rc\" = \"0\" ]; then") && judge.contains("PUSH_TRANSPORT_BLOCKED+=(\"$t\")"),
+        "only exit 0 of --push-transport passes; every other result (an old sub executable included) is a block",
+    )?;
+    req(search("\\bexit\\b", &judge).is_none(), "check_sub_push_transport must not end the sync itself -- the block is recorded and the exit comes after the transaction closes")?;
+    let b1 = index(&sync_src, "# ── B1 per-branch 증분 싱크 ──")?;
+    let checked = index_from(&sync_src, "verify_checksums \"$t\"", b1)?;
+    let judged = index_from(&sync_src, "check_sub_push_transport \"$t\"", b1);
+    let loop_end = index_from(&sync_src, "LAST_DELIVERED=\"$t\"", b1)?;
+    req(
+        judged.as_ref().map_or(false, |&j| checked < j && j < loop_end),
+        "the M1-② push-transport judgement must run in each B1 target after verify_checksums (after the delivery)",
+    )?;
+    let closed = rindex(&sync_src, "\nfinalize_remote_transactions\n")?;
+    req(
+        count(&sync_src, "exit \"$PUSH_TRANSPORT_EXIT\"") == 1 && index(&sync_src, "exit \"$PUSH_TRANSPORT_EXIT\"")? > closed,
+        "the M1-② block must end the sync only after finalize_remote_transactions, so the delivered content stays",
+    )?;
     Ok(())
 }
 

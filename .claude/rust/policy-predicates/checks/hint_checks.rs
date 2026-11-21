@@ -109,7 +109,23 @@ const MUTATIONS: &[(&str, &str, &str, &str, &str, &str, bool)] = &[
      "LAST_GOOD_ROLLBACK_ANCHOR.C3", "PredicateFailure: .claude/skills/hint-publisher/rust/src/catalog.rs must not hardcode a project remote URL", true),
     ("H14-origin-url-filled", "manifest.template.yaml", "origin_url: \"\"", "origin_url: \"git@example.invalid:x/y.git\"",
      "LAST_GOOD_ROLLBACK_ANCHOR.C3", "PredicateFailure: origin_url must default empty (user-supplied)", true),
+    // plan_26112012 M1-② (h90-h92): judged after the delivery, strictly, never on a ray-worker, exit only after the close.
+    ("H15-push-transport-exit-in-transaction", SYNC, "        PUSH_TRANSPORT_BLOCKED+=(\"$t\")\n",
+     "        PUSH_TRANSPORT_BLOCKED+=(\"$t\"); exit \"$PUSH_TRANSPORT_EXIT\"\n", "HINT_TAG_ACTIVATION_GATE.C4",
+     "PredicateFailure: check_sub_push_transport must not end the sync itself -- the block is recorded and the exit comes after the transaction closes", true),
+    ("H16-push-transport-not-called", SYNC, "    check_sub_push_transport \"$t\"\n", "", "HINT_TAG_ACTIVATION_GATE.C4",
+     "PredicateFailure: the M1-② push-transport judgement must run in each B1 target after verify_checksums (after the delivery)", true),
+    ("H17-push-transport-ray-worker-called", SYNC,
+     "    if [ \"$mode\" = \"ray-worker\" ]; then\n        echo \"[sync] push-transport($t): not_applicable\"\n        return 0\n    fi\n", "",
+     "HINT_TAG_ACTIVATION_GATE.C4",
+     "PredicateFailure: a ray-worker sub has no equip tool: check_sub_push_transport must record not_applicable before (instead of) calling it", true),
+    ("H18-push-transport-exit-before-close", SYNC, "\nfinalize_remote_transactions\necho \"[sync] 완료. (현재 서브 브랜치:",
+     "\nif [ ${#PUSH_TRANSPORT_BLOCKED[@]} -gt 0 ]; then exit \"$PUSH_TRANSPORT_EXIT\"; fi\nfinalize_remote_transactions\necho \"[sync] 완료. (현재 서브 브랜치:",
+     "HINT_TAG_ACTIVATION_GATE.C4",
+     "PredicateFailure: the M1-② block must end the sync only after finalize_remote_transactions, so the delivered content stays", true),
 ];
+
+const SYNC: &str = ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh";
 
 fn lexer_checks() {
     let src = "/// doc \"relay.py\"\nfn a() { let x = [\"ssh\", r#\"raw\"#]; b(1); m!(c(2)); /* \"hidden\" */ 'x'; }\nfn d<'a>(remote: &'a str, n: Option<&str>) {}\n";

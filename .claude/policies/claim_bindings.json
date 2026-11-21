@@ -179,6 +179,10 @@
         "assertion_ids": ["hint_target_reasons"]
       },
       {
+        "path": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
+        "assertion_ids": ["check_sub_push_transport"]
+      },
+      {
         "path": ".claude/rust/policy-predicates/src/claims_hint.rs",
         "assertion_ids": ["predicate_HINT_TAG_ACTIVATION_GATE_C4"]
       }
