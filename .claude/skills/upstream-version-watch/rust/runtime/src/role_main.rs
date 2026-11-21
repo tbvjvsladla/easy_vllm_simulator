@@ -6,6 +6,10 @@
 //!
 //! Top-level command lines decided here: no arguments (help, status 2), `-h`/`--help`, `--self-test` alone, and `evaluate ...` (parsed with the common
 //! argument parser). Any other top-level form is a named refusal (status 70), not a guess at argparse's text for it.
+//!
+//! `evaluate --field sub_workspace_shared` (plan_26112012 #2b, not in the source) reads the manifest pair of `--repo`
+//! (`output/{single,multi}/manifest.yaml`) instead of one manifest: status 0 with `shared`, `distinct` or `unknown` (an absent or unreadable
+//! manifest is `unknown`), never a path or a manifest value in the output; with `--manifest` or `--topology` it is a usage error (status 2).
 
 use crate::host::Sink;
 use crate::main_cmd::{argument_error, split_usage};
@@ -16,7 +20,7 @@ use recipe_runtime::cliparse::{
     format_usage, parse, terminal_width, Kind, Opt, Outcome, Spec, Value,
 };
 use role_contract::load::{load_yaml, LoadFailure};
-use role_contract::{evaluate_manifest, manifest_path_for, FIELDS};
+use role_contract::{evaluate_manifest, manifest_path_for, EVALUATE_FIELDS, SUB_WORKSPACE_SHARED, TOPOLOGIES};
 use std::os::unix::ffi::OsStringExt;
 
 pub const PROGRAM: &str = "node_role_contract.sh";
@@ -65,7 +69,7 @@ fn spec() -> Spec {
                 Kind::Text,
                 Some("rank 를 물어볼 role 슬러그(기본 sub)"),
             ),
-            option(&["--field"], "field", Kind::Choice(&FIELDS), None),
+            option(&["--field"], "field", Kind::Choice(&EVALUATE_FIELDS), None),
             option(
                 &["--format"],
                 "format",
@@ -214,7 +218,39 @@ fn field_value(result: &role_contract::Evaluation, field: &str) -> PyValue {
     }
 }
 
+/// `evaluate --field sub_workspace_shared`: the manifest pair of the repo, value or `{"sub_workspace_shared": {"source", "value"}}`.
+fn cmd_sub_workspace_shared(world: &mut RoleWorld<'_>, args: &Evaluate) -> Result<i32, Refusal> {
+    if args.manifest.is_some() || args.topology.is_some() {
+        eprint(
+            world.host,
+            &PyStr::new("[node-role] FAIL: --field sub_workspace_shared 는 --repo 의 두 토폴로지 manifest 쌍을 읽는다 — --manifest·--topology 와 함께 쓰지 않는다."),
+        );
+        return Ok(2);
+    }
+    let mut docs: Vec<Option<PyValue>> = Vec::new();
+    for topology in TOPOLOGIES {
+        let path = manifest_path_for(&PyValue::Str(args.repo.clone()), &PyValue::str(topology))
+            .map_err(|e| refusal("manifest_path", e.message()))?;
+        docs.push(if is_file(&path) { load_yaml(&PyValue::Str(path)).ok() } else { None });
+    }
+    let verdict = role_contract::sub_workspace_shared(docs[0].as_ref(), docs[1].as_ref());
+    if args.format.equals("value") {
+        print_to(world.host, &verdict.value.display_text());
+        return Ok(0);
+    }
+    let mut single = PyDict::new();
+    single.set(SUB_WORKSPACE_SHARED, verdict.to_value());
+    let text = sorted_keys(&PyValue::Dict(single)).dumps_unicode().map_err(|error| {
+        refusal("json_dump", format!("json.dumps would raise ({error:?}); its traceback was not captured"))
+    })?;
+    print_to(world.host, &text);
+    Ok(0)
+}
+
 fn cmd_evaluate(world: &mut RoleWorld<'_>, args: Evaluate) -> Result<i32, Refusal> {
+    if args.field.as_ref().is_some_and(|field| field.equals(SUB_WORKSPACE_SHARED)) {
+        return cmd_sub_workspace_shared(world, &args);
+    }
     let path = match args.manifest.clone().filter(|m| !m.is_empty()) {
         Some(path) => path,
         None => {

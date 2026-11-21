@@ -19,6 +19,7 @@
 use agent_runtime_support::pystr::PyStr;
 use agent_runtime_support::pyvalue::{PyDict, PyValue};
 pub mod campaign;
+pub mod env_file_mode;
 pub mod identity;
 pub mod load;
 pub mod manifest_gate;
@@ -57,6 +58,12 @@ pub const FIELDS: [&str; 6] = [
     "topology",
 ];
 const DELIVERY_PLANE_SUB_MODES: [&str; 1] = ["ray-worker"];
+/// The `evaluate --field` that reads the manifest pair of the two topologies instead of one manifest (plan_26112012 #2b).
+pub const SUB_WORKSPACE_SHARED: &str = "sub_workspace_shared";
+/// The source of every [`sub_workspace_shared`] verdict.
+pub const SUB_WORKSPACE_SHARED_SOURCE: &str = "measured:manifest-pair";
+/// The `--field` choices of `evaluate`: the one-manifest [`FIELDS`] of the source, then the manifest-pair field.
+pub const EVALUATE_FIELDS: [&str; 7] = [FIELDS[0], FIELDS[1], FIELDS[2], FIELDS[3], FIELDS[4], FIELDS[5], SUB_WORKSPACE_SHARED];
 
 fn sub_mode_by_topology(topology: &str) -> &'static str {
     match topology {
@@ -535,6 +542,34 @@ pub fn tool_plane(topology: &PyValue, sub_mode: &PyValue) -> Outcome<Verdict> {
         ),
         source: PyStr::new(&format!("sub-mode:{mode}")),
     })
+}
+
+/// `sub_workspace_shared(single, multi)` over the two loaded topology manifests (`None` = absent or unreadable), plan_26112012 #2b:
+/// `shared` when each registers exactly one `role: sub` node and their `node_id` and `work_dir` are both equal (one sub workspace, so
+/// one `envs/.env` for both topologies), `distinct` when either differs, `unknown` when a manifest is missing or its sub, `node_id`
+/// or `work_dir` is missing, empty, not a string or not one. The host is not compared (single reaches the sub by its management
+/// hostname, multi by its RoCE address). The verdict carries no value of the manifests (no path, no name).
+pub fn sub_workspace_shared(single: Option<&PyValue>, multi: Option<&PyValue>) -> Verdict {
+    fn sub_identity(doc: Option<&PyValue>) -> Option<(Vec<u32>, Vec<u32>)> {
+        let nodes = as_list(dict_get(doc?, "nodes")?)?;
+        let mut subs = nodes.iter().filter(|node| {
+            node_role(node).is_some_and(|r| matches!(r.peel(), PyValue::Str(s) if s.equals(SUB_ROLE)))
+        });
+        let (Some(sub), None) = (subs.next(), subs.next()) else {
+            return None;
+        };
+        let text = |key: &str| match dict_get(sub, key).map(|v| v.peel()) {
+            Some(PyValue::Str(text)) if !text.is_empty() => Some(text.code_points().to_vec()),
+            _ => None,
+        };
+        Some((text("node_id")?, text("work_dir")?))
+    }
+    let value = match (sub_identity(single), sub_identity(multi)) {
+        (Some(one), Some(other)) if one == other => "shared",
+        (Some(_), Some(_)) => "distinct",
+        _ => "unknown",
+    };
+    Verdict::text(value, SUB_WORKSPACE_SHARED_SOURCE)
 }
 
 /// `sub_self_publishes(topology, sub_mode=None)`: `hint-publisher` is in the tool plane.

@@ -1058,6 +1058,48 @@ fn node_role_contract_evaluate_value_and_json() {
     assert_eq!(text(&out.stdout), format!("{source}\n"));
 }
 
+/// `node_role_contract evaluate --field sub_workspace_shared [--repo R] [--format value|json]` (plan_26112012 #2b; the sub's
+/// reinstall instruction carries this value): it reads the repo's two topology manifests (`output/{single,multi}/manifest.yaml`),
+/// prints `shared`, `distinct` or `unknown` (json: `{"sub_workspace_shared": {"source": "measured:manifest-pair", "value"}}`), exit 0,
+/// never a path or a manifest value; `--manifest`/`--topology` with it is a usage error (exit 2).
+#[test]
+fn node_role_contract_sub_workspace_shared_reads_the_manifest_pair() {
+    let s = scratch("role-pair");
+    let rt = runtime_root(&s);
+    let launcher = ".claude/skills/terraforming_node/scripts/node_role_contract.sh";
+    let repo = s.0.join("repo");
+    let place = |topology: &str, work_dir: &str| {
+        let body = SINGLE_WITH_SUB.replace("topology: single", &format!("topology: {topology}"));
+        let body = body.replace("    host: sub.invalid\n", "    host: sub.invalid\n    node_id: sub-fixture-id\n");
+        let body = body.replace("    work_dir: /w\n  - role: sub", "    work_dir: /main-w\n  - role: sub");
+        write(&repo.join(format!("output/{topology}/manifest.yaml")), &body.replace("    work_dir: /w\n", &format!("    work_dir: {work_dir}\n")));
+    };
+    let ask = |format: &str, extra: &[&str]| {
+        let mut args = vec!["evaluate", "--field", "sub_workspace_shared", "--repo", repo.to_str().unwrap(), "--format", format];
+        args.extend_from_slice(extra);
+        launch(&rt, &s.0, launcher, &args)
+    };
+    place("single", "/srv/pair-fixture-ws");
+    place("multi", "/srv/pair-fixture-ws");
+    let value = ask("value", &[]);
+    assert_eq!((value.status.code(), text(&value.stdout)), (Some(0), "shared\n".to_string()), "{}", text(&value.stderr));
+    let json = ask("json", &[]);
+    assert_eq!(text(&json.stdout), "{\"sub_workspace_shared\": {\"source\": \"measured:manifest-pair\", \"value\": \"shared\"}}\n");
+    place("multi", "/srv/pair-fixture-other");
+    assert_eq!(text(&ask("value", &[]).stdout), "distinct\n");
+    std::fs::remove_file(repo.join("output/multi/manifest.yaml")).unwrap();
+    let missing = ask("json", &[]);
+    assert_eq!(missing.status.code(), Some(0));
+    assert!(text(&missing.stdout).contains("\"value\": \"unknown\""), "{}", text(&missing.stdout));
+    for out in [&value, &json, &missing] {
+        let all = format!("{}{}", text(&out.stdout), text(&out.stderr));
+        assert!(!all.contains("/srv/") && !all.contains("sub-fixture-id") && !all.contains(repo.to_str().unwrap()), "{all}");
+    }
+    let refused = ask("value", &["--topology", "single"]);
+    assert_eq!(refused.status.code(), Some(2));
+    assert!(refused.stdout.is_empty());
+}
+
 /// A text argument that is not UTF-8 (types.md 2절): where base already refuses it — an option with closed choices — the
 /// refusal is a usage error, exit 2 with nothing on stdout; the same command line with a valid choice is not exit 2.
 #[test]
