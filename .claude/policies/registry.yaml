@@ -1177,7 +1177,8 @@
       "owner": "upstream-version-watch",
       "statement": "A sub node's git workspace never has a remote -- it exists only for local branch selection and history. The policy governs the sub's workspace repository only: a separate hint clone outside the workspace, used by a single-node sub solely to publish one approved hint tag (HINT_TAG_ACTIVATION_GATE.C4), is a different repository and is not covered -- it never becomes a remote of, or a recovery path into, the workspace git.",
       "scope": [
-        "multi-node"
+        "multi-node",
+        "single-node"
       ],
       "origin_failure": "plan_26062411",
       "clauses": [
