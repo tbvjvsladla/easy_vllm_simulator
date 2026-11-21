@@ -1304,7 +1304,100 @@ pub fn predicate_HINT_TAG_ACTIVATION_GATE_C4() -> R {
         count(&sync_src, "exit \"$PUSH_TRANSPORT_EXIT\"") == 1 && index(&sync_src, "exit \"$PUSH_TRANSPORT_EXIT\"")? > closed,
         "the M1-② block must end the sync only after finalize_remote_transactions, so the delivered content stays",
     )?;
-    Ok(())
+
+    // (6) S1 (plan_26112012 #3 S4): the sub's hint clone fetches and pushes over https only -- ① the equip tool pins
+    //     remote.origin.pushurl (new clone and reinstall) and refuses a non-https --remote-url; ② its verdict reads the push URL
+    //     (ssh = violation, unpinned = pushurl_unpinned) and --push-transport passes only https + pinned.
+    hint_clone_push_address_is_pinned_https()
+}
+
+/// Scopes `url.<local bare>.insteadOf <https URL>` in the process environment (the equip tool's clone child reads it; its own
+/// verdict reads strip `GIT_CONFIG_*`), so the https clone reaches a fixture origin without a network. Restored on drop.
+struct InsteadOfScope(Vec<(&'static str, Option<std::ffi::OsString>)>);
+
+impl InsteadOfScope {
+    fn set(bare: &Path, url: &str) -> InsteadOfScope {
+        let keys = ["GIT_CONFIG_COUNT", "GIT_CONFIG_KEY_0", "GIT_CONFIG_VALUE_0"];
+        let saved = keys.iter().map(|k| (*k, std::env::var_os(k))).collect();
+        std::env::set_var("GIT_CONFIG_COUNT", "1");
+        std::env::set_var("GIT_CONFIG_KEY_0", format!("url.{}.insteadOf", bare.display()));
+        std::env::set_var("GIT_CONFIG_VALUE_0", url);
+        InsteadOfScope(saved)
+    }
+}
+
+impl Drop for InsteadOfScope {
+    fn drop(&mut self) {
+        for (k, v) in &self.0 {
+            match v {
+                Some(v) => std::env::set_var(k, v),
+                None => std::env::remove_var(k),
+            }
+        }
+    }
+}
+
+/// HINT C4 (6): the equip library itself, in process (no skill path is read), over a fixture origin.
+fn hint_clone_push_address_is_pinned_https() -> R {
+    use terraforming_runtime::check_sub_hint_equip as equip;
+    let td = TempDir::new("hint-c4-s1-")?;
+    let base = td.path();
+    let git = |cwd: &Path, args: &[&str]| -> R<String> {
+        let out = std::process::Command::new("git").args(args).current_dir(cwd)
+            .env("GIT_AUTHOR_NAME", "f").env("GIT_AUTHOR_EMAIL", "f@f.invalid")
+            .env("GIT_COMMITTER_NAME", "f").env("GIT_COMMITTER_EMAIL", "f@f.invalid").env("GIT_TERMINAL_PROMPT", "0")
+            .output().map_err(|e| Fail::new("OSError", format!("git: {e}")))?;
+        Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
+    };
+    let (seed, bare, ws, clone) = (base.join("seed"), base.join("origin.git"), base.join("ws"), base.join("hint-clone"));
+    write(&seed.join("README.md"), "<!-- hint-branch-format: v7 -->\n")?;
+    git(&seed, &["init", "-q", "-b", "hint"])?;
+    git(&seed, &["add", "README.md"])?;
+    git(&seed, &["commit", "-q", "-m", "fixture"])?;
+    git(base, &["clone", "-q", "--bare", &seed.display().to_string(), &bare.display().to_string()])?;
+    write(&ws.join("envs/.env"), &format!("HINT_CLONE_DIR={}\n", clone.display()))?;
+    git(&ws, &["init", "-q"])?;
+    let (https, scp) = ("https://example.invalid/hint-c4.git", "git@example.invalid:x/hint-c4.git");
+    let _scope = InsteadOfScope::set(&bare, https);
+    let pinned = || git(&clone, &["config", "--get-all", "remote.origin.pushurl"]).unwrap_or_default();
+    let status = || equip::check_clone_value(&ws).ok().and_then(|v| match v.peel() {
+        PyValue::Dict(d) => Some((d.get("status").map(|x| x.display_text().to_utf8().unwrap_or_default()).unwrap_or_default(),
+                                  d.get("push_scheme").map(|x| x.display_text().to_utf8().unwrap_or_default()).unwrap_or_default())),
+        _ => None,
+    });
+    req(
+        equip::equip_clone_value(&ws, scp).is_err() && equip::equip_clone_value(&ws, "ssh://git@example.invalid/x/hint-c4.git").is_err()
+            && !clone.exists(),
+        "① the equip tool must refuse an ssh or scp-like --remote-url (the sub's hint clone is https only)",
+    )?;
+    req(
+        equip::equip_clone_value(&ws, https) == Ok("cloned") && pinned() == https,
+        "① a new hint clone must have its push address remote.origin.pushurl pinned to the https --remote-url",
+    )?;
+    git(&clone, &["config", "--unset-all", "remote.origin.pushurl"])?;
+    req(
+        status().map(|s| s.0).as_deref() == Some("pushurl_unpinned") && equip::push_transport_value(&ws).1 != 0,
+        "② an unpinned push address must be pushurl_unpinned and blocked by --push-transport",
+    )?;
+    req(
+        equip::equip_clone_value(&ws, https) == Ok("already") && pinned() == https && status().map(|s| s.0).as_deref() == Some("ok"),
+        "① reinstalling an equipped hint clone must pin its push address again",
+    )?;
+    let (answer, code) = equip::push_transport_value(&ws);
+    let keys: Vec<String> = match answer.peel() {
+        PyValue::Dict(d) => d.iter().map(|(k, _)| k.to_utf8().unwrap_or_default()).collect(),
+        _ => vec![],
+    };
+    req(
+        code == 0 && keys == ["hint_clone_declared", "fetch_scheme", "push_scheme", "pushurl_pinned"]
+            && !answer.repr().contains("example.invalid"),
+        "② --push-transport must pass an https + pinned clone with its four keys and no URL",
+    )?;
+    git(&clone, &["config", "--replace-all", "remote.origin.pushurl", scp])?;
+    req(
+        status() == Some(("violation".to_string(), "ssh".to_string())) && equip::push_transport_value(&ws).1 != 0,
+        "② the verdict must read the push URL and refuse an ssh push as a violation",
+    )
 }
 
 pub fn predicate_HINT_TAG_ACTIVATION_GATE_C5() -> R {
