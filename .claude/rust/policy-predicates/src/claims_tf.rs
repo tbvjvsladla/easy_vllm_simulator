@@ -279,11 +279,11 @@ pub fn predicate_MODEL_ACQUISITION_TERNARY_GATE_C4() -> R {
     req(!peer.contains("open(") && !peer.contains("read_file") && !peer.contains("read_to_string") && !peer.contains("cat "), "the remote existence probe must never read the token file content")?;
     let test = rust_fn_body(&secret, "remote_presence_test")?;
     req(
-        test.contains("grep -Eq ") && test.contains("2>/dev/null && echo TOK=1 || echo TOK=0") && !test.contains("cat "),
-        "the remote HF_TOKEN test must answer by grep's exit code only (grep -Eq, TOK=1/0), never print a line",
+        test.contains("LC_ALL=C grep -aEq ") && test.contains("2>/dev/null && echo TOK=1 || echo TOK=0") && !test.contains("cat "),
+        "the remote HF_TOKEN test must answer by grep's exit code only (LC_ALL=C grep -aEq, TOK=1/0), never print a line",
     )?;
     let line = role_contract::env_secret::remote_presence_test("/w");
-    req(line.starts_with("grep -Eq ") && line.ends_with("&& echo TOK=1 || echo TOK=0"), "the remote HF_TOKEN test must answer by grep's exit code only (grep -Eq, TOK=1/0), never print a line")?;
+    req(line.starts_with("LC_ALL=C grep -aEq ") && line.ends_with("&& echo TOK=1 || echo TOK=0"), "the remote HF_TOKEN test must answer by grep's exit code only (LC_ALL=C grep -aEq, TOK=1/0), never print a line")?;
     req(!p1.iter().find(|(r, _)| r.ends_with("scan_node_files.rs")).map(|(_, t)| t.contains("hf_token")).unwrap_or(true), "the P1 file reader must not know the token at all")
 }
 
