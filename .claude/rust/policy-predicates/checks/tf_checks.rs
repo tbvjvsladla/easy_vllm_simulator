@@ -1,4 +1,5 @@
-//! Scenario checks of the clauses ported against the terraforming_node owners (`src/claims_tf.rs`), run without Python:
+//! Scenario checks of the clauses ported against the terraforming_node owners (`src/claims_tf.rs`, ENV_SECRET_KEY_LEDGER C2 and C4
+//! included), run without Python:
 //!   * the real tree: every clause passes;
 //!   * negative controls: one mutation per clause, applied to a copy of the tracked tree (Rust build outputs linked in),
 //!     makes exactly that clause fail with the asserted `<Class>: <message>` prefix.
@@ -48,8 +49,10 @@ fn run_clause(clause: &str) -> Option<String> {
     }
 }
 
-const CLAUSES: [&str; 10] = [
+const CLAUSES: [&str; 12] = [
     "MODEL_ACQUISITION_TERNARY_GATE.C4",
+    "ENV_SECRET_KEY_LEDGER.C2",
+    "ENV_SECRET_KEY_LEDGER.C4",
     "TERRAFORM_FLAG_GATE.C1",
     "TERRAFORM_FLAG_GATE.C2",
     "TERRAFORM_FLAG_GATE.C3",
@@ -62,7 +65,7 @@ const CLAUSES: [&str; 10] = [
 ];
 
 /// (clause, file, old, new, expected error prefix)
-const MUTATIONS: [(&str, &str, &str, &str, &str); 11] = [
+const MUTATIONS: [(&str, &str, &str, &str, &str); 15] = [
     // plan_26112012 #11: the judgement prints nothing of the file; the remote probe answers by an exit code only.
     ("MODEL_ACQUISITION_TERNARY_GATE.C4", ".claude/rust/role-contract/src/env_secret.rs",
      "        Err(_) => false,\n", "        Err(error) => {\n            eprintln!(\"{error}\");\n            false\n        }\n",
@@ -70,6 +73,20 @@ const MUTATIONS: [(&str, &str, &str, &str, &str); 11] = [
     ("MODEL_ACQUISITION_TERNARY_GATE.C4", ".claude/rust/role-contract/src/scan_node_probe.rs",
      "crate::env_secret::remote_presence_test(", "format!(\"cat {}/envs/.env && echo TOK=1 # {}\", \"\", ",
      "PredicateFailure: the remote probe must test HF_TOKEN with env_secret::remote_presence_test (an exit code only)"),
+    // plan_26112012 #4 (K1): the template and every reader of envs/.env name ledger keys only; the HF_TOKEN pointer holds only while
+    // the rule it points to names the ledger back and passes.
+    ("ENV_SECRET_KEY_LEDGER.C2", "envs/.env.example",
+     "GITHUB_TOKEN=\"깃허브 PAT 토큰이라면 여기에 기재\"", "GITHUB_TOKEN=\"깃허브 PAT 토큰이라면 여기에 기재\"\nOPENAI_API_KEY=\"x\"",
+     "PredicateFailure: envs/.env.example must name ledger keys only"),
+    ("ENV_SECRET_KEY_LEDGER.C2", ".claude/skills/terraforming_node/rust/src/harness_permission_probe.rs",
+     "starts_with(\"HINT_CLONE_DIR=\")", "starts_with(\"HINT_ROOT_DIR=\")",
+     "PredicateFailure: .claude/skills/terraforming_node/rust/src/harness_permission_probe.rs reads a key outside the envs/.env ledger: ['HINT_ROOT_DIR']"),
+    ("ENV_SECRET_KEY_LEDGER.C4", ".claude/policies/registry.yaml",
+     "(a fixed path; ENV_SECRET_KEY_LEDGER)", "(a fixed path)",
+     "PredicateFailure: MODEL_ACQUISITION_TERNARY_GATE.C4 must hold the HF_TOKEN rule over envs/.env and name ENV_SECRET_KEY_LEDGER back"),
+    ("ENV_SECRET_KEY_LEDGER.C4", ".claude/rust/role-contract/src/env_secret.rs",
+     "        Err(_) => false,\n", "        Err(error) => {\n            eprintln!(\"{error}\");\n            false\n        }\n",
+     "PredicateFailure: the HF_TOKEN judgement (env_secret::hf_token_present) must print or return nothing of the file"),
     ("TERRAFORM_FLAG_GATE.C1", ".claude/skills/adversarial-benchmark/rust/src/scan_node_cli.rs",
      "if a.emit_manifest && gate_ok && (a.topology", "if a.emit_manifest && (a.topology",
      "PredicateFailure: the Flag-attestation emit call must be gated on gate.status=='ok'"),

@@ -1,6 +1,6 @@
-//! Scenario checks of the hint-publisher clauses (HINT_TAG_ACTIVATION_GATE.C1-C6, LAST_GOOD_ROLLBACK_ANCHOR.C3).
-//! Nothing here runs Python.
-//!   * the real tree: every one of the seven clauses passes;
+//! Scenario checks of the hint-publisher clauses (HINT_TAG_ACTIVATION_GATE.C1-C6, LAST_GOOD_ROLLBACK_ANCHOR.C3) and of the two
+//! ENV_SECRET_KEY_LEDGER clauses this module's predicates own (C1, C3). Nothing here runs Python.
+//!   * the real tree: every one of the nine clauses passes;
 //!   * the Rust source lexer reads literals/calls/functions the way the source checks need (comments never count);
 //!   * the O6 call-graph judge is green on a guarded source and RED on the three regressions the original guards
 //!     against (approval moved below the side effect, approval deleted, entry point without approval);
@@ -13,7 +13,7 @@ use policy_predicates::claims_hint as h;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-const CLAUSES: [&str; 7] = [
+const CLAUSES: [&str; 9] = [
     "HINT_TAG_ACTIVATION_GATE.C1",
     "HINT_TAG_ACTIVATION_GATE.C2",
     "HINT_TAG_ACTIVATION_GATE.C3",
@@ -21,6 +21,8 @@ const CLAUSES: [&str; 7] = [
     "HINT_TAG_ACTIVATION_GATE.C5",
     "HINT_TAG_ACTIVATION_GATE.C6",
     "LAST_GOOD_ROLLBACK_ANCHOR.C3",
+    "ENV_SECRET_KEY_LEDGER.C1",
+    "ENV_SECRET_KEY_LEDGER.C3",
 ];
 
 fn repo() -> PathBuf {
@@ -123,6 +125,25 @@ const MUTATIONS: &[(&str, &str, &str, &str, &str, &str, bool)] = &[
      "\nif [ ${#PUSH_TRANSPORT_BLOCKED[@]} -gt 0 ]; then exit \"$PUSH_TRANSPORT_EXIT\"; fi\nfinalize_remote_transactions\necho \"[sync] 완료. (현재 서브 브랜치:",
      "HINT_TAG_ACTIVATION_GATE.C4",
      "PredicateFailure: the M1-② block must end the sync only after finalize_remote_transactions, so the delivered content stays", true),
+    // plan_26112012 #4 (K1): envs/.env is never delivered, its correction never opens the file, the main sync only observes; the PAT
+    // is read for an https transport only, the hint branch code never names it, and the branch-transition judges before it acts.
+    ("K01-sync-corrects-sub-env", SYNC, "    echo \"[sync] env-mode($t): $v\"\n}",
+     "    echo \"[sync] env-mode($t): $v\"\n    sub_run \"chmod 600 envs/.env\" </dev/null\n}", "ENV_SECRET_KEY_LEDGER.C1",
+     "PredicateFailure: the main sync must only observe and record the sub's envs/.env mode (no chmod, never blocking)", true),
+    ("K02-env-dir-delivered", SYNC, "ls-files -z -- .claude CLAUDE.md ", "ls-files -z -- .claude CLAUDE.md envs ", "ENV_SECRET_KEY_LEDGER.C1",
+     "PredicateFailure: envs/.env must never be delivered: the transactional source is the index of the named roots and envs/ is none of them", true),
+    ("K03-correction-reads-env", ".claude/rust/role-contract/src/env_file_mode.rs", "pub fn observe(workspace: &Path) -> EnvFileState {\n",
+     "pub fn observe(workspace: &Path) -> EnvFileState {\n    let _ = std::fs::read(workspace.join(ENV_FILE_REL));\n", "ENV_SECRET_KEY_LEDGER.C1",
+     "PredicateFailure: the envs/.env correction must never open, write or print the file (fs::read)", true),
+    ("K04-transition-judges-late", ".claude/skills/hint-publisher/rust/src/branch.rs", "    _require_branch_push_ssh(repo, remote)?;\n", "",
+     "ENV_SECRET_KEY_LEDGER.C3", "PredicateFailure: the branch-transition must judge ssh-only and main-only before any remote query or push", true),
+    ("K05-token-for-every-transport", ".claude/skills/hint-publisher/rust/src/tag.rs",
+     "let token = if ts.iter().any(|t| t == \"https\") { read_push_token(repo, &J::Null)? } else { None };",
+     "let token = read_push_token(repo, &J::Null)?;", "ENV_SECRET_KEY_LEDGER.C3",
+     "PredicateFailure: the PAT (GITHUB_TOKEN) must be read only for an https transport (tag::_remote_env)", true),
+    ("K06-branch-names-token", ".claude/skills/hint-publisher/rust/src/branch.rs", "pub fn _require_branch_push_main(repo: &Path) -> HR<()> {\n",
+     "pub fn _require_branch_push_main(repo: &Path) -> HR<()> {\n    let _ = crate::tag::read_push_token(repo, &J::Null);\n",
+     "ENV_SECRET_KEY_LEDGER.C3", "PredicateFailure: the hint branch code must never name the PAT path (read_push_token)", true),
 ];
 
 const SYNC: &str = ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh";

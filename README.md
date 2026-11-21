@@ -671,7 +671,7 @@ devlog 100  >  testlog 85  >  서브 문서 70  >  plan 55  >  simlog 40  >  see
 그리고 이 프로젝트에서 당신이 하는 일은 하나로 수렴합니다 — **헌법을 쓰는 것.**
 
 `CLAUDE.md`(목표·불변식·안전 경계·트리거) · `.claude/rules/`(절차 계약) ·
-`.claude/policies/`(정책 17종 · 조항 75개). 이것이 이 프로젝트의 헌법이고,
+`.claude/policies/`(정책 18종 · 조항 79개). 이것이 이 프로젝트의 헌법이고,
 **에이전트가 아니라 사람이 씁니다.** 왜 그래야 하는지가 이 장의 내용입니다.
 
 | 층 | 경로 | 규모 | 성격 | 로드 시점 |
@@ -679,13 +679,13 @@ devlog 100  >  testlog 85  >  서브 문서 70  >  plan 55  >  simlog 40  >  see
 | **L1 · 항상 참인 경계** | `CLAUDE.md`<br/>(`AGENTS.md` = Codex 진입문) | 193줄 | 목표 · 불변식 · 안전 경계 · 트리거 · 정책 경계 · 조건부 참조 | **매 세션 자동**(어느 하네스든) |
 | **L1′ · 토폴로지 특화층** | `.claude/rules/strategy.topology.md` | 60여 줄 | *이 브랜치에서만 참인 것* — 서브의 정체 · 배달 평면 · 스모크 범위. 같은 경로가 브랜치마다 다른 내용이며 브랜치 동기화가 옮기지 않는다 | **매 세션 자동** |
 | **L2 · 절차 계약** | `.claude/rules/workflow.md`<br/>`.claude/rules/docs.md` | 259줄<br/>157줄 | 상태·owner 표 · S1~S4 전이 spine · 실패 라우팅<br/>문서 8종 규약 · 명명 SSOT · 보관·전파 matrix | **필요할 때 참조** |
-| **L3 · 집행 장치** | `.claude/policies/` | 정책 17종<br/>조항 75개 | 정책 원장 · 코드 바인딩 · 판정 술어 · 런타임 게이트 | **스크립트가 실행 중 소비** |
+| **L3 · 집행 장치** | `.claude/policies/` | 정책 18종<br/>조항 79개 | 정책 원장 · 코드 바인딩 · 판정 술어 · 런타임 게이트 | **스크립트가 실행 중 소비** |
 
 L3 는 헌법이 **집행 가능해지는** 층입니다. 구성은 이렇습니다.
 
 | 파일 | 무엇을 담나 |
 |---|---|
-| `registry.yaml` | ★ **정책 원장** — 정책 17종 · 조항 75개. 각 정책이 `owner`(집행 책임 스킬)와 `origin_failure`(자신을 낳은 실패 문서 ID)를 갖는다 |
+| `registry.yaml` | ★ **정책 원장** — 정책 18종 · 조항 79개. 각 정책이 `owner`(집행 책임 스킬)와 `origin_failure`(자신을 낳은 실패 문서 ID)를 갖는다 |
 | `claim_bindings.json` | ★ **조항 → 코드 바인딩** — 조항 하나하나가 실제 파일 경로 + `assertion_id` 로 묶인다 |
 | `predicates/` | **판정 술어 3종** — 조항 준수 여부를 기계가 판정하는 함수 |
 | `runtime/` | **런타임 게이트 10종** — `completion_gate` · `evidence_publisher` · `harness_verify` · `verify_distribution` · `topology_parity`(브랜치·특화헌법·manifest·활성 캠페인 4자일치) 등 |

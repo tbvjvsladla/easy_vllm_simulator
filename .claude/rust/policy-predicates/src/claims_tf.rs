@@ -836,3 +836,170 @@ pub fn predicate_LIBRARY_GROUNDING_FAIL_CLOSED_C4() -> R {
     let writes = jget(&json_loads(&second.stdout)?, "writes").map_or(false, PyValue::is_truthy);
     req(created && !writes, "입고가 증분이 아니다(같은 원문 재입고가 다시 쓴다)")
 }
+
+// ---------------------------------------------------------------- ENV_SECRET_KEY_LEDGER.C2 / C4
+// plan_26112012 #4 (K1, h56; wording h85). C1 and C3 live in claims_hint.rs (the sync and hint-crate edges of that module, tripwire ⑨).
+
+/// The closed ledger of the workspace secret file envs/.env (ENV_SECRET_KEY_LEDGER C2): a new key needs a revised plan and HITL.
+pub const ENV_SECRET_LEDGER_KEYS: [&str; 3] = ["GITHUB_TOKEN", "HF_TOKEN", "HINT_CLONE_DIR"];
+
+/// The statement of one registry clause.
+fn registry_clause_statement(clause_id: &str) -> R<String> {
+    let doc = json_load(".claude/policies/registry.yaml")?;
+    for policy in jlist(jget(&doc, "policies")?) {
+        for clause in jget(&policy, "clauses").map(jlist).unwrap_or_default() {
+            if jget(&clause, "clause_id").ok().and_then(jstr).as_deref() == Some(clause_id) {
+                return jget(&clause, "statement").ok().and_then(jstr).ok_or_else(|| Fail::predicate(format!("{clause_id} has no statement")));
+            }
+        }
+    }
+    Err(Fail::predicate(format!("{clause_id} is not in the registry")))
+}
+
+/// The policy ids of the registry.
+fn registry_policy_ids() -> R<std::collections::BTreeSet<String>> {
+    let doc = json_load(".claude/policies/registry.yaml")?;
+    Ok(jlist(jget(&doc, "policies")?).iter().filter_map(|p| jget(p, "policy_id").ok().and_then(jstr)).collect())
+}
+
+/// Test planes of the harness sources: check and self-test code, parity data, and this crate (its fixtures write keys on purpose).
+fn is_test_plane(rel: &str) -> bool {
+    let name = rel.rsplit('/').next().unwrap_or(rel);
+    ["/checks/", "/selftests/", "/tests/", "/parity/"].iter().any(|d| rel.contains(d))
+        || name.contains("selftest")
+        || name.contains("self_test")
+        || rel.starts_with(".claude/rust/policy-predicates/")
+}
+
+/// The harness sources (`.rs`, `.sh`) under `.claude/` of the tracked tree, test planes left out: `git ls-files` of the work tree,
+/// or every such file of a fixture copy of the tracked tree (it has no `.git`; build outputs `target/` are skipped).
+fn harness_sources() -> R<Vec<String>> {
+    let root = repo_root();
+    let listed: Vec<String> = if root.join(".git").exists() {
+        let p = run(&["git", "-C", &root.display().to_string(), "ls-files", "-z", "--", ".claude"], None, &[], None, Some(60))?;
+        req(p.code == 0, format!("git ls-files failed: {}", strip(&p.stderr)))?;
+        p.stdout.split('\0').filter(|r| !r.is_empty()).map(str::to_string).collect()
+    } else {
+        fn walk(dir: &Path, rel: &str, out: &mut Vec<String>) {
+            let Ok(entries) = std::fs::read_dir(dir) else { return };
+            for entry in entries.flatten() {
+                let name = entry.file_name().to_string_lossy().into_owned();
+                let child = format!("{rel}/{name}");
+                match entry.file_type() {
+                    Ok(t) if t.is_dir() && name != "target" => walk(&entry.path(), &child, out),
+                    Ok(t) if t.is_file() => out.push(child),
+                    _ => {}
+                }
+            }
+        }
+        let mut out = Vec::new();
+        walk(&root.join(".claude"), ".claude", &mut out);
+        out
+    };
+    let mut sources: Vec<String> = listed.into_iter().filter(|r| (r.ends_with(".rs") || r.ends_with(".sh")) && !is_test_plane(r)).collect();
+    sources.sort();
+    Ok(sources)
+}
+
+/// The keys a harness source reads from the content of envs/.env, `None` when it never reads that content. Rust: a source that joins
+/// the fixed path (`ENV_FILE_REL`, `TOKEN_ENV_FILE_REL` or the literal) and reads a file names its keys as `const …KEY: &str` or a
+/// `starts_with("KEY=")` prefix. Shell: a code line that names the fixed path and reads it names the keys as `KEY=`.
+fn env_file_keys_read(rel: &str, text: &str) -> Option<std::collections::BTreeSet<String>> {
+    let comment = if rel.ends_with(".sh") { "#" } else { "//" };
+    let code: Vec<&str> = text.lines().filter(|l| !l.trim_start().starts_with(comment)).collect();
+    if rel.ends_with(".rs") {
+        let code = code.join("\n");
+        let joins = [".join(ENV_FILE_REL)", ".join(TOKEN_ENV_FILE_REL)", ".join(\"envs/.env\")"].iter().any(|j| code.contains(j));
+        let reads = ["std::fs::read(", "read_to_string(", "File::open("].iter().any(|r| code.contains(r));
+        if !(joins && reads) {
+            return None;
+        }
+        let mut keys: std::collections::BTreeSet<String> = findall(r#"const [A-Z_]*KEY: &str = "([A-Z][A-Z0-9_]*)";"#, &code).into_iter().collect();
+        keys.extend(findall(r#"starts_with\("([A-Z][A-Z0-9_]*)="\)"#, &code));
+        return Some(keys);
+    }
+    let names_file = re(r"envs/\.env(?![.\w])");
+    let reads = re(r"\b(?:grep|sed|awk|cat|source|read|cut|head|tail)\b|^\s*\.\s");
+    let lines: Vec<&str> = code.into_iter().filter(|l| names_file.is_match(l).unwrap_or(true) && reads.is_match(l).unwrap_or(true)).collect();
+    if lines.is_empty() {
+        return None;
+    }
+    Some(lines.iter().flat_map(|l| findall(r"([A-Z][A-Z0-9_]*)=", l)).collect())
+}
+
+/// ENV_SECRET_KEY_LEDGER C2: the ledger is the closed list GITHUB_TOKEN, HF_TOKEN, HINT_CLONE_DIR; the main's template and every
+/// tracked harness source that reads envs/.env name ledger keys only.
+pub fn predicate_ENV_SECRET_KEY_LEDGER_C2() -> R {
+    let ledger: std::collections::BTreeSet<String> = ENV_SECRET_LEDGER_KEYS.iter().map(|k| k.to_string()).collect();
+    // ① the clause states this closed list and each key's secrecy (a policy id it names aside, every key-shaped name is a key).
+    let statement = registry_clause_statement("ENV_SECRET_KEY_LEDGER.C2")?;
+    let policies = registry_policy_ids()?;
+    let named: std::collections::BTreeSet<String> =
+        findall(r"\b[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+\b", &statement).into_iter().filter(|n| !policies.contains(n)).collect();
+    req(
+        named == ledger
+            && statement.contains("closed list")
+            && statement.contains("GITHUB_TOKEN (secret;")
+            && statement.contains("HF_TOKEN (secret;")
+            && statement.contains("HINT_CLONE_DIR (not secret;"),
+        format!("ENV_SECRET_KEY_LEDGER.C2 must state exactly the closed list {} with each key's secrecy", repr_list(&ENV_SECRET_LEDGER_KEYS)),
+    )?;
+
+    // ② the main's template envs/.env.example names ledger keys only.
+    let example = read("envs/.env.example")?;
+    let template_keys: Vec<String> = splitlines(&example)
+        .into_iter()
+        .map(strip)
+        .filter(|l| !l.is_empty() && !l.starts_with('#'))
+        .map(|l| strip(l.split('=').next().unwrap_or("")).to_string())
+        .collect();
+    req(!template_keys.is_empty() && template_keys.iter().all(|k| ledger.contains(k)), "envs/.env.example must name ledger keys only")?;
+
+    // ③ every tracked harness source that reads the file's content reads ledger keys only, and every ledger key has a reader.
+    let mut readers: BTreeMap<String, std::collections::BTreeSet<String>> = BTreeMap::new();
+    for rel in harness_sources()? {
+        let Ok(text) = std::fs::read_to_string(repo_root().join(&rel)) else { continue };
+        if let Some(keys) = env_file_keys_read(&rel, &text) {
+            readers.insert(rel, keys);
+        }
+    }
+    for (rel, keys) in &readers {
+        req(!keys.is_empty(), format!("{rel} reads envs/.env but names no key the ledger can check"))?;
+        let outside: Vec<&String> = keys.iter().filter(|k| !ledger.contains(*k)).collect();
+        req(outside.is_empty(), format!("{rel} reads a key outside the envs/.env ledger: {}", repr_list(&outside.iter().map(|k| k.as_str()).collect::<Vec<_>>())))?;
+    }
+    let read_keys: std::collections::BTreeSet<String> = readers.values().flatten().cloned().collect();
+    req(read_keys == ledger, format!("every ledger key must have a reader among the harness sources (read: {})", repr_list(&read_keys.iter().map(String::as_str).collect::<Vec<_>>())))?;
+
+    // ④ the owners in process: the PAT key of hint-publisher and the HF key of the role contract share the one fixed path, and the
+    //    HF_TOKEN judgement answers for that key only.
+    req(
+        hintlib::tag::TOKEN_KEY == "GITHUB_TOKEN"
+            && hintlib::tag::TOKEN_ENV_FILE_REL == role_contract::env_file_mode::ENV_FILE_REL
+            && role_contract::env_secret::HF_TOKEN_KEY == "HF_TOKEN",
+        "the PAT and HF_TOKEN readers must name their ledger keys over the one fixed path envs/.env",
+    )?;
+    let tmp = TempDir::new("k1-c2-")?;
+    let env = tmp.path().join(role_contract::env_file_mode::ENV_FILE_REL);
+    write(&env, "GITHUB_TOKEN=fixture-pat\nHINT_CLONE_DIR=/fixture/hint\n")?;
+    let other_keys_only = role_contract::env_secret::hf_token_present(tmp.path());
+    write(&env, "GITHUB_TOKEN=fixture-pat\nHF_TOKEN=hf_fixture_value\n")?;
+    req(!other_keys_only && role_contract::env_secret::hf_token_present(tmp.path()), "the HF_TOKEN judgement must answer for the key HF_TOKEN only")
+}
+
+/// ENV_SECRET_KEY_LEDGER C4: the HF_TOKEN use rule lives in MODEL_ACQUISITION_TERNARY_GATE.C4 and this clause only points to it --
+/// the pointer holds when that clause names the key, the fixed file and this ledger back, and its own predicate passes.
+pub fn predicate_ENV_SECRET_KEY_LEDGER_C4() -> R {
+    let pointer = registry_clause_statement("ENV_SECRET_KEY_LEDGER.C4")?;
+    req(
+        pointer.contains("MODEL_ACQUISITION_TERNARY_GATE") && pointer.contains("only points to it"),
+        "ENV_SECRET_KEY_LEDGER.C4 must only point to MODEL_ACQUISITION_TERNARY_GATE",
+    )?;
+    let rule = registry_clause_statement("MODEL_ACQUISITION_TERNARY_GATE.C4")?;
+    req(
+        rule.contains("HF_TOKEN") && rule.contains("envs/.env") && rule.contains("ENV_SECRET_KEY_LEDGER"),
+        "MODEL_ACQUISITION_TERNARY_GATE.C4 must hold the HF_TOKEN rule over envs/.env and name ENV_SECRET_KEY_LEDGER back",
+    )?;
+    req(ENV_SECRET_LEDGER_KEYS.contains(&role_contract::env_secret::HF_TOKEN_KEY), "HF_TOKEN must be a key of the envs/.env ledger")?;
+    predicate_MODEL_ACQUISITION_TERNARY_GATE_C4()
+}

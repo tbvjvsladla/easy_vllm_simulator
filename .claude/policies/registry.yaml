@@ -2209,6 +2209,149 @@
       ],
       "remove_when": "Removable only if the two branches stop being independent deployment lines: for example if a single tree serves both topologies from one checkout with the manifest alone selecting the output path, so that no constitutional text is branch-dependent and nothing needs excluding from synchronisation. Until then, removing this policy returns the repository to the state the 2026-09-11 incident came from: a declaration with no executor, and a synchronisation allowlist that quietly makes the two branches the same.",
       "status": "candidate"
+    },
+    {
+      "policy_id": "ENV_SECRET_KEY_LEDGER",
+      "owner": "terraforming_node",
+      "statement": "The workspace secret file envs/.env holds a closed ledger of keys, each with a storage owner, a use owner and an allowed use; it is untracked, never delivered, placed by a human, kept at mode 600 or narrower by terraforming_node, and its values are never printed.",
+      "scope": [
+        "multi-node",
+        "single-node"
+      ],
+      "origin_failure": "plan_26112012",
+      "clauses": [
+        {
+          "clause_id": "ENV_SECRET_KEY_LEDGER.C1",
+          "statement": "Storage: envs/.env is untracked (.gitignore), never delivered, and placed by a human; terraforming_node reads only its mode bits (stat, never the content), narrows a wider mode to mode & 0o600 (never widening) and records before/after; no value is ever printed. It covers the workspace envs/.env of main and of every sub (single a2a-agent, multi ray-worker); when both topologies share one sub workspace (node_role_contract sub_workspace_shared=shared) the one file is corrected once in a2a-agent mode for both; the main sync only observes and records the sub's mode on every delivery and never blocks on it; main never corrects a sub's file itself."
+        },
+        {
+          "clause_id": "ENV_SECRET_KEY_LEDGER.C2",
+          "statement": "The ledger is a closed list (a tripwire: a new key needs a revised plan and HITL): GITHUB_TOKEN (secret; use owner hint-publisher), HF_TOKEN (secret; use rule MODEL_ACQUISITION_TERNARY_GATE), HINT_CLONE_DIR (not secret; single-node sub; use owner terraforming_node then hint-publisher)."
+        },
+        {
+          "clause_id": "ENV_SECRET_KEY_LEDGER.C3",
+          "statement": "GITHUB_TOKEN authenticates only the hint tag push and its remote query; no branch push is ever authenticated with it -- a branch push (the closing-sequence push_branches and the hint branch-transition) runs on main and over an ssh key only."
+        },
+        {
+          "clause_id": "ENV_SECRET_KEY_LEDGER.C4",
+          "statement": "HF_TOKEN use follows MODEL_ACQUISITION_TERNARY_GATE; the rule lives there and this clause only points to it."
+        }
+      ],
+      "evidence": [
+        {
+          "path": ".claude/rust/role-contract/src/env_file_mode.rs",
+          "supports": [
+            "ENV_SECRET_KEY_LEDGER.C1"
+          ],
+          "assertion_ids": [
+            "observe",
+            "narrow",
+            "NARROWEST_ALLOWED_MODE",
+            "ENV_FILE_REL"
+          ]
+        },
+        {
+          "path": ".claude/rust/role-contract/src/lib.rs",
+          "supports": [
+            "ENV_SECRET_KEY_LEDGER.C1"
+          ],
+          "assertion_ids": [
+            "sub_workspace_shared",
+            "SUB_WORKSPACE_SHARED"
+          ]
+        },
+        {
+          "path": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
+          "supports": [
+            "ENV_SECRET_KEY_LEDGER.C1"
+          ],
+          "assertion_ids": [
+            "observe_sub_env_mode",
+            "ENV_MODE_PROBE"
+          ]
+        },
+        {
+          "path": ".claude/rust/role-contract/src/env_secret.rs",
+          "supports": [
+            "ENV_SECRET_KEY_LEDGER.C2"
+          ],
+          "assertion_ids": [
+            "HF_TOKEN_KEY",
+            "hf_token_present"
+          ]
+        },
+        {
+          "path": ".claude/skills/hint-publisher/rust/src/tag.rs",
+          "supports": [
+            "ENV_SECRET_KEY_LEDGER.C2"
+          ],
+          "assertion_ids": [
+            "TOKEN_KEY",
+            "TOKEN_ENV_FILE_REL",
+            "read_push_token"
+          ]
+        },
+        {
+          "path": ".claude/skills/hint-publisher/rust/src/branch.rs",
+          "supports": [
+            "ENV_SECRET_KEY_LEDGER.C3"
+          ],
+          "assertion_ids": [
+            "BRANCH_PUSH_TRANSPORTS",
+            "_require_branch_push_ssh",
+            "_require_branch_push_main",
+            "branch_transition"
+          ]
+        },
+        {
+          "path": ".claude/skills/hint-publisher/rust/src/tag.rs",
+          "supports": [
+            "ENV_SECRET_KEY_LEDGER.C3"
+          ],
+          "assertion_ids": [
+            "read_push_token",
+            "_remote_env"
+          ]
+        },
+        {
+          "path": ".claude/rust/policy-predicates/src/claims_hint.rs",
+          "supports": [
+            "ENV_SECRET_KEY_LEDGER.C1"
+          ],
+          "assertion_ids": [
+            "predicate_ENV_SECRET_KEY_LEDGER_C1"
+          ]
+        },
+        {
+          "path": ".claude/rust/policy-predicates/src/claims_tf.rs",
+          "supports": [
+            "ENV_SECRET_KEY_LEDGER.C2"
+          ],
+          "assertion_ids": [
+            "predicate_ENV_SECRET_KEY_LEDGER_C2"
+          ]
+        },
+        {
+          "path": ".claude/rust/policy-predicates/src/claims_hint.rs",
+          "supports": [
+            "ENV_SECRET_KEY_LEDGER.C3"
+          ],
+          "assertion_ids": [
+            "predicate_ENV_SECRET_KEY_LEDGER_C3"
+          ]
+        },
+        {
+          "path": ".claude/rust/policy-predicates/src/claims_tf.rs",
+          "supports": [
+            "ENV_SECRET_KEY_LEDGER.C4"
+          ],
+          "assertion_ids": [
+            "predicate_ENV_SECRET_KEY_LEDGER_C4"
+          ]
+        }
+      ],
+      "remove_when": "Removable only if the workspace stops keeping secrets in a file (every key moves to a credential store outside envs/.env that no harness source reads), documented in a superseding plan with HITL and re-verified by a scan of the tracked tree that no harness source opens envs/.env.",
+      "status": "candidate"
     }
   ]
 }

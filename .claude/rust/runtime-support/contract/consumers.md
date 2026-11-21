@@ -324,7 +324,7 @@
   2. `git grep -nE 'include_str!|read_to_string\([^)]*\.rs|"[a-z_]+\.rs"' -- '*.rs' ':!**/checks/**'` → 109줄. 약 80줄은 도움말 `.txt`·`.usage`의 `include_str!`이고, `#[path]`·`include!` 모듈 배선은 이름을 바꾸면 컴파일 오류가 날 뿐이다. 조각으로 경로를 만드는 독자(`claims_recipe.rs` `rt_src`, `conformance_checks.rs` 등)는 손으로 더했다.
   3. `git grep -n 'current_exe' -- '*.rs' ':!**/checks/**'` → 31줄. 형제 실행체를 찾는 9줄은 아래 「형제 실행체」 표다(자기 재실행 4, 저장소 루트 찾기 18).
 - 열 "M gate": 그 읽기가 M의 크레이트 gate(`cargo test`)에서 실제로 도는지다.
-  - policy-predicates는 `checks/predicate_checks.rs :: goldens`가 술어 75개를 실제 트리에서 돌린다(아래 "PP").
+  - policy-predicates는 `checks/predicate_checks.rs :: goldens`가 술어 79개를 실제 트리에서 돌린다(아래 "PP").
   - 단 **`claims_text` 29건·`claims_owner` 6건의 술어 골든은 M 기준선 실패 집합이다**(c19 기준선, shim 때문에 막힘 — 검토 2회차 검증자 Y). 그래서 그 두 파일이 읽는 결합이 깨져도 M gate는 잡지 못하고 W(`harness_verify`)에서만 드러난다. 표에는 "PP(기준선 실패)"로 적는다.
   - "W만"은 M gate에서 돌지 않고 W의 훅·`verify_distribution`·`harness_verify`·실제 동기화에서만 도는 것이다.
 - **이전 cell 의무:** 아래 표의 대상 파일을 옮기거나 그 토큰·문구·줄 모양을 바꾸는 cell은 같은 cell에서 읽는 쪽을 고치고, 읽는 쪽 크레이트의 gate를 돈다. "W만"·"PP(기준선 실패)" 행은 M gate가 대신하지 못하므로 그 결합을 밀폐 시험으로 따로 확인하거나 사람에게 넘긴다.

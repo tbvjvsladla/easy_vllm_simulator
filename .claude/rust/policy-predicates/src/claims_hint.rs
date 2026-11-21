@@ -1714,3 +1714,287 @@ pub fn predicate_LAST_GOOD_ROLLBACK_ANCHOR_C3() -> R {
     req(read_path(&tmp.join("f.txt"))? == "smoke-passed-state", "recovery must actually restore the working tree content to the anchor commit")?;
     Ok(())
 }
+
+// ---------------------------------------------------------------------------------------------- ENV_SECRET_KEY_LEDGER.C1 / C3
+// plan_26112012 #4 (K1, h56; wording h85). The two clauses read sync_to_sub.sh ([`SYNC_TO_SUB`]) and the hint crate's sources
+// ([`HINT_CRATE_SRC`]) and drive the equip tool, the main scan, the role contract and push_branches in process: the base-to-skill
+// edges this module already has (tripwire ⑨). C2 and C4 live in claims_tf.rs.
+
+const ENV_FILE_MODE_RS: &str = ".claude/rust/role-contract/src/env_file_mode.rs";
+
+/// The code lines of a source: comment lines (`//` in Rust, `#` in shell) dropped -- a module's doc may name what its code never does.
+fn code_lines(src: &str, comment: &str) -> String {
+    src.lines().filter(|l| !l.trim_start().starts_with(comment)).collect::<Vec<_>>().join("\n")
+}
+
+/// The display text of one key of a JSON object (empty when absent).
+fn field_text(v: &PyValue, key: &str) -> String {
+    match v.peel() {
+        PyValue::Dict(d) => d.get(key).map(|x| x.display_text().to_utf8().unwrap_or_default()).unwrap_or_default(),
+        _ => String::new(),
+    }
+}
+
+/// The `repr` of one key of a JSON object (empty when absent).
+fn field_repr(v: &PyValue, key: &str) -> String {
+    match v.peel() {
+        PyValue::Dict(d) => d.get(key).map(PyValue::repr).unwrap_or_default(),
+        _ => String::new(),
+    }
+}
+
+/// ENV_SECRET_KEY_LEDGER C1: envs/.env is untracked, never delivered, its mode is narrowed to `mode & 0o600` by lstat alone on the
+/// main and on every sub (one correction for both topologies when they share the sub workspace), and the main sync only observes.
+pub fn predicate_ENV_SECRET_KEY_LEDGER_C1() -> R {
+    use role_contract::env_file_mode::{self as efm, EnvFileState, NarrowAction};
+    use std::os::unix::fs::PermissionsExt;
+    // ① untracked: gitignored with only the template re-included, and not in the index of the work tree.
+    let gitignore = read(".gitignore")?;
+    let ignore_lines = splitlines(&gitignore);
+    req(
+        ignore_lines.contains(&efm::ENV_FILE_REL) && ignore_lines.contains(&"!envs/.env.example") && !ignore_lines.contains(&"!envs/.env"),
+        "envs/.env must be gitignored (only envs/.env.example is re-included)",
+    )?;
+    let root = repo_root();
+    if root.join(".git").exists() {
+        let listed = run(&["git", "-C", &root.display().to_string(), "ls-files", "--", efm::ENV_FILE_REL], None, &[], None, Some(30))?;
+        req(listed.code == 0 && listed.stdout.trim().is_empty(), "envs/.env must not be tracked")?;
+    }
+
+    // ② never delivered: the sync's transactional source is the git index of the roots it names, and envs/ is none of them.
+    let sync = read(SYNC_TO_SUB)?;
+    let sync_lines: Vec<&str> = sync.lines().collect();
+    let source_head = "git -C \"$CANONICAL_SRC\" ls-files -z -- ";
+    let sources: Vec<usize> = (0..sync_lines.len()).filter(|i| sync_lines[*i].contains(source_head)).collect();
+    req(sources.len() == 1, "the sync must build its transactional source from the git index once (ls-files of the canonical checkout)")?;
+    let at = sources[0];
+    let roots: Vec<&str> = sync_lines[at].split(source_head).nth(1).unwrap_or("").trim_end_matches('\\').split_whitespace().collect();
+    req(
+        sync_lines.get(at + 1).is_some_and(|l| l.contains("checkout-index -z --stdin --prefix=\"$TRANSACTIONAL_SRC/\""))
+            && !roots.is_empty()
+            && roots.iter().all(|r| *r != "." && *r != "envs" && !r.starts_with("envs/")),
+        "envs/.env must never be delivered: the transactional source is the index of the named roots and envs/ is none of them",
+    )?;
+
+    // ③ terraforming_node's one correction (role_contract::env_file_mode): lstat only, `mode & 0o600`, never widened, never follows a
+    //    link, never opens, writes or prints the file, and records before/after.
+    let efm_src = read(ENV_FILE_MODE_RS)?;
+    let efm_code = code_lines(&efm_src, "//");
+    for banned in ["fs::read", "File::open", "read_to_string", "OpenOptions", "fs::write", "File::create", "print"] {
+        req(!efm_code.contains(banned), format!("the envs/.env correction must never open, write or print the file ({banned})"))?;
+    }
+    req(
+        crate::claims_tf::rust_fn_body(&efm_src, "observe")?.contains("std::fs::symlink_metadata(workspace.join(ENV_FILE_REL))"),
+        "the envs/.env mode must be read by lstat (symlink_metadata) of the fixed path",
+    )?;
+    req(
+        efm::NARROWEST_ALLOWED_MODE == 0o600 && crate::claims_tf::rust_fn_body(&efm_src, "narrow")?.contains("let narrowed = mode & NARROWEST_ALLOWED_MODE;"),
+        "the envs/.env correction must narrow to mode & 0o600",
+    )?;
+    let td = TempDir::new("k1-c1-")?;
+    let ws = td.path().join("ws");
+    let env = ws.join(efm::ENV_FILE_REL);
+    let secret = "FIXTURE_KEY=fixture-value-never-printed\n";
+    let set_mode = |path: &Path, mode: u32| {
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode)).map_err(|e| Fail::new("OSError", e.to_string()))
+    };
+    let cases = [
+        (0o664, 0o600, NarrowAction::Narrowed),
+        (0o640, 0o600, NarrowAction::Narrowed),
+        (0o700, 0o600, NarrowAction::Narrowed),
+        (0o600, 0o600, NarrowAction::Unchanged),
+        (0o400, 0o400, NarrowAction::Unchanged),
+    ];
+    for (mode, after, action) in cases {
+        write(&env, secret)?;
+        set_mode(&env, mode)?;
+        let narrowing = efm::narrow(&ws);
+        let record = efm::narrowing_value(&narrowing).repr();
+        req(
+            narrowing.before == EnvFileState::Regular(mode)
+                && narrowing.after == EnvFileState::Regular(after)
+                && narrowing.action == action
+                && read_path(&env)? == secret
+                && record.contains(&format!("{mode:03o}"))
+                && !record.contains("fixture-value")
+                && !record.contains("FIXTURE_KEY"),
+            format!("the correction must take {mode:03o} to {after:03o} ({}), keep the content and record no key or value", action.as_str()),
+        )?;
+    }
+    set_mode(&env, 0o600)?;
+    std::fs::remove_file(&env).map_err(|e| Fail::new("OSError", e.to_string()))?;
+    req(efm::narrow(&ws).action == NarrowAction::Absent && !env.exists(), "an absent envs/.env must be recorded absent and never created")?;
+    let elsewhere = td.path().join("elsewhere.env");
+    write(&elsewhere, secret)?;
+    set_mode(&elsewhere, 0o664)?;
+    std::os::unix::fs::symlink(&elsewhere, &env).map_err(|e| Fail::new("OSError", e.to_string()))?;
+    let linked = efm::narrow(&ws);
+    let target_mode = std::fs::metadata(&elsewhere).map(|m| m.permissions().mode() & 0o7777).unwrap_or(0);
+    req(
+        linked.action == NarrowAction::Unknown && target_mode == 0o664,
+        "a symbolic link must be unknown and never followed (its target keeps its mode)",
+    )?;
+    std::fs::remove_file(&env).map_err(|e| Fail::new("OSError", e.to_string()))?;
+
+    // ④ the one correction serves the main (scan_node --narrow-env-mode, the workspace of its launcher) and every sub (the equip
+    //    tool's --narrow-env-mode); a sub workspace both topologies share (node_role_contract sub_workspace_shared = shared) is
+    //    corrected once, in a2a-agent mode, for both.
+    write(&env, secret)?;
+    set_mode(&env, 0o664)?;
+    let owner = ws.join(".claude/skills/terraforming_node/scripts").join("scan_node.sh");
+    let (answer, code) = sweep_stop::scan_node_cli::narrow_env_mode(Some(&owner));
+    let line = answer.unwrap_or_default();
+    req(
+        code == 0
+            && line.contains("\"before\": \"664\"")
+            && line.contains("\"after\": \"600\"")
+            && line.contains("\"action\": \"narrowed\"")
+            && !line.contains("fixture-value"),
+        "the main's scan_node --narrow-env-mode must narrow its own workspace's envs/.env through the same correction",
+    )?;
+    let sub_record = |shared: Option<&str>| -> R<(PyValue, bool)> {
+        set_mode(&env, 0o664)?;
+        Ok(terraforming_runtime::check_sub_hint_equip::narrow_env_value(&ws, shared))
+    };
+    let (shared, acted) = sub_record(Some("shared"))?;
+    req(
+        acted
+            && field_text(&shared, "before") == "664"
+            && field_text(&shared, "after") == "600"
+            && field_text(&shared, "covers_source") == "relayed:sub_workspace_shared=shared"
+            && field_repr(&shared, "covers_topologies") == "['single', 'multi']"
+            && !shared.repr().contains("fixture-value"),
+        "the sub's equip tool must narrow its envs/.env through the same correction and, for a shared sub workspace, cover both topologies",
+    )?;
+    let (distinct, _) = sub_record(Some("distinct"))?;
+    let (unrelayed, _) = sub_record(None)?;
+    req(
+        field_repr(&distinct, "covers_topologies") == "['single']"
+            && field_repr(&unrelayed, "covers_topologies") == "['single']"
+            && field_text(&unrelayed, "covers_source") == "not-relayed",
+        "a sub correction covers the multi topology only when the main's verdict sub_workspace_shared = shared is relayed",
+    )?;
+    let manifest = |work_dir: &str| {
+        json_loads(&format!(
+            "{{\"nodes\": [{{\"node_id\": \"main-1\", \"role\": \"main\", \"work_dir\": \"/m\"}}, {{\"node_id\": \"sub-1\", \"role\": \"sub\", \"work_dir\": \"{work_dir}\"}}]}}"
+        ))
+    };
+    let (single, multi_same, multi_other) = (manifest("/w/sub")?, manifest("/w/sub")?, manifest("/w/other")?);
+    let verdict = |a: Option<&PyValue>, b: Option<&PyValue>| role_contract::sub_workspace_shared(a, b).value.display_text().to_utf8().unwrap_or_default();
+    req(
+        verdict(Some(&single), Some(&multi_same)) == "shared"
+            && verdict(Some(&single), Some(&multi_other)) == "distinct"
+            && verdict(Some(&single), None) == "unknown",
+        "node_role_contract sub_workspace_shared must be shared only when both topologies name one sub workspace",
+    )?;
+
+    // ⑤ the main sync only observes and records the sub's mode on every delivery: the lstat probe right after the checksum
+    //    verification of B1, never blocking and never correcting; the probe is the sync's only reference to the file.
+    let observe = extract_bash_function(&sync, "observe_sub_env_mode")?;
+    req(
+        observe.contains("sub_run \"$ENV_MODE_PROBE\"") && ["chmod", "exit", "return", "cat ", "source"].iter().all(|b| !observe.contains(b)),
+        "the main sync must only observe and record the sub's envs/.env mode (no chmod, never blocking)",
+    )?;
+    let probe: Vec<&str> = sync_lines.iter().copied().filter(|l| l.starts_with("ENV_MODE_PROBE=")).collect();
+    req(
+        probe.len() == 1
+            && probe[0].contains("stat -c \"%F|%a\" -- envs/.env")
+            && ["cat ", "grep", "chmod", "source", ". envs"].iter().all(|b| !probe[0].contains(b)),
+        "the sub's envs/.env probe must be an lstat of the file and nothing else",
+    )?;
+    let call = sync_lines.iter().position(|l| l.trim() == "observe_sub_env_mode \"$t\"");
+    req(
+        count(&sync, "observe_sub_env_mode \"$t\"") == 1
+            && call.is_some_and(|i| {
+                sync_lines[..i].iter().rev().find(|l| !l.trim_start().starts_with('#')).is_some_and(|l| l.contains("verify_checksums \"$t\""))
+            }),
+        "the sub's envs/.env mode must be observed once per B1 target, right after the delivery's checksum verification",
+    )?;
+    let names_file = re(r"envs/\.env(?![.\w])");
+    let naming: Vec<&str> =
+        sync_lines.iter().copied().filter(|l| !l.trim_start().starts_with('#') && names_file.is_match(l).unwrap_or(true)).collect();
+    req(
+        naming.len() == 1 && naming[0].starts_with("ENV_MODE_PROBE="),
+        "the main sync must never read or correct a sub's envs/.env (the probe is its only reference to the file)",
+    )
+}
+
+/// ENV_SECRET_KEY_LEDGER C3: GITHUB_TOKEN authenticates only the hint tag push and its remote query; a branch push (the
+/// closing-sequence push_branches, the hint branch-transition) runs on main over an ssh key only.
+pub fn predicate_ENV_SECRET_KEY_LEDGER_C3() -> R {
+    // ① the PAT is read at one place and only for an https transport: tag::_remote_env, which the tag push (_push_env) and the
+    //    remote query take their credential from; the hint branch code never names the token path.
+    let tag_src = read(HINT_TAG_RS)?;
+    req(
+        fn_text(&tag_src, "_remote_env")?.contains("let token = if ts.iter().any(|t| t == \"https\") { read_push_token(repo, &J::Null)? } else { None };"),
+        "the PAT (GITHUB_TOKEN) must be read only for an https transport (tag::_remote_env)",
+    )?;
+    req(fn_text(&tag_src, "_push_env")?.contains("_remote_env(repo, remote, true)?"), "the tag push must take its credential from tag::_remote_env")?;
+    let branch_src = read(&format!("{HINT_CRATE_SRC}/branch.rs"))?;
+    let idents: BTreeSet<String> = lex(&branch_src).into_iter().filter(|t| t.k == Tk::Ident).map(|t| t.s).collect();
+    for token_path in ["read_push_token", "TOKEN_KEY", "PUSH_TOKEN_ENV", "push_credential_args", "_remote_env"] {
+        req(!idents.contains(token_path), format!("the hint branch code must never name the PAT path ({token_path})"))?;
+    }
+
+    // ② the hint branch-transition passes the local and ssh transports only, on the push side (pushurl, else url) and on the query
+    //    side (url), and only on main (the catalog authority declaration) -- in process, over a fixture checkout.
+    req(branch::BRANCH_PUSH_TRANSPORTS == ["local", "ssh"], "the branch-transition must pass the local and ssh transports only")?;
+    let sb = Sandbox::new("k1-c3-")?;
+    let tmp = sb.tmp();
+    let repo = tmp.join("checkout");
+    mkdirs(&repo)?;
+    git_ok(&repo, &["init", "-q"])?;
+    let (https, http, scp, ssh) =
+        ("https://example.invalid/o/r.git", "http://example.invalid/o/r.git", "git@example.invalid:o/r.git", "ssh://git@example.invalid/o/r.git");
+    git_ok(&repo, &["remote", "add", "push-https", scp])?;
+    git_ok(&repo, &["config", "remote.push-https.pushurl", https])?;
+    git_ok(&repo, &["remote", "add", "query-https", https])?;
+    git_ok(&repo, &["config", "remote.query-https.pushurl", scp])?;
+    git_ok(&repo, &["remote", "add", "ssh-only", ssh])?;
+    let local = tmp.join("bare.git").display().to_string();
+    let transition = |remote: &str| code_of(|| branch::_require_branch_push_ssh(&repo, remote));
+    let refused = Some("HINT_BRANCH_TRANSITION_SSH_ONLY".to_string());
+    req(
+        [https, http, "push-https", "query-https"].iter().all(|r| transition(r) == refused),
+        "the branch-transition must refuse an https or http push or query address before any remote query",
+    )?;
+    req(
+        [scp, ssh, "ssh-only", local.as_str()].iter().all(|r| transition(r).is_none()),
+        "the branch-transition must pass an ssh, scp-like or local remote",
+    )?;
+    req(
+        code_of(|| branch::_require_branch_push_main(&repo)).as_deref() == Some("HINT_BRANCH_TRANSITION_MAIN_ONLY"),
+        "the branch-transition must refuse a checkout without the main's catalog authority declaration",
+    )?;
+    write(&repo.join(core::REL_CENTRAL_FLAG), "fixture\n")?;
+    req(code_of(|| branch::_require_branch_push_main(&repo)).is_none(), "the branch-transition must pass on main")?;
+
+    // ③ both judgements come before the branch-transition's first remote query and push, and its two pushes are the hint branch
+    //    code's only ones.
+    let transition_src = fn_text(&branch_src, "branch_transition")?;
+    let first_effect = ["_remote_hint_tip(", "git_push_authenticated("].iter().filter_map(|n| transition_src.find(n)).min();
+    let judged = [transition_src.find("_require_branch_push_ssh(repo, remote)?;"), transition_src.find("_require_branch_push_main(repo)?;")];
+    req(
+        first_effect.is_some_and(|e| judged.iter().all(|j| j.is_some_and(|j| j < e))),
+        "the branch-transition must judge ssh-only and main-only before any remote query or push",
+    )?;
+    req(
+        count(&code_lines(&branch_src, "//"), "git_push_authenticated(") == 2 && count(&transition_src, "git_push_authenticated(") == 2,
+        "the branch-transition's two pushes must be the hint branch code's only pushes",
+    )?;
+
+    // ④ the closing-sequence push_branches refuses a declared http(s) push address (pushurl, else url, else the argument) and
+    //    passes an ssh, scp-like or local one -- its judgement in process, over the same fixture checkout.
+    use upstream_runtime::push_branches as pb;
+    let checkout = repo.display().to_string();
+    let pushes_refused = |remote: &str| pb::refuses_http_push_address(&checkout, remote);
+    git_ok(&repo, &["remote", "add", "url-http", http])?;
+    req(
+        pb::HTTPS_REFUSED == "BRANCH_PUSH_HTTPS_REFUSED" && [https, http, "push-https", "url-http"].iter().all(|r| pushes_refused(r)),
+        "push_branches must refuse every branch when a declared push address is http(s) (BRANCH_PUSH_HTTPS_REFUSED)",
+    )?;
+    req(
+        [scp, ssh, "ssh-only", local.as_str()].iter().all(|r| !pushes_refused(r)),
+        "push_branches must pass an ssh, scp-like or local push address",
+    )
+}
