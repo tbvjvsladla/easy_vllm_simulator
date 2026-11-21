@@ -23,6 +23,9 @@
 //!   `upstream_delta_*` blocks aside; the `upstream_delta` and `resolve_build_track` fragment keys;
 //! - `selftest_branch_sync`: the source lines it reads in the tree (terraforming `render_sub_env.rs`, hint `catalog.rs`);
 //! - closing_sequence.sh: `push_branches --repo --remote --branch…` exit 0 / non-zero;
+//! - closing_sequence.sh ⑥: the note after a non-zero sync_to_sub by its exit code (sync_to_sub's `PUSH_TRANSPORT_EXIT`, the
+//!   `exit 7` of `assert_sub_origin_zero`), run byte for byte from the script — its class words are checked, because the
+//!   defect it fixes was a note that named a normal block a failure (review r1-c82-B1);
 //! - sync_to_sub.sh: the main's ELFs it delivers to the sub (`SUB_ELF_REL`, `SUB_ELF_NAMES`) and runs there — `sub_runner`
 //!   `prune-empty-dirs`·`validate-names`·`retirement-scan` (argv, stdin, stdout lines, exit codes; policy-distribution's
 //!   source tokens), `regen_build_patches_src unbundle|verify --root`; the main's `native_multinode_serve`: `native_remote -`
@@ -3050,6 +3053,111 @@ fn consumer_options_are_taken_by_the_parser() {
         !Path::new(&snapshot).exists(),
         "nothing is snapshotted from an absent tree"
     );
+}
+
+/// The definition `NAME() {` … the first line that is exactly `}` of a deployed script under `scripts/`, byte for byte
+/// (the rule of `branch_sync_selftest.rs` `extract_shell`: the head starts a line, no stand-in rewrite).
+fn shell_function(script: &str, name: &str) -> String {
+    let body = std::fs::read_to_string(skill().join("scripts").join(script)).unwrap();
+    let head = format!("{name}() {{\n");
+    let start = body
+        .match_indices(&head)
+        .map(|(i, _)| i)
+        .find(|&i| i == 0 || body.as_bytes()[i - 1] == b'\n')
+        .unwrap_or_else(|| panic!("{script} lacks {name}()"));
+    let mut end = start;
+    for line in body[start..].split_inclusive('\n') {
+        end += line.len();
+        if line == "}\n" {
+            return body[start..end].to_string();
+        }
+    }
+    panic!("{script}: {name}() is not closed by a line `}}`");
+}
+
+/// closing_sequence.sh ⑥ (review r1-c82-B1, plan_26112012 §6, workflow.md §막힘 3분류): after a non-zero sync_to_sub the
+/// note names the cause by the exit code, and the sequence goes on (record and proceed; its own exit code is untouched) —
+/// - the push-transport block (`PUSH_TRANSPORT_EXIT`, read from sync_to_sub.sh, not written again) is a normal block
+///   whose delivery stays: rebuild, then reinstall (§2.5.1), neither a failure nor converged by the next B1;
+/// - 7 is the origin-zero attestation (`assert_sub_origin_zero`, D12). The closing sequence writes 7 by hand, so this
+///   check holds it to the only `exit 7`s of sync_to_sub.sh; the next B1 does not converge it either;
+/// - any other code keeps the old line byte for byte; the call site hands the sync's own rc to the note.
+///
+/// The function runs byte for byte under `set -euo pipefail`, as the last command of an `||` list like the call site.
+#[test]
+fn closing_sequence_sub_propagation_note_by_exit_code() {
+    let closing = std::fs::read_to_string(skill().join("scripts/closing_sequence.sh")).unwrap();
+    assert_eq!(
+        closing
+            .matches("--branch \"$TOPO\" --apply \\\n            || sub_propagation_note \"$?\"\n")
+            .count(),
+        1,
+        "the ⑥ call site hands the rc of sync_to_sub to the note"
+    );
+    let sync = std::fs::read_to_string(skill().join("scripts/sync_to_sub.sh")).unwrap();
+    let origin = shell_function("sync_to_sub.sh", "assert_sub_origin_zero");
+    assert_eq!(origin.matches("exit 7;").count(), 2, "{origin}");
+    let code_exit_7: usize = sync
+        .lines()
+        .filter(|l| !l.trim_start().starts_with('#'))
+        .map(|l| l.matches("exit 7").count())
+        .sum();
+    assert_eq!(
+        code_exit_7, 2,
+        "an `exit 7` of sync_to_sub.sh outside assert_sub_origin_zero"
+    );
+    assert_eq!(sync_to_sub_assignment("PUSH_TRANSPORT_EXIT"), "13");
+    let note = shell_function("closing_sequence.sh", "sub_propagation_note");
+    let s = scratch("closing-note");
+    let run = |subsync: &Path, rc: i32| -> String {
+        let script = format!(
+            "set -euo pipefail\nSUBSYNC='{}'\n{note}( exit {rc} ) || sub_propagation_note \"$?\"\necho continued\n",
+            subsync.display()
+        );
+        let out = Command::new("bash")
+            .arg("-c")
+            .arg(&script)
+            .current_dir(&s.0)
+            .output()
+            .unwrap();
+        assert_eq!(out.status.code(), Some(0), "rc {rc}: {}", text(&out.stderr));
+        assert_eq!(text(&out.stdout), "continued\n", "rc {rc}: the sequence goes on");
+        text(&out.stderr)
+    };
+    let old = "[closing]   ⚠ 서브 전파 실패 — 기재하고 진행(서브는 다음 B1 이 수렴시킨다)\n";
+    let real = skill().join("scripts/sync_to_sub.sh");
+    let err = run(&real, 13);
+    for want in [
+        "정상 차단 — 서브 재빌드(build_rust_packages.sh) 뒤 재장착(§2.5.1)",
+        "exit 13",
+        "배달된 내용은 남았고 실패가 아니다",
+        "다음 B1 도 같은 차단",
+    ] {
+        assert!(err.contains(want), "rc 13 lacks {want:?}: {err}");
+    }
+    assert!(!err.contains("수렴") && !err.contains("서브 전파 실패"), "rc 13: {err}");
+    let err = run(&real, 7);
+    for want in [
+        "exit 7",
+        "원격 0 확증 실패",
+        "D12",
+        "이번 배달은 남지 않았다",
+        "다음 B1 도 같은 자리에서 멈춘다",
+    ] {
+        assert!(err.contains(want), "rc 7 lacks {want:?}: {err}");
+    }
+    assert!(!err.contains("수렴") && !err.contains("서브 전파 실패"), "rc 7: {err}");
+    for rc in [1, 2, 5, 11, 12] {
+        assert_eq!(run(&real, rc), old, "rc {rc} keeps the old line");
+    }
+    // The block code is sync_to_sub.sh's: a stand-in that declares 14 moves the normal block to 14, and 13 is then plain.
+    let stand_in = s.0.join("sync_to_sub.sh");
+    write(&stand_in, "PUSH_TRANSPORT_EXIT=14\n");
+    assert!(
+        run(&stand_in, 14).contains("서브 전파 정상 차단"),
+        "rc 14 under PUSH_TRANSPORT_EXIT=14"
+    );
+    assert_eq!(run(&stand_in, 13), old, "rc 13 when the declared block code is 14");
 }
 
 /// A small RFC 8259 reader for the contract checks: the fixed surface is the parsed value (L2), so the checks read the
