@@ -179,6 +179,10 @@
         "assertion_ids": ["hint_target_reasons"]
       },
       {
+        "path": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
+        "assertion_ids": ["check_sub_push_transport"]
+      },
+      {
         "path": ".claude/rust/policy-predicates/src/claims_hint.rs",
         "assertion_ids": ["predicate_HINT_TAG_ACTIVATION_GATE_C4"]
       }
@@ -460,8 +464,8 @@
     ],
     "MODEL_ACQUISITION_TERNARY_GATE.C4": [
       {
-        "path": "manifest.template.yaml",
-        "assertion_ids": ["hf_token_env_file"]
+        "path": ".claude/rust/role-contract/src/env_secret.rs",
+        "assertion_ids": ["HF_TOKEN_KEY", "hf_token_present", "remote_presence_test"]
       },
       {
         "path": ".claude/rust/policy-predicates/src/claims_tf.rs",
@@ -555,7 +559,7 @@
     "SUB_GIT_LOCAL_ONLY.C1": [
       {
         "path": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
-        "assertion_ids": ["sub_branch_current", "sub_has_git"]
+        "assertion_ids": ["assert_sub_origin_zero", "sub_branch_current", "sub_has_git"]
       },
       {
         "path": ".claude/rust/policy-predicates/src/claims_text.rs",
@@ -565,7 +569,7 @@
     "SUB_GIT_LOCAL_ONLY.C2": [
       {
         "path": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
-        "assertion_ids": ["sub_branch_current", "sub_has_git"]
+        "assertion_ids": ["assert_sub_origin_zero", "sub_branch_current", "sub_has_git"]
       },
       {
         "path": ".claude/rust/policy-predicates/src/claims_text.rs",
@@ -947,6 +951,58 @@
       {
         "path": ".claude/rust/policy-selftest/src/suite.rs",
         "assertion_ids": ["topology_layer_parity_predicate"]
+      }
+    ],
+    "ENV_SECRET_KEY_LEDGER.C1": [
+      {
+        "path": ".claude/rust/role-contract/src/env_file_mode.rs",
+        "assertion_ids": ["observe", "narrow", "NARROWEST_ALLOWED_MODE", "ENV_FILE_REL"]
+      },
+      {
+        "path": ".claude/rust/role-contract/src/lib.rs",
+        "assertion_ids": ["sub_workspace_shared", "SUB_WORKSPACE_SHARED"]
+      },
+      {
+        "path": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
+        "assertion_ids": ["observe_sub_env_mode", "ENV_MODE_PROBE"]
+      },
+      {
+        "path": ".claude/rust/policy-predicates/src/claims_hint.rs",
+        "assertion_ids": ["predicate_ENV_SECRET_KEY_LEDGER_C1"]
+      }
+    ],
+    "ENV_SECRET_KEY_LEDGER.C2": [
+      {
+        "path": ".claude/rust/role-contract/src/env_secret.rs",
+        "assertion_ids": ["HF_TOKEN_KEY", "hf_token_present"]
+      },
+      {
+        "path": ".claude/skills/hint-publisher/rust/src/tag.rs",
+        "assertion_ids": ["TOKEN_KEY", "TOKEN_ENV_FILE_REL", "read_push_token"]
+      },
+      {
+        "path": ".claude/rust/policy-predicates/src/claims_tf.rs",
+        "assertion_ids": ["predicate_ENV_SECRET_KEY_LEDGER_C2"]
+      }
+    ],
+    "ENV_SECRET_KEY_LEDGER.C3": [
+      {
+        "path": ".claude/skills/hint-publisher/rust/src/branch.rs",
+        "assertion_ids": ["BRANCH_PUSH_TRANSPORTS", "_require_branch_push_ssh", "_require_branch_push_main", "branch_transition"]
+      },
+      {
+        "path": ".claude/skills/hint-publisher/rust/src/tag.rs",
+        "assertion_ids": ["read_push_token", "_remote_env"]
+      },
+      {
+        "path": ".claude/rust/policy-predicates/src/claims_hint.rs",
+        "assertion_ids": ["predicate_ENV_SECRET_KEY_LEDGER_C3"]
+      }
+    ],
+    "ENV_SECRET_KEY_LEDGER.C4": [
+      {
+        "path": ".claude/rust/policy-predicates/src/claims_tf.rs",
+        "assertion_ids": ["predicate_ENV_SECRET_KEY_LEDGER_C4"]
       }
     ]
   }

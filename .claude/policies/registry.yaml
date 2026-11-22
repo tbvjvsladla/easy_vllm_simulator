@@ -467,7 +467,7 @@
       "clauses": [
         {
           "clause_id": "HINT_TAG_ACTIVATION_GATE.C1",
-          "statement": "A hint tag is an annotated tag on a payload commit whose single parent is the hint-branch guide commit (a README-only commit carrying the branch format marker), never on a source-tree commit: the payload tree is built by plumbing from a closed allowlist (README.md, 00-hint.md..03-benchmark.md, PAYLOAD.json, LINEAGE.json, PROVENANCE.json, artifacts/<slot>/**; a declared lite-only cell -- PAYLOAD.json cell_grade lite -- omits 03-benchmark.md and is labelled lite(기동 가능), never a performance verdict) without touching the main working tree, the index or any ref -- the payload commit is not stacked on the hint branch, only the tag reaches it -- so the tag's archive (zip) is exactly the reproduction kit. The annotation is only a brief (the first paragraph of 00-hint.md §0.1, machine-extracted) + a zip pointer + the 7-field evidence footer v2 (an address with bench_ref + bench_kind, not digests), streamed through stdin with --cleanup=verbatim; the full map lives in 00-hint.md inside the zip. The hint branch itself moves only by a human-approved format transition (hint.py branch-transition); a publication never pushes it."
+          "statement": "A hint tag is an annotated tag on a payload commit whose single parent is the hint-branch guide commit (a README-only commit carrying the branch format marker), never on a source-tree commit: the payload tree is built by plumbing from a closed allowlist (README.md, 00-hint.md..03-benchmark.md, PAYLOAD.json, LINEAGE.json, PROVENANCE.json, artifacts/<slot>/**; a declared lite-only cell -- PAYLOAD.json cell_grade lite -- omits 03-benchmark.md and is labelled lite(기동 가능), never a performance verdict) without touching the main working tree, the index or any ref -- the payload commit is not stacked on the hint branch, only the tag reaches it -- so the tag's archive (zip) is exactly the reproduction kit. The annotation is only a brief (the first paragraph of 00-hint.md §0.1, machine-extracted) + a zip pointer + the 7-field evidence footer v2 (an address with bench_ref + bench_kind, not digests), streamed through stdin with --cleanup=verbatim; the full map lives in 00-hint.md inside the zip. The hint branch itself moves only by a human-approved format transition (hint.sh branch-transition), whose push follows ENV_SECRET_KEY_LEDGER.C3 -- the rule lives there and this clause only points to it; a publication never pushes it."
         },
         {
           "clause_id": "HINT_TAG_ACTIVATION_GATE.C2",
@@ -479,11 +479,11 @@
         },
         {
           "clause_id": "HINT_TAG_ACTIVATION_GATE.C4",
-          "statement": "Publication is main-only with one exception, the single-node sub (sub_mode a2a-agent) for its own cells (2026-10-11, plan_26101104): the hint engine (hint.py, hintlib) never executes a remote shell or calls the sub delivery/relay tooling; the main-to-sub delivery carries the engine and the hints/ contract+vocabulary only to a sub whose contract-derived runtime-skill plane includes hint-publisher (a2a-agent: the three runtime skills + hint-publisher; ray-worker: none) and never carries the catalog (hints/index.json, HINTS.md) or any role marker (hints/.central_authority, hints/.push_authority); a derived campaign slice carries exactly that node's hint_targets with their approvals when the node self-publishes and none otherwise (other nodes' entries, main's included, are cut), and a sub instance holding another node's entry or belonging to a non-self-publishing topology is refused; the sub pushes from a separate hint clone outside its workspace git, holds only the push-role marker, skips the catalog and reports by document -- catalog derivation stays main-only and multi-node subs never author or publish hints."
+          "statement": "Publication is main-only with one exception, the single-node sub (sub_mode a2a-agent) for its own cells (2026-10-11, plan_26101104): the hint engine (hint.sh, the Rust crate hint-publisher/rust) never executes a remote shell or calls the sub delivery/relay tooling; the main-to-sub delivery carries the engine and the hints/ contract+vocabulary only to a sub whose contract-derived runtime-skill plane includes hint-publisher (a2a-agent: the three runtime skills + hint-publisher; ray-worker: none) and never carries the catalog (hints/index.json, HINTS.md) or any role marker (hints/.central_authority, hints/.push_authority); a derived campaign slice carries exactly that node's hint_targets with their approvals when the node self-publishes and none otherwise (other nodes' entries, main's included, are cut), and a sub instance holding another node's entry or belonging to a non-self-publishing topology is refused; the sub pushes from a separate hint clone outside its workspace git, holds only the push-role marker, skips the catalog and reports by document -- catalog derivation stays main-only and multi-node subs never author or publish hints. The sub's hint clone fetches and pushes over https only: the equip tool (check_sub_hint_equip.sh --clone) pins its push address remote.origin.pushurl to the credential-free https --remote-url on a new clone and on an equipped one alike and refuses an ssh, scp-like or local --remote-url, and the equip verdict reads the push URLs too -- an ssh or scp-like fetch or push is a violation and an unpinned push address is pushurl_unpinned (not ready; the sub reinstalls). On every sync the main judges, after delivery, the sub's hint-clone push transport (sync_to_sub.sh check_sub_push_transport runs check_sub_hint_equip.sh --push-transport over its sub_run channel): only exit 0 passes; an ssh or scp-like push, an unpinned or non-https push URL, a sub executable that predates the mode, an absent launcher or an unreadable answer is a normal block -- the sync still closes its delivery transaction, so the delivered content stays, and then ends non-zero (sub rebuild, then reinstall, sub_agent_env.md §2.5.1); the main never corrects it, and a ray-worker (multi-node) sub, which has no equip tool, is not applicable and is not called."
         },
         {
           "clause_id": "HINT_TAG_ACTIVATION_GATE.C5",
-          "statement": "Push is selective -- exactly one refspec refs/tags/<tag>:refs/tags/<tag> for a single validated hint/ tag (no glob, no refs/heads, never --tags, and --no-follow-tags so git config cannot widen it), verified locally for this tag only before it leaves and checked against the remote object after -- so no local ref beyond that one tag (a last-good-* anchor, another hint tag, the hint branch) reaches a public origin. The rollback anchor is a local COMMIT, never a tag (2026-09-03 correction; the GIT_SINGLE_AUTHORITY tripwire forbids a last-good-* tag from existing at all), and the origin-side last-good-* existence scan the old verify carried stays deleted -- it asserted a condition about a tag this repo never creates."
+          "statement": "Push is selective -- exactly one refspec refs/tags/<tag>:refs/tags/<tag> for a single validated hint/ tag (no glob, no refs/heads, never --tags, and --no-follow-tags so git config cannot widen it), verified locally for this tag only before it leaves and checked against the remote object after -- so no local ref beyond that one tag (a last-good-* anchor, another hint tag, the hint branch) reaches a public origin. The canonical tag-push remote is https with the PAT (main: origin; a single-node sub: its hint clone's origin). The rollback anchor is a local COMMIT, never a tag (2026-09-03 correction; the GIT_SINGLE_AUTHORITY tripwire forbids a last-good-* tag from existing at all), and the origin-side last-good-* existence scan the old verify carried stays deleted -- it asserted a condition about a tag this repo never creates."
         },
         {
           "clause_id": "HINT_TAG_ACTIVATION_GATE.C6",
@@ -603,6 +603,15 @@
           ],
           "assertion_ids": [
             "hint_target_reasons"
+          ]
+        },
+        {
+          "path": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
+          "supports": [
+            "HINT_TAG_ACTIVATION_GATE.C4"
+          ],
+          "assertion_ids": [
+            "check_sub_push_transport"
           ]
         },
         {
@@ -791,7 +800,7 @@
         },
         {
           "clause_id": "MODEL_ACQUISITION_TERNARY_GATE.C4",
-          "statement": "An hf_token, when needed, is registered as a manifest file pointer only -- the raw token itself is never tracked."
+          "statement": "HF_TOKEN, when needed, is the key HF_TOKEN in the untracked workspace file envs/.env (a fixed path; ENV_SECRET_KEY_LEDGER) -- there is no manifest pointer field; the value is never tracked, never emitted, never printed; a download that uses it still needs the per-event approval of C2."
         },
         {
           "clause_id": "MODEL_ACQUISITION_TERNARY_GATE.C5",
@@ -842,12 +851,14 @@
           ]
         },
         {
-          "path": "manifest.template.yaml",
+          "path": ".claude/rust/role-contract/src/env_secret.rs",
           "supports": [
             "MODEL_ACQUISITION_TERNARY_GATE.C4"
           ],
           "assertion_ids": [
-            "hf_token_env_file"
+            "HF_TOKEN_KEY",
+            "hf_token_present",
+            "remote_presence_test"
           ]
         },
         {
@@ -1177,17 +1188,18 @@
       "owner": "upstream-version-watch",
       "statement": "A sub node's git workspace never has a remote -- it exists only for local branch selection and history. The policy governs the sub's workspace repository only: a separate hint clone outside the workspace, used by a single-node sub solely to publish one approved hint tag (HINT_TAG_ACTIVATION_GATE.C4), is a different repository and is not covered -- it never becomes a remote of, or a recovery path into, the workspace git.",
       "scope": [
-        "multi-node"
+        "multi-node",
+        "single-node"
       ],
       "origin_failure": "plan_26062411",
       "clauses": [
         {
           "clause_id": "SUB_GIT_LOCAL_ONLY.C1",
-          "statement": "A sub node's git workspace is local-only: origin is permanently unconfigured."
+          "statement": "A sub node's git workspace is local-only: origin is permanently unconfigured; the main sync attests this on every sync -- at B0 and at the start of each B1 target -- with one read-only git remote read (sync_to_sub.sh assert_sub_origin_zero), and a remote present or an unreadable answer stops the sync."
         },
         {
           "clause_id": "SUB_GIT_LOCAL_ONLY.C2",
-          "statement": "push/pull/fetch/remote on the sub workspace repo are denied at the persona layer, backed by the structural fact that no remote exists."
+          "statement": "push/pull/fetch/remote on the sub workspace repo are denied at the persona layer, backed by the structural fact that no remote exists, which the main sync attests on every sync (B0 and each B1 target)."
         },
         {
           "clause_id": "SUB_GIT_LOCAL_ONLY.C3",
@@ -1209,6 +1221,16 @@
           "assertion_ids": [
             "sub_has_git",
             "sub_branch_current"
+          ]
+        },
+        {
+          "path": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
+          "supports": [
+            "SUB_GIT_LOCAL_ONLY.C1",
+            "SUB_GIT_LOCAL_ONLY.C2"
+          ],
+          "assertion_ids": [
+            "assert_sub_origin_zero"
           ]
         },
         {
@@ -2186,6 +2208,149 @@
         }
       ],
       "remove_when": "Removable only if the two branches stop being independent deployment lines: for example if a single tree serves both topologies from one checkout with the manifest alone selecting the output path, so that no constitutional text is branch-dependent and nothing needs excluding from synchronisation. Until then, removing this policy returns the repository to the state the 2026-09-11 incident came from: a declaration with no executor, and a synchronisation allowlist that quietly makes the two branches the same.",
+      "status": "candidate"
+    },
+    {
+      "policy_id": "ENV_SECRET_KEY_LEDGER",
+      "owner": "terraforming_node",
+      "statement": "The workspace secret file envs/.env holds a closed ledger of keys, each with a storage owner, a use owner and an allowed use; it is untracked, never delivered, placed by a human, kept at mode 600 or narrower by terraforming_node, and its values are never printed.",
+      "scope": [
+        "multi-node",
+        "single-node"
+      ],
+      "origin_failure": "plan_26112012",
+      "clauses": [
+        {
+          "clause_id": "ENV_SECRET_KEY_LEDGER.C1",
+          "statement": "Storage: envs/.env is untracked (.gitignore), never delivered, and placed by a human; terraforming_node reads only its mode bits (stat, never the content), narrows a wider mode to mode & 0o600 (never widening) and records before/after; no value is ever printed. It covers the workspace envs/.env of main and of every sub (single a2a-agent, multi ray-worker); when both topologies share one sub workspace (node_role_contract sub_workspace_shared=shared) the one file is corrected once in a2a-agent mode for both; the main sync only observes and records the sub's mode on every delivery and never blocks on it; main never corrects a sub's file itself."
+        },
+        {
+          "clause_id": "ENV_SECRET_KEY_LEDGER.C2",
+          "statement": "The ledger is a closed list (a tripwire: a new key needs a revised plan and HITL): GITHUB_TOKEN (secret; use owner hint-publisher), HF_TOKEN (secret; use rule MODEL_ACQUISITION_TERNARY_GATE), HINT_CLONE_DIR (not secret; single-node sub; use owner terraforming_node then hint-publisher)."
+        },
+        {
+          "clause_id": "ENV_SECRET_KEY_LEDGER.C3",
+          "statement": "GITHUB_TOKEN authenticates only the hint tag push and its remote query; no branch push is ever authenticated with it -- a branch push (the closing-sequence push_branches and the hint branch-transition) runs on main and over an ssh key only."
+        },
+        {
+          "clause_id": "ENV_SECRET_KEY_LEDGER.C4",
+          "statement": "HF_TOKEN use follows MODEL_ACQUISITION_TERNARY_GATE; the rule lives there and this clause only points to it."
+        }
+      ],
+      "evidence": [
+        {
+          "path": ".claude/rust/role-contract/src/env_file_mode.rs",
+          "supports": [
+            "ENV_SECRET_KEY_LEDGER.C1"
+          ],
+          "assertion_ids": [
+            "observe",
+            "narrow",
+            "NARROWEST_ALLOWED_MODE",
+            "ENV_FILE_REL"
+          ]
+        },
+        {
+          "path": ".claude/rust/role-contract/src/lib.rs",
+          "supports": [
+            "ENV_SECRET_KEY_LEDGER.C1"
+          ],
+          "assertion_ids": [
+            "sub_workspace_shared",
+            "SUB_WORKSPACE_SHARED"
+          ]
+        },
+        {
+          "path": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
+          "supports": [
+            "ENV_SECRET_KEY_LEDGER.C1"
+          ],
+          "assertion_ids": [
+            "observe_sub_env_mode",
+            "ENV_MODE_PROBE"
+          ]
+        },
+        {
+          "path": ".claude/rust/role-contract/src/env_secret.rs",
+          "supports": [
+            "ENV_SECRET_KEY_LEDGER.C2"
+          ],
+          "assertion_ids": [
+            "HF_TOKEN_KEY",
+            "hf_token_present"
+          ]
+        },
+        {
+          "path": ".claude/skills/hint-publisher/rust/src/tag.rs",
+          "supports": [
+            "ENV_SECRET_KEY_LEDGER.C2"
+          ],
+          "assertion_ids": [
+            "TOKEN_KEY",
+            "TOKEN_ENV_FILE_REL",
+            "read_push_token"
+          ]
+        },
+        {
+          "path": ".claude/skills/hint-publisher/rust/src/branch.rs",
+          "supports": [
+            "ENV_SECRET_KEY_LEDGER.C3"
+          ],
+          "assertion_ids": [
+            "BRANCH_PUSH_TRANSPORTS",
+            "_require_branch_push_ssh",
+            "_require_branch_push_main",
+            "branch_transition"
+          ]
+        },
+        {
+          "path": ".claude/skills/hint-publisher/rust/src/tag.rs",
+          "supports": [
+            "ENV_SECRET_KEY_LEDGER.C3"
+          ],
+          "assertion_ids": [
+            "read_push_token",
+            "_remote_env"
+          ]
+        },
+        {
+          "path": ".claude/rust/policy-predicates/src/claims_hint.rs",
+          "supports": [
+            "ENV_SECRET_KEY_LEDGER.C1"
+          ],
+          "assertion_ids": [
+            "predicate_ENV_SECRET_KEY_LEDGER_C1"
+          ]
+        },
+        {
+          "path": ".claude/rust/policy-predicates/src/claims_tf.rs",
+          "supports": [
+            "ENV_SECRET_KEY_LEDGER.C2"
+          ],
+          "assertion_ids": [
+            "predicate_ENV_SECRET_KEY_LEDGER_C2"
+          ]
+        },
+        {
+          "path": ".claude/rust/policy-predicates/src/claims_hint.rs",
+          "supports": [
+            "ENV_SECRET_KEY_LEDGER.C3"
+          ],
+          "assertion_ids": [
+            "predicate_ENV_SECRET_KEY_LEDGER_C3"
+          ]
+        },
+        {
+          "path": ".claude/rust/policy-predicates/src/claims_tf.rs",
+          "supports": [
+            "ENV_SECRET_KEY_LEDGER.C4"
+          ],
+          "assertion_ids": [
+            "predicate_ENV_SECRET_KEY_LEDGER_C4"
+          ]
+        }
+      ],
+      "remove_when": "Removable only if the workspace stops keeping secrets in a file (every key moves to a credential store outside envs/.env that no harness source reads), documented in a superseding plan with HITL and re-verified by a scan of the tracked tree that no harness source opens envs/.env.",
       "status": "candidate"
     }
   ]

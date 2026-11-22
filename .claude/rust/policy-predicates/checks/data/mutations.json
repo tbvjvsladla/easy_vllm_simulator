@@ -18,8 +18,8 @@
   {"id": "M09-origin-confirm-moved", "file": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
    "old": "origin 0 (로컬 전용 확증)", "new": "origin 0 (확증)", "clause": "SUB_GIT_LOCAL_ONLY.C1"},
   {"id": "M10-hf-token-baked", "file": "manifest.template.yaml",
-   "old": "hf_token_env_file: \"\"", "new": "hf_token_env_file: \"/home/x/.hf\"", "unit": "companion_predicate",
-   "test": "test_manifest_template_hf_token_field_is_a_pointer_not_a_raw_value"},
+   "old": "custom_model_paths: {}", "new": "custom_model_paths: {}\nhf_token_env_file: \"/home/x/.hf\"", "unit": "companion_predicate",
+   "test": "test_manifest_template_carries_no_hf_token_pointer"},
   {"id": "M11-push-tags", "file": ".claude/skills/hint-publisher/rust/src/tag.rs",
    "old": "    args.push(refspec);", "new": "    args.push(\"--tags\");\n    args.push(refspec);", "unit": "companion_predicate",
    "test": "test_hint_push_sends_exactly_one_tag_refspec"},
@@ -28,5 +28,9 @@
    "test": "test_sync_branches_never_tags_or_hard_resets"},
   {"id": "M13-no-sidecar-transfer", "file": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
    "old": "validate_runtime_patches \"$1\"", "new": "validate_runtime_patches_disabled \"$1\"", "unit": "runtime_patch_predicate",
-   "test": "test_sync_delivery_calls_production_validator_and_transfers_sidecar"}
+   "test": "test_sync_delivery_calls_production_validator_and_transfers_sidecar"},
+  {"id": "M14-origin-zero-b1-dropped", "file": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
+   "old": "    assert_sub_origin_zero \"$t\"\n", "new": "    : \"$t\"\n", "clause": "SUB_GIT_LOCAL_ONLY.C1"},
+  {"id": "M15-origin-zero-b0-dropped", "file": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
+   "old": "    # origin 부재 불변식 확증(B0 · M1-①)\n    assert_sub_origin_zero\n", "new": "    # origin 부재 불변식 확증(B0 · M1-①)\n", "clause": "SUB_GIT_LOCAL_ONLY.C1"}
 ]

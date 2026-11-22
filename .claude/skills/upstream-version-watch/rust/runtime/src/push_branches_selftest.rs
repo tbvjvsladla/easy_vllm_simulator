@@ -1,9 +1,11 @@
 //! `push_branches --self-test` (Rust): isolated repo + temporary bare remotes, no network, no real token.
 //!
-//! Boundary vs the Python self-test: the hintlib credential path (module load, `PUSH_SCOPE_ARGS` cross-check, HintError mutation controls)
-//! is Python-plane and is not exercised here. Instead the Rust-owned contract is asserted: an https-DECLARED remote (reserved `.invalid`
-//! TLD, redirected to a local bare via insteadOf) fails loud per branch with `HTTPS_NEEDS_HINTLIB`; token-free remotes push every branch,
-//! never force, never carry tags along under `push.followTags=true`, and the target repo (not the CWD) is pushed.
+//! The contract asserted (plan_26112012 #9 · #5d: a branch push runs over an ssh key only): a remote whose DECLARED push
+//! address is http(s) (reserved `.invalid` TLD, redirected to a local bare via insteadOf so a slip would really land)
+//! fails loud per branch with `BRANCH_PUSH_HTTPS_REFUSED` and pushes nothing; the declared push address is read in git's
+//! order -- `pushurl`, else `url` -- and any one http(s) value among several refuses; token-free remotes push every branch,
+//! never force, never carry tags along under `push.followTags=true`, and the target repo (not the CWD) is pushed. The scope
+//! options are cross-checked against the tag push's `PUSH_SCOPE_ARGS` in hint-publisher `tag.rs` (read as text).
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -109,7 +111,7 @@ fn scenario(fx: &mut Fx) -> Result<(), String> {
     let root = fx.root.clone();
     let scope = hintlib_scope_args();
     let want: Vec<String> = crate::push_branches::SCOPE_ARGS.iter().map(|s| s.to_string()).collect();
-    fx.ck("폴백 범위 옵션 == hintlib::tag::PUSH_SCOPE_ARGS(교차 대조 · Rust tag.rs 선언 파싱)", scope.as_ref().map(|s| *s == want).unwrap_or(false), &format!("{scope:?}"));
+    fx.ck("push 범위 옵션 == hintlib::tag::PUSH_SCOPE_ARGS(교차 대조 · Rust tag.rs 선언 파싱)", scope.as_ref().map(|s| *s == want).unwrap_or(false), &format!("{scope:?}"));
     let gcfg = root.join("gitconfig");
     fs::write(&gcfg, "[user]\n\tname = selftest\n\temail = t@t\n[commit]\n\tgpgsign = false\n[tag]\n\tgpgSign = false\n[core]\n\thooksPath = /dev/null\n").map_err(|e| e.to_string())?;
     fx.env = vec![
@@ -161,13 +163,41 @@ fn scenario(fx: &mut Fx) -> Result<(), String> {
     fx.g(&decoy, &["add", "-A"])?;
     fx.g(&decoy, &["commit", "-qm", "decoy"])?;
 
-    // A: https-declared remote → fail loud per branch (HTTPS_NEEDS_HINTLIB), both branches reported, remote untouched.
+    // A: https-declared remote → fail loud per branch (BRANCH_PUSH_HTTPS_REFUSED), both branches reported, remote untouched.
+    let refused = format!("\"{}\"", crate::push_branches::HTTPS_REFUSED);
+    let all_refused = |out: &str| ["single-node", "multi-node"].iter().all(|b| field_of(out, b, "code").as_deref() == Some(refused.as_str()));
     let (rc, out, _) = fx.run(&repo, "fx", &[], &root);
-    let codes: Vec<_> = ["single-node", "multi-node"].iter().map(|b| field_of(&out, b, "code")).collect();
-    fx.ck("★S5 https 선언 원격 → 두 브랜치 모두 HTTPS_NEEDS_HINTLIB · rc=5 (첫 실패에서 멈추지 않는다)",
-        rc == 5 && codes.iter().all(|c| c.as_deref() == Some("\"HTTPS_NEEDS_HINTLIB\"")), &format!("{rc} {out}"));
-    let same = fx.g(&remote, &["rev-parse", "refs/heads/multi-node"])? == multi_before && fx.g(&remote, &["rev-parse", "refs/heads/single-node"])? == single_before;
-    fx.ck("https fail-loud 에서는 원격이 그대로다", same, "");
+    fx.ck("★S5 https 선언 원격 → 두 브랜치 모두 BRANCH_PUSH_HTTPS_REFUSED · rc=5 (첫 실패에서 멈추지 않는다)", rc == 5 && all_refused(&out), &format!("{rc} {out}"));
+    let untouched = |fx: &Fx| -> Result<bool, String> {
+        Ok(fx.g(&remote, &["rev-parse", "refs/heads/multi-node"])? == multi_before && fx.g(&remote, &["rev-parse", "refs/heads/single-node"])? == single_before)
+    };
+    fx.ck("https fail-loud 에서는 원격이 그대로다", untouched(fx)?, "");
+
+    // #9: the declared push address is pushurl, else url (git's push order) -- the judgement reads what git would push to.
+    // D: url token-free + pushurl https (redirected by the same insteadOf onto `remote`) → refused, nothing pushed.
+    let spare = fx.bare("url-only.git")?;
+    fx.g(&repo, &["remote", "add", "fxp", &spare.to_string_lossy()])?;
+    fx.g(&repo, &["config", "remote.fxp.pushurl", https_url])?;
+    let (rc, out, _) = fx.run(&repo, "fxp", &[], &root);
+    fx.ck("★#9 url 토큰 불요 + pushurl https → 두 브랜치 모두 BRANCH_PUSH_HTTPS_REFUSED · rc=5", rc == 5 && all_refused(&out), &format!("{rc} {out}"));
+    let r = fx.refs(&spare, "refs/heads");
+    fx.ck("#9 거부 때 push 0: pushurl 이 가리키는 원격과 url 원격이 모두 그대로다", untouched(fx)? && r.is_empty(), &format!("{r:?}"));
+    // E: url https + pushurl token-free → git pushes to the pushurl, so this is not refused and the url remote is untouched.
+    let first = fx.bare("pushurl-first.git")?;
+    fx.g(&repo, &["remote", "add", "fxu", https_url])?;
+    fx.g(&repo, &["config", "remote.fxu.pushurl", &first.to_string_lossy()])?;
+    let (rc, out, _) = fx.run(&repo, "fxu", &[], &root);
+    let both = ["single-node", "multi-node"].iter().all(|b| field_of(&out, b, "returncode").as_deref() == Some("0") && field_of(&out, b, "code").as_deref() == Some("null"));
+    let r = fx.refs(&first, "refs/heads");
+    fx.ck("★#9 url https + pushurl 토큰 불요 → pushurl 로 두 브랜치 push · rc=0 · url 쪽 원격 그대로", rc == 0 && both && r.len() == 2 && untouched(fx)?, &format!("{rc} {r:?} {out}"));
+    // F: several pushurl values, one of them https → refused before any push (no partial push to the token-free one).
+    let partial = fx.bare("pushurl-many.git")?;
+    fx.g(&repo, &["remote", "add", "fxm", &partial.to_string_lossy()])?;
+    fx.g(&repo, &["config", "--add", "remote.fxm.pushurl", &partial.to_string_lossy()])?;
+    fx.g(&repo, &["config", "--add", "remote.fxm.pushurl", https_url])?;
+    let (rc, out, _) = fx.run(&repo, "fxm", &[], &root);
+    let r = fx.refs(&partial, "refs/heads");
+    fx.ck("★#9 pushurl 여럿 중 하나라도 https → BRANCH_PUSH_HTTPS_REFUSED · 토큰 불요 쪽에도 push 0", rc == 5 && all_refused(&out) && r.is_empty() && untouched(fx)?, &format!("{rc} {r:?} {out}"));
 
     // B: token-free local remote; single-node non-ff rejected, multi-node still pushed, no force, no tags; CWD is another repo.
     let (rc, out, _) = fx.run(&repo, &rs, &[], &decoy);
@@ -193,7 +223,7 @@ fn scenario(fx: &mut Fx) -> Result<(), String> {
     let (mrc, _) = crate::push_branches::push_local(&repo.to_string_lossy(), &mutated.to_string_lossy(), "refs/heads/multi-node:refs/heads/multi-node", false, &[])?;
     let leaked = fx.refs(&mutated, "refs/tags");
     fx.ck("★변이 음성대조: 범위 옵션을 비우면 followTags 로 롤백 태그가 새어 나간다(결함 재현)", mrc == 0 && leaked == ["refs/tags/last-good-fixture"], &format!("{mrc} {leaked:?}"));
-    eprintln!("  N/A  HintError 처리 절 변이 대조(사유코드 분류): hintlib 경로는 Python 소유 — https 선언 원격은 Rust 에서 HTTPS_NEEDS_HINTLIB 로 두 브랜치 모두 fail-loud(위 ★S5)로 가름한다");
+    eprintln!("  N/A  자격증명 경로 변이 대조: 이 도구는 PAT 경로(hint-publisher tag.rs git_push_authenticated)를 쓰지 않는다 — 정책(브랜치 push = ssh 키만) · https push 주소는 위 ★S5·★#9 가 BRANCH_PUSH_HTTPS_REFUSED 로 가른다");
     Ok(())
 }
 

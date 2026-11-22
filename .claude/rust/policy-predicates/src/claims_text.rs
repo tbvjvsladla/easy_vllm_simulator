@@ -634,7 +634,24 @@ pub fn predicate_SUB_GIT_LOCAL_ONLY_C1() -> R {
     let m = search("REMOTES=\"\\$\\(sub_run 'git remote'\\)\"", &src);
     req(m.is_some(), "the origin-zero attestation must read `git remote` for real -- a swallowed read failure must never be able to print the local-only confirmation")?;
     let confirm_idx = index(&src, "origin 0 (로컬 전용 확증)")?;
-    req(confirm_idx > m.unwrap().0, "predicate requirement failed at original line 1772")
+    req(confirm_idx > m.unwrap().0, "predicate requirement failed at original line 1772")?;
+    // plan_26112012 #3 M1-① (S4): the attestation is ONE function, called on every sync -- in B0 and at the start of each
+    // B1 target, before its dirty check (so a sync that skips B0 still attests before it touches the sub).
+    let attest = extract_bash_function(&src, "assert_sub_origin_zero")?;
+    req(
+        attest.contains("REMOTES=\"$(sub_run 'git remote')\"") && attest.contains("origin 0 (로컬 전용 확증)"),
+        "the zero-remote read and its confirmation must live in assert_sub_origin_zero (one place, every sync)",
+    )?;
+    let calls: Vec<usize> = src.match_indices("assert_sub_origin_zero").map(|(i, _)| i).filter(|&i| !src[i..].starts_with("assert_sub_origin_zero()")).collect();
+    let b0 = index(&src, "# ── B0 멱등 self-bootstrap")?;
+    let b1 = index(&src, "# ── B1 per-branch 증분 싱크 ──")?;
+    let b1_loop = index_from(&src, "for t in \"${TARGETS[@]}\"; do", b1)?;
+    let b1_dirty = index_from(&src, "DIRT=\"$(sub_dirty)\"", b1_loop)?;
+    req(calls.iter().any(|&i| b0 < i && i < b1), "B0 must call assert_sub_origin_zero (every sync attests the sub's zero remotes)")?;
+    req(
+        calls.iter().any(|&i| b1_loop < i && i < b1_dirty),
+        "each B1 target must call assert_sub_origin_zero at its start, before the dirty check",
+    )
 }
 
 pub fn predicate_SUB_GIT_LOCAL_ONLY_C2() -> R {

@@ -237,6 +237,9 @@ fn documented_subcommands_and_long_options() {
                 "--write-push-authority",
                 "--utc",
                 "--self-test",
+                "--push-transport",
+                "--narrow-env-mode",
+                "--sub-workspace-shared",
             ],
         ),
         (

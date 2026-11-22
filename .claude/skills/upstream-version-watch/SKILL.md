@@ -120,9 +120,10 @@ hint 발행을 제안한다. 발동 규칙(셀 단위 · 제안 Y/N · 무인 �
 ### ③ 승인 — 사람 게이트 1회
 
 분류표·근거·린트 요약을 한국어 팝업으로 제시하고 승인/수정/중단을 받는다. 승인 이후 ④~⑦에는
-**추가 프롬프트가 없다** — git 자동화는 `hint-publisher` 가 이미 갖춘 자격증명 경로를 재사용한다
-(`push_branches.sh`(Rust)는 토큰이 필요 없는 원격(ssh·로컬 경로)만 민다 — https 원격은 `HTTPS_NEEDS_HINTLIB` 로 fail-loud(PAT 경로 = 공개 API `hintlib.tag.git_push_authenticated` · 복제 ✗) · https 원격만 토큰이 필요하고
-ssh · 로컬 경로 원격은 토큰 불요).
+**추가 프롬프트가 없다** — branch push(`push_branches.sh`, Rust)는 메인에서 ssh 키로만 한다(h53 · 규칙의 권위 =
+키 대장 `ENV_SECRET_KEY_LEDGER` C3): ssh · scp형 · 로컬 경로 원격만 밀고, 선언된 push 주소(`pushurl` → 없으면 `url`)가
+https · http 면 `BRANCH_PUSH_HTTPS_REFUSED` 로 멈춘다 — https 거부는 이식 공백이 아니라 정책이다. PAT 경로
+(`hint-publisher/rust/src/tag.rs::git_push_authenticated`)는 hint 태그 push 만 쓴다.
 
 ### 이중 방어
 
@@ -137,7 +138,7 @@ RED 만 멈춘다 — 채우지 않은 분류표(자리표시자 · execute 가 
 (`COMMON_LAYER_UNJUDGED` — 판정하지 못한 덮어쓰기를 통과로 두지 않는다) · 같은 경로의 report 충돌.
 나머지 결손(카탈로그 재파생 실패 · 서브 전파 실패)은 **기재하고 진행한다** — 단 원인은 말한다(원격 전용
 hint 태그의 로컬 오브젝트 부재면 그 원격의 fetch 명령을 안내하고 자동 fetch 는 하지 않는다). 결정론이 과하면
-시퀀스가 그 자리에서 영원히 선다.
+시퀀스가 그 자리에서 영원히 선다. 서브 전파는 `sync_to_sub` 종료 코드로 원인을 가른다 — exit 13(push 전송 차단)은 결손이 아니라 정상 차단이고(배달된 내용은 남는다 · 서브 재빌드 뒤 재장착 §2.5.1), exit 7(원격 0 확증 실패 · D12)은 이번 배달이 남지 않는다. 둘 다 다음 B1 이 수렴시키지 않는다.
 
 ### 갈라짐 판정은 무엇을 읽나 (2026-09-14 · plan_26091407 §9 ⑧-pre D2)
 
@@ -185,6 +186,11 @@ hint 태그의 로컬 오브젝트 부재면 그 원격의 fetch 명령을 안�
 - `scripts/check_smoke_model.sh` — ⑤ no-download NAS 모델 실재 체크.
 - `scripts/classify_failure.sh` + `failure_patterns.yaml` — ⑥ 실패 결정론 분류(미지→Model-C). Rust 실행 파일로 저장소 registry의 빌드/스모크 로그를 분류한다.
 - `scripts/sync_to_sub.sh` — 멀티노드 [전달](dry-run 기본/`--apply`, 체크섬, 빌딩블럭 제외).
+  매 동기화마다(plan_26112012 #3 M1 · #2b) B0 와 B1 각 타겟 시작에서 서브 작업 폴더 원격 0 을 확증하고(`assert_sub_origin_zero` ·
+  어긋나면 exit 7), B1 각 타겟의 배달 뒤에 `[sync] env-mode(<t>)`(서브 `envs/.env` 의 종류·mode 만 · 막지 않음)와
+  `[sync] push-transport(<t>)`(서브 hint 클론 push 전송 · ray-worker 는 `not_applicable`)를 적는다. push 전송 차단은
+  배달 거래를 마감한 뒤 **exit 13** 으로 끝난다 — 배달된 내용은 남고, 이것은 실패가 아니라 정상 차단이다(서브 재빌드 뒤 재장착 ·
+  terraforming_node §2.5.1). 우회하지 않는다.
 - `scripts/multinode_serve_smoke.sh` — 2노드 Ray 서빙+multi-smoke 오케스트레이션. **teardown(`--down`)은 멀티 전용**이다(경로가 `output/multi/` 고정 · SSH 슬레이브 전제).
   - 스모크 합격 기준은 **생성 실재**다(2026-08-22 · W-10): `content` 비었고 `reasoning` 만 있으면
     PASS 하지 않고 파서를 우회한 `/v1/completions` 로 확증한다. 통과 로그는 언제나 증거원을 밝힌다

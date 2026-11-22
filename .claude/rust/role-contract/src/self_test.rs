@@ -1,6 +1,6 @@
 //! The source's own `--self-test`, translated: 33 checks over the native functions of this library (no input/output, no manifest file), each with the
-//! source's label, a `PASS`/`FAIL` line like the original's and the count line. The conditions are computed from the functions' results; nothing here
-//! is a recorded answer.
+//! source's label, a `PASS`/`FAIL` line like the original's and the count line, then 6 checks of the manifest-pair field `sub_workspace_shared`
+//! (plan_26112012 #2b, not in the source). The conditions are computed from the functions' results; nothing here is a recorded answer.
 
 use crate::*;
 
@@ -344,6 +344,57 @@ pub fn run() -> SelfTest {
         String::new,
     );
 
+    // plan_26112012 #2b: one sub workspace shared by the two topologies (node_id and work_dir of the manifest pair).
+    let pair_doc = |node_id: &str, work_dir: &str| {
+        dict(vec![(
+            "nodes",
+            list(vec![
+                node("main"),
+                dict(vec![("role", s("sub")), ("node_id", s(node_id)), ("work_dir", s(work_dir))]),
+            ]),
+        )])
+    };
+    let same = pair_doc("sub-node-a", "/work/sub-a");
+    let shared_is = |single: Option<&PyValue>, multi: Option<&PyValue>, want: &str| {
+        let verdict = sub_workspace_shared(single, multi);
+        verdict.value == s(want) && verdict.source.equals(SUB_WORKSPACE_SHARED_SOURCE)
+    };
+    let shown = |single: Option<&PyValue>, multi: Option<&PyValue>| sub_workspace_shared(single, multi).to_value().repr();
+    r.chk(
+        "sub_workspace_shared: node_id·work_dir 같음 → shared(measured:manifest-pair)",
+        shared_is(Some(&same), Some(&same), "shared"),
+        || shown(Some(&same), Some(&same)),
+    );
+    let other_id = pair_doc("sub-node-b", "/work/sub-a");
+    r.chk(
+        "sub_workspace_shared: node_id 다름 → distinct",
+        shared_is(Some(&same), Some(&other_id), "distinct"),
+        || shown(Some(&same), Some(&other_id)),
+    );
+    let other_dir = pair_doc("sub-node-a", "/work/sub-other");
+    r.chk(
+        "sub_workspace_shared: work_dir 다름 → distinct",
+        shared_is(Some(&same), Some(&other_dir), "distinct"),
+        || shown(Some(&same), Some(&other_dir)),
+    );
+    r.chk(
+        "sub_workspace_shared: multi manifest 없음 → unknown",
+        shared_is(Some(&same), None, "unknown"),
+        || shown(Some(&same), None),
+    );
+    let blank = pair_doc("sub-node-a", "");
+    r.chk(
+        "sub_workspace_shared: 필드가 비면 → unknown",
+        shared_is(Some(&same), Some(&blank), "unknown"),
+        || shown(Some(&same), Some(&blank)),
+    );
+    let printed = [shown(Some(&same), Some(&same)), shown(Some(&same), Some(&other_dir)), shown(Some(&same), None)].concat();
+    r.chk(
+        "sub_workspace_shared: 출력에 경로·이름 0",
+        !printed.contains("/work/") && !printed.contains("sub-node-"),
+        || printed.clone(),
+    );
+
     let total = r.ran;
     let passed = total - r.failures;
     r.lines.push(format!("--- {passed}/{total} PASS"));
@@ -357,9 +408,9 @@ pub fn run() -> SelfTest {
 #[cfg(test)]
 mod tests {
     #[test]
-    fn the_translated_self_test_runs_33_checks_and_all_pass() {
+    fn the_translated_self_test_runs_33_checks_and_the_6_manifest_pair_checks_and_all_pass() {
         let run = super::run();
-        assert_eq!((run.total, run.failures), (33, 0), "{:#?}", run.lines);
-        assert_eq!(run.lines.last().unwrap(), "--- 33/33 PASS");
+        assert_eq!((run.total, run.failures), (39, 0), "{:#?}", run.lines);
+        assert_eq!(run.lines.last().unwrap(), "--- 39/39 PASS");
     }
 }

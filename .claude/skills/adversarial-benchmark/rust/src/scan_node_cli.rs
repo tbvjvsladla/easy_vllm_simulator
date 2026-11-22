@@ -32,6 +32,53 @@ use std::cell::RefCell;
 /// Exit status of a boundary the port does not carry (the same status the bridge uses for a control failure).
 pub const EXIT_BOUNDARY: i32 = 3;
 
+/// `scan_node.sh --narrow-env-mode` (plan_26112012 #2, the main side; a correction, run only at its approved step). It is decided
+/// before the argparse interface (like `--p1-self-check`), so the original's usage and help stay as they were.
+pub const NARROW_ENV_MODE_FLAG: &str = "--narrow-env-mode";
+/// Where the launcher sits under the workspace root that its owner path (`SCAN_NODE_OWNER_PATH`) names.
+const OWNER_DIR_REL: &str = ".claude/skills/terraforming_node/scripts";
+/// `--narrow-env-mode`: no workspace root follows from the owner path.
+pub const EXIT_NO_WORKSPACE: i32 = 2;
+/// `--narrow-env-mode`: the file was not corrected (`unknown`).
+pub const EXIT_NOT_NARROWED: i32 = 4;
+
+/// The main workspace root that the launcher's owner path (`<root>/.claude/skills/terraforming_node/scripts/scan_node.sh`) names;
+/// `None` when the path is missing or does not sit in that directory (the working directory is never a fallback).
+pub fn workspace_of_owner(owner: Option<&std::path::Path>) -> Option<std::path::PathBuf> {
+    let dir = owner?.parent()?;
+    let rel = std::path::Path::new(OWNER_DIR_REL);
+    let mut root = dir;
+    for _ in rel.components() {
+        root = root.parent()?;
+    }
+    (root.join(rel) == dir).then(|| root.to_path_buf())
+}
+
+/// `scan_node.sh --narrow-env-mode`: narrows the main workspace's `envs/.env` to `mode & 0o600` through
+/// `role_contract::env_file_mode` (the same correction as the sub's `check_sub_hint_equip --narrow-env-mode`) and answers the
+/// one-line record `{path_rel, before, after, action, provenance}` (stdout) or the reason no workspace follows (stderr), with the exit
+/// status: 0 narrowed/unchanged/absent, 4 unknown (not a regular file, lstat failed or the mode did not narrow: not corrected), 2 no
+/// workspace root. The file path is never an argument and the content is never opened.
+pub fn narrow_env_mode(owner: Option<&std::path::Path>) -> (Result<String, String>, i32) {
+    use role_contract::env_file_mode::{narrow, narrowing_value, NarrowAction};
+    let Some(root) = workspace_of_owner(owner) else {
+        return (
+            Err(format!(
+                "[scan_node] FAIL: {NARROW_ENV_MODE_FLAG} 은 런처의 owner 경로(SCAN_NODE_OWNER_PATH = <워크스페이스>/{OWNER_DIR_REL}/scan_node.sh)에서 워크스페이스를 정한다 — 그 경로가 없거나 그 자리가 아니다"
+            )),
+            EXIT_NO_WORKSPACE,
+        );
+    };
+    let narrowing = narrow(&root);
+    let line = narrowing_value(&narrowing)
+        .dumps_unicode()
+        .ok()
+        .and_then(|text| text.to_utf8())
+        .unwrap_or_default();
+    let status = if narrowing.action == NarrowAction::Unknown { EXIT_NOT_NARROWED } else { 0 };
+    (Ok(line), status)
+}
+
 pub mod args {
     pub const TOPOLOGY: usize = 1;
     pub const PEER_IP: usize = 2;
@@ -134,6 +181,9 @@ pub trait Local {
     fn cwd(&self) -> Res<PyStr>;
     fn is_dir(&self, path: &PyStr) -> bool;
     fn is_file(&self, path: &PyStr) -> bool;
+    /// plan_26112012 #11: whether the main workspace's `envs/.env` gives `HF_TOKEN` a value (a bool only; the fixed path under the
+    /// workspace the launcher's owner path names). `None` = no workspace root follows from the owner path.
+    fn hf_token_present(&self) -> Option<bool>;
 }
 
 /// An OS failure as the exception class and `str()` text CPython gives it (`[Errno N] strerror`); frames/`args` tuple are not reproduced.
@@ -227,6 +277,11 @@ impl Local for StdLocal {
             use std::os::unix::ffi::OsStrExt;
             std::fs::metadata(std::ffi::OsStr::from_bytes(&bytes)).is_ok_and(|meta| meta.is_file())
         })
+    }
+
+    fn hf_token_present(&self) -> Option<bool> {
+        let owner = std::env::var_os(crate::scan_node_bridge::OWNER_ENV).map(std::path::PathBuf::from);
+        workspace_of_owner(owner.as_deref()).map(|root| role_contract::env_secret::hf_token_present(&root))
     }
 }
 
@@ -768,18 +823,27 @@ fn scan_flow(
                 _ => PyValue::None,
             };
             let mut nas_source = "measured:main-fs";
-            let token_file =
-                match files::read_manifest_field(files, &mani_path, &text("hf_token_env_file")) {
-                    Ok(found) => found,
-                    Err(Failure::Raised(raised)) if raised.class == "ManifestUnreadable" => {
+            // plan_26112012 #11 (h57 · h58 D3 (가-1)): HF_TOKEN is the key of the workspace file envs/.env at a fixed path; the
+            // manifest carries no pointer. A pointer field left in an earlier manifest is never read for the verdict: one warning.
+            let retired_pointer = match files::read_manifest_field(
+                files,
+                &mani_path,
+                &text(role_contract::env_secret::RETIRED_TOKEN_POINTER_FIELD),
+            ) {
+                Ok(found) => !matches!(found.peel(), PyValue::None),
+                Err(Failure::Raised(raised)) if raised.class == "ManifestUnreadable" => false,
+                Err(other) => return Err(other),
+            };
+            if retired_pointer {
+                say(stderr, "[scan] WARN: manifest 의 hf_token_env_file 은 폐기된 필드다 — 판정에 쓰지 않고 무시한다(HF_TOKEN 거처 = 워크스페이스 envs/.env 의 HF_TOKEN 키 · plan_26112012 #11).\n");
+            }
+            let mut token_present = if free_form {
+                match local.hf_token_present() {
+                    Some(present) => PyValue::Bool(present),
+                    None => {
+                        say(stderr, "[scan] WARN: 워크스페이스 루트를 정할 수 없다(SCAN_NODE_OWNER_PATH) — 메인 HF_TOKEN 을 판정하지 않는다.\n");
                         PyValue::None
                     }
-                    Err(other) => return Err(other),
-                };
-            let mut token_present = if free_form {
-                match token_file.peel() {
-                    PyValue::Str(path) if !path.is_empty() => PyValue::Bool(local.is_file(path)),
-                    _ => PyValue::Bool(false),
                 }
             } else {
                 PyValue::None
@@ -790,7 +854,7 @@ fn scan_flow(
                     host,
                     &peer_ssh_value,
                     &nas_path,
-                    &token_file,
+                    &opt_text(a.sub_work_dir_set()),
                     &PyValue::None,
                 )?;
                 result_map.set("model_env_peer", peer_env.clone());

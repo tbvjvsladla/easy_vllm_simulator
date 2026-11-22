@@ -161,16 +161,21 @@ echo "[fetch] 미러 완료 — $DEST ($n 파일)."
 _CI="${SRC%/}/.claude/skills/terraforming_node/scripts/campaign_init.sh"
 _NOW="$(date -u +%FT%TZ)"
 if [ -f "$_CI" ]; then
+    # 캠페인 안/밖 판정은 이 한 자리다(plan_26112012 N1) — 편입 안내와 아래 합격 술어가 같은 값을 쓴다.
+    #   _bootstrap 이면 writer 가 스스로 no-op 이고 rc 0 이다. 그때 "편입 완료"라고 쓰면 안내가 사실과 어긋난다.
     _CAMP="$(bash "$_CI" --active 2>/dev/null || echo _bootstrap)"
     if bash "$_CI" --campaign-id "$_CAMP" --import-sub "$DEST" --utc "$_NOW"; then
-        echo "[fetch] 캠페인 편입 완료 — 서브 진행표·셀·증거가 메인 인스턴스에 앉았다."
+        if [ "$_CAMP" = "_bootstrap" ]; then
+            echo "[fetch] 캠페인 밖(_bootstrap) — 편입 없음(writer no-op)."
+        else
+            echo "[fetch] 캠페인 편입 완료 — 서브 진행표·셀·증거가 메인 인스턴스에 앉았다."
+        fi
     else
         echo "[fetch] ⚠ 캠페인 편입 실패 — 미러는 있고 진행표는 없다(위 사유 참조)." >&2
     fi
     # 합격 술어(P4 동시 착수 타임라인 · P5 서브 자기저작 · P6 셀 출처 표시)는 **회수 뒤**에 물어야 답이 있다.
     # 판정만 하고 차단하지 않는다 — 진행을 막는 자리와 판정하는 자리는 분리돼 있다(plan §9 R3).
     _CV="${SRC%/}/.claude/skills/terraforming_node/scripts/campaign_template_validator.sh"
-    _CAMP="$(bash "$_CI" --active 2>/dev/null || echo _bootstrap)"
     if [ -f "$_CV" ] && [ "$_CAMP" != "_bootstrap" ]; then
         echo "[fetch] 합격 술어(P4·P5·P6) 판정 — 차단하지 않는다(관측 결과만 남긴다):"
         bash "$_CV" --acceptance "${SRC%/}/campaigns/$_CAMP" || true

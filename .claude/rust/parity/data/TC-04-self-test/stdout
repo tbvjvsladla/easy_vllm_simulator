@@ -1,23 +1,47 @@
   [PASS] 미장착 → ready=False · 클론 missing(미선언) · 토큰 absent · 마커 missing
   [PASS] 미장착 → 다음 행동에 사람 요청(템플릿 경로 포함)
+  [PASS] --push-transport 미선언 → exit 0(not_applicable) · hint_clone_declared=False
+  [PASS] --push-transport envs/.env 일반 파일 · 선언 줄 없음 → exit 0(not_applicable) · hint_clone_declared=False
+  [PASS] --push-transport envs/.env 가 일반 파일을 가리키는 링크 → 판정 독자처럼 대상을 읽는다 · 선언 줄 없음 → exit 0
+  [PASS] ★--push-transport envs/.env 끊긴 링크 → exit 3(판독 실패 · 미선언으로 접지 않는다) · 네 값 null
+  [PASS] ★--push-transport envs/.env 디렉터리 → exit 3(판독 실패 · 미선언으로 접지 않는다) · 네 값 null
   [PASS] 미선언 --clone 거부
   [PASS] 워크스페이스 안 클론 경로 거부
   [PASS] 워크스페이스 안 선언 → 판정 invalid
   [PASS] 자격증명 박힌 URL 거부
-  [PASS] --clone 정상(로컬 원격)
+  [PASS] ★--remote-url ssh·scp형·로컬 경로 → 사용 오류(S1) · 클론 미생성
+  [PASS] ★--clone 정상(https · 네트워크 없이 insteadOf 로 로컬 bare) → push 주소 고정
   [PASS] --clone 멱등(already)
   [PASS] --write-push-authority 정상
   [PASS] --write-push-authority 멱등
-  [PASS] 로컬 원격 · 마커 · pii 있음 → ready(토큰 not_required)
-  [PASS] https 원격 · 토큰 없음 → absent · ready=False
+  [PASS] ★https 클론 + push 주소 고정 → hint_clone ok · push_scheme https · 토큰 없음 → absent · ready=False
   [PASS] 토큰 present(envs/.env) · ready
   [PASS] ★토큰 값은 출력 어디에도 없다
   [PASS] 환경변수 토큰 → source=env
   [PASS] hintlib.tag 와 토큰 키·파일·판독 규칙 일치(교차검증)
+  [PASS] ★--push-transport https+고정 → exit 0 · 네 키뿐 · URL·경로·토큰 0
+  [PASS] ★push 주소 없음 → pushurl_unpinned · ready=False · 다음 행동 sub-agent 재장착
+  [PASS] --push-transport 미고정 → exit 3(차단, usage 2 아님)
+  [PASS] ★재장착(already 경로)이 push 주소를 다시 고정 → ok
+  [PASS] ★push ssh(scp형) → violation · ready=False · 메인 에스컬레이션 · --push-transport exit 3 push_scheme ssh
+  [PASS] 재장착이 ssh push 주소를 https 로 바꾼다(fetch 가 https 일 때)
+  [PASS] ★ssh origin 픽스처 → violation · ready: false
+  [PASS] ssh fetch 클론은 재장착이 고정하지 않는다(사람·메인)
+  [PASS] 로컬 경로 원격 → invalid · ready=False · 토큰 없으면 not_required(로컬만 · #7)
   [PASS] origin URL 자격증명 → invalid · 출력 무비밀
   [PASS] 서브의 .central_authority → present_violation · ready=False · 메인 에스컬레이션
   [PASS] 워크스페이스 원격 → violation(SUB_GIT_LOCAL_ONLY)
   [PASS] 비-ignore 워크스페이스 마커 쓰기 거부
   [PASS] 판정 결정론(같은 입력 → 같은 JSON)
+  [PASS] 판정 env_file_mode 664 → wide · 다음 행동 sub-agent --narrow-env-mode · 판정은 고치지 않는다
+  [PASS] --narrow-env-mode 664 → 600 narrowed
+  [PASS] --narrow-env-mode 640 → 600 narrowed
+  [PASS] --narrow-env-mode 700 → 600 narrowed
+  [PASS] --narrow-env-mode 600 → 600 unchanged
+  [PASS] --narrow-env-mode 400 → 400 unchanged
+  [PASS] --narrow-env-mode 부재 → absent
+  [PASS] --narrow-env-mode 심볼릭 링크 → unknown · 따라가지 않는다(대상 664 그대로) · 교정 ✗
+  [PASS] covers_topologies: 메인 판정 shared → [single, multi] · 그 밖 → [single] · 출처 relayed
+  [PASS] ★envs/.env 내용(키 이름·값) 0바이트 출력 · 경로 값 0
   [PASS] 사람 요청 템플릿이 실재한다(메인 트리 · 서브 렌더 트리는 메인 전용이라 부재 정상)
---- 22/22 PASS
+--- 46/46 PASS

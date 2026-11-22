@@ -1,5 +1,5 @@
 //! Goldens of the original Python predicates (captured by `checks/capture_goldens.sh` [retired with the originals · frozen · plan_26111717]; nothing here runs Python):
-//!   * the real tree: the original's verdict is PASS for all 75 clauses -> every ported clause passes here too, the
+//!   * the real tree: the original's verdict is PASS for all 79 clauses -> every ported clause passes here too, the
 //!     JSON payload of the ported set is byte-identical to the original's PASS payload, the mapping equals the real
 //!     registry's clause ids, and every clause that is not ported is reported as a failure (never a silent pass);
 //!   * negative controls: each mutation of `checks/data/mutations.json`, applied to a copy of the tracked tree, makes

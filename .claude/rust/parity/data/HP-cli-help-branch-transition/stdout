@@ -4,7 +4,10 @@ usage: hint.sh branch-transition [-h] --remote REMOTE --generated-utc
 
 options:
   -h, --help            show this help message and exit
-  --remote REMOTE       live hint tip을 대조하고 refs/heads/hint 하나만 밀 원격
+  --remote REMOTE       live hint tip을 대조하고 refs/heads/hint 하나만 밀 원격 —
+                        메인(hints/.central_authority)의 ssh·scp형·로컬 경로
+                        원격만(https·http = HINT_BRANCH_TRANSITION_SSH_ONLY · PAT
+                        ✗)
   --generated-utc GENERATED_UTC
                         주입 UTC YYYY-MM-DDTHH:MM:SSZ(벽시계 ✗)
   --approved-by APPROVED_BY

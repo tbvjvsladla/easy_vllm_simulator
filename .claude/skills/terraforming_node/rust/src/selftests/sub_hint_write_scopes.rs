@@ -244,6 +244,8 @@ pub fn run() -> i32 {
         git(base, &["init", "-q", "-b", "hint", &clone.display().to_string()]);
         git(&clone, &["commit", "--allow-empty", "-qm", "fixture"]);
         git(&clone, &["remote", "add", "origin", "https://example.invalid/project"]);
+        // plan_26112012 S1: an equipped clone pins its push address (an unpinned one is `pushurl_unpinned`, not `ok`).
+        git(&clone, &["config", "remote.origin.pushurl", "https://example.invalid/project"]);
         git(&clone, &["worktree", "add", "-qb", "fixture", &worktree.display().to_string()]);
         std::fs::write(ws.join("envs/.env"), format!("HINT_CLONE_DIR={}\nGITHUB_TOKEN=fixture_not_a_secret\n", worktree.display())).expect("env");
         let obs = check_clone_value(&ws).unwrap_or(V::None);
@@ -268,6 +270,7 @@ pub fn run() -> i32 {
             git(p, &["commit", "--allow-empty", "-qm", "fixture"]);
         }
         git(&clone, &["remote", "add", "origin", "https://example.invalid/approved"]);
+        git(&clone, &["config", "remote.origin.pushurl", "https://example.invalid/approved"]);
         git(&other, &["remote", "add", "origin", "http://example.invalid/unrelated"]);
         std::fs::write(ws.join("envs/.env"), format!("HINT_CLONE_DIR={}\n", clone.display())).expect("env");
         let o = |rel: &str| other.join(rel).display().to_string();

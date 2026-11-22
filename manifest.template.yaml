@@ -42,7 +42,6 @@ host_safety:
 model_source: <managed|ephemeral|custom>   # 자동탐지(NAS에 스모크 모델 존재 여부) 제안 + 사람확인
 nas_model_path: /mnt/models       # managed 모드 관리 NAS 루트(read-only 마운트원 → /app/models). 환경마다 다름. 해소 = config>env>manifest>default.
 custom_model_paths: {}            # custom 모드: {모델디렉토리명: 호스트 절대경로} 매핑 → 그 경로를 볼륨마운트.
-hf_token_env_file: ""             # ephemeral/custom 다운로드 시 HF 토큰이 담긴 env 파일 경로(gitignored). ⚠ raw 토큰 비추적 — 여긴 포인터만.
 
 # === 노드 외부 egress (terraforming egress 스캔이 검증 — 서브 능력 = manifest 사실 따름정리 · plan_26070809_46_57 §4.1) ===
 network:

@@ -1,6 +1,7 @@
 #!/bin/bash
 # Direct normal ELF startup; no install/build/download or Python business fallback.
-# Ported: branch push for token-free remotes (ssh/scp/local). https remotes fail loud (HTTPS_NEEDS_HINTLIB); --self-test runs in Rust (tag.py scope args read as text; HintError mutation control N/A — hintlib is Python-owned).
+# Branch push over token-free remotes only (ssh/scp/local path): a branch push runs on main over an ssh key only (policy, plan_26112012).
+# A declared push address (pushurl, else url) that is http(s) fails loud per branch (BRANCH_PUSH_HTTPS_REFUSED); --self-test runs in Rust.
 set -euo pipefail
 SCRIPT_PATH=${BASH_SOURCE[0]}
 case "$SCRIPT_PATH" in */*) SCRIPT_DIR=${SCRIPT_PATH%/*}; [ -n "$SCRIPT_DIR" ] || SCRIPT_DIR=/ ;; *) SCRIPT_DIR=. ;; esac

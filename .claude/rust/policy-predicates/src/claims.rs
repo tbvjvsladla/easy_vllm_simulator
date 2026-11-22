@@ -113,11 +113,15 @@ pub fn predicates() -> Vec<Entry> {
         p!("ARCH_WALL_VARIANT_LADDER.C5", up::predicate_ARCH_WALL_VARIANT_LADDER_C5),
         p!("GIT_SINGLE_AUTHORITY.C1", st::predicate_GIT_SINGLE_AUTHORITY_C1),
         p!("GIT_SINGLE_AUTHORITY.C2", st::predicate_GIT_SINGLE_AUTHORITY_C2),
+        p!("ENV_SECRET_KEY_LEDGER.C1", h::predicate_ENV_SECRET_KEY_LEDGER_C1),
+        p!("ENV_SECRET_KEY_LEDGER.C2", tf::predicate_ENV_SECRET_KEY_LEDGER_C2),
+        p!("ENV_SECRET_KEY_LEDGER.C3", h::predicate_ENV_SECRET_KEY_LEDGER_C3),
+        p!("ENV_SECRET_KEY_LEDGER.C4", tf::predicate_ENV_SECRET_KEY_LEDGER_C4),
     ]
 }
 
-/// The registry predicate count tripwire (`len(PREDICATES) != 75`).
-pub const EXPECTED_PREDICATES: usize = 75;
+/// The registry predicate count tripwire (`len(PREDICATES) != 79`).
+pub const EXPECTED_PREDICATES: usize = 79;
 
 /// The Rust sources of the ported predicates (the structural "direct explicit requirement" check reads them, as the
 /// original reads `inspect.getsource(fn)`).

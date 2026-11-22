@@ -28,6 +28,10 @@
     "workspace_git_local_only": {
       "status": "invalid",
       "reason": "워크스페이스 git 판독 불가"
+    },
+    "env_file_mode": {
+      "path_rel": "envs/.env",
+      "status": "wide"
     }
   },
   "ready": false,
@@ -35,12 +39,17 @@
     {
       "actor": "sub-agent",
       "step": "clone",
-      "how": "envs/.env 에 HINT_CLONE_DIR=<워크스페이스 밖 절대경로> 를 두고 `--clone --remote-url <메인이 Task Message 로 준 프로젝트 원격>`"
+      "how": "envs/.env 에 HINT_CLONE_DIR=<워크스페이스 밖 절대경로> 를 두고 `--clone --remote-url <메인이 Task Message 로 준 자격 없는 https 프로젝트 원격>`"
     },
     {
       "actor": "sub-agent",
       "step": "push_authority",
       "how": "--write-push-authority"
+    },
+    {
+      "actor": "sub-agent",
+      "step": "narrow_env_mode",
+      "how": "--narrow-env-mode (mode & 0o600 · 넓히지 않는다 · 내용 비열람)"
     },
     {
       "actor": "main",

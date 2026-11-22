@@ -434,3 +434,77 @@ fn distinct_large_numeric_roles_are_not_the_same_role_in_the_rank_search() {
         PyValue::int(0)
     );
 }
+
+/// plan_26112012 #2: `envs/.env` is seen by lstat only and narrowed to `mode & 0o600`, never widened; a link, a directory or a failed
+/// lstat is `unknown` and never corrected; the record carries the fixed relative path and octal modes, never the content.
+#[test]
+fn the_env_file_is_narrowed_to_owner_read_write_by_its_mode_alone() {
+    use role_contract::env_file_mode::{narrow, narrowing_value, observe, EnvFileState, NarrowAction, ENV_FILE_REL};
+    use std::os::unix::fs::PermissionsExt;
+    let root = std::env::temp_dir().join(format!("rc-env-mode-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(root.join("envs")).unwrap();
+    let file = root.join(ENV_FILE_REL);
+    let content = "HF_TOKEN=hf_CHECK_VALUE_31\nGITHUB_TOKEN=ghp_CHECK_VALUE_31\n";
+    let place = |mode: u32| {
+        std::fs::write(&file, content).unwrap();
+        std::fs::set_permissions(&file, std::fs::Permissions::from_mode(mode)).unwrap();
+    };
+    let mode_now = || std::fs::symlink_metadata(&file).unwrap().permissions().mode() & 0o7777;
+    for (from, to, action) in [
+        (0o664, 0o600, NarrowAction::Narrowed),
+        (0o640, 0o600, NarrowAction::Narrowed),
+        (0o700, 0o600, NarrowAction::Narrowed),
+        (0o644, 0o600, NarrowAction::Narrowed),
+        (0o600, 0o600, NarrowAction::Unchanged),
+        (0o400, 0o400, NarrowAction::Unchanged),
+    ] {
+        place(from);
+        assert_eq!(observe(&root).is_wide(), from & !0o600 != 0, "{from:o}");
+        let n = narrow(&root);
+        assert_eq!((n.before, n.after, n.action), (EnvFileState::Regular(from), EnvFileState::Regular(to), action), "{from:o}");
+        assert_eq!(mode_now(), to, "{from:o}");
+        let text = narrowing_value(&n).repr();
+        assert!(text.contains(&format!("'before': '{from:o}'")) && text.contains(&format!("'after': '{to:o}'")), "{text}");
+        assert!(!text.contains("HF_TOKEN") && !text.contains("CHECK_VALUE") && !text.contains(&root.display().to_string()), "{text}");
+    }
+    std::fs::remove_file(&file).unwrap();
+    assert_eq!(observe(&root), EnvFileState::Absent);
+    assert_eq!(narrow(&root).action, NarrowAction::Absent);
+    let target = root.join("target.env");
+    std::fs::write(&target, content).unwrap();
+    std::fs::set_permissions(&target, std::fs::Permissions::from_mode(0o664)).unwrap();
+    std::os::unix::fs::symlink(&target, &file).unwrap();
+    assert_eq!(observe(&root), EnvFileState::Unknown);
+    let n = narrow(&root);
+    assert_eq!(n.action, NarrowAction::Unknown);
+    assert_eq!(std::fs::metadata(&target).unwrap().permissions().mode() & 0o7777, 0o664, "a link is never followed");
+    std::fs::remove_file(&file).unwrap();
+    std::fs::create_dir(&file).unwrap();
+    assert_eq!((observe(&root).status(), narrow(&root).action), ("unknown", NarrowAction::Unknown));
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+/// plan_26112012 #2b: the manifest-pair verdict over loaded manifests (no file read here): one sub each, both fields equal.
+#[test]
+fn the_sub_workspace_is_shared_only_when_one_sub_has_the_same_node_id_and_work_dir_in_both_manifests() {
+    let doc = |subs: Vec<(&str, &str)>| {
+        let mut nodes = vec![dict(vec![("role", s("main"))])];
+        for (id, dir) in subs {
+            nodes.push(dict(vec![("role", s("sub")), ("node_id", s(id)), ("work_dir", s(dir)), ("host", s(id))]));
+        }
+        dict(vec![("nodes", PyValue::List(nodes))])
+    };
+    let value = |a: &PyValue, b: &PyValue| sub_workspace_shared(Some(a), Some(b)).value;
+    let one = doc(vec![("n1", "/w")]);
+    assert_eq!(value(&one, &one), s("shared"));
+    assert_eq!(value(&one, &doc(vec![("n2", "/w")])), s("distinct"));
+    assert_eq!(value(&one, &doc(vec![("n1", "/w2")])), s("distinct"));
+    assert_eq!(value(&one, &doc(vec![("n1", "/w"), ("n3", "/w3")])), s("unknown"), "two subs: not one workspace");
+    assert_eq!(value(&one, &doc(vec![])), s("unknown"));
+    assert_eq!(value(&one, &s("not a mapping")), s("unknown"));
+    assert_eq!(sub_workspace_shared(None, Some(&one)).value, s("unknown"));
+    let verdict = sub_workspace_shared(Some(&one), Some(&one));
+    assert!(verdict.source.equals(SUB_WORKSPACE_SHARED_SOURCE));
+    assert!(!verdict.to_value().repr().contains("/w"));
+}

@@ -437,14 +437,14 @@ fn peer_egress_and_model_env_follow_the_originals_probe_text_and_folding() {
         );
     }
     let env = ssh_host(|_, stdin| {
-        assert_eq!(String::from_utf8_lossy(stdin.expect("input")), "[ -d /nas/models ] && echo NAS=1 || echo NAS=0\n[ -f '/h/to ken' ] && echo TOK=1 || echo TOK=0\n");
+        assert_eq!(String::from_utf8_lossy(stdin.expect("input")), "[ -d /nas/models ] && echo NAS=1 || echo NAS=0\nLC_ALL=C grep -aEq '^[[:space:]]*HF_TOKEN=.*[!#-&(-~]' '/h/w s'/envs/.env 2>/dev/null && echo TOK=1 || echo TOK=0\n");
         out(0, "NAS=0\nTOK=1\nother\n")
     });
     let found = probe::collect_peer_model_env(
         &env,
         &s("u@h"),
         &s("/nas/models"),
-        &s("/h/to ken"),
+        &s("/h/w s"),
         &PyValue::None,
     )
     .expect("env");
@@ -464,6 +464,133 @@ fn peer_egress_and_model_env_follow_the_originals_probe_text_and_folding() {
         shown(&nothing),
         r#"{"nas_reachable": null, "hf_token_present": null, "probed": false}"#
     );
+}
+
+/// The shell locales the HF_TOKEN checks below run the sub's line in: inherited (`[]`), C, and UTF-8 -- `LC_ALL=C.UTF-8`, and
+/// en_US.UTF-8 through `LANG` alone (a host without that locale falls back to C that way instead of a shell warning).
+const SHELL_LOCALES: [(&str, &[(&str, &str)]); 4] = [
+    ("the inherited locale", &[]),
+    ("LC_ALL=C", &[("LC_ALL", "C"), ("LANG", "C")]),
+    ("LC_ALL=C.UTF-8", &[("LC_ALL", "C.UTF-8"), ("LANG", "C.UTF-8")]),
+    ("LANG=en_US.UTF-8", &[("LANG", "en_US.UTF-8")]),
+];
+
+/// `<program> -c <script>` in one of [`SHELL_LOCALES`].
+fn run_shell(program: &str, script: &str, locale: &[(&str, &str)]) -> std::process::Output {
+    let mut command = std::process::Command::new(program);
+    command.arg("-c").arg(script);
+    if !locale.is_empty() {
+        command.env_remove("LC_ALL").env_remove("LC_CTYPE").env_remove("LANG").envs(locale.iter().copied());
+    }
+    command.output().expect(program)
+}
+
+/// plan_26112012 #11 acceptance ① on the sub side (review r1-c83-B1), one rule with the main over bytes (h115 · h117): the remote
+/// HF_TOKEN probe, run for real over scratch work folders. The line `env_secret::remote_presence_test` makes is run by `sh -c` and
+/// by `bash -c` (the sub answers in `bash -ls`), and the same line as `collect_peer_model_env` composes it (its own quoting of a
+/// folder name with a space and a quote) is handed by the scripted `ssh` to a local `sh`; each of the three runs in every locale of
+/// [`SHELL_LOCALES`]. Every case must give the answer of the main rule `env_secret::hf_token_present` over the same folder, and no
+/// output carries a byte of the value. The rule is the module's; this check only holds both sides to one answer.
+#[test]
+fn the_sub_hf_token_probe_run_by_a_shell_answers_as_the_main_rule_over_the_same_folder_and_prints_no_value() {
+    use role_contract::env_file_mode::ENV_FILE_REL;
+    use role_contract::env_secret::{hf_token_present, remote_presence_test};
+    const VALUE: &str = "fixture-value-r1-c83-b1";
+    let text = |content: String| Some(content.into_bytes());
+    let quoted = |dir: &std::path::Path| format!("'{}'", dir.display().to_string().replace('\'', "'\"'\"'"));
+    let root = std::env::temp_dir().join(format!("rc-hf-probe-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    let cases: Vec<(&str, Option<Vec<u8>>, bool)> = vec![
+        ("a value", text(format!("HF_TOKEN={VALUE}\n")), true),
+        ("no key", text("GITHUB_TOKEN=fixture-pat\nHINT_CLONE_DIR=/fixture/hint\n".to_string()), false),
+        ("the key with an empty value", text("HF_TOKEN=\n".to_string()), false),
+        ("no file", None, false),
+        ("a value, CRLF", text(format!("HF_TOKEN={VALUE}\r\n")), true),
+        ("an empty value, CRLF", text("HF_TOKEN=\r\n".to_string()), false),
+        ("double quotes only", text("HF_TOKEN=\"\"\n".to_string()), false),
+        ("single quotes only", text("HF_TOKEN=''\n".to_string()), false),
+        ("a quoted value", text(format!("HF_TOKEN=\"{VALUE}\"\n")), true),
+        ("a comment line", text(format!("# HF_TOKEN={VALUE}\n")), false),
+        ("an indented line", text(format!("  HF_TOKEN={VALUE}\n")), true),
+        // h117: only an ASCII printable byte other than a quote gives a value; nothing is decoded, so no locale changes an answer.
+        ("U+00A0 only", Some(b"HF_TOKEN=\xc2\xa0\n".to_vec()), false),
+        ("broken UTF-8 bytes only", Some(b"HF_TOKEN=\xff\xfe\n".to_vec()), false),
+        ("an ASCII value and U+00A0", text(format!("HF_TOKEN={VALUE}\u{a0}\n")), true),
+        ("a comment after an empty value (# is printable)", text("HF_TOKEN= # 주석\n".to_string()), true),
+        ("a tab only", text("HF_TOKEN=\t\n".to_string()), false),
+        ("broken UTF-8 bytes before an ASCII value", Some([b"HF_TOKEN=\xff\xfe".as_slice(), VALUE.as_bytes(), b"\n"].concat()), true),
+        ("U+00A0 before the key", text(format!("\u{a0}HF_TOKEN={VALUE}\n")), false),
+        ("a NUL byte before an ASCII value", text(format!("HF_TOKEN=\0{VALUE}\n")), true),
+    ];
+    for (n, (case, content, expected)) in cases.into_iter().enumerate() {
+        let work_dir = root.join(format!("w {n}'s"));
+        std::fs::create_dir_all(&work_dir).unwrap();
+        if let Some(bytes) = &content {
+            std::fs::create_dir_all(work_dir.join("envs")).unwrap();
+            std::fs::write(work_dir.join(ENV_FILE_REL), bytes).unwrap();
+        }
+        let main = hf_token_present(&work_dir);
+        assert_eq!(main, expected, "the main rule, {case}");
+        let line = remote_presence_test(&quoted(&work_dir));
+        for (locale_name, locale) in SHELL_LOCALES {
+            for shell in ["sh", "bash"] {
+                let ran = run_shell(shell, &line, locale);
+                let (stdout, stderr) = (String::from_utf8_lossy(&ran.stdout), String::from_utf8_lossy(&ran.stderr));
+                assert!(ran.status.success() && stderr.is_empty(), "{shell} in {locale_name}, {case}: {ran:?}");
+                assert_eq!(stdout, if main { "TOK=1\n" } else { "TOK=0\n" }, "{shell} in {locale_name} against the main rule, {case}");
+                assert!(!stdout.contains(VALUE) && !stderr.contains(VALUE), "{shell} in {locale_name}, {case}");
+            }
+            let ssh = ssh_host(move |_, stdin| {
+                let script = String::from_utf8_lossy(stdin.expect("input")).into_owned();
+                let ran = run_shell("sh", &script, locale);
+                assert!(!String::from_utf8_lossy(&ran.stdout).contains(VALUE) && ran.stderr.is_empty(), "{ran:?}");
+                Capture::Exited { code: ran.status.code().unwrap_or(-1), stdout: ran.stdout, stderr: ran.stderr }
+            });
+            let found = probe::collect_peer_model_env(&ssh, &s("u@h"), &PyValue::None, &s(&work_dir.display().to_string()), &PyValue::None)
+                .expect("env");
+            assert_eq!(
+                shown(&found),
+                format!(r#"{{"nas_reachable": null, "hf_token_present": {main}, "probed": true, "source": "measured:peer-ssh"}}"#),
+                "the composed sub probe in {locale_name} against the main rule, {case}"
+            );
+            assert!(!shown(&found).contains(VALUE) && ssh.errors.borrow().is_empty() && ssh.stderr.borrow().is_empty(), "{locale_name}, {case}");
+        }
+    }
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+/// h117 byte by byte, over all 256 bytes: a value of that one byte, and that byte before the key. The main rule
+/// `env_secret::hf_token_present` gives a value for exactly 0x21-0x7E without `"` and `'`, and lets exactly the six bytes of the C
+/// locale's `[[:space:]]` come before the key; the sub's line `env_secret::remote_presence_test` run by `sh -c` answers the same for
+/// every byte.
+#[test]
+fn every_byte_gives_a_value_or_comes_before_the_key_alike_for_the_main_rule_and_the_sub_probe() {
+    use role_contract::env_file_mode::ENV_FILE_REL;
+    use role_contract::env_secret::{hf_token_present, remote_presence_test};
+    let root = std::env::temp_dir().join(format!("rc-hf-bytes-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(root.join("envs")).unwrap();
+    let line = remote_presence_test(&format!("'{}'", root.display()));
+    let (mut value_bytes, mut blanks_before_the_key) = (Vec::new(), Vec::new());
+    for byte in 0..=u8::MAX {
+        for (place, content, present) in [
+            ("as the value", [b"HF_TOKEN=".as_slice(), &[byte], b"\n"].concat(), &mut value_bytes),
+            ("before the key", [[byte].as_slice(), b"HF_TOKEN=v\n"].concat(), &mut blanks_before_the_key),
+        ] {
+            std::fs::write(root.join(ENV_FILE_REL), &content).unwrap();
+            let main = hf_token_present(&root);
+            if main {
+                present.push(byte);
+            }
+            let ran = run_shell("sh", &line, &[]);
+            assert!(ran.status.success() && ran.stderr.is_empty(), "byte {byte:#04x} {place}: {ran:?}");
+            assert_eq!(String::from_utf8_lossy(&ran.stdout), if main { "TOK=1\n" } else { "TOK=0\n" }, "byte {byte:#04x} {place}");
+        }
+    }
+    let _ = std::fs::remove_dir_all(&root);
+    let printable_but_quotes: Vec<u8> = (0x21..=0x7e).filter(|&byte| byte != b'"' && byte != b'\'').collect();
+    assert_eq!(value_bytes, printable_but_quotes, "the value bytes of h117");
+    assert_eq!(blanks_before_the_key, b"\t\n\x0b\x0c\r ".to_vec(), "the blanks before the key: [[:space:]] under LC_ALL=C");
 }
 
 #[test]

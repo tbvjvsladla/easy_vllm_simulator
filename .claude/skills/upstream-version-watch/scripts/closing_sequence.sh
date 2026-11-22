@@ -268,12 +268,31 @@ fi
 "$LEDGER" merge --repo "$REPO" --from-ref "$OTHER" >/dev/null 2>&1 || true
 cleanup; WT=""
 
+# ⑥ 의 안내는 sync_to_sub 의 종료 코드로 원인을 가른다(검토 r1-c82-B1 · workflow.md §막힘 3분류 — 안내문이 분류를
+# 잘못 말하면 가드가 있어도 사고가 난다). 흐름은 그대로다: 어느 코드든 기재하고 진행하고, 이 시퀀스의 종료 코드는 바뀌지 않는다.
+#   push 전송 차단(plan_26112012 #3 M1-②): 값은 sync_to_sub.sh 의 PUSH_TRANSPORT_EXIT 에서 읽는다(손으로 다시 적지 않는다).
+#     배달 거래를 마감한 뒤의 종료라 배달된 내용이 남는 정상 차단이다 — 서브가 재빌드·재장착하기 전에는 다음 B1 도 같다.
+#   7 = 원격 0 확증 실패(assert_sub_origin_zero · D12): sync_to_sub 에 이름 붙은 상수가 없어 여기 적는다(upstream
+#     contract_checks 가 그 함수의 종료 코드와 대조한다). 거래 중이었으면 되돌려지므로 이번 배달은 남지 않는다.
+#   그 밖의 비-0 은 옛 안내 그대로다.
+sub_propagation_note() {
+    local rc="$1" blocked_rc
+    blocked_rc="$(sed -n 's/^PUSH_TRANSPORT_EXIT=\([0-9][0-9]*\)$/\1/p' "$SUBSYNC")"
+    if [ -n "$blocked_rc" ] && [ "$rc" = "$blocked_rc" ]; then
+        echo "[closing]   ⚠ 서브 전파 정상 차단 — 서브 재빌드(build_rust_packages.sh) 뒤 재장착(§2.5.1). sync_to_sub exit $rc(서브 hint 클론 push 전송): 배달된 내용은 남았고 실패가 아니다 — 재장착 전에는 다음 B1 도 같은 차단이다(우회하지 않는다) · 기재하고 진행" >&2
+    elif [ "$rc" = 7 ]; then
+        echo "[closing]   ⚠ 서브 전파 중단 — sync_to_sub exit 7(원격 0 확증 실패: 서브 작업 폴더에 원격이 있거나 판독하지 못했다 · D12). 이번 배달은 남지 않았다 — 위 [sync] FAIL 줄의 원인을 해소하기 전에는 다음 B1 도 같은 자리에서 멈춘다 · 기재하고 진행" >&2
+    else
+        echo "[closing]   ⚠ 서브 전파 실패 — 기재하고 진행(서브는 다음 B1 이 수렴시킨다)" >&2
+    fi
+}
+
 if [ "$DO_SUB" = "1" ] && [ -f "$SUBSYNC" ]; then
     echo "[closing] ⑥ 서브 전파 — 공통층 + 이 브랜치의 특화층을 오버레이로"
     TOPO="$("$PARITY" evaluate --repo "$REPO" --format value 2>/dev/null || true)"
     if [ -n "$TOPO" ]; then
         bash "$SUBSYNC" --mode "$GATE_MODE" --manifest "$WORK_MANIFEST" --branch "$TOPO" --apply \
-            || echo "[closing]   ⚠ 서브 전파 실패 — 기재하고 진행(서브는 다음 B1 이 수렴시킨다)" >&2
+            || sub_propagation_note "$?"
     else
         echo "[closing]   ⚠ 토폴로지를 해소하지 못해 서브 전파를 건너뛴다" >&2
     fi

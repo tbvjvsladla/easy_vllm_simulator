@@ -3,7 +3,8 @@
 # operations; a missing or non-executable file is an explicit error (status 2 + build guidance) before anything else happens. There
 # is no Python route and no silent start of another program. P1 helpers, the probe API calls (P2, `SCAN_NODE_BRIDGE`) and the scanner
 # command line (P3) all go through this launcher (the importer adapter scan_node.py starts it); only `--self-test` (the original's own
-# regression harness) keeps its explicit compat route in scan_node.py.
+# regression harness) keeps its explicit compat route in scan_node.py. `--narrow-env-mode` alone (plan_26112012 #2) narrows the main
+# workspace's envs/.env to mode & 0o600; the workspace is the root of SCAN_NODE_OWNER_PATH below, never an argument.
 set -euo pipefail
 # Logical directory (no symbolic link is resolved): the owner identity is the lexical path of this script's Python sibling.
 # Self-contained: builtins only (no `dirname` is looked up in the caller's business PATH, which is never modified).

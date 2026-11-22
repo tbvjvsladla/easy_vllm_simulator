@@ -203,24 +203,9 @@ fn grounding_fixture(camp: &Path, status: &str, reason: Option<&str>) -> R {
     write(&camp.join("grounding/20260908T000000Z.json"), &doc)
 }
 
-/// The real `Files` boundary of the P1 scanner (what the production command line hands in).
-struct OsFiles;
-impl role_contract::scan_node_files::Files for OsFiles {
-    fn exists(&self, path: &[u8]) -> bool {
-        use std::os::unix::ffi::OsStrExt;
-        std::fs::metadata(std::ffi::OsStr::from_bytes(path)).is_ok()
-    }
-    fn read(&self, path: &[u8]) -> Result<Vec<u8>, role_contract::scan_node_files::FileFault> {
-        use std::os::unix::ffi::OsStrExt;
-        std::fs::read(std::ffi::OsStr::from_bytes(path)).map_err(|e| role_contract::scan_node_files::FileFault {
-            errno: e.raw_os_error().unwrap_or(0),
-            strerror: e.to_string(),
-        })
-    }
-}
-
 const SCAN_NODE_CLI_RS: &str = ".claude/skills/adversarial-benchmark/rust/src/scan_node_cli.rs";
 const SCAN_NODE_PROBE_RS: &str = ".claude/rust/role-contract/src/scan_node_probe.rs";
+const ENV_SECRET_RS: &str = ".claude/rust/role-contract/src/env_secret.rs";
 const SCAN_NODE_P1_T_SOURCES: [&str; 3] = [
     ".claude/rust/role-contract/src/scan_node.rs",
     ".claude/rust/role-contract/src/scan_node_manifest.rs",
@@ -231,69 +216,75 @@ const CAMPAIGN_WRITE_RS: &str = ".claude/skills/adversarial-benchmark/rust/src/c
 // ---------------------------------------------------------------- MODEL_ACQUISITION_TERNARY_GATE.C4
 
 pub fn predicate_MODEL_ACQUISITION_TERNARY_GATE_C4() -> R {
+    // plan_26112012 #11 (h57 · h58 D3 (가-1)): HF_TOKEN is the key HF_TOKEN of the untracked workspace file envs/.env at a fixed path
+    // (ENV_SECRET_KEY_LEDGER) -- no manifest pointer field; the value is never tracked, emitted or printed.
+    // ① no pointer field: the template carries none and the P1 parts (the sub-manifest issuance included) never copy one.
+    let pointer = role_contract::env_secret::RETIRED_TOKEN_POINTER_FIELD;
     let tmpl = read("manifest.template.yaml")?;
-    req(search("hf_token_env_file:\\s*\"\"", &tmpl).is_some(), "must default to an empty pointer field")?;
-    let gitignore = read(".gitignore")?;
-    let lines = splitlines(&gitignore);
-    req(lines.contains(&".env") && lines.contains(&"envs/.env.*"), "env files (where a real hf token would live) must be gitignored")?;
-
-    // Code-level: read_manifest_field (the Rust P1 owner) resolves the pointer -- a path string, never file content.
-    let tmp = TempDir::new("pp-mat-c4-")?;
-    let mpath = tmp.path().join("manifest.yaml");
-    write(&mpath, "hf_token_env_file: /some/host/path/token.env\n")?;
-    let got = role_contract::scan_node_files::read_manifest_field(&OsFiles, &PyValue::str(&ps(&mpath)), &PyValue::str("hf_token_env_file"))
-        .map_err(|e| Fail::new("RuntimeError", format!("{e:?}")))?;
-    req(jstr(&got).as_deref() == Some("/some/host/path/token.env"), "predicate requirement failed at original line 1203")?;
-
-    // Source-level (mutation-sensitive), retargeted from scan_node_original.py's main() to the Rust command line that now
-    // carries it (`scan_node_cli.rs`): every use of the resolved pointer `token_file` is its definition, an existence check
-    // (`local.is_file(path)` inside `match token_file.peel()`), or the remote probe `collect_peer_model_env(.., &token_file, ..)`.
-    let cli = read(SCAN_NODE_CLI_RS)?;
-    let def = "match files::read_manifest_field(files, &mani_path, &text(\"hf_token_env_file\"))";
-    req(cli.contains(def), "hf_token_env_file must actually be consumed somewhere (not dead code)")?;
-    let tok = re(r"\btoken_file\b");
-    let mut sinks: Vec<String> = Vec::new();
-    for m in tok.find_iter(&cli).flatten() {
-        let (s, e) = (m.start(), m.end());
-        let before = &cli[s.saturating_sub(4)..s];
-        let after = &cli[e..(e + 8).min(cli.len())];
-        let call_open = cli[..s].rfind("collect_peer_model_env(");
-        let in_probe_call = call_open.map_or(false, |o| !cli[o..s].contains(")?") && before.ends_with('&'));
-        let kind = if before.ends_with("let ") {
-            "definition"
-        } else if after.starts_with(".peel()") {
-            "isfile"
-        } else if in_probe_call {
-            "collect_peer_model_env"
-        } else {
-            "other"
-        };
-        sinks.push(kind.to_string());
-    }
-    req(sinks.iter().any(|k| k != "definition"), "hf_token_env_file must actually be consumed somewhere (not dead code)")?;
-    let allowed = ["definition", "isfile", "collect_peer_model_env"];
-    req(sinks.iter().all(|k| allowed.contains(&k.as_str())), format!("hf_token_env_file may only be passed to existence checks (local or remote), found: {}", repr_list(&sinks)))?;
-    let m = index(&cli, "match token_file.peel()")?;
-    let arm_end = index_from(&cli, "};", m)?;
-    let arm = &cli[m..arm_end];
-    req(arm.contains("local.is_file(path)"), "hf_token_env_file may only be passed to existence checks (local or remote), found: a non-isfile local use")?;
-    for banned in ["read_file", "read_to_string", "fs::read", "open("] {
-        req(!arm.contains(banned), "the raw token file's content must never be read")?;
-    }
-    req(search(r"(?:read|open)[A-Za-z_]*\([^)]*token_file", &cli).is_none(), "the raw token file's content must never be read")?;
-    let peer = rust_fn_body(&read(SCAN_NODE_PROBE_RS)?, "collect_peer_model_env")?;
-    req(!peer.contains("open(") && !peer.contains("read_file") && !peer.contains("read_to_string") && !peer.contains("cat "), "the remote existence probe must never read the token file content")?;
-    req(peer.contains("[ -f "), "the remote probe must be an existence test, not a content read")?;
-
-    // The P1 parts (Rust T sources) never read the token file either.
+    req(!tmpl.contains(pointer), "manifest.template.yaml must not carry the retired hf_token_env_file pointer -- HF_TOKEN is the key of envs/.env")?;
     let mut p1: Vec<(String, String)> = Vec::new();
     for rel in SCAN_NODE_P1_T_SOURCES {
         p1.push((rel.to_string(), read(rel)?));
     }
+    req(p1.iter().all(|(_, t)| !t.contains(pointer)), "the P1 Rust T sources (the sub-manifest issuance included) must not carry the retired hf_token_env_file pointer")?;
     req(p1.iter().all(|(_, t)| ["std::fs", "File::open", "read_to_string"].iter().all(|n| !t.contains(n))), "the P1 Rust T sources must read files only through the Files boundary")?;
-    let quoted = re(r".hf_token_env_file.");
-    req(p1.iter().all(|(_, t)| quoted.find_iter(t).flatten().all(|m| m.as_str().starts_with('"') && m.as_str().ends_with('"'))), "hf_token_env_file may appear in the P1 Rust T sources only as a quoted manifest key")?;
-    req(!p1.iter().find(|(r, _)| r.ends_with("scan_node_files.rs")).map(|(_, t)| t.contains("hf_token")).unwrap_or(true), "the P1 file reader must not know the token pointer at all")
+
+    // ② the secret file and its variants are gitignored.
+    let gitignore = read(".gitignore")?;
+    let lines = splitlines(&gitignore);
+    req(lines.contains(&".env") && lines.contains(&"envs/.env") && lines.contains(&"envs/.env.*"), "env files (where a real hf token would live) must be gitignored")?;
+
+    // ③ the main's judgement answers a bool over the fixed path and nothing else: in process on fixtures, and by its source
+    //    (mutation-sensitive): the function takes the workspace, returns bool, and no line of it prints, formats or logs.
+    let tmp = TempDir::new("pp-mat-c4-")?;
+    let env = tmp.path().join("envs/.env");
+    let fixtures: [(Option<&str>, bool); 6] = [
+        (Some("HF_TOKEN=hf_fixture_value\n"), true),
+        (Some("  HF_TOKEN='hf_fixture_value'\n"), true),
+        (Some("OTHER_KEY=1\n"), false),
+        (Some("HF_TOKEN=\n"), false),
+        (Some("HF_TOKEN=\"\"\n# HF_TOKEN=hf_fixture_value\n"), false),
+        (None, false),
+    ];
+    for (i, (content, want)) in fixtures.iter().enumerate() {
+        match content {
+            Some(text) => write(&env, text)?,
+            None => {
+                let _ = std::fs::remove_file(&env);
+            }
+        }
+        req(role_contract::env_secret::hf_token_present(tmp.path()) == *want, format!("the HF_TOKEN judgement must answer {want} for fixture {i} (value, quoted value, other key, empty, empty+comment, absent)"))?;
+    }
+    let secret = read(ENV_SECRET_RS)?;
+    req(secret.contains("pub fn hf_token_present(workspace: &Path) -> bool {"), "the HF_TOKEN judgement (env_secret::hf_token_present) must take the workspace and answer a bool only")?;
+    let judge = rust_fn_body(&secret, "hf_token_present")?;
+    for banned in ["print", "write", "format!", "log", "stdout", "stderr", "Err(e"] {
+        req(!judge.contains(banned), "the HF_TOKEN judgement (env_secret::hf_token_present) must print or return nothing of the file")?;
+    }
+    // the scan takes that bool, from the launcher's workspace, and reads the retired pointer only to warn
+    let cli = read(SCAN_NODE_CLI_RS)?;
+    req(
+        cli.contains("match local.hf_token_present() {") && cli.contains("Some(present) => PyValue::Bool(present),")
+            && cli.contains("role_contract::env_secret::hf_token_present(&root)"),
+        "the scan must take hf_token_present from the fixed-path judgement of the launcher's workspace, as a bool",
+    )?;
+    req(
+        count(&cli, "env_secret::RETIRED_TOKEN_POINTER_FIELD") == 1 && count(&cli, "retired_pointer") == 2 && cli.contains("if retired_pointer {"),
+        "a retired hf_token_env_file left in a manifest may only be read for its one warning line, never for a verdict",
+    )?;
+
+    // ④ the sub's answer is an exit code: the probe sends env_secret::remote_presence_test over <work dir>/envs/.env and reads TOK only.
+    let peer = rust_fn_body(&read(SCAN_NODE_PROBE_RS)?, "collect_peer_model_env")?;
+    req(peer.contains("env_secret::remote_presence_test("), "the remote probe must test HF_TOKEN with env_secret::remote_presence_test (an exit code only)")?;
+    req(!peer.contains("open(") && !peer.contains("read_file") && !peer.contains("read_to_string") && !peer.contains("cat "), "the remote existence probe must never read the token file content")?;
+    let test = rust_fn_body(&secret, "remote_presence_test")?;
+    req(
+        test.contains("LC_ALL=C grep -aEq ") && test.contains("2>/dev/null && echo TOK=1 || echo TOK=0") && !test.contains("cat "),
+        "the remote HF_TOKEN test must answer by grep's exit code only (LC_ALL=C grep -aEq, TOK=1/0), never print a line",
+    )?;
+    let line = role_contract::env_secret::remote_presence_test("/w");
+    req(line.starts_with("LC_ALL=C grep -aEq ") && line.ends_with("&& echo TOK=1 || echo TOK=0"), "the remote HF_TOKEN test must answer by grep's exit code only (LC_ALL=C grep -aEq, TOK=1/0), never print a line")?;
+    req(!p1.iter().find(|(r, _)| r.ends_with("scan_node_files.rs")).map(|(_, t)| t.contains("hf_token")).unwrap_or(true), "the P1 file reader must not know the token at all")
 }
 
 // ---------------------------------------------------------------- TERRAFORM_FLAG_GATE.C1
@@ -844,4 +835,171 @@ pub fn predicate_LIBRARY_GROUNDING_FAIL_CLOSED_C4() -> R {
     let created = jget(&json_loads(&first.stdout)?, "created").map_or(false, PyValue::is_truthy);
     let writes = jget(&json_loads(&second.stdout)?, "writes").map_or(false, PyValue::is_truthy);
     req(created && !writes, "입고가 증분이 아니다(같은 원문 재입고가 다시 쓴다)")
+}
+
+// ---------------------------------------------------------------- ENV_SECRET_KEY_LEDGER.C2 / C4
+// plan_26112012 #4 (K1, h56; wording h85). C1 and C3 live in claims_hint.rs (the sync and hint-crate edges of that module, tripwire ⑨).
+
+/// The closed ledger of the workspace secret file envs/.env (ENV_SECRET_KEY_LEDGER C2): a new key needs a revised plan and HITL.
+pub const ENV_SECRET_LEDGER_KEYS: [&str; 3] = ["GITHUB_TOKEN", "HF_TOKEN", "HINT_CLONE_DIR"];
+
+/// The statement of one registry clause.
+fn registry_clause_statement(clause_id: &str) -> R<String> {
+    let doc = json_load(".claude/policies/registry.yaml")?;
+    for policy in jlist(jget(&doc, "policies")?) {
+        for clause in jget(&policy, "clauses").map(jlist).unwrap_or_default() {
+            if jget(&clause, "clause_id").ok().and_then(jstr).as_deref() == Some(clause_id) {
+                return jget(&clause, "statement").ok().and_then(jstr).ok_or_else(|| Fail::predicate(format!("{clause_id} has no statement")));
+            }
+        }
+    }
+    Err(Fail::predicate(format!("{clause_id} is not in the registry")))
+}
+
+/// The policy ids of the registry.
+fn registry_policy_ids() -> R<std::collections::BTreeSet<String>> {
+    let doc = json_load(".claude/policies/registry.yaml")?;
+    Ok(jlist(jget(&doc, "policies")?).iter().filter_map(|p| jget(p, "policy_id").ok().and_then(jstr)).collect())
+}
+
+/// Test planes of the harness sources: check and self-test code, parity data, and this crate (its fixtures write keys on purpose).
+fn is_test_plane(rel: &str) -> bool {
+    let name = rel.rsplit('/').next().unwrap_or(rel);
+    ["/checks/", "/selftests/", "/tests/", "/parity/"].iter().any(|d| rel.contains(d))
+        || name.contains("selftest")
+        || name.contains("self_test")
+        || rel.starts_with(".claude/rust/policy-predicates/")
+}
+
+/// The harness sources (`.rs`, `.sh`) under `.claude/` of the tracked tree, test planes left out: `git ls-files` of the work tree,
+/// or every such file of a fixture copy of the tracked tree (it has no `.git`; build outputs `target/` are skipped).
+fn harness_sources() -> R<Vec<String>> {
+    let root = repo_root();
+    let listed: Vec<String> = if root.join(".git").exists() {
+        let p = run(&["git", "-C", &root.display().to_string(), "ls-files", "-z", "--", ".claude"], None, &[], None, Some(60))?;
+        req(p.code == 0, format!("git ls-files failed: {}", strip(&p.stderr)))?;
+        p.stdout.split('\0').filter(|r| !r.is_empty()).map(str::to_string).collect()
+    } else {
+        fn walk(dir: &Path, rel: &str, out: &mut Vec<String>) {
+            let Ok(entries) = std::fs::read_dir(dir) else { return };
+            for entry in entries.flatten() {
+                let name = entry.file_name().to_string_lossy().into_owned();
+                let child = format!("{rel}/{name}");
+                match entry.file_type() {
+                    Ok(t) if t.is_dir() && name != "target" => walk(&entry.path(), &child, out),
+                    Ok(t) if t.is_file() => out.push(child),
+                    _ => {}
+                }
+            }
+        }
+        let mut out = Vec::new();
+        walk(&root.join(".claude"), ".claude", &mut out);
+        out
+    };
+    let mut sources: Vec<String> = listed.into_iter().filter(|r| (r.ends_with(".rs") || r.ends_with(".sh")) && !is_test_plane(r)).collect();
+    sources.sort();
+    Ok(sources)
+}
+
+/// The keys a harness source reads from the content of envs/.env, `None` when it never reads that content. Rust: a source that joins
+/// the fixed path (`ENV_FILE_REL`, `TOKEN_ENV_FILE_REL` or the literal) and reads a file names its keys as `const …KEY: &str` or a
+/// `starts_with("KEY=")` prefix. Shell: a code line that names the fixed path and reads it names the keys as `KEY=`.
+fn env_file_keys_read(rel: &str, text: &str) -> Option<std::collections::BTreeSet<String>> {
+    let comment = if rel.ends_with(".sh") { "#" } else { "//" };
+    let code: Vec<&str> = text.lines().filter(|l| !l.trim_start().starts_with(comment)).collect();
+    if rel.ends_with(".rs") {
+        let code = code.join("\n");
+        let joins = [".join(ENV_FILE_REL)", ".join(TOKEN_ENV_FILE_REL)", ".join(\"envs/.env\")"].iter().any(|j| code.contains(j));
+        let reads = ["std::fs::read(", "read_to_string(", "File::open("].iter().any(|r| code.contains(r));
+        if !(joins && reads) {
+            return None;
+        }
+        let mut keys: std::collections::BTreeSet<String> = findall(r#"const [A-Z_]*KEY: &str = "([A-Z][A-Z0-9_]*)";"#, &code).into_iter().collect();
+        keys.extend(findall(r#"starts_with\("([A-Z][A-Z0-9_]*)="\)"#, &code));
+        return Some(keys);
+    }
+    let names_file = re(r"envs/\.env(?![.\w])");
+    let reads = re(r"\b(?:grep|sed|awk|cat|source|read|cut|head|tail)\b|^\s*\.\s");
+    let lines: Vec<&str> = code.into_iter().filter(|l| names_file.is_match(l).unwrap_or(true) && reads.is_match(l).unwrap_or(true)).collect();
+    if lines.is_empty() {
+        return None;
+    }
+    Some(lines.iter().flat_map(|l| findall(r"([A-Z][A-Z0-9_]*)=", l)).collect())
+}
+
+/// ENV_SECRET_KEY_LEDGER C2: the ledger is the closed list GITHUB_TOKEN, HF_TOKEN, HINT_CLONE_DIR; the main's template and every
+/// tracked harness source that reads envs/.env name ledger keys only.
+pub fn predicate_ENV_SECRET_KEY_LEDGER_C2() -> R {
+    let ledger: std::collections::BTreeSet<String> = ENV_SECRET_LEDGER_KEYS.iter().map(|k| k.to_string()).collect();
+    // ① the clause states this closed list and each key's secrecy (a policy id it names aside, every key-shaped name is a key).
+    let statement = registry_clause_statement("ENV_SECRET_KEY_LEDGER.C2")?;
+    let policies = registry_policy_ids()?;
+    let named: std::collections::BTreeSet<String> =
+        findall(r"\b[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+\b", &statement).into_iter().filter(|n| !policies.contains(n)).collect();
+    req(
+        named == ledger
+            && statement.contains("closed list")
+            && statement.contains("GITHUB_TOKEN (secret;")
+            && statement.contains("HF_TOKEN (secret;")
+            && statement.contains("HINT_CLONE_DIR (not secret;"),
+        format!("ENV_SECRET_KEY_LEDGER.C2 must state exactly the closed list {} with each key's secrecy", repr_list(&ENV_SECRET_LEDGER_KEYS)),
+    )?;
+
+    // ② the main's template envs/.env.example names ledger keys only.
+    let example = read("envs/.env.example")?;
+    let template_keys: Vec<String> = splitlines(&example)
+        .into_iter()
+        .map(strip)
+        .filter(|l| !l.is_empty() && !l.starts_with('#'))
+        .map(|l| strip(l.split('=').next().unwrap_or("")).to_string())
+        .collect();
+    req(!template_keys.is_empty() && template_keys.iter().all(|k| ledger.contains(k)), "envs/.env.example must name ledger keys only")?;
+
+    // ③ every tracked harness source that reads the file's content reads ledger keys only, and every ledger key has a reader.
+    let mut readers: BTreeMap<String, std::collections::BTreeSet<String>> = BTreeMap::new();
+    for rel in harness_sources()? {
+        let Ok(text) = std::fs::read_to_string(repo_root().join(&rel)) else { continue };
+        if let Some(keys) = env_file_keys_read(&rel, &text) {
+            readers.insert(rel, keys);
+        }
+    }
+    for (rel, keys) in &readers {
+        req(!keys.is_empty(), format!("{rel} reads envs/.env but names no key the ledger can check"))?;
+        let outside: Vec<&String> = keys.iter().filter(|k| !ledger.contains(*k)).collect();
+        req(outside.is_empty(), format!("{rel} reads a key outside the envs/.env ledger: {}", repr_list(&outside.iter().map(|k| k.as_str()).collect::<Vec<_>>())))?;
+    }
+    let read_keys: std::collections::BTreeSet<String> = readers.values().flatten().cloned().collect();
+    req(read_keys == ledger, format!("every ledger key must have a reader among the harness sources (read: {})", repr_list(&read_keys.iter().map(String::as_str).collect::<Vec<_>>())))?;
+
+    // ④ the owners in process: the PAT key of hint-publisher and the HF key of the role contract share the one fixed path, and the
+    //    HF_TOKEN judgement answers for that key only.
+    req(
+        hintlib::tag::TOKEN_KEY == "GITHUB_TOKEN"
+            && hintlib::tag::TOKEN_ENV_FILE_REL == role_contract::env_file_mode::ENV_FILE_REL
+            && role_contract::env_secret::HF_TOKEN_KEY == "HF_TOKEN",
+        "the PAT and HF_TOKEN readers must name their ledger keys over the one fixed path envs/.env",
+    )?;
+    let tmp = TempDir::new("k1-c2-")?;
+    let env = tmp.path().join(role_contract::env_file_mode::ENV_FILE_REL);
+    write(&env, "GITHUB_TOKEN=fixture-pat\nHINT_CLONE_DIR=/fixture/hint\n")?;
+    let other_keys_only = role_contract::env_secret::hf_token_present(tmp.path());
+    write(&env, "GITHUB_TOKEN=fixture-pat\nHF_TOKEN=hf_fixture_value\n")?;
+    req(!other_keys_only && role_contract::env_secret::hf_token_present(tmp.path()), "the HF_TOKEN judgement must answer for the key HF_TOKEN only")
+}
+
+/// ENV_SECRET_KEY_LEDGER C4: the HF_TOKEN use rule lives in MODEL_ACQUISITION_TERNARY_GATE.C4 and this clause only points to it --
+/// the pointer holds when that clause names the key, the fixed file and this ledger back, and its own predicate passes.
+pub fn predicate_ENV_SECRET_KEY_LEDGER_C4() -> R {
+    let pointer = registry_clause_statement("ENV_SECRET_KEY_LEDGER.C4")?;
+    req(
+        pointer.contains("MODEL_ACQUISITION_TERNARY_GATE") && pointer.contains("only points to it"),
+        "ENV_SECRET_KEY_LEDGER.C4 must only point to MODEL_ACQUISITION_TERNARY_GATE",
+    )?;
+    let rule = registry_clause_statement("MODEL_ACQUISITION_TERNARY_GATE.C4")?;
+    req(
+        rule.contains("HF_TOKEN") && rule.contains("envs/.env") && rule.contains("ENV_SECRET_KEY_LEDGER"),
+        "MODEL_ACQUISITION_TERNARY_GATE.C4 must hold the HF_TOKEN rule over envs/.env and name ENV_SECRET_KEY_LEDGER back",
+    )?;
+    req(ENV_SECRET_LEDGER_KEYS.contains(&role_contract::env_secret::HF_TOKEN_KEY), "HF_TOKEN must be a key of the envs/.env ledger")?;
+    predicate_MODEL_ACQUISITION_TERNARY_GATE_C4()
 }

@@ -935,11 +935,14 @@ fn quoted_argument(value: &PyValue, what: &str) -> Res<Option<PyStr>> {
         })
 }
 
+/// `collect_peer_model_env(ssh_target, nas_path, sub_work_dir, ssh_opts)`: the sub's NAS reachability and whether the sub's own
+/// workspace file `<sub_work_dir>/envs/.env` gives `HF_TOKEN` a value (plan_26112012 #11: the fixed path, never a manifest pointer).
+/// Both answers are exit codes of the remote tests (`NAS=1/0`, `TOK=1/0`); no line of a file is ever sent back.
 pub fn collect_peer_model_env(
     host: &dyn Host,
     ssh_target: &PyValue,
     nas_path: &PyValue,
-    hf_token_env_file: &PyValue,
+    sub_work_dir: &PyValue,
     ssh_opts: &PyValue,
 ) -> Res<PyValue> {
     let options = ssh_options(ssh_opts)?;
@@ -952,12 +955,11 @@ pub fn collect_peer_model_env(
                 .ok_or_else(|| unsupported("a NAS path with a lone surrogate"))?
         ));
     }
-    if let Some(quoted) = quoted_argument(hf_token_env_file, "a token file")? {
-        checks.push(format!(
-            "[ -f {} ] && echo TOK=1 || echo TOK=0",
-            quoted
+    if let Some(quoted) = quoted_argument(sub_work_dir, "a sub work directory")? {
+        checks.push(crate::env_secret::remote_presence_test(
+            &quoted
                 .to_utf8()
-                .ok_or_else(|| unsupported("a token file with a lone surrogate"))?
+                .ok_or_else(|| unsupported("a sub work directory with a lone surrogate"))?,
         ));
     }
     let unprobed = || {

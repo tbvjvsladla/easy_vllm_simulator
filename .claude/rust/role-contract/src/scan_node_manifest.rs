@@ -207,8 +207,8 @@ pub fn build_sub_manifest(
             Ok(PyValue::Dict(PyDict::new()))
         })?,
     );
+    // plan_26112012 #11: no HF token pointer is issued (HF_TOKEN is the key of the sub's own envs/.env at a fixed path)
     for (key, name) in [
-        ("hf_token_env_file", "hf_token_env_file"),
         ("quant_model_path", "quant_model_path"),
         ("tiktoken_host_path", "tiktoken_host_path"),
     ] {

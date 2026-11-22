@@ -8,7 +8,7 @@
 # 흐름:
 #   B0 멱등 self-bootstrap — 서브 .git 부재 시: git init + base(.gitignore) 커밋 + multi·single 브랜치 생성,
 #                            그리고 multi 브랜치 초기 전체 배달(+커밋). single=base(dormant). **첫 init=HITL(--apply)**.
-#   B1 per-branch 증분(--branch) — dirty 체크(fail-closed) → checkout → render → rsync(빌드+오버레이) → [sync] 커밋.
+#   B1 per-branch 증분(--branch) — 원격 0 확증(M1-①) → dirty 체크(fail-closed) → checkout → render → rsync(빌드+오버레이) → 체크섬 → env-mode 관측·push 전송 판정(#2b·M1-②) → [sync] 커밋. push 전송 차단은 거래 마감 뒤 exit 13.
 #        겹침 = main-canonical(sub-yields). 서브 [improve] history 는 git 에 잔존.
 #   single 확장 게이트(D12 Gap B) — 판정은 `node_role_contract.py … --field delivery_plane`(단일 소유자)가 한다.
 #        single 의 sub_mode=a2a-agent → **dormant(빌드킷 배달 skip)** · multi 의 sub 만 ray-worker → active.
@@ -2347,6 +2347,71 @@ if ! ssh_run "$SUB_HOST" "[ -d '$SUB_WORK_DIR' ]" 2>/dev/null; then
     PROVISIONED_BY_SYNC=1
 fi
 
+# ── 매 동기화 원격 0 확증 (plan_26112012 #3 M1-① · policy:SUB_GIT_LOCAL_ONLY C1·C2) ──
+# 서브 작업 폴더 git 에 원격이 없음을 매 동기화마다 확증한다 — B0 와 B1 각 타겟 시작(dirty 검사 앞)에서 부른다.
+#   원격 판독은 이 함수 한 곳뿐이다(C2 술어: 원격 디스패치는 맨 판독 1개). 판독 실패는 "원격 없음"이 아니다(F9) —
+#   판독 실패와 원격 존재 모두 exit 7 로 멈춘다. $1 = 표시 라벨(B1 = 타겟 · B0 = 없음, 옛 B0 출력 그대로).
+assert_sub_origin_zero() {
+    REMOTES="$(sub_run 'git remote')" \
+        || { echo "[sync] FAIL(F9): 서브 origin 판독 실패${1:+($1)} — 로컬 전용(D12)을 확증할 수 없으므로 거부." >&2; exit 7; }
+    [ -z "$REMOTES" ] && echo "[sync] ${1:+[$1] }✅ origin 0 (로컬 전용 확증)" || { echo "[sync] FAIL: 서브에 원격 존재${1:+($1)}($REMOTES) — D12 위반"; exit 7; }
+}
+
+# ── 배달 뒤 관측·판정 (plan_26112012 #2b · #3 M1-②) — B1 각 타겟의 verify_checksums 다음에 부른다 ──
+# 둘 다 그 자리에서 동기화를 끝내지 않는다. 배달 거래 중(begin_remote_transaction 뒤 · finalize_remote_transactions 앞)의
+#   비-0 종료는 EXIT trap(transactional_exit)이 배달 전체를 되돌려, 재장착에 필요한 새 소스까지 서브에 남지 않는다(교착).
+#
+# #2b 서브 envs/.env 관측: 종류와 mode 비트만 본다 — 원격에서 lstat 만 하고(링크를 따라가지 않는다) 내용·키 이름은 읽지
+#   않는다. 한 줄 `[sync] env-mode(<t>): absent|<mode>|wide:<mode>|unknown`. wide = 600 보다 넓음(mode & ~0600 ≠ 0).
+#   일반 파일이 아님·판독 실패는 unknown 이다(600 으로 간주하지 않는다). 배달을 막지 않고 고치지 않는다 — 교정은 서브
+#   재장착 안의 장착 도구 몫이고, 메인은 서브 파일을 직접 고치지 않는다(헌법 노드 제어 ①).
+ENV_MODE_PROBE='if [ ! -e envs/.env ] && [ ! -L envs/.env ]; then echo absent; else stat -c "%F|%a" -- envs/.env 2>/dev/null || echo unknown; fi'
+observe_sub_env_mode() {  # $1=topology · 관측과 기록만
+    local t="$1" got="" mode="" v=unknown
+    got="$(sub_run "$ENV_MODE_PROBE" </dev/null 2>/dev/null)" || got=unknown
+    case "$got" in
+        absent) v=absent ;;
+        "regular file|"*|"regular empty file|"*)
+            mode="${got##*|}"
+            if [[ "$mode" =~ ^[0-7]{3,4}$ ]]; then
+                if (( (8#$mode & ~8#600) != 0 )); then v="wide:$mode"; else v="$mode"; fi
+            fi ;;
+    esac
+    echo "[sync] env-mode($t): $v"
+}
+#
+# M1-② 서브 hint 클론의 push 전송 판정(policy:HINT_TAG_ACTIVATION_GATE C4 · 사용자 결정 h90–h92).
+#   해석(h90 · 엄격): 장착 도구 `check_sub_hint_equip.sh --push-transport` 의 rc 0 = ok, 그 밖은 모두 정상 차단이다 —
+#   ssh·scp형 push · pushurl 미고정 · 그 모드를 모르는 옛 실행체(usage rc 2: terraforming 실행체는 서브가 스스로 빌드하고
+#   배달은 소스만 나른다) · 런처 부재 · 판독 실패. 메인은 고치지 않는다 — 서브 재빌드 뒤 재장착(§2.5.1).
+#   sub_mode = ray-worker(multi 서브)에는 장착 도구가 배달되지 않으므로 부르지 않고 not_applicable 로 적는다(h92).
+#   sub_mode 를 정하지 못하면 차단이다(fail-closed). 막을 타겟은 PUSH_TRANSPORT_BLOCKED 에 모으고, 비-0 종료는 이 스크립트
+#   끝에서 거래를 마감한 뒤 PUSH_TRANSPORT_EXIT 로 낸다(h91) — 배달된 내용은 남는다. 도구의 stdout 은 싣지 않는다(rc 로만 판정).
+PUSH_TRANSPORT_EXIT=13
+PUSH_TRANSPORT_GUIDE="정상 차단 — 서브 재빌드(build_rust_packages.sh) 뒤 재장착(§2.5.1)"
+PUSH_TRANSPORT_BLOCKED=()
+check_sub_push_transport() {  # $1=topology · 판정과 기록만(동기화를 끝내는 것은 스크립트 끝)
+    local t="$1" mode="" rc=0
+    mode="$("$ROLE_CONTRACT" evaluate --manifest "${SRC%/}/output/$t/manifest.yaml" --topology "$t" \
+                --field sub_mode --format value 2>/dev/null)" || mode=""
+    if [ "$mode" = "ray-worker" ]; then
+        echo "[sync] push-transport($t): not_applicable"
+        return 0
+    fi
+    if [ "$mode" != "a2a-agent" ]; then
+        echo "[sync] push-transport($t): blocked (sub_mode 미해소: '${mode:-<empty>}' — fail-closed) — $PUSH_TRANSPORT_GUIDE"
+        PUSH_TRANSPORT_BLOCKED+=("$t")
+        return 0
+    fi
+    sub_run "bash .claude/skills/terraforming_node/scripts/check_sub_hint_equip.sh --push-transport" </dev/null >/dev/null || rc=$?
+    if [ "$rc" = "0" ]; then
+        echo "[sync] push-transport($t): ok"
+    else
+        echo "[sync] push-transport($t): blocked (rc=$rc) — $PUSH_TRANSPORT_GUIDE"
+        PUSH_TRANSPORT_BLOCKED+=("$t")
+    fi
+}
+
 # ── B0 멱등 self-bootstrap (서브 .git 부재 시) ──
 if [ $HAS_GIT = 0 ]; then
     echo "[sync] B0 BOOTSTRAP — 서브 git init + multi·single 브랜치 (로컬 전용·origin 없음)"
@@ -2383,10 +2448,8 @@ if [ $HAS_GIT = 0 ]; then
         sub_run "git checkout -q single"
         echo "[sync] B0: multi 는 base 로 남긴다(타겟 아님 — 싱글 서브는 자기 빌드킷을 자율 저작한다)."
     fi
-    # origin 부재 불변식 확증
-    REMOTES="$(sub_run 'git remote')" \
-        || { echo "[sync] FAIL(F9): 서브 origin 판독 실패 — 로컬 전용(D12)을 확증할 수 없으므로 거부." >&2; exit 7; }
-    [ -z "$REMOTES" ] && echo "[sync] ✅ origin 0 (로컬 전용 확증)" || { echo "[sync] FAIL: 서브에 원격 존재($REMOTES) — D12 위반"; exit 7; }
+    # origin 부재 불변식 확증(B0 · M1-①)
+    assert_sub_origin_zero
     echo "[sync] B0 완료 — multi=$([ -n "$BOOTSTRAP_POPULATE" ] && echo populated || echo 'base(타겟 아님)'), single=base. 브랜치: $(sub_run 'git branch | tr -d "\n"')"
     # bootstrap 이 multi 를 이미 채움 → TARGETS 에서 multi 제거. 남은 타겟(single, --branch both/single)이 있으면 B1 로 진행.
     NEWT=(); for x in "${TARGETS[@]}"; do
@@ -2419,6 +2482,8 @@ for t in "${TARGETS[@]}"; do
         echo "           단 **에이전트 환경 오버레이는 배달한다** — 정체성·런타임 스킬이 곧 그 확장기능이다."
     fi
     echo "[sync] [$t] 증분 싱크 시작"
+    # (0) 원격 0 확증 — 매 타겟 시작에서, dirty 검사 앞(M1-① · B0 를 건너뛴 정기 동기화도 여기서 확증한다).
+    assert_sub_origin_zero "$t"
     # (1) dirty 체크 → 덮어쓰기 前 보존 (policy:SUB_SYNC_DIRTY_AUTOSAVE · plan_26081313)
     #   ⚠ 2026-08-13 교정: 옛 동작은 dirty 면 배달을 **거부**하고 "서브가 스스로 clean 화 후
     #   'ready-for-sync' 어테스트" 를 요구했다. 그 요구는 **평면 A(사용자↔메인)의 승인 규칙을
@@ -2456,6 +2521,9 @@ for t in "${TARGETS[@]}"; do
     fi
     deliver_overlay "$t" 0
     echo "[sync] 체크섬 검증($t)..."; verify_checksums "$t" "$SKIP_BUILDKIT" || { echo "[sync] FAIL: 체크섬 불일치($t)"; exit 2; }
+    # (3b) 배달 뒤 관측·판정 — 둘 다 여기서 끝내지 않는다(#2b · M1-② · 종료는 거래 마감 뒤).
+    observe_sub_env_mode "$t"
+    check_sub_push_transport "$t"
     if [ "$SKIP_BUILDKIT" != "1" ]; then
         verify_source_port_payload "$t" || { echo "[sync] FAIL: source-port 무결성 불일치($t)"; exit 2; }
         verify_destination_runner_modes "$t" || { echo "[sync] FAIL: runner destination mode 불일치($t)"; exit 2; }
@@ -2491,3 +2559,8 @@ sub_run "git checkout -q $REST_BRANCH" >/dev/null 2>&1 \
     || { echo "[sync] FAIL: 최종 $REST_BRANCH branch 복귀 실패" >&2; exit 8; }
 finalize_remote_transactions
 echo "[sync] 완료. (현재 서브 브랜치: $(sub_branch_current))"
+# M1-② 의 비-0 종료는 여기서만 낸다 — 배달 거래를 마감한 뒤라 배달된 내용(재장착에 필요한 새 소스 포함)은 남는다(h91).
+if [ ${#PUSH_TRANSPORT_BLOCKED[@]} -gt 0 ]; then
+    echo "[sync] STOP(PUSH_TRANSPORT_BLOCKED): ${PUSH_TRANSPORT_BLOCKED[*]} — $PUSH_TRANSPORT_GUIDE · 배달된 내용은 남았다(거래 마감 뒤 종료)." >&2
+    exit "$PUSH_TRANSPORT_EXIT"
+fi

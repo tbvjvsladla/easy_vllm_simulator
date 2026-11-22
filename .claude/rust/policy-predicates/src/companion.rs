@@ -105,10 +105,10 @@ fn test_check_smoke_model_has_no_download_machinery() -> R {
     Ok(())
 }
 
-fn test_manifest_template_hf_token_field_is_a_pointer_not_a_raw_value() -> R {
+/// plan_26112012 #11: the HF token has no manifest pointer any more (the key HF_TOKEN of the fixed envs/.env).
+fn test_manifest_template_carries_no_hf_token_pointer() -> R {
     let src = read("manifest.template.yaml")?;
-    assert_in("hf_token_env_file:", &src, None)?;
-    req(search("hf_token_env_file:\\s*\"\"", &src).is_some(), "Regex didn't match: 'hf_token_env_file:\\\\s*\"\"' not found")
+    assert_not_in("hf_token_env_file", &src, None)
 }
 
 fn test_wiki_desk_scripts_never_reference_the_flag_gate() -> R {
@@ -149,7 +149,7 @@ pub fn cases() -> Vec<Case> {
         Case { module: "companion_predicate", class: "TestLastGoodRollbackAnchorCompanion", name: "test_sync_branches_never_tags_or_hard_resets", f: test_sync_branches_never_tags_or_hard_resets },
         Case { module: "companion_predicate", class: "TestModelAcquisitionTernaryGateCompanion", name: "test_check_smoke_model_has_no_download_machinery", f: test_check_smoke_model_has_no_download_machinery },
         Case { module: "companion_predicate", class: "TestModelAcquisitionTernaryGateCompanion", name: "test_manifest_contract_enforces_ternary_model_source", f: test_manifest_contract_enforces_ternary_model_source },
-        Case { module: "companion_predicate", class: "TestModelAcquisitionTernaryGateCompanion", name: "test_manifest_template_hf_token_field_is_a_pointer_not_a_raw_value", f: test_manifest_template_hf_token_field_is_a_pointer_not_a_raw_value },
+        Case { module: "companion_predicate", class: "TestModelAcquisitionTernaryGateCompanion", name: "test_manifest_template_carries_no_hf_token_pointer", f: test_manifest_template_carries_no_hf_token_pointer },
         Case { module: "companion_predicate", class: "TestTerraformFlagGateCompanion", name: "test_wiki_desk_scripts_never_reference_the_flag_gate", f: test_wiki_desk_scripts_never_reference_the_flag_gate },
     ]
 }

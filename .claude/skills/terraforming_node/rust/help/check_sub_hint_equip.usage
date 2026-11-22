@@ -1,4 +1,6 @@
 usage: check_sub_hint_equip.sh [-h] [--workspace WORKSPACE] [--clone]
                                [--remote-url REMOTE_URL]
                                [--write-push-authority] [--utc UTC]
-                               [--self-test]
+                               [--self-test] [--push-transport]
+                               [--narrow-env-mode]
+                               [--sub-workspace-shared {shared,distinct,unknown}]
