@@ -27240,6 +27240,504 @@
           "provenance": "agent-judged"
         }
       ]
+    },
+    {
+      "entry_id": "sync-202611220032-single-to-multi-git-credential-key-ledger",
+      "utc": "2026-11-22T00:32:00Z",
+      "departure": "single-node",
+      "departure_commit": "69d9ee7e524aa668f7090d52342e453d1e1c9b05",
+      "approved_by": "AhnSangHun: 중계 답 원문 \"① 이대로 승인 (워커 권고)\" (질문 n-gc-classification · val_agent 오케스트레이터 중계 · source=user · 2026-11-22T00:39:07.794Z)",
+      "approved_utc": "2026-11-22T00:39:07Z",
+      "_reach": "multi-node vs HEAD 트리차이 · 동기 지점 d3a52f861604(departure-landed, 착지 384e64051894)",
+      "_note": "81행 전부 common_promote. 행 집합 = git diff --name-only d3a52f86 69d9ee7e 81경로(A 2 · M 79 · D 0 · g-gc 20커밋)이며 bundle/ggc_paths.txt(81)와 같고 preflight 빈칸 81행과도 같다. 특화층(*.topology.md · 브랜치별 HINTS.md)은 넣지 않았다. 고정 표면 판단(plan_26111808 §2.3): g-gc 는 고정 표면을 바꾼다 — sync_to_sub(종료 코드 13·새 로그 줄) · check_sub_hint_equip(--push-transport·--narrow-env-mode·판정 키) · scan_node(--narrow-env-mode) · node_role_contract(필드 sub_workspace_shared) · push_branches(사유코드 BRANCH_PUSH_HTTPS_REFUSED) · hint branch-transition(새 거부 코드). 승인 근거는 W 배달 testlog testlog_26112204_..._git자격키대장배달_w_gc 의 승인 전사(divergence 32행 = h106–h109 gate 전 HITL · h116 · h119 새 행 · h107·h108·h116 포함, h86·h87·h90·h106–h108·h112·h116·h117·h119 결정, 배달 승인 h121)다. 이 판단은 해당 행 reason 에 적었다.",
+      "classification": [
+        {
+          "file": ".claude/policies/claim_bindings.json",
+          "verdict": "common_promote",
+          "reason": "K1 ENV_SECRET_KEY_LEDGER 와 SUB_GIT_LOCAL_ONLY·HINT C4·MODEL_ACQUISITION C4 의 술어 결속 행. 정책 레지스트리는 양 브랜치가 같은 v3 를 읽는 공통 권위다(h85 · c80 2회차). 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/registry.yaml",
+          "verdict": "common_promote",
+          "reason": "ENV_SECRET_KEY_LEDGER(K1) 신설 · SUB_GIT_LOCAL_ONLY scope 에 single-node 추가(#8) · HINT·MODEL_ACQUISITION 문안(h85·h89·h94·h101). 레지스트리는 공통층이며 배달 뒤 두 브랜치 blob 이 같아야 한다(빠진 파일 검사 (c)).",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/parity/cases/hp_branch.json",
+          "verdict": "common_promote",
+          "reason": "hint branch-transition 새 거부 코드(고정 표면 변경)에 맞춘 parity 사례 정의. 새 거부 코드 승인: divergence 행 h106–h109 · h116 · h119 · 배달 h121. 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/parity/data/HP-branch-transition/meta.json",
+          "verdict": "common_promote",
+          "reason": "branch-transition 고정 표면(새 거부 코드) 변경에 따른 골든 메타. 승인 근거 divergence 행(h106–h109 · h116 · h119) · h121. 양 브랜치 같은 골든.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/parity/data/HP-branch-transition/stdout",
+          "verdict": "common_promote",
+          "reason": "branch-transition 새 거부 코드 출력 골든(고정 표면 변경). 승인 근거 divergence 행 · h121.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/parity/data/HP-cli-help-branch-transition/meta.json",
+          "verdict": "common_promote",
+          "reason": "--remote 도움말 문구 변경(c81 D3 dv-hp-help-bt)의 골든 메타. 범위 안 수용 h88, 정식 divergence 승인 h106–h109, 배달 h121.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/parity/data/HP-cli-help-branch-transition/stdout",
+          "verdict": "common_promote",
+          "reason": "branch-transition 도움말 골든(고정 표면 변경, D3). h88 · h106–h109 · h121.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/parity/data/S2-07-push-help/meta.json",
+          "verdict": "common_promote",
+          "reason": "push_branches 도움말(ssh-only 정책 · 새 사유코드 BRANCH_PUSH_HTTPS_REFUSED — 고정 표면 변경)의 골든 메타. 승인 divergence 행 h106–h109 · h121.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/parity/data/S2-07-push-help/stdout",
+          "verdict": "common_promote",
+          "reason": "push_branches 도움말 출력 골든(고정 표면 변경). h95 · h106–h109 · h121.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/parity/data/TC-04-clone-undeclared/meta.json",
+          "verdict": "common_promote",
+          "reason": "check_sub_hint_equip 새 모드·판정 키(고정 표면 변경)에 따른 골든 메타. 승인 divergence 행 h106–h109 · h114–h116 · h121.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/parity/data/TC-04-clone-undeclared/stderr",
+          "verdict": "common_promote",
+          "reason": "check_sub_hint_equip --clone 미선언 stderr 골든(고정 표면 변경). 같은 승인 근거 h106–h109 · h116 · h121.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/parity/data/TC-04-evaluate-env/meta.json",
+          "verdict": "common_promote",
+          "reason": "node_role_contract evaluate 의 새 필드 sub_workspace_shared(고정 표면 변경)에 따른 골든 메타. h106–h109 · h121.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/parity/data/TC-04-evaluate-env/stdout",
+          "verdict": "common_promote",
+          "reason": "evaluate 출력의 sub_workspace_shared 필드 골든(고정 표면 변경). h106–h109 · h121.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/parity/data/TC-04-evaluate-inside/meta.json",
+          "verdict": "common_promote",
+          "reason": "evaluate 새 필드 골든 메타(고정 표면 변경). 승인 h106–h109 · h121.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/parity/data/TC-04-evaluate-inside/stdout",
+          "verdict": "common_promote",
+          "reason": "evaluate 새 필드 출력 골든(고정 표면 변경). h106–h109 · h121.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/parity/data/TC-04-evaluate-missing-dir/meta.json",
+          "verdict": "common_promote",
+          "reason": "evaluate 새 필드 골든 메타(고정 표면 변경). h106–h109 · h121.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/parity/data/TC-04-evaluate-missing-dir/stdout",
+          "verdict": "common_promote",
+          "reason": "evaluate 새 필드 출력 골든(고정 표면 변경). h106–h109 · h121.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/parity/data/TC-04-evaluate/meta.json",
+          "verdict": "common_promote",
+          "reason": "evaluate 새 필드 골든 메타(고정 표면 변경). h106–h109 · h121.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/parity/data/TC-04-evaluate/stdout",
+          "verdict": "common_promote",
+          "reason": "evaluate 새 필드 출력 골든(고정 표면 변경). h106–h109 · h121.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/parity/data/TC-04-help/meta.json",
+          "verdict": "common_promote",
+          "reason": "node_role_contract 도움말 골든 메타(새 필드 서술 · 고정 표면 변경). h106–h109 · h121.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/parity/data/TC-04-help/stdout",
+          "verdict": "common_promote",
+          "reason": "node_role_contract 도움말 출력 골든(고정 표면 변경). h106–h109 · h121.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/parity/data/TC-04-self-test/meta.json",
+          "verdict": "common_promote",
+          "reason": "node_role_contract 자체검사 33→39 확장(manifest-pair 6검사)에 따른 골든 메타. h106–h109 · h121.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/parity/data/TC-04-self-test/stdout",
+          "verdict": "common_promote",
+          "reason": "자체검사 --- 39/39 PASS 출력 골든(고정 표면 변경). h106–h109 · h121.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-distribution/checks/contract_checks.rs",
+          "verdict": "common_promote",
+          "reason": "배포 검사 계약 시험에 g-gc 항목(새 검사 행) 반영. 배포 검사는 양 브랜치 공통(원장 과거 판정 common_promote). 토폴로지 분기 없음.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-distribution/src/checks.rs",
+          "verdict": "common_promote",
+          "reason": "verify_distribution 검사 소스 — g-gc 의 새 경로·표면을 배포 검사에 반영. 검사 대상은 양 브랜치 공통 추적물이다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-predicates/checks/data/mutations.json",
+          "verdict": "common_promote",
+          "reason": "K1·HF_TOKEN 술어의 변이(mutation) 대조 데이터(c80 · c83 · h96). 술어는 공통 정책을 집행하므로 공통.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-predicates/checks/data/negative_goldens.json",
+          "verdict": "common_promote",
+          "reason": "K1 C1–C4 음성대조 골든(predicate count 75→79). 공통 정책 술어의 시험 데이터.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-predicates/checks/data/orig_verdict.json",
+          "verdict": "common_promote",
+          "reason": "술어 원판정 골든(새 술어 4개 반영). 공통 술어 시험 데이터.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-predicates/checks/hint_checks.rs",
+          "verdict": "common_promote",
+          "reason": "HINT_TAG_ACTIVATION_GATE C4 술어 변경(S1 문장 · 부분 (6) · is_ok_and)의 시험. 공통 정책 술어.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-predicates/checks/predicate_checks.rs",
+          "verdict": "common_promote",
+          "reason": "K1 술어 C1–C4 시험(predicate_count 79). 공통 정책 술어의 시험.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-predicates/checks/tf_checks.rs",
+          "verdict": "common_promote",
+          "reason": "HF_TOKEN 열쇠 규칙(#11) 술어 시험. MODEL_ACQUISITION C4 는 공통 정책이다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-predicates/src/claims.rs",
+          "verdict": "common_promote",
+          "reason": "claim 술어 소스 — K1·SUB_GIT_LOCAL_ONLY·HINT 술어 연결. 공통 술어 엔진.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-predicates/src/claims_hint.rs",
+          "verdict": "common_promote",
+          "reason": "HINT C4 술어 부분 (6)(S1 문장, equip 라이브러리 in-process) 소스. 공통 정책 술어.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-predicates/src/claims_text.rs",
+          "verdict": "common_promote",
+          "reason": "정책 문안 판독 보조(K1 문장·scope 읽기). 공통 술어 엔진.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-predicates/src/claims_tf.rs",
+          "verdict": "common_promote",
+          "reason": "K1·MODEL_ACQUISITION C4 술어 소스(HF_TOKEN 열쇠 · envs/.env mode). 공통 정책 술어.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/policy-predicates/src/companion.rs",
+          "verdict": "common_promote",
+          "reason": "companion 술어에 K1 owner 진입점(push_branches::refuses_http_push_address · check_sub_hint_equip::narrow_env_value) 연결(c80 owner entry points, 표면 변경 없음). 공통.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/role-contract/checks/role_contract_checks.rs",
+          "verdict": "common_promote",
+          "reason": "role-contract 계약 시험에 sub_workspace_shared · env_file_mode 항목. node_role_contract 는 양 토폴로지가 manifest 에서 파생하는 공통 계약기다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/role-contract/checks/scan_node_probe_checks.rs",
+          "verdict": "common_promote",
+          "reason": "서브 HF_TOKEN 프로브(스크래치 작업 폴더 위에서 main 규칙 hf_token_present 와 동일 응답) 시험(r1-c83-B1). 공통.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/role-contract/src/env_file_mode.rs",
+          "verdict": "common_promote",
+          "reason": "신규(A). envs/.env 모드를 lstat 로 보고 mode & 0o600 으로만 좁히는 공유 보정(#2 #2b). 양 토폴로지 노드가 같은 규칙을 쓴다. 신규 모듈이라 고정 표면 추가(h106–h109 · h121 승인).",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/role-contract/src/env_secret.rs",
+          "verdict": "common_promote",
+          "reason": "신규(A). HF_TOKEN '값 있음' 규칙의 바이트 판정(ASCII 0x21–0x7E, 따옴표 제외; h115·h117). 메인 규칙과 서브 프로브가 같은 집합을 읽는다. 공통.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/role-contract/src/lib.rs",
+          "verdict": "common_promote",
+          "reason": "role-contract 라이브러리에 새 모듈 둘(env_file_mode · env_secret) 등록. 공통 크레이트.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/role-contract/src/scan_node_manifest.rs",
+          "verdict": "common_promote",
+          "reason": "scan_node manifest 판정에 HF_TOKEN 열쇠 bool 과 --narrow-env-mode 보정(고정 표면: scan_node --narrow-env-mode). h106–h109 · h121. 공통.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/role-contract/src/scan_node_probe.rs",
+          "verdict": "common_promote",
+          "reason": "scan_node 프로브의 HF_TOKEN 판독을 envs/.env 고정 작업공간 열쇠로 정렬(h96·#11). 공통.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/role-contract/src/self_test.rs",
+          "verdict": "common_promote",
+          "reason": "node_role_contract 자체검사 33→39(manifest-pair 6검사, 새 필드 sub_workspace_shared · 고정 표면 변경). 시험 이름 바뀜은 사람이 0 으로 수용(testlog §5 · 질문 w-gc-role-contract-test-rename). 공통.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/runtime-support/contract/consumers.md",
+          "verdict": "common_promote",
+          "reason": "계약 인벤토리(소비자 목록) 서술 — push_branches 이름 변경 · sub_mode 질의 · sync_to_sub 의 --push-transport 호출 반영(#5d M1). 공통 계약 문서.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/runtime-support/contract/consumers.tsv",
+          "verdict": "common_promote",
+          "reason": "계약 인벤토리 consumers 행 추가(8e403db7). 양 브랜치 같은 인벤토리.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/scan_node/p1_golden.json",
+          "verdict": "common_promote",
+          "reason": "scan_node P1 골든(--narrow-env-mode · HF_TOKEN bool 판정 키 — 고정 표면 변경). h106–h109 · h121. 공통.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/scan_node/p23_golden.json",
+          "verdict": "common_promote",
+          "reason": "scan_node P2·P3 골든(같은 고정 표면 변경). h106–h109 · h121. 공통.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/scan_node_boundary_cases.rs",
+          "verdict": "common_promote",
+          "reason": "scan_node 경계 사례 시험에 envs/.env 모드·HF_TOKEN 사례. 공통.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/scan_node_p2_api_cases.rs",
+          "verdict": "common_promote",
+          "reason": "scan_node P2 API 사례 시험(--narrow-env-mode). 공통.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/bin/scan_node.rs",
+          "verdict": "common_promote",
+          "reason": "scan_node bin — 새 플래그 --narrow-env-mode(고정 표면 변경, 승인 h106–h109 · h121). 메인 작업공간 envs/.env 를 mode & 0o600 으로 좁힌다. 양 토폴로지 공통 실행체.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/scan_node_bridge.rs",
+          "verdict": "common_promote",
+          "reason": "scan_node 브리지에 --narrow-env-mode 전달. 공통.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/scan_node_cli.rs",
+          "verdict": "common_promote",
+          "reason": "scan_node CLI 인자 구문에 --narrow-env-mode(고정 표면 변경). h106–h109 · h121. 공통.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/SKILL.md",
+          "verdict": "common_promote",
+          "reason": "branch-transition 은 메인·ssh 만, 태그 원격 origin, 자격 서술 분리(#1 #13 #5b)의 스킬 서술. hint 발행 엔진 문서는 양 토폴로지 공통 빌딩블럭.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/rust/checks/branch_cases.rs",
+          "verdict": "common_promote",
+          "reason": "branch-transition 새 거부 코드(고정 표면 변경) 시험. 승인 h106–h109 · h121. 공통.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/rust/src/branch.rs",
+          "verdict": "common_promote",
+          "reason": "hint branch-transition 이 메인·ssh 키로만 동작하고 https PAT 로 밀지 않도록 한 구현(#1, h86·h87) — 새 거부 코드(고정 표면 변경). 공통 실행체.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/rust/src/cli/mod.rs",
+          "verdict": "common_promote",
+          "reason": "hint CLI 의 --remote 도움말 문구 변경(D3, h88) · 거부 코드 배선. 공통.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/SKILL.md",
+          "verdict": "common_promote",
+          "reason": "terraforming_node 라우터 — 서브 재장착 순서·push 전송 고정·envs/.env 좁힘 서술. 이 스킬은 양 토폴로지 공통 정본(특화층 아님 · *.topology.md 아님).",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/references/install/onboarding.md",
+          "verdict": "common_promote",
+          "reason": "온보딩 절차에 envs/.env 모드 좁힘·HF_TOKEN 열쇠 규칙 반영. 공통 references.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/references/install/sub_agent_env.md",
+          "verdict": "common_promote",
+          "reason": "서브 환경 설치 절차(재빌드 → 재장착 순서, push 주소 https 고정, 승인 h90). 공통 references.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/checks/contract_checks.rs",
+          "verdict": "common_promote",
+          "reason": "terraforming 계약 시험에 check_sub_hint_equip 새 모드·종료 3(D6) 반영. 공통.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/help/check_sub_hint_equip.help",
+          "verdict": "common_promote",
+          "reason": "check_sub_hint_equip 도움말에 --push-transport · --narrow-env-mode(고정 표면 변경). h106–h109 · h121. 공통.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/help/check_sub_hint_equip.usage",
+          "verdict": "common_promote",
+          "reason": "check_sub_hint_equip 사용법 줄(새 모드 · 고정 표면 변경). 공통.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/src/check_sub_hint_equip.rs",
+          "verdict": "common_promote",
+          "reason": "hint 클론 push 주소를 https 로 고정(S1)·push URL 판독·--push-transport(M1-2, 판독 실패 = 종료 3, D6)·--narrow-env-mode. 고정 표면 변경(승인 h97–h101 · h106–h109 · h112 · h116 · h121). 공통 실행체.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/rust/src/selftests/sub_hint_write_scopes.rs",
+          "verdict": "common_promote",
+          "reason": "equip 자체검사 22→46(새 모드·판정 키 시험). 공통.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/scan_node.sh",
+          "verdict": "common_promote",
+          "reason": "scan_node 런처가 --narrow-env-mode 를 통과시킨다(고정 표면). 공통 런처.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/templates/requests/sub_hint_push_equip.md",
+          "verdict": "common_promote",
+          "reason": "서브 재장착 수행지시 템플릿(재빌드 → --clone → --narrow-env-mode → --write-push-authority 순서). 공통 템플릿.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/SKILL.md",
+          "verdict": "common_promote",
+          "reason": "sync_to_sub 의 배달마다 origin 0 증명 · env 모드 줄 · push-transport 차단(종료 13 은 정상 차단)을 서술(#3 M1, #2b). 이 스킬은 공통 정본.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/rust/runtime/checks/contract_checks.rs",
+          "verdict": "common_promote",
+          "reason": "upstream runtime 계약 시험(sync_to_sub 종료 13 · push_branches 사유코드 고정 표면). 공통.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/rust/runtime/src/help/push_branches.txt",
+          "verdict": "common_promote",
+          "reason": "push_branches 도움말에 ssh-only 정책 서술(#9 #5a #5c #5d · h95). 고정 표면 변경, 승인 h106–h109 · h121. 공통.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/rust/runtime/src/push_branches.rs",
+          "verdict": "common_promote",
+          "reason": "push_branches 가 선언된 push 주소(pushurl, 없으면 url)를 판정 — 새 사유코드 BRANCH_PUSH_HTTPS_REFUSED(고정 표면 변경, 승인 h95·h106–h109·h121). 공통 실행체.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/rust/runtime/src/push_branches_selftest.rs",
+          "verdict": "common_promote",
+          "reason": "push_branches 자체검사 11→15 ok. 공통.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/rust/runtime/src/role_main.rs",
+          "verdict": "common_promote",
+          "reason": "sync_to_sub 가 sub_mode 를 질의·--push-transport 호출·origin 0 증명(종료 13 = 새 종료 코드, D12 종료 7)의 역할 진입. 고정 표면 변경, 승인 h90–h92 · h106–h109 · h121. 공통.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/closing_sequence.sh",
+          "verdict": "common_promote",
+          "reason": "closing_sequence ⑥ 이 sync_to_sub 종료 코드로 서브 전파 원인을 명시(push-transport 차단은 정상 차단 · 7 = origin 0 증명 D12). r1-c82-B1 · h112. 공통 스크립트.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/fetch_sub_docs.sh",
+          "verdict": "common_promote",
+          "reason": "fetch_sub_docs 가 캠페인 판정 하나로 동작, _bootstrap 은 '가져오지 않음'을 말한다(N1). 공통 스크립트.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/push_branches.sh",
+          "verdict": "common_promote",
+          "reason": "push_branches 런처(이름 변경 · 새 사유코드 전달, 고정 표면). 공통 런처.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
+          "verdict": "common_promote",
+          "reason": "sync_to_sub — 새 종료 코드 13(push-transport 정상 차단, 배달 거래 마감 뒤 종료 h91)·새 로그 줄·origin 0 증명·envs/.env 종류·모드 기록(관찰만)·ray-worker not_applicable(h92). 고정 표면 변경, 승인 h90–h92 · h106–h109 · h121. 공통 스크립트이며 이번 회차는 --no-sub 로 서브에 닿지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": "CLAUDE.md",
+          "verdict": "common_promote",
+          "reason": "안전 경계에 ENV_SECRET_KEY_LEDGER 한 줄(policy:ENV_SECRET_KEY_LEDGER, K1 · plan_26112012 #4). 공통 헌법 본문이며 이 브랜치에서만 참인 산문이 아니다(과거 판정 common_promote).",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": "README.md",
+          "verdict": "common_promote",
+          "reason": "온보딩 서사의 git 자격·ssh-only·envs/.env 서술 정정(4행 증감). 양 브랜치 동일 문서(원장 과거 판정 common_promote).",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": "hints/HINT_ISSUANCE_CONTRACT.md",
+          "verdict": "common_promote",
+          "reason": "hint 발행 계약의 자격 서술(GITHUB_TOKEN = 태그 push·조회 전용, branch push 는 ssh)과 S1 문장 반영. 브랜치 무관 배포 빌딩블럭(원장 과거 판정 common_promote; 동기화 제외는 index.json·HINTS.md 뿐).",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": "manifest.template.yaml",
+          "verdict": "common_promote",
+          "reason": "manifest 템플릿에서 HF_TOKEN 포인터 키 1줄 삭제(#11, h96 — 포인터 폐기, 열쇠는 고정 작업공간 envs/.env). 단일 계약 인터페이스는 공통(원장 과거 판정 common_promote).",
+          "provenance": "agent-judged"
+        }
+      ]
     }
   ]
 }
